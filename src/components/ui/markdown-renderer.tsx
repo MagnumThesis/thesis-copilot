@@ -184,12 +184,12 @@ const COMPONENTS = {
   hr: withClass("hr", "border-foreground/20"),
 }
 
-function withClass(Tag: keyof JSX.IntrinsicElements, classes: string) {
+function withClass(Tag: keyof React.JSX.IntrinsicElements, classes: string) {
   const Component = ({ node, ...props }: any) => (
     <Tag className={classes} {...props} />
-  )
-  Component.displayName = Tag
-  return Component
+  );
+  Component.displayName = Tag as string;
+  return Component;
 }
 
 export default MarkdownRenderer

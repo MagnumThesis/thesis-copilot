@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/sidebar";
 import IdeaSidebarItem from "@/react-core/idea";
 import { useLocation, useNavigate } from "react-router-dom";
+import Chatbot from "./Chatbot";
 
 const items = [
   new IdeaSidebarItem("Example Idea", "1"),
@@ -48,6 +49,7 @@ function Landing() {
         {item.url.length == 0 ? (
           <>
             <h1>Start a new Idea</h1>
+            <Chatbot />
           </>
         ) : (
           <></>

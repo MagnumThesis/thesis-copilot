@@ -1,23 +1,31 @@
 import { Hono } from "hono";
 import { streamText, UIMessage, convertToModelMessages } from 'ai';
-import { google } from "@ai-sdk/google";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
+
+interface Env {
+  GOOGLE_GENERATIVE_AI_API_KEY: string;
+}
 
 const app = new Hono<{ Bindings: Env }>();
 
 app.get("/api/", (c) => c.json({ name: "Cloudflare" }));
 
-
-app.post('/', async (c) => {
-  // Get the request body from the Hono context
+app.post('/api/chat', async (c) => {
   const { messages }: { messages: UIMessage[] } = await c.req.json();
 
-  // Create the streaming text result
+  // Fallback to process.env for local testing without wrangler
+  const keylocal = import.meta.env.VITE_GOOGLE_GENERATIVE_AI_API_KEY;
+  const keywrangler = c.env.GOOGLE_GENERATIVE_AI_API_KEY;
+
+  const apiKey = keywrangler ? keywrangler : keylocal;
+
+  const google = createGoogleGenerativeAI({ apiKey });
+
   const result = streamText({
-    model:  google('gemini-2.5-flash'),
+    model: google('gemini-2.5-flash'),
     messages: convertToModelMessages(messages),
   });
 
-  // Use the ai library's helper to convert the stream to a Hono-compatible response
   return result.toUIMessageStreamResponse();
 });
 
