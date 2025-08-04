@@ -2,10 +2,12 @@ import { Hono } from "hono";
 import { streamText, UIMessage, convertToModelMessages } from 'ai';
 // import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
+import { createVercel } from '@ai-sdk/vercel';
 
 interface Env {
   GOOGLE_GENERATIVE_AI_API_KEY: string;
-  OPENROUTER_API_KEY:string;
+  OPENROUTER_API_KEY: string;
+  VERCEL_API_KEY: string;
 }
 
 const app = new Hono<{ Bindings: Env }>();
@@ -38,7 +40,7 @@ app.post('/api/chat', async (c) => {
       model: openrouter.chat("google/gemini-2.0-flash-exp:free"),
       messages: convertToModelMessages(messages),
       onError: (e) => {
-        throw(e);
+        throw (e);
       }
     });
 
@@ -53,6 +55,40 @@ app.post('/api/chat', async (c) => {
     );
   }
 });
+
+app.post('/api/chat/vercel', async (c) => {
+  try {
+
+    const { messages }: { messages: UIMessage[] } = await c.req.json();
+
+    const keylocal = import.meta.env.VITE_VERCEL_API_KEY;
+    const keywrangler = c.env.VERCEL_API_KEY;
+
+    const apiKey = keywrangler ? keywrangler : keylocal;
+
+    const vercel = createVercel({
+      apiKey: apiKey,
+    });
+
+    const result = streamText({
+      model: vercel('v0-1.5-md'),
+      messages: convertToModelMessages(messages),
+      onError: (e) => {
+        throw (e);
+      }
+    });
+    return result.toUIMessageStreamResponse();
+
+  }
+  catch (err: any) {
+    console.error('Error in /api/chat:', err);
+
+    return c.json(
+      { error: 'An error occurred while processing your request.', details: err.message || String(err) },
+      500
+    );
+  }
+})
 
 
 export default app;
