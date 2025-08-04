@@ -1,10 +1,11 @@
 import { Hono } from "hono";
-import { openai } from '@ai-sdk/openai';
 import { streamText, UIMessage, convertToModelMessages } from 'ai';
+import { google } from "@ai-sdk/google";
 
 const app = new Hono<{ Bindings: Env }>();
 
 app.get("/api/", (c) => c.json({ name: "Cloudflare" }));
+
 
 app.post('/', async (c) => {
   // Get the request body from the Hono context
@@ -12,7 +13,7 @@ app.post('/', async (c) => {
 
   // Create the streaming text result
   const result = streamText({
-    model: openai('gpt-4o'),
+    model:  google('gemini-2.5-flash'),
     messages: convertToModelMessages(messages),
   });
 
