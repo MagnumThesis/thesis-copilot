@@ -16,10 +16,13 @@ import {
 import IdeaSidebarItem from "@/react-core/idea";
 import { useState } from "react";
 
-const items = [new IdeaSidebarItem("Example Idea", "#")];
+const items = [new IdeaSidebarItem("Example Idea", "1"), new IdeaSidebarItem("Example Idea 2", "2")];
 
 function Landing() {
   const [selectedIdea, setSelectedIdea] = useState(items[0]);
+
+  
+
   return (
     <SidebarProvider>
       <AppSidebar items={items} />
