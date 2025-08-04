@@ -16,6 +16,7 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar"
 import IdeaSidebarItem from "@/react-core/idea"
+import { Link } from "react-router-dom"
 
 
 
@@ -51,7 +52,8 @@ export function AppSidebar({items, ...props }: React.ComponentProps<typeof Sideb
                 {item.items.map((item) => (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild isActive={item.isActive}>
-                      <a href={item.url}>{item.title}</a>
+                      {/* <a href={item.url}>{item.title}</a> */}
+                      <Link to={`/${item.url}`}>{item.title}</Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}

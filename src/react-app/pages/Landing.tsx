@@ -14,13 +14,14 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import IdeaSidebarItem from "@/react-core/idea";
-import { useState } from "react";
+import { useLocation } from "react-router-dom";
 
 const items = [new IdeaSidebarItem("Example Idea", "1"), new IdeaSidebarItem("Example Idea 2", "2")];
 
 function Landing() {
-  const [selectedIdea, setSelectedIdea] = useState(items[0]);
+  const location = useLocation();
 
+  const item = items.find((item => item.url == location.pathname.slice(1)))
   
 
   return (
@@ -36,7 +37,7 @@ function Landing() {
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem>
-                <BreadcrumbPage>{selectedIdea.title}</BreadcrumbPage>
+                <BreadcrumbPage>{item.title}</BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>

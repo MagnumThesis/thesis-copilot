@@ -1,24 +1,36 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
-import {default as Starter} from "./App.tsx";
-import Landing from "./Landing.tsx";
+import { default as Starter } from "./App.tsx";
+import Landing from "./pages/Landing.tsx";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import IdeaDetail from "./pages/IdeaDetail.tsx";
+import IdeaDefaultContent from "./pages/IdeaDefaultContent.tsx";
 
-const appToRender : string = import.meta.env.VITE_MAIN_PAGE || "STARTER";
+const appToRender: string = import.meta.env.VITE_MAIN_PAGE || "STARTER";
 
+function Router() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Landing />} />
+        <Route path="/:ideaId" element={<Landing />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
 
-export default function Pager() {
+function Pager() {
   switch (appToRender) {
     case "LANDING":
-      return <Landing />;
+      return <Router />;
     default:
       return <Starter />;
   }
 }
 
-
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <Pager />
-  </StrictMode>,
+  </StrictMode>
 );
