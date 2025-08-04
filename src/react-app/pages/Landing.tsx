@@ -14,19 +14,24 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import IdeaSidebarItem from "@/react-core/idea";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
-const items = [new IdeaSidebarItem("Example Idea", "1"), new IdeaSidebarItem("Example Idea 2", "2")];
+const items = [
+  new IdeaSidebarItem("Example Idea", "1"),
+  new IdeaSidebarItem("Example Idea 2", "2"),
+];
 
 function Landing() {
   const location = useLocation();
+  const navigate = useNavigate();
 
-  const item = items.find((item => item.url == location.pathname.slice(1)))
-  
+  const item =
+    items.find((item) => item.url == location.pathname.slice(1)) ||
+    new IdeaSidebarItem("New", "");
 
   return (
     <SidebarProvider>
-      <AppSidebar items={items} />
+      <AppSidebar items={items} onNew={() => {navigate("/")}}/>
       <SidebarInset>
         <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
           <SidebarTrigger className="-ml-1" />
@@ -42,6 +47,13 @@ function Landing() {
             </BreadcrumbList>
           </Breadcrumb>
         </header>
+        {item.url.length == 0 ? (
+          <>
+            <h1>Start a new Idea</h1>
+          </>
+        ) : (
+          <></>
+        )}
       </SidebarInset>
     </SidebarProvider>
   );

@@ -20,7 +20,7 @@ import { Link } from "react-router-dom"
 
 
 
-export function AppSidebar({items, ...props }: React.ComponentProps<typeof Sidebar> & {items: IdeaSidebarItem[]}) {
+export function AppSidebar({onNew, items, ...props }: React.ComponentProps<typeof Sidebar> & {items: IdeaSidebarItem[], onNew : () => void}) {
   const data = {
   navMain: [
     {
@@ -35,7 +35,7 @@ export function AppSidebar({items, ...props }: React.ComponentProps<typeof Sideb
       <SidebarHeader>
         <div className="flex items-center justify-between p-2">
           <h2 className="text-lg font-semibold">My Ideas</h2>
-          <Button size="sm" className="h-8 w-8 p-0">
+          <Button size="sm" className="h-8 w-8 p-0" onClick={onNew}>
             <Plus className="h-4 w-4" />
             <span className="sr-only">Add new idea</span>
           </Button>
