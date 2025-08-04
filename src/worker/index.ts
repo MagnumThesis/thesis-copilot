@@ -1,9 +1,11 @@
 import { Hono } from "hono";
 import { streamText, UIMessage, convertToModelMessages } from 'ai';
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
+// import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 
 interface Env {
   GOOGLE_GENERATIVE_AI_API_KEY: string;
+  OPENROUTER_API_KEY:string;
 }
 
 const app = new Hono<{ Bindings: Env }>();
@@ -15,19 +17,29 @@ app.post('/api/chat', async (c) => {
     const { messages }: { messages: UIMessage[] } = await c.req.json();
 
     // Fallback to process.env for local testing without wrangler
-    const keylocal = import.meta.env.VITE_GOOGLE_GENERATIVE_AI_API_KEY;
-    const keywrangler = c.env.GOOGLE_GENERATIVE_AI_API_KEY;
+    // const keylocal = import.meta.env.VITE_GOOGLE_GENERATIVE_AI_API_KEY;
+    // const keywrangler = c.env.GOOGLE_GENERATIVE_AI_API_KEY;
+    const keylocal = import.meta.env.VITE_OPENROUTER_API_KEY;
+    const keywrangler = c.env.OPENROUTER_API_KEY;
 
     const apiKey = keywrangler || keylocal;
     if (!apiKey) {
       return c.json({ error: 'API key is missing.' }, 500);
     }
 
-    const google = createGoogleGenerativeAI({ apiKey });
+    // const google = createGoogleGenerativeAI({ apiKey });
+    const openrouter = createOpenRouter({
+      apiKey: apiKey,
+    });
+
+
 
     const result = streamText({
-      model: google('gemini-2.5-flash'),
+      model: openrouter.chat("google/gemini-2.0-flash-exp:free"),
       messages: convertToModelMessages(messages),
+      onError: (e) => {
+        throw(e);
+      }
     });
 
 
