@@ -1,7 +1,8 @@
 import { Context, Hono } from "hono";
 import { streamText, UIMessage, convertToModelMessages } from 'ai';
-import { createOpenRouter } from '@openrouter/ai-sdk-provider';
+// import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { getSupabase, SupabaseEnv } from "./supabase";
+import { createGoogleGenerativeAI } from "@ai-sdk/google"
 
 interface Env {
   GOOGLE_GENERATIVE_AI_API_KEY: string;
@@ -18,8 +19,8 @@ app.post('/api/chat', async (c) => {
     console.log(c.req.json())
     const supabase = getSupabase(c.env);
 
-    const keylocal = import.meta.env.VITE_OPENROUTER_API_KEY;
-    const keywrangler = c.env.OPENROUTER_API_KEY;
+    const keylocal = import.meta.env.VITE_GOOGLE_GENERATIVE_AI_API_KEY;
+    const keywrangler = c.env.GOOGLE_GENERATIVE_AI_API_KEY;
 
     const apiKey = keywrangler || keylocal;
     if (!apiKey) {
@@ -39,12 +40,22 @@ app.post('/api/chat', async (c) => {
       }
     }
 
-    const openrouter = createOpenRouter({
+    // const openrouter = createOpenRouter({
+    //   apiKey: apiKey,
+    // });
+
+    const google = createGoogleGenerativeAI({
       apiKey: apiKey,
     });
 
+
     const result = streamText({
-      model: openrouter.chat("google/gemini-2.0-flash-exp:free"),
+      model: google("gemini-2.5-flash-lite"),
+      tools: {
+        google_search: google.tools.googleSearch({}),
+        url_context: google.tools.urlContext({}),
+        
+      },
       system: "You're an assitant that will help the user come up or suggest ideas for thesis proposal and provide steps to complete the user's desired proposal. Your idea suggestions must be a list, with very minimal descriptions. Only provide in-depth detail when the user is interested in a particular idea",
       messages: convertToModelMessages(messages),
       onError: (e) => {

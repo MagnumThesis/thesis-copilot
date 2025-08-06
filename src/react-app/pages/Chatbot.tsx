@@ -30,11 +30,11 @@ function Chatbot({ chatId, initialMessages }: ChatbotProps) {
 
   const handleSubmit = (
     event?: { preventDefault?: () => void },
+    options?: { experimental_attachments?: FileList }
   ): void => {
     // Safely call preventDefault if it exists
     event?.preventDefault?.();
-    console.log(chatId);
-    sendMessage({ text: input});
+    sendMessage({ text: input, files: options?.experimental_attachments });
     setInput("");
   };
 
@@ -43,6 +43,7 @@ function Chatbot({ chatId, initialMessages }: ChatbotProps) {
   };
 
   const messages: Message[] = useMemo(() => {
+    console.log(rawMessages)
     return rawMessages.map(
       (message) => {
         const m: Message = {
@@ -58,9 +59,6 @@ function Chatbot({ chatId, initialMessages }: ChatbotProps) {
     )
   }, [rawMessages]);
 
-  useEffect(() => {
-    console.log(messages)
-  }, [messages])
 
 
   return (
