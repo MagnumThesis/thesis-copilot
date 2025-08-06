@@ -144,7 +144,7 @@ function Landing() {
     !selectedItem ? <></> :
       <SidebarProvider>
         <AppSidebar items={items} onNew={() => { navigate("/"); setSelectedItem(new IdeaSidebarItem("New", "")); }} onDelete={handleDelete} setSelectedItem={setSelectedItem}/>
-        <SidebarInset>
+        <SidebarInset className=" h-screen">
           <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
             <SidebarTrigger className="-ml-1" />
             <Separator

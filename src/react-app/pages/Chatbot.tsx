@@ -64,7 +64,7 @@ function Chatbot({ chatId, initialMessages }: ChatbotProps) {
 
 
   return (
-    <div className="box-border p-3 h-full">
+    <div className="box-border h-full overflow-y-scroll">
       <Chat
         messages={messages}
         input={input}

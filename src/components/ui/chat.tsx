@@ -201,7 +201,7 @@ export function Chat({
 
       {messages.length > 0 ? (
         <ChatMessages messages={messages}>
-          <MessageList
+          <MessageList 
             messages={messages}
             isTyping={isTyping}
             messageOptions={messageOptions}
@@ -210,7 +210,7 @@ export function Chat({
       ) : null}
 
       <ChatForm
-        className="mt-auto"
+        className="mt-auto mx-5 mb-15"
         isPending={isGenerating || isTyping}
         handleSubmit={handleSubmit}
       >
@@ -248,7 +248,7 @@ export function ChatMessages({
 
   return (
     <div
-      className="grid grid-cols-1 overflow-y-auto pb-4"
+      className="grid grid-cols-1 overflow-y-auto pb-4 p-10"
       ref={containerRef}
       onScroll={handleScroll}
       onTouchStart={handleTouchStart}
