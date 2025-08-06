@@ -1,13 +1,10 @@
-import { Hono } from "hono";
+import { Context, Hono } from "hono";
 import { streamText, UIMessage, convertToModelMessages } from 'ai';
-// import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
-import { createVercel } from '@ai-sdk/vercel';
 
 interface Env {
   GOOGLE_GENERATIVE_AI_API_KEY: string;
   OPENROUTER_API_KEY: string;
-  VERCEL_API_KEY: string;
 }
 
 const app = new Hono<{ Bindings: Env }>();
@@ -18,9 +15,6 @@ app.post('/api/chat', async (c) => {
   try {
     const { messages }: { messages: UIMessage[] } = await c.req.json();
 
-    // Fallback to process.env for local testing without wrangler
-    // const keylocal = import.meta.env.VITE_GOOGLE_GENERATIVE_AI_API_KEY;
-    // const keywrangler = c.env.GOOGLE_GENERATIVE_AI_API_KEY;
     const keylocal = import.meta.env.VITE_OPENROUTER_API_KEY;
     const keywrangler = c.env.OPENROUTER_API_KEY;
 
@@ -29,66 +23,36 @@ app.post('/api/chat', async (c) => {
       return c.json({ error: 'API key is missing.' }, 500);
     }
 
-    // const google = createGoogleGenerativeAI({ apiKey });
     const openrouter = createOpenRouter({
       apiKey: apiKey,
     });
 
-
-
     const result = streamText({
       model: openrouter.chat("google/gemini-2.0-flash-exp:free"),
+      system: "You're an assitant that will help the user come up or suggest ideas for thesis proposal and provide steps to complete the user's desired proposal. Your idea suggestions must be a list, with very minimal descriptions. Only provide in-depth detail when the user is interested in a particular idea",
       messages: convertToModelMessages(messages),
       onError: (e) => {
         throw (e);
       }
     });
-
+    c
 
     return result.toUIMessageStreamResponse();
   } catch (err: any) {
     console.error('Error in /api/chat:', err);
-
-    return c.json(
-      { error: 'An error occurred while processing your request.', details: err.message || String(err) },
-      500
-    );
+    return onError(c, err)
   }
 });
 
-app.post('/api/chat/vercel', async (c) => {
-  try {
+function onError(c: Context<{Bindings: Env;}>, err: any) {
+  return c.json(
+    { error: 'An error occurred while processing your request.', details: err.message || String(err) },
+    500
+  );
+}
 
-    const { messages }: { messages: UIMessage[] } = await c.req.json();
 
-    const keylocal = import.meta.env.VITE_VERCEL_API_KEY;
-    const keywrangler = c.env.VERCEL_API_KEY;
 
-    const apiKey = keywrangler ? keywrangler : keylocal;
-
-    const vercel = createVercel({
-      apiKey: apiKey,
-    });
-
-    const result = streamText({
-      model: vercel('v0-1.5-md'),
-      messages: convertToModelMessages(messages),
-      onError: (e) => {
-        throw (e);
-      }
-    });
-    return result.toUIMessageStreamResponse();
-
-  }
-  catch (err: any) {
-    console.error('Error in /api/chat:', err);
-
-    return c.json(
-      { error: 'An error occurred while processing your request.', details: err.message || String(err) },
-      500
-    );
-  }
-})
 
 
 export default app;
