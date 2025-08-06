@@ -12,7 +12,7 @@ export function getSupabase(env?: SupabaseEnv) {
   }
 
   const url = import.meta.env.VITE_SUPABASE_URL;
-  const key = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
+  const key = import.meta.env.VITE_SUPABASE_ANON;
 
   if (!url || !key) {
     throw new Error("Missing Supabase credentials in env or import.meta.env");

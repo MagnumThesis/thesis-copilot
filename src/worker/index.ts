@@ -14,7 +14,9 @@ app.get("/api/", (c) => c.json({ name: "Cloudflare" }));
 
 app.post('/api/chat', async (c) => {
   try {
-    const { messages }: { messages: UIMessage[] } = await c.req.json();
+    const { messages, chatId }: { messages: UIMessage[]; chatId?: string } = await c.req.json();
+    console.log(c.req.json())
+    const supabase = getSupabase(c.env);
 
     const keylocal = import.meta.env.VITE_OPENROUTER_API_KEY;
     const keywrangler = c.env.OPENROUTER_API_KEY;
@@ -22,6 +24,19 @@ app.post('/api/chat', async (c) => {
     const apiKey = keywrangler || keylocal;
     if (!apiKey) {
       return c.json({ error: 'API key is missing.' }, 500);
+    }
+
+    // Save the user message to the database if chatId is provided
+    if (chatId && messages.length > 0) {
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage.role === 'user') {
+        const { error: insertError } = await supabase
+          .from("messages")
+          .insert({ chat_id: chatId, role: lastMessage.role, content: lastMessage.parts, message_id: lastMessage.id });
+        if (insertError) {
+          console.error("Failed to save user message:", insertError);
+        }
+      }
     }
 
     const openrouter = createOpenRouter({
@@ -34,9 +49,20 @@ app.post('/api/chat', async (c) => {
       messages: convertToModelMessages(messages),
       onError: (e) => {
         throw (e);
+      },
+      onFinish: async (result) => {
+        // Save the assistant's response to the database if chatId is provided
+        if (chatId) {
+          const { error: insertError } = await supabase
+            .from("messages")
+            .insert({ chat_id: chatId, role: 'assistant', content: result.response.messages[0].content, message_id: result.response.id });
+          if (insertError) {
+            console.error("Failed to save assistant message:", insertError);
+          }
+        }
+
       }
     });
-    c
 
     return result.toUIMessageStreamResponse();
   } catch (err: any) {
@@ -51,6 +77,7 @@ function onError(c: Context<{Bindings: Env & SupabaseEnv;}>, err: any) {
     500
   );
 }
+
 
 //get chat list(only names and ids)
 app.get("/api/chats", async (c) => {
@@ -104,7 +131,6 @@ app.delete("/api/chats/:id", async (c) => {
     .eq("chat_id", chatId);
 
   if (msgErr) {
-    console.error("Failed to delete messages:", msgErr);
     return c.json({ error: "Failed to delete messages for chat" }, 500);
   }
 
@@ -148,8 +174,32 @@ app.patch("/api/chats/:id", async (c) => {
 });
 
 
-
-
 //get history(takes chat id and returns the history in the same format with the ai sdk )
+app.get("/api/chats/:id/messages", async (c) => {
+  const chatId = c.req.param("id");
+  const supabase = getSupabase(c.env);
+
+  const { data, error } = await supabase
+    .from("messages")
+    .select("message_id, role, content")
+    .eq("chat_id", chatId)
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    console.error("Failed to fetch messages:", error);
+    return c.json({ error: "Failed to fetch messages" }, 500);
+  }
+
+  // Convert to UIMessage format
+  const uiMessages = data.map((msg) => ({
+    id: msg.message_id,
+    role: msg.role as "user" | "assistant", // Assuming role is either 'user' or 'assistant'
+    content: msg.content,
+  }));
+
+  return c.json(uiMessages);
+});
+
+
 
 export default app;

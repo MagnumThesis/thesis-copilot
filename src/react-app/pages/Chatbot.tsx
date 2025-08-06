@@ -3,17 +3,26 @@
 import { useChat } from "@ai-sdk/react";
 import { Chat } from "@/components/ui/chat";
 import { useEffect, useState } from "react";
-import { DefaultChatTransport } from "ai";
+import { DefaultChatTransport, UIMessage } from "ai";
 import { Message } from "@/components/ui/chat-message";
 import { useMemo } from "react";
 
-function Chatbot() {
+interface ChatbotProps {
+  chatId: string;
+  initialMessages: UIMessage[];
+}
+
+function Chatbot({ chatId, initialMessages }: ChatbotProps) {
   const [input, setInput] = useState("");
   // const { messages, handleInputChange, sendMessage, status, stop } = useChat();
 
-  const { messages: rawMessages, sendMessage, stop, status } = useChat({
-    transport: new DefaultChatTransport({ api: '/api/chat' }),
+  const { messages: rawMessages, sendMessage, stop, status, setMessages } = useChat({
+    transport: new DefaultChatTransport({ api: '/api/chat', body: {chatId} }),
   });
+
+  useEffect(() => {
+    setMessages(initialMessages);
+  }, [initialMessages, setMessages]);
 
 
   const isLoading = status === "submitted" || status === "streaming";
@@ -24,7 +33,8 @@ function Chatbot() {
   ): void => {
     // Safely call preventDefault if it exists
     event?.preventDefault?.();
-    sendMessage({ text: input });
+    console.log(chatId);
+    sendMessage({ text: input});
     setInput("");
   };
 
