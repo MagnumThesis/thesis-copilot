@@ -1,8 +1,10 @@
 import { Context, Hono } from "hono";
-import { streamText, UIMessage, convertToModelMessages } from 'ai';
+import { streamText, UIMessage, convertToModelMessages, generateObject } from 'ai';
+import { z } from 'zod';
 // import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { getSupabase, SupabaseEnv } from "./supabase";
 import { createGoogleGenerativeAI } from "@ai-sdk/google"
+import { ModelMessage } from "ai";
 
 interface Env {
   GOOGLE_GENERATIVE_AI_API_KEY: string;
@@ -48,13 +50,12 @@ app.post('/api/chat', async (c) => {
       apiKey: apiKey,
     });
 
-
     const result = streamText({
       model: google("gemini-2.5-flash-lite"),
       tools: {
         google_search: google.tools.googleSearch({}),
         url_context: google.tools.urlContext({}),
-        
+
       },
       system: "You're an assitant that will help the user come up or suggest ideas for thesis proposal and provide steps to complete the user's desired proposal. Your idea suggestions must be a list, with very minimal descriptions. Only provide in-depth detail when the user is interested in a particular idea",
       messages: convertToModelMessages(messages),
@@ -211,6 +212,61 @@ app.get("/api/chats/:id/messages", async (c) => {
   return c.json(uiMessages);
 });
 
+app.post("/api/generate-title", async (c) => {
+  try {
+    const { chatId } = await c.req.json();
+    const supabase = getSupabase(c.env);
+
+    if (!chatId) {
+      return c.json({ error: 'chatId is required.' }, 400);
+    }
+
+    const { data: messages, error } = await supabase
+      .from("messages")
+      .select("message_id, role, content")
+      .eq("chat_id", chatId)
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      console.error("Failed to fetch messages:", error);
+      return c.json({ error: "Failed to fetch messages" }, 500);
+    }
+
+   
+
+    const modelMessages :  ModelMessage[] = messages.map((msg) => ({
+      id: msg.message_id,
+      role: msg.role as "user" | "assistant",
+      content: msg.content,
+    }));
+
+    const keylocal = import.meta.env.VITE_GOOGLE_GENERATIVE_AI_API_KEY;
+    const keywrangler = c.env.GOOGLE_GENERATIVE_AI_API_KEY;
+
+    const apiKey = keywrangler || keylocal;
+    if (!apiKey) {
+      return c.json({ error: 'API key is missing.' }, 500);
+    }
+
+    const google = createGoogleGenerativeAI({
+      apiKey: apiKey,
+    });
+
+    const { object } = await generateObject({
+      model: google("gemini-1.5-flash-latest"),
+      schema: z.object({
+        title: z.string(),
+      }),
+      prompt:
+        "Generate a short, concise title for the following conversation that is less than 5 words. The title should be based on the main topic of the conversation. \n Here is the conversation: \n" + JSON.stringify(modelMessages) ,
+    });
+
+    return c.json({ title: object.title });
+  } catch (err: any) {
+    console.error('Error in /api/generate-title:', err);
+    return onError(c, err)
+  }
+});
 
 
 export default app;

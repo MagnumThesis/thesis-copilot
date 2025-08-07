@@ -24,6 +24,8 @@ function Landing() {
   const [items, setItems] = useState<IdeaSidebarItem[]>([]);
   const [selectedItem, setSelectedItem] = useState<IdeaSidebarItem>(new IdeaSidebarItem("New", ""));
   const [initialMessages, setInitialMessages] = useState<UIMessage[]>([]);
+  const [isTitleGenerated, setIsTitleGenerated] = useState(false);
+
 
   useEffect(() => {
     const fetchChats = async () => {
@@ -121,6 +123,47 @@ function Landing() {
     console.log(selectedItem)
   }, [selectedItem])
 
+  const handleMessagesLengthChange = async (count: number) => {
+    if (count >= 5 && !isTitleGenerated && selectedItem?.title === "New Idea") {
+      setIsTitleGenerated(true); // Prevent multiple requests
+      try {
+        // 1. Generate title
+        const genTitleResponse = await fetch(`/api/generate-title`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ chatId: selectedItem.url }),
+        });
+
+        if (!genTitleResponse.ok) {
+          throw new Error("Failed to generate title");
+        }
+        const { title: newTitle } = await genTitleResponse.json();
+
+        // 2. Update chat name in the database
+        await fetch(`/api/chats/${selectedItem.url}`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ name: newTitle }),
+        });
+
+        // 3. Update state
+        const updatedItems = items.map((item) =>
+          item.url === selectedItem.url ? new IdeaSidebarItem(newTitle, item.url) : item
+        );
+        setItems(updatedItems);
+        setSelectedItem(new IdeaSidebarItem(newTitle, selectedItem.url));
+        setIsTitleGenerated(false)
+      } catch (error) {
+        console.error("Error generating title:", error);
+        setIsTitleGenerated(false); // Reset on error to allow retry
+      }
+    }
+  };
+
 
   const handleDelete = async (id: string) => {
     try {
@@ -161,7 +204,7 @@ function Landing() {
           </header>
           {
             selectedItem.url != "" &&
-          <Chatbot chatId={selectedItem.url} initialMessages={initialMessages} />
+          <Chatbot chatId={selectedItem.url} initialMessages={initialMessages} onMessagesLengthChange={handleMessagesLengthChange}/>
           }
         </SidebarInset>
       </SidebarProvider>

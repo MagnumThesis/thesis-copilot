@@ -10,9 +10,10 @@ import { useMemo } from "react";
 interface ChatbotProps {
   chatId: string;
   initialMessages: UIMessage[];
+  onMessagesLengthChange: (count: number) => void;
 }
 
-function Chatbot({ chatId, initialMessages }: ChatbotProps) {
+function Chatbot({ chatId, initialMessages, onMessagesLengthChange }: ChatbotProps) {
   const [input, setInput] = useState("");
   // const { messages, handleInputChange, sendMessage, status, stop } = useChat();
 
@@ -58,6 +59,10 @@ function Chatbot({ chatId, initialMessages }: ChatbotProps) {
       }
     )
   }, [rawMessages]);
+
+  useEffect(() => {
+    onMessagesLengthChange(messages.length);
+  }, [messages, onMessagesLengthChange]);
 
 
 
