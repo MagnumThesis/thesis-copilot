@@ -1,5 +1,5 @@
 import { Context } from 'hono';
-import { getSupabase, SupabaseEnv } from '../supabase';
+import { getSupabase, SupabaseEnv } from '../lib/supabase';
 import { Env } from '../types/env';
 
 export async function getMessagesHandler(c: Context<{ Bindings: Env & SupabaseEnv }>) {

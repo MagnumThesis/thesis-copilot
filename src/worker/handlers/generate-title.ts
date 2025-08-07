@@ -1,11 +1,12 @@
 import { Context } from "hono";
-import { getSupabase, SupabaseEnv } from "../supabase";
+import { getSupabase, SupabaseEnv } from "../lib/supabase";
 import { Env } from "../types/env";
 import { generateObject } from "ai";
 import { z } from "zod";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { ModelMessage } from "ai";
 import { onError } from "../lib/utils";
+import { getGoogleGenerativeAIKey } from "../lib/api-keys";
 
 export async function generateTitleHandler(
   c: Context<{ Bindings: Env & SupabaseEnv }>
@@ -30,9 +31,7 @@ export async function generateTitleHandler(
       role: msg.role as "user" | "assistant",
       content: msg.content,
     }));
-    const keylocal = import.meta.env.VITE_GOOGLE_GENERATIVE_AI_API_KEY;
-    const keywrangler = c.env.GOOGLE_GENERATIVE_AI_API_KEY;
-    const apiKey = keywrangler || keylocal;
+    const apiKey = getGoogleGenerativeAIKey(c);
     if (!apiKey) {
       return c.json({ error: "API key is missing." }, 500);
     }

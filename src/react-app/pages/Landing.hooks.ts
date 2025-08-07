@@ -1,6 +1,6 @@
 
 import { UIMessage } from "ai";
-import IdeaSidebarItem from "@/react-core/idea";
+import IdeaSidebarItem from "@/react-app/models/idea";
 import { NavigateFunction } from "react-router-dom";
 
 export const fetchChats = async (

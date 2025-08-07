@@ -11,7 +11,7 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import IdeaSidebarItem from "@/react-core/idea";
+import IdeaSidebarItem from "@/react-app/models/idea";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import Chatbot from "./Chatbot";

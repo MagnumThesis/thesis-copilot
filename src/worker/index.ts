@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { SupabaseEnv } from "./supabase";
+import { SupabaseEnv } from "./lib/supabase";
 import { Env } from "./types/env";
 import { chatHandler } from "./handlers/chat";
 import { getChatsHandler, createChatHandler, deleteChatHandler, updateChatHandler } from "./handlers/chats";

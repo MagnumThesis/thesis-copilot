@@ -15,7 +15,7 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar"
-import IdeaSidebarItem from "@/react-core/idea"
+import IdeaSidebarItem from "@/react-app/models/idea"
 import { Link } from "react-router-dom"
 
 

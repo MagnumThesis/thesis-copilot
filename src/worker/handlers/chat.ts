@@ -1,19 +1,17 @@
 import { UIMessage, streamText, convertToModelMessages } from 'ai';
-import { getSupabase, SupabaseEnv } from "../supabase";
+import { getSupabase, SupabaseEnv } from "../lib/supabase";
 import { createGoogleGenerativeAI } from "@ai-sdk/google"
 import { Env } from '../types/env';
 import { Context } from 'hono';
 import { onError } from '../lib/utils';
+import { getGoogleGenerativeAIKey } from '../lib/api-keys';
 
 export async function chatHandler(c: Context<{ Bindings: Env & SupabaseEnv }>) {
     try {
         const { messages, chatId }: { messages: UIMessage[]; chatId?: string } = await c.req.json();
         const supabase = getSupabase(c.env);
 
-        const keylocal = import.meta.env.VITE_GOOGLE_GENERATIVE_AI_API_KEY;
-        const keywrangler = c.env.GOOGLE_GENERATIVE_AI_API_KEY;
-
-        const apiKey = keywrangler || keylocal;
+        const apiKey = getGoogleGenerativeAIKey(c);
         if (!apiKey) {
             return c.json({ error: 'API key is missing.' }, 500);
         }

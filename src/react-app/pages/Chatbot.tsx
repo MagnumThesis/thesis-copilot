@@ -15,7 +15,6 @@ interface ChatbotProps {
 
 function Chatbot({ chatId, initialMessages, onMessagesLengthChange }: ChatbotProps) {
   const [input, setInput] = useState("");
-  // const { messages, handleInputChange, sendMessage, status, stop } = useChat();
 
   const { messages: rawMessages, sendMessage, stop, status, setMessages } = useChat({
     transport: new DefaultChatTransport({ api: '/api/chat', body: {chatId} }),
