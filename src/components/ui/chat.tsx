@@ -210,7 +210,7 @@ export function Chat({
       ) : null}
 
       <ChatForm
-        className="mt-auto mx-5 mb-15"
+        className="mt-auto mx-5 mb-10"
         isPending={isGenerating || isTyping}
         handleSubmit={handleSubmit}
       >
@@ -282,7 +282,7 @@ export const ChatContainer = forwardRef<
   return (
     <div
       ref={ref}
-      className={cn("grid max-h-full w-full grid-rows-[1fr_auto]", className)}
+      className={cn("w-full flex flex-col flex-1", className)}
       {...props}
     />
   )

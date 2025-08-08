@@ -11,6 +11,7 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+import { ToolsPanel } from "@/components/ui/tools-panel";
 import IdeaSidebarItem from "@/react-app/models/idea";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
@@ -69,7 +70,7 @@ function Landing() {
   return !selectedItem ? (
     <></>
   ) : (
-    <SidebarProvider>
+    <SidebarProvider className="h-screen"> 
       <AppSidebar
         items={items}
         onNew={() => {
@@ -79,7 +80,7 @@ function Landing() {
         onDelete={onDelete}
         setSelectedItem={setSelectedItem}
       />
-      <SidebarInset className=" h-screen">
+      <SidebarInset className="h-screen overflow-hidden">
         <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
           <SidebarTrigger className="-ml-1" />
           <Separator
@@ -95,11 +96,14 @@ function Landing() {
           </Breadcrumb>
         </header>
         {selectedItem.url != "" && (
-          <Chatbot
-            chatId={selectedItem.url}
-            initialMessages={initialMessages}
-            onMessagesLengthChange={onMessagesLengthChange}
-          />
+          <div className="flex flex-1">
+              <Chatbot
+                chatId={selectedItem.url}
+                initialMessages={initialMessages}
+                onMessagesLengthChange={onMessagesLengthChange}
+              />
+            <ToolsPanel  />
+          </div>
         )}
       </SidebarInset>
     </SidebarProvider>

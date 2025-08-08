@@ -17,7 +17,7 @@ function Chatbot({ chatId, initialMessages, onMessagesLengthChange }: ChatbotPro
   const [input, setInput] = useState("");
 
   const { messages: rawMessages, sendMessage, stop, status, setMessages } = useChat({
-    transport: new DefaultChatTransport({ api: '/api/chat', body: {chatId} }),
+    transport: new DefaultChatTransport({ api: '/api/chat', body: { chatId } }),
   });
 
   useEffect(() => {
@@ -66,17 +66,15 @@ function Chatbot({ chatId, initialMessages, onMessagesLengthChange }: ChatbotPro
 
 
   return (
-    <div className="box-border h-full overflow-y-scroll">
-      <Chat
-        messages={messages}
-        input={input}
-        handleInputChange={handleInputChange}
-        handleSubmit={handleSubmit}
-        isGenerating={isLoading}
-        stop={stop}
-        className='h-full'
+    <Chat
+      messages={messages}
+      input={input}
+      handleInputChange={handleInputChange}
+      handleSubmit={handleSubmit}
+      isGenerating={isLoading}
+      stop={stop}
+      className="flex-1 max-h-[calc(100vh-64px)]"
       />
-    </div>
   );
 }
 
