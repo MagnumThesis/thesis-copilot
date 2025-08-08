@@ -248,7 +248,7 @@ export function ChatMessages({
 
   return (
     <div
-      className="grid grid-cols-1 overflow-y-auto pb-4 p-10"
+      className="grid grid-cols-1 overflow-y-auto pb-4 p-10 scrollbar-hide"
       ref={containerRef}
       onScroll={handleScroll}
       onTouchStart={handleTouchStart}
