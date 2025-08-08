@@ -24,7 +24,12 @@ export const ToolsPanel: React.FC<ToolsPanelProps> = ({
         variant="ghost"
         size="icon"
         onClick={() => setIsOpen(!isOpen)}
-        className="absolute -left-4 top-4 z-10 h-8 w-8 rounded-full border bg-background shadow-sm hover:bg-muted"
+        className={cn(
+          "absolute top-4 z-10 h-8 w-8 rounded-full border bg-background shadow-sm hover:bg-muted transition-all duration-300",
+          isOpen 
+            ? "-left-4" // Center when open
+            : "-left-10" // More to the right when closed
+        )}
       >
         {isOpen ? (
           <ChevronRight className="h-4 w-4" />
