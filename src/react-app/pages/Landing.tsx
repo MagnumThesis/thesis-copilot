@@ -97,13 +97,13 @@ function Landing() {
         </header>
         {selectedItem.url != "" && (
           <div className="flex flex-1">
-              <Chatbot
-                chatId={selectedItem.url}
-                initialMessages={initialMessages}
-                onMessagesLengthChange={onMessagesLengthChange}
-              />
-            <ToolsPanel  />
-          </div>
+          <Chatbot
+            chatId={selectedItem.url}
+            initialMessages={initialMessages}
+            onMessagesLengthChange={onMessagesLengthChange}
+          />
+        <ToolsPanel currentConversation={{ title: selectedItem.title, id: selectedItem.url }} />
+      </div>
         )}
       </SidebarInset>
     </SidebarProvider>
