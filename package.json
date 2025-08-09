@@ -1,7 +1,7 @@
 {
   "name": "thesis-copilot",
   "description": "A template for building a React application with Vite, Hono, and Cloudflare Workers",
-  "version": "0.6.10",
+  "version": "0.6.11",
   "cloudflare": {
     "label": "Vite React Template",
     "products": [
