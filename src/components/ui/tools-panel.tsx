@@ -23,10 +23,12 @@ export const ToolsPanel: React.FC<ToolsPanelProps> = ({
   const [isOpen, setIsOpen] = useState(false)
   const [isSheetOpen, setIsSheetOpen] = useState(false) // State for the sheet
 
-  // Placeholder for ideas
-  const ideas = [
-    { id: 1, title: "Idea 1: AI-Powered Thesis Assistant", description: "An AI assistant to help with thesis writing, research, and citation." },
-  ]
+  // Placeholder for idea definitions
+  const [ideaDefinitions, setIdeaDefinitions] = useState([
+    { id: 1, title: "AI-Assisted Literature Review", description: "Utilizing natural language processing and machine learning to automate the process of identifying, summarizing, and synthesizing relevant academic literature for thesis research." },
+    { id: 2, title: "Interactive Data Visualization for Thesis Findings", description: "Developing dynamic and interactive visualizations to effectively communicate complex data patterns and research outcomes in a thesis." },
+    { id: 3, title: "Ethical Frameworks in AI Research", description: "Establishing and applying ethical guidelines and principles to the development and deployment of AI technologies within academic research contexts." },
+  ])
 
   const handleIdealistClick = () => {
     setIsSheetOpen(true)
@@ -83,7 +85,7 @@ export const ToolsPanel: React.FC<ToolsPanelProps> = ({
               <>
                 {/* Make Idealist clickable */}
                 <div onClick={handleIdealistClick} className="cursor-pointer">
-                  <ToolCard title="Idealist" description="Provides comprehensive information and definitions for your ideas." />
+                  <ToolCard title="Idealist" description="Provides comprehensive information and definitions for your idea definitions." />
                 </div>
                 <ToolCard title="Builder" description="Assists in the iterative development and refinement of proposals." />
                 <ToolCard title="Proofreader" description="Identifies potential loopholes and flaws within your ideas." />
@@ -98,12 +100,12 @@ export const ToolsPanel: React.FC<ToolsPanelProps> = ({
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
         <SheetContent className="sm:max-w-[425px]">
           <SheetHeader>
-            <SheetTitle>Your Ideas</SheetTitle>
-            <SheetDescription>A list of your thesis ideas and their definitions.</SheetDescription>
+            <SheetTitle>Idea Definitions</SheetTitle>
+            <SheetDescription>A list of your thesis idea definitions.</SheetDescription>
           </SheetHeader>
           <ScrollArea className="h-[calc(100vh-150px)] pr-4"> {/* Adjust height as needed */}
             <div className="py-4 space-y-4">
-              {ideas.map((idea) => (
+              {ideaDefinitions.map((idea) => (
                 <div key={idea.id} className="border p-3 rounded-md">
                   <h4 className="font-semibold">{idea.title}</h4>
                   <p className="text-sm text-muted-foreground">{idea.description}</p>
