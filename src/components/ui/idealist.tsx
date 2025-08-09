@@ -13,14 +13,16 @@ interface IdeaDefinition {
   id: number;
   title: string;
   description: string;
+  conversationId?: string; // Added conversationId
 }
 
 interface IdealistProps {
   isOpen: boolean;
   onClose: () => void;
+  currentConversation?: { title: string; id: string }; // Added currentConversation prop
 }
 
-export const Idealist: React.FC<IdealistProps> = ({ isOpen, onClose }) => {
+export const Idealist: React.FC<IdealistProps> = ({ isOpen, onClose, currentConversation }) => {
   // Initialize with an empty array, and use the IdeaDefinition type.
   const [ideaDefinitions, setIdeaDefinitions] = useState<IdeaDefinition[]>([]);
   const [newIdeaTitle, setNewIdeaTitle] = useState<string>("");
@@ -36,6 +38,7 @@ export const Idealist: React.FC<IdealistProps> = ({ isOpen, onClose }) => {
       id: Date.now(), // Simple unique ID generation
       title: newIdeaTitle,
       description: newIdeaDescription,
+      conversationId: currentConversation?.id, // Assign conversationId from props
     };
     setIdeaDefinitions((prevIdeas) => [...prevIdeas, newIdea]);
     setNewIdeaTitle("");
@@ -61,6 +64,10 @@ export const Idealist: React.FC<IdealistProps> = ({ isOpen, onClose }) => {
                 <div key={idea.id} className="border p-3 rounded-md">
                   <h4 className="font-semibold">{idea.title}</h4>
                   <p className="text-sm text-muted-foreground">{idea.description}</p>
+                  {/* Optionally display conversationId if available */}
+                  {idea.conversationId && (
+                    <p className="text-xs text-gray-500">Conv ID: {idea.conversationId}</p>
+                  )}
                 </div>
               ))}
             </div>
