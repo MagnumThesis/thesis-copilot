@@ -6,8 +6,7 @@ import { ChevronLeft, ChevronRight, Wrench } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { ToolCard } from "./tool-card"
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet" // Import Sheet components
-import { ScrollArea } from "@/components/ui/scroll-area" // Import ScrollArea for scrollable content
+import { Idealist } from "./idealist" // Import the new Idealist component
 
 interface ToolsPanelProps {
   className?: string
@@ -15,23 +14,16 @@ interface ToolsPanelProps {
   currentConversation?: { title: string; id: string } // Added prop for current conversation
 }
 
-export const ToolsPanel: React.FC<ToolsPanelProps> = ({ 
+export const ToolsPanel: React.FC<ToolsPanelProps> = ({
   className,
   children,
   currentConversation // Destructure the new prop
 }) => {
   const [isOpen, setIsOpen] = useState(false)
-  const [isSheetOpen, setIsSheetOpen] = useState(false) // State for the sheet
-
-  // Placeholder for idea definitions
-  const [ideaDefinitions, setIdeaDefinitions] = useState([
-    { id: 1, title: "AI-Assisted Literature Review", description: "Utilizing natural language processing and machine learning to automate the process of identifying, summarizing, and synthesizing relevant academic literature for thesis research." },
-    { id: 2, title: "Interactive Data Visualization for Thesis Findings", description: "Developing dynamic and interactive visualizations to effectively communicate complex data patterns and research outcomes in a thesis." },
-    { id: 3, title: "Ethical Frameworks in AI Research", description: "Establishing and applying ethical guidelines and principles to the development and deployment of AI technologies within academic research contexts." },
-  ])
+  const [isIdealistSheetOpen, setIsIdealistSheetOpen] = useState(false) // State for the Idealist sheet
 
   const handleIdealistClick = () => {
-    setIsSheetOpen(true)
+    setIsIdealistSheetOpen(true)
   }
 
   return (
@@ -43,7 +35,7 @@ export const ToolsPanel: React.FC<ToolsPanelProps> = ({
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
           "absolute top-4 z-10 h-8 w-8 rounded-full border bg-background shadow-sm hover:bg-muted transition-all duration-300",
-          isOpen 
+          isOpen
             ? "-left-4" // Center when open
             : "-left-10" // More to the right when closed
         )}
@@ -96,25 +88,8 @@ export const ToolsPanel: React.FC<ToolsPanelProps> = ({
         </div>
       </motion.div>
 
-      {/* Sheet for Ideas */}
-      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-        <SheetContent className="sm:max-w-[425px]">
-          <SheetHeader>
-            <SheetTitle>Idea Definitions</SheetTitle>
-            <SheetDescription>A list of your thesis idea definitions.</SheetDescription>
-          </SheetHeader>
-          <ScrollArea className="h-[calc(100vh-150px)] pr-4"> {/* Adjust height as needed */}
-            <div className="py-4 space-y-4">
-              {ideaDefinitions.map((idea) => (
-                <div key={idea.id} className="border p-3 rounded-md">
-                  <h4 className="font-semibold">{idea.title}</h4>
-                  <p className="text-sm text-muted-foreground">{idea.description}</p>
-                </div>
-              ))}
-            </div>
-          </ScrollArea>
-        </SheetContent>
-      </Sheet>
+      {/* Idealist Sheet */}
+      <Idealist isOpen={isIdealistSheetOpen} onClose={() => setIsIdealistSheetOpen(false)} />
     </div>
   )
 }
