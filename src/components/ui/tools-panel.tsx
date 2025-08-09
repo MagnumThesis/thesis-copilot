@@ -5,6 +5,7 @@ import { motion } from "framer-motion"
 import { ChevronLeft, ChevronRight, Wrench } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { ToolCard } from "./tool-card"
 
 interface ToolsPanelProps {
   className?: string
@@ -57,11 +58,14 @@ export const ToolsPanel: React.FC<ToolsPanelProps> = ({
           </div>
 
           {/* Content */}
-          <div className="flex-1 overflow-y-auto p-4">
+          <div className="flex-1 overflow-y-auto p-4 space-y-4"> {/* Added space-y-4 for spacing between cards */}
             {children || (
-              <div className="text-sm text-muted-foreground">
-                Tools panel - ready for tool components
-              </div>
+              <>
+                <ToolCard title="Idealist" description="Provides comprehensive information and definitions for your ideas." />
+                <ToolCard title="Builder" description="Assists in the iterative development and refinement of proposals." />
+                <ToolCard title="Proofreader" description="Identifies potential loopholes and flaws within your ideas." />
+                <ToolCard title="Referencer" description="Searches for relevant academic papers and resources related to your ideas." />
+              </>
             )}
           </div>
         </div>
