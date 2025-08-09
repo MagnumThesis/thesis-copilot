@@ -5,6 +5,7 @@ import { chatHandler } from "./handlers/chat";
 import { getChatsHandler, createChatHandler, deleteChatHandler, updateChatHandler } from "./handlers/chats";
 import { getMessagesHandler } from "./handlers/messages";
 import { generateTitleHandler } from "./handlers/generate-title";
+import ideasRouter from "./handlers/ideas"; // Import the ideas router
 
 const app = new Hono<{ Bindings: Env & SupabaseEnv }>();
 
@@ -21,6 +22,9 @@ app.patch("/api/chats/:id", updateChatHandler);
 
 // Messages
 app.get("/api/chats/:id/messages", getMessagesHandler);
+
+// Ideas CRUD
+app.route('/api/ideas', ideasRouter); // Mount the ideas router
 
 // Other
 app.post("/api/generate-title", generateTitleHandler);
