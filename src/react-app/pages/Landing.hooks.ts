@@ -6,9 +6,10 @@ import { NavigateFunction, Location } from "react-router-dom";
 export const fetchChats = async (
   setItems: React.Dispatch<React.SetStateAction<IdeaSidebarItem[]>>,
   setSelectedItem: React.Dispatch<React.SetStateAction<IdeaSidebarItem>>,
-  location: Location<unknown>
+  location: Location<unknown>,
+  items: IdeaSidebarItem[],
 ) => {
-  if(location.pathname != "/") return;
+  if(location.pathname == "/" || items.length > 0) return; 
   try {
     const response = await fetch("/api/chats");
     if (!response.ok) { 

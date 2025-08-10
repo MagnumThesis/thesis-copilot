@@ -42,8 +42,8 @@ function Landing() {
 
   //fetch chats
   useEffect(() => {
-    fetchChats(setItems, setSelectedItem, location);
-  }, [location]);
+    fetchChats(setItems, setSelectedItem, location, items);
+  }, [location, items]);
 
   //create new chat when user clicks on new chat(it navigates to root page to trigger new chat)
   useEffect(() => {
