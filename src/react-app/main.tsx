@@ -5,18 +5,12 @@ import Landing from "./pages/Landing.tsx";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 
-function Router() {
-  return (
+createRoot(document.getElementById("root")!).render(
+  <StrictMode>
     <BrowserRouter>
       <Routes>
         <Route path="/:ideaId?" element={<Landing />} />
       </Routes> 
     </BrowserRouter> 
-  );
-}
-
-createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <Router />;
   </StrictMode>
 );

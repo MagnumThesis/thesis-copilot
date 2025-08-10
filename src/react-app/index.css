@@ -120,7 +120,7 @@
 }
 
 
-
+/* prevent scrolling on whole page*/
 html{
   height: 100vh;
   overflow: hidden;
