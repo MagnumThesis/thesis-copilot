@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/shadcn/button" // Import Button componen
 // Assuming Textarea is available at this path, if not, it needs to be created or the import adjusted.
 import { Textarea } from "@/components/ui/shadcn/textarea" // Import Textarea component
 import { IdeaDetail } from "@/react-app/pages/IdeaDetail"; // Import IdeaDetail component
-import { fetchIdeas, createIdea, updateIdea, deleteIdea } from "@/lib/idea-api"; // Import API functions
+import { fetchIdeas, createIdea, updateIdea, deleteIdea, generateIdeas } from "@/lib/idea-api"; // Import API functions
 import { Skeleton } from "@/components/ui/shadcn/skeleton"; // Import Skeleton for loading states
 
 // Interface for idea definitions
@@ -34,8 +34,9 @@ export const Idealist: React.FC<IdealistProps> = ({ isOpen, onClose, currentConv
   const [isFormOpen, setIsFormOpen] = useState<boolean>(false); // State to control form visibility
   const [loading, setLoading] = useState<boolean>(true); // Loading state
   const [error, setError] = useState<string | null>(null); // Error state
-const [retryCount, setRetryCount] = useState<number>(0); // Retry count for failed operations
+  const [retryCount, setRetryCount] = useState<number>(0); // Retry count for failed operations
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false); // Form submission state
+  const [isGenerating, setIsGenerating] = useState<boolean>(false); // Generate ideas loading state
 
   // Fetch ideas when component mounts or when sheet opens
   useEffect(() => {
@@ -123,6 +124,24 @@ const [retryCount, setRetryCount] = useState<number>(0); // Retry count for fail
     }
   };
 
+  const handleGenerateIdeas = async () => {
+    try {
+      setIsGenerating(true);
+      const ideas = await generateIdeas(currentConversation.id, ideaDefinitions);
+      setIdeaDefinitions(prevIdeas => [...prevIdeas, ...ideas.map(idea => ({
+        id: Date.now() + Math.random(), // Temporary ID until saved to DB
+        ...idea
+      }))]);
+      toast.success("Ideas generated successfully!");
+    } catch (err) {
+      console.error("Failed to generate ideas:", err);
+      const errorMessage = "Failed to generate ideas. Please try again.";
+      toast.error(errorMessage);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
       <SheetContent className="sm:max-w-[425px]">
@@ -162,9 +181,19 @@ const [retryCount, setRetryCount] = useState<number>(0); // Retry count for fail
 
         {/* Button to toggle the form */}
         {!isFormOpen && (
-          <Button onClick={() => setIsFormOpen(true)} className="w-full mt-4" disabled={isSubmitting}>
-            Add New Idea
-          </Button>
+          <div className="flex flex-col space-y-2 mt-4">
+            <Button onClick={() => setIsFormOpen(true)} className="w-full" disabled={isSubmitting || isGenerating}>
+              Add New Idea
+            </Button>
+            <Button
+              onClick={handleGenerateIdeas}
+              className="w-full"
+              disabled={isSubmitting || isGenerating}
+              variant="secondary"
+            >
+              {isGenerating ? "Generating..." : "Generate Ideas"}
+            </Button>
+          </div>
         )}
 
         {/* Form to add a new idea */}
