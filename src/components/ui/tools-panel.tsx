@@ -7,6 +7,9 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/shadcn/button"
 import { ToolCard } from "./tool-card"
 import { Idealist } from "./idealist" // Import the new Idealist component
+import { Builder } from "./builder" // Import the new Builder component
+import { Proofreader } from "./proofreader" // Import the new Proofreader component
+import { Referencer } from "./referencer" // Import the new Referencer component
 
 interface ToolsPanelProps {
   className?: string
@@ -21,9 +24,24 @@ export const ToolsPanel: React.FC<ToolsPanelProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false)
   const [isIdealistSheetOpen, setIsIdealistSheetOpen] = useState(false) // State for the Idealist sheet
+  const [isBuilderSheetOpen, setIsBuilderSheetOpen] = useState(false) // State for the Builder sheet
+  const [isProofreaderSheetOpen, setIsProofreaderSheetOpen] = useState(false) // State for the Proofreader sheet
+  const [isReferencerSheetOpen, setIsReferencerSheetOpen] = useState(false) // State for the Referencer sheet
 
   const handleIdealistClick = () => {
     setIsIdealistSheetOpen(true)
+  }
+
+  const handleBuilderClick = () => {
+    setIsBuilderSheetOpen(true)
+  }
+
+  const handleProofreaderClick = () => {
+    setIsProofreaderSheetOpen(true)
+  }
+
+  const handleReferencerClick = () => {
+    setIsReferencerSheetOpen(true)
   }
 
   return (
@@ -79,9 +97,18 @@ export const ToolsPanel: React.FC<ToolsPanelProps> = ({
                 <div onClick={handleIdealistClick} className="cursor-pointer">
                   <ToolCard title="Idealist" description="Provides comprehensive information and definitions for your idea definitions." />
                 </div>
-                <ToolCard title="Builder" description="Assists in the iterative development and refinement of proposals." />
-                <ToolCard title="Proofreader" description="Identifies potential loopholes and flaws within your ideas." />
-                <ToolCard title="Referencer" description="Searches for relevant academic papers and resources related to your ideas." />
+                {/* Make Builder clickable */}
+                <div onClick={handleBuilderClick} className="cursor-pointer">
+                  <ToolCard title="Builder" description="Assists in the iterative development and refinement of proposals." />
+                </div>
+                {/* Make Proofreader clickable */}
+                <div onClick={handleProofreaderClick} className="cursor-pointer">
+                  <ToolCard title="Proofreader" description="Identifies potential loopholes and flaws within your ideas." />
+                </div>
+                {/* Make Referencer clickable */}
+                <div onClick={handleReferencerClick} className="cursor-pointer">
+                  <ToolCard title="Referencer" description="Searches for relevant academic papers and resources related to your ideas." />
+                </div>
               </>
             )}
           </div>
@@ -91,6 +118,12 @@ export const ToolsPanel: React.FC<ToolsPanelProps> = ({
       {/* Idealist Sheet */}
       {/* Pass currentConversation to Idealist */}
       <Idealist isOpen={isIdealistSheetOpen} onClose={() => setIsIdealistSheetOpen(false)} currentConversation={currentConversation} />
+      {/* Builder Sheet */}
+      <Builder isOpen={isBuilderSheetOpen} onClose={() => setIsBuilderSheetOpen(false)} currentConversation={currentConversation} />
+      {/* Proofreader Sheet */}
+      <Proofreader isOpen={isProofreaderSheetOpen} onClose={() => setIsProofreaderSheetOpen(false)} currentConversation={currentConversation} />
+      {/* Referencer Sheet */}
+      <Referencer isOpen={isReferencerSheetOpen} onClose={() => setIsReferencerSheetOpen(false)} currentConversation={currentConversation} />
     </div>
   )
 }
