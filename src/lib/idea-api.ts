@@ -137,3 +137,32 @@ export async function deleteIdea(id: number): Promise<void> {
   }
 }
 
+/**
+ * Generates new ideas based on conversation history and existing ideas
+ * @param chatId - The ID of the chat/conversation
+ * @param existingIdeas - Array of existing ideas to avoid duplication
+ * @returns Promise resolving to an array of generated idea objects
+ * @throws Error if the request fails
+ */
+export async function generateIdeas(chatId: string, existingIdeas: Omit<IdeaDefinition, "id">[]): Promise<{title: string, description: string}[]> {
+  try {
+    const response = await fetch("/api/generate-ideas", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ chatId, existingIdeas }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to generate ideas: ${response.statusText}`);
+    }
+
+    const result = await response.json();
+    return result.ideas;
+  } catch (error) {
+    console.error("Error generating ideas:", error);
+    throw error;
+  }
+}
+
