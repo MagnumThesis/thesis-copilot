@@ -95,14 +95,14 @@ function Landing() {
             </BreadcrumbList>
           </Breadcrumb>
         </header>
-        {selectedItem.url != "" && (
+        {selectedItem.id != "" && (
           <div className="flex flex-1">
           <Chatbot
-            chatId={selectedItem.url}
+            chatId={selectedItem.id}
             initialMessages={initialMessages}
             onMessagesLengthChange={onMessagesLengthChange}
           />
-        <ToolsPanel currentConversation={{ title: selectedItem.title, id: selectedItem.url }} />
+        <ToolsPanel currentConversation={{ title: selectedItem.title, id: selectedItem.id }} />
       </div>
         )}
       </SidebarInset>

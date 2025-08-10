@@ -50,16 +50,16 @@ export function AppSidebar({onNew, items, onDelete, setSelectedItem, ...props }:
             <SidebarGroupContent>
               <SidebarMenu>
                 {item.items.map((item) => (
-                  <SidebarMenuItem key={item.url} className="group flex items-center justify-between">
+                  <SidebarMenuItem key={item.id} className="group flex items-center justify-between">
                     <SidebarMenuButton asChild isActive={item.isActive}>
                       {/* <a href={item.url}>{item.title}</a> */}
-                      <Link to={`/${item.url}`} onClick={() => setSelectedItem(item)}>{item.title}</Link>
+                      <Link to={`/${item.id}`} onClick={() => setSelectedItem(item)}>{item.title}</Link>
                     </SidebarMenuButton>
                     <Button
                       variant="ghost"
                       size="icon"
                       className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100"
-                      onClick={() => onDelete(item.url)}
+                      onClick={() => onDelete(item.id)}
                     >
                       <Trash className="h-4 w-4" />
                       <span className="sr-only">Delete</span>

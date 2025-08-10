@@ -2,13 +2,6 @@ import { Hono } from "hono";
 import { SupabaseEnv, getSupabase } from "../lib/supabase"; // Import getSupabase
 import { Env } from "../types/env";
 
-// Define the structure of an idea, matching the frontend interface
-interface IdeaDefinition {
-  id: number;
-  title: string;
-  description: string;
-  conversationId?: string;
-}
 
 // Type for the Hono context, including Supabase client
 type IdeaContext = {
@@ -22,10 +15,10 @@ const supabase = getSupabase();
 
 // POST /api/ideas - Create a new idea
 app.post("/", async (c) => {
-  const { title, description, conversationId } = await c.req.json<{
+  const { title, description, conversationid } = await c.req.json<{
     title: string;
     description: string;
-    conversationId?: string;
+    conversationid?: string;
   }>();
 
   if (!title || !description) {
@@ -35,13 +28,13 @@ app.post("/", async (c) => {
   const { data, error } = await supabase
     .from("ideas")
     .insert([
-      { title, description, conversationId },
+      { title, description, conversationid },
     ])
     .select("*"); // Select the inserted row to return it
 
   if (error) {
     console.error("Error creating idea:", error);
-    return c.json({ error: "Failed to create idea" }, 500);
+    return c.json({ error: "Failed to create idea" , message: error}, 500);
   }
 
   return c.json(data[0], 201); // Return the created idea

@@ -20,7 +20,7 @@ export const fetchChats = async (
     );
     setItems(newItems);
     const selected = newItems.find(
-      (item: IdeaSidebarItem) => item.url === location.pathname.slice(1)
+      (item: IdeaSidebarItem) => item.id === location.pathname.slice(1)
     );
     if (selected) {
       setSelectedItem(selected);
@@ -37,7 +37,7 @@ export const createNewChat = async (
   setSelectedItem: React.Dispatch<React.SetStateAction<IdeaSidebarItem>>,
   setItems: React.Dispatch<React.SetStateAction<IdeaSidebarItem[]>>
 ) => {
-  if (selectedItem?.url === "" && location.pathname === "/") {
+  if (selectedItem?.id === "" && location.pathname === "/") {
     console.log("creating new chat");
     try {
       const response = await fetch("/api/chats", {
@@ -67,10 +67,10 @@ export const fetchMessages = async (
   selectedItem: IdeaSidebarItem,
   setInitialMessages: React.Dispatch<React.SetStateAction<UIMessage[]>>
 ) => {
-  console.log(selectedItem.url);
-  if (selectedItem?.url && selectedItem.url !== "") {
+  console.log(selectedItem.id);
+  if (selectedItem?.id && selectedItem.id !== "") {
     try {
-      const response = await fetch(`/api/chats/${selectedItem.url}/messages`);
+      const response = await fetch(`/api/chats/${selectedItem.id}/messages`);
       if (response.ok) {
         const data: [] = await response.json();
         const transformedData: UIMessage[] = [];
@@ -117,7 +117,7 @@ export const handleMessagesLengthChange = async (
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ chatId: selectedItem.url }),
+        body: JSON.stringify({ chatId: selectedItem.id }),
       });
 
       if (!genTitleResponse.ok) {
@@ -126,7 +126,7 @@ export const handleMessagesLengthChange = async (
       const { title: newTitle } = await genTitleResponse.json();
 
       // 2. Update chat name in the database
-      await fetch(`/api/chats/${selectedItem.url}`, {
+      await fetch(`/api/chats/${selectedItem.id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -136,12 +136,12 @@ export const handleMessagesLengthChange = async (
 
       // 3. Update state
       const updatedItems = items.map((item) =>
-        item.url === selectedItem.url
-          ? new IdeaSidebarItem(newTitle, item.url)
+        item.id === selectedItem.id
+          ? new IdeaSidebarItem(newTitle, item.id)
           : item
       );
       setItems(updatedItems);
-      setSelectedItem(new IdeaSidebarItem(newTitle, selectedItem.url));
+      setSelectedItem(new IdeaSidebarItem(newTitle, selectedItem.id));
       setIsTitleGenerated(false);
     } catch (error) {
       console.error("Error generating title:", error);
@@ -164,8 +164,8 @@ export const handleDelete = async (
     if (!response.ok) {
       throw new Error("Failed to delete chat");
     }
-    setItems((prevItems) => prevItems.filter((item) => item.url !== id));
-    if (selectedItem.url === id) {
+    setItems((prevItems) => prevItems.filter((item) => item.id !== id));
+    if (selectedItem.id === id) {
       navigate("/");
       setSelectedItem(new IdeaSidebarItem("New", ""));
     }
