@@ -1,17 +1,17 @@
 
 import { UIMessage } from "ai";
 import IdeaSidebarItem from "@/react-app/models/idea";
-import { NavigateFunction } from "react-router-dom";
+import { NavigateFunction, Location } from "react-router-dom";
 
 export const fetchChats = async (
   setItems: React.Dispatch<React.SetStateAction<IdeaSidebarItem[]>>,
   setSelectedItem: React.Dispatch<React.SetStateAction<IdeaSidebarItem>>,
-  location: any
+  location: Location<unknown>
 ) => {
   console.log("fetching chats");
   try {
     const response = await fetch("/api/chats");
-    if (!response.ok) {
+    if (!response.ok) { 
       throw new Error("Failed to fetch chats");
     }
     const chats = await response.json();
@@ -32,7 +32,7 @@ export const fetchChats = async (
 
 export const createNewChat = async (
   selectedItem: IdeaSidebarItem,
-  location: any,
+  location: Location<unknown>,
   navigate: NavigateFunction,
   setSelectedItem: React.Dispatch<React.SetStateAction<IdeaSidebarItem>>,
   setItems: React.Dispatch<React.SetStateAction<IdeaSidebarItem[]>>

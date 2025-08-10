@@ -6,51 +6,30 @@ import { cloudflare } from "@cloudflare/vite-plugin";
 import path from "path"
 import tailwindcss from "@tailwindcss/vite"
 
+//Build optimization
+import { visualizer } from "rollup-plugin-visualizer";
 
 
 export default defineConfig({
-  plugins: [react(), cloudflare(), tailwindcss()],
+  plugins: [react(), cloudflare(), tailwindcss(), visualizer({
+    open: true,
+    filename: "dist/stats.html",
+  })],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
   },
-  optimizeDeps: {
-    include: [
-      // AI SDKs and providers
-      'ai',
-      '@ai-sdk/google',
-      '@ai-sdk/openai',
-      '@ai-sdk/react',
-      '@openrouter/ai-sdk-provider',
-
-      // UI libraries
-      'clsx',
-      'class-variance-authority',
-      'framer-motion',
-      'lucide-react',
-      'sonner',
-      'shiki',
-      'react-markdown',
-      'remark-gfm',
-
-      // Radix UI (often ESM-heavy)
-      '@radix-ui/react-collapsible',
-      '@radix-ui/react-dialog',
-      '@radix-ui/react-dropdown-menu',
-      '@radix-ui/react-label',
-      '@radix-ui/react-separator',
-      '@radix-ui/react-slot',
-      '@radix-ui/react-tooltip',
-
-      // Utility
-      'remeda',
-      'zod',
-    ],
-    exclude: [
-      // Avoid pre-bundling things that are already optimized or not needed
-      'hono', // Cloudflare edge-ready, avoid if using serverless
-      'dotenv', // Only used at build/runtime
-    ],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'zod': ['zod'],
+          '@supabase/node-fetch': ['@supabase/node-fetch'],
+          'react-dom': ['react-dom'],
+          'ai': ['ai'],
+        }
+      },
+    },
   },
 });

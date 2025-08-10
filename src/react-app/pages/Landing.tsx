@@ -37,11 +37,11 @@ function Landing() {
 
   useEffect(() => {
     fetchChats(setItems, setSelectedItem, location);
-  }, []);
+  }, [location]);
 
   useEffect(() => {
     createNewChat(selectedItem, location, navigate, setSelectedItem, setItems);
-  }, [location.pathname, navigate]);
+  }, [location.pathname, navigate, selectedItem, location]);
 
   useEffect(() => {
     fetchMessages(selectedItem, setInitialMessages);

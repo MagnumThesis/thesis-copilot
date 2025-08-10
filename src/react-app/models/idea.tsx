@@ -3,8 +3,8 @@ export default class IdeaSidebarItem {
     id : string
     isActive: boolean
     constructor(title : string, id : string, isActive=false){
-        this.title = title,
-        this.id = id,
-        this.isActive = isActive
+        this.title = title;
+        this.id = id;
+        this.isActive = isActive;
     }
 }
