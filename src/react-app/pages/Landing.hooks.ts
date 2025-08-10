@@ -8,6 +8,7 @@ export const fetchChats = async (
   setSelectedItem: React.Dispatch<React.SetStateAction<IdeaSidebarItem>>,
   location: Location<unknown>
 ) => {
+  if(location.pathname != "/") return;
   try {
     const response = await fetch("/api/chats");
     if (!response.ok) { 
