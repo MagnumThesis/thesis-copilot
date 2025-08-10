@@ -26,6 +26,14 @@ interface IdealistProps {
   currentConversation: { title: string; id: string }; // Added currentConversation prop
 }
 
+// Function to check for duplicate ideas
+const isDuplicateIdea = (newIdea: {title: string, description: string}, existingIdeas: IdeaDefinition[]) => {
+  return existingIdeas.some(idea =>
+    idea.title.toLowerCase() === newIdea.title.toLowerCase() ||
+    idea.description.toLowerCase() === newIdea.description.toLowerCase()
+  );
+};
+
 export const Idealist: React.FC<IdealistProps> = ({ isOpen, onClose, currentConversation }) => {
   // Initialize with an empty array, and use the IdeaDefinition type.
   const [ideaDefinitions, setIdeaDefinitions] = useState<IdeaDefinition[]>([]);
@@ -128,11 +136,27 @@ export const Idealist: React.FC<IdealistProps> = ({ isOpen, onClose, currentConv
     try {
       setIsGenerating(true);
       const ideas = await generateIdeas(currentConversation.id, ideaDefinitions);
-      setIdeaDefinitions(prevIdeas => [...prevIdeas, ...ideas.map(idea => ({
-        id: Date.now() + Math.random(), // Temporary ID until saved to DB
-        ...idea
-      }))]);
-      toast.success("Ideas generated successfully!");
+      
+      // Filter out duplicate ideas
+      const uniqueIdeas = ideas.filter(idea => !isDuplicateIdea(idea, ideaDefinitions));
+      
+      // Add non-duplicate ideas to the state
+      if (uniqueIdeas.length > 0) {
+        setIdeaDefinitions(prevIdeas => [...prevIdeas, ...uniqueIdeas.map(idea => ({
+          id: Date.now() + Math.random(), // Temporary ID until saved to DB
+          ...idea
+        }))]);
+      }
+      
+      // Show appropriate toast message based on results
+      const duplicateCount = ideas.length - uniqueIdeas.length;
+      if (uniqueIdeas.length === 0) {
+        toast.info("No new ideas were generated");
+      } else if (duplicateCount > 0) {
+        toast.success(`Added ${uniqueIdeas.length} new ideas (${duplicateCount} duplicates filtered out)`);
+      } else {
+        toast.success(`Added ${uniqueIdeas.length} new ideas`);
+      }
     } catch (err) {
       console.error("Failed to generate ideas:", err);
       const errorMessage = "Failed to generate ideas. Please try again.";
