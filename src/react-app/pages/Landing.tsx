@@ -4,8 +4,8 @@ import {
   BreadcrumbItem,
   BreadcrumbList,
   BreadcrumbPage,
-} from "@/components/ui/breadcrumb";
-import { Separator } from "@/components/ui/separator";
+} from "@/components/ui/shadcn/breadcrumb";
+import { Separator } from "@/components/ui/shadcn/separator";
 import {
   SidebarInset,
   SidebarProvider,

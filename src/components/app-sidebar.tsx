@@ -2,7 +2,7 @@ import type * as React from "react"
 import { Plus, Trash } from "lucide-react"
 
 import { SearchForm } from "@/components/search-form"
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/ui/shadcn/button"
 import {
   Sidebar,
   SidebarContent,

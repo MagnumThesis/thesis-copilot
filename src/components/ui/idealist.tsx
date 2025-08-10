@@ -1,12 +1,12 @@
 "use client"
 
 import React, { useState } from "react" // Re-added useState
-import { ScrollArea } from "@/components/ui/scroll-area" // Import ScrollArea for scrollable content
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet" // Import Sheet components
-import { Input } from "@/components/ui/input" // Import Input component
-import { Button } from "@/components/ui/button" // Import Button component
+import { ScrollArea } from "@/components/ui/shadcn/scroll-area" // Import ScrollArea for scrollable content
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/shadcn/sheet" // Import Sheet components
+import { Input } from "@/components/ui/shadcn/input" // Import Input component
+import { Button } from "@/components/ui/shadcn/button" // Import Button component
 // Assuming Textarea is available at this path, if not, it needs to be created or the import adjusted.
-import { Textarea } from "@/components/ui/textarea" // Import Textarea component
+import { Textarea } from "@/components/ui/shadcn/textarea" // Import Textarea component
 import { IdeaDetail } from "@/react-app/pages/IdeaDetail"; // Import IdeaDetail component
 
 // Interface for idea definitions

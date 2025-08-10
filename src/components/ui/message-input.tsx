@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils"
 import { useAudioRecording } from "@/hooks/use-audio-recording"
 import { useAutosizeTextArea } from "@/hooks/use-autosize-textarea"
 import { AudioVisualizer } from "@/components/ui/audio-visualizer"
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/ui/shadcn/button"
 import { FilePreview } from "@/components/ui/file-preview"
 import { InterruptPrompt } from "@/components/ui/interrupt-prompt"
 

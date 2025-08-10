@@ -4,7 +4,7 @@ import React, { useState } from "react"
 import { motion } from "framer-motion"
 import { ChevronLeft, ChevronRight, Wrench } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/ui/shadcn/button"
 import { ToolCard } from "./tool-card"
 import { Idealist } from "./idealist" // Import the new Idealist component
 
