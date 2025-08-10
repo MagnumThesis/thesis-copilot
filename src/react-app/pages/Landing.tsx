@@ -26,31 +26,36 @@ import {
 } from "./Landing.hooks";
 
 function Landing() {
+  //routing and navigation
   const location = useLocation();
   const navigate = useNavigate();
+
+  //chat state management
   const [items, setItems] = useState<IdeaSidebarItem[]>([]);
   const [selectedItem, setSelectedItem] = useState<IdeaSidebarItem>(
     new IdeaSidebarItem("New", "")
   );
-  const [initialMessages, setInitialMessages] = useState<UIMessage[]>([]);
   const [isTitleGenerated, setIsTitleGenerated] = useState(false);
 
+  //chat messages
+  const [initialMessages, setInitialMessages] = useState<UIMessage[]>([]);
+
+  //fetch chats
   useEffect(() => {
     fetchChats(setItems, setSelectedItem, location);
   }, [location]);
 
+  //create new chat when user clicks on new chat(it navigates to root page to trigger new chat)
   useEffect(() => {
     createNewChat(selectedItem, location, navigate, setSelectedItem, setItems);
   }, [location.pathname, navigate, selectedItem, location]);
 
+  // fetch messages when user clicks on a chat
   useEffect(() => {
     fetchMessages(selectedItem, setInitialMessages);
   }, [selectedItem, navigate]);
 
-  useEffect(() => {
-    console.log(selectedItem);
-  }, [selectedItem]);
-
+ 
   const onMessagesLengthChange = (count: number) => {
     handleMessagesLengthChange(
       count,

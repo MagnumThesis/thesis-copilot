@@ -7,9 +7,10 @@ import { Input } from "@/components/ui/input" // Import Input component
 import { Button } from "@/components/ui/button" // Import Button component
 // Assuming Textarea is available at this path, if not, it needs to be created or the import adjusted.
 import { Textarea } from "@/components/ui/textarea" // Import Textarea component
+import { IdeaDetail } from "@/react-app/pages/IdeaDetail"; // Import IdeaDetail component
 
 // Interface for idea definitions
-interface IdeaDefinition {
+export interface IdeaDefinition {
   id: number;
   title: string;
   description: string;
@@ -61,14 +62,7 @@ export const Idealist: React.FC<IdealistProps> = ({ isOpen, onClose, currentConv
           ) : (
             <div className="py-4 space-y-4">
               {ideaDefinitions.map((idea) => (
-                <div key={idea.id} className="border p-3 rounded-md">
-                  <h4 className="font-semibold">{idea.title}</h4>
-                  <p className="text-sm text-muted-foreground">{idea.description}</p>
-                  {/* Optionally display conversationId if available */}
-                  {idea.conversationId && (
-                    <p className="text-xs text-gray-500">Conv ID: {idea.conversationId}</p>
-                  )}
-                </div>
+                <IdeaDetail key={idea.id} idea={idea} />
               ))}
             </div>
           )}

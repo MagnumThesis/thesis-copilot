@@ -15,7 +15,7 @@ export const fetchChats = async (
       throw new Error("Failed to fetch chats");
     }
     const chats = await response.json();
-    const newItems = chats.map(
+    const newItems = chats.map( //TODO: fix this with react query later when really needed
       (chat: any) => new IdeaSidebarItem(chat.name, chat.id)
     );
     setItems(newItems);
