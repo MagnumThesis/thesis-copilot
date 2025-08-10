@@ -8,7 +8,6 @@ export const fetchChats = async (
   setSelectedItem: React.Dispatch<React.SetStateAction<IdeaSidebarItem>>,
   location: Location<unknown>
 ) => {
-  console.log("fetching chats");
   try {
     const response = await fetch("/api/chats");
     if (!response.ok) { 
@@ -38,7 +37,6 @@ export const createNewChat = async (
   setItems: React.Dispatch<React.SetStateAction<IdeaSidebarItem[]>>
 ) => {
   if (selectedItem?.id === "" && location.pathname === "/") {
-    console.log("creating new chat");
     try {
       const response = await fetch("/api/chats", {
         method: "POST",
@@ -67,7 +65,6 @@ export const fetchMessages = async (
   selectedItem: IdeaSidebarItem,
   setInitialMessages: React.Dispatch<React.SetStateAction<UIMessage[]>>
 ) => {
-  console.log(selectedItem.id);
   if (selectedItem?.id && selectedItem.id !== "") {
     try {
       const response = await fetch(`/api/chats/${selectedItem.id}/messages`);

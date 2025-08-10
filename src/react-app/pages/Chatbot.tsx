@@ -43,7 +43,6 @@ function Chatbot({ chatId, initialMessages, onMessagesLengthChange }: ChatbotPro
   };
 
   const messages: Message[] = useMemo(() => {
-    console.log(rawMessages)
     return rawMessages.map(
       (message) => {
         const m: Message = {
