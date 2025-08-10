@@ -7,17 +7,25 @@ import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { ModelMessage } from "ai";
 import { onError } from "../lib/utils";
 import { getGoogleGenerativeAIKey } from "../lib/api-keys";
+import { IdeaDefinition } from "../../components/ui/idealist";
+
+interface GenerateIdeasRequest {
+  chatId: string;
+  existingIdeas?: Omit<IdeaDefinition, "id">[];
+}
 
 export async function generateIdeasHandler(
   c: Context<{ Bindings: Env & SupabaseEnv }>
 ) {
   try {
-    const { chatId, existingIdeas } = await c.req.json();
-    const supabase = getSupabase(c.env);
+    const body = await c.req.json();
+    const { chatId, existingIdeas }: GenerateIdeasRequest = body;
     
     if (!chatId) {
       return c.json({ error: "chatId is required." }, 400);
     }
+    
+    const supabase = getSupabase(c.env);
     
     // Fetch message history for context
     const { data: messages, error } = await supabase
@@ -45,8 +53,8 @@ export async function generateIdeasHandler(
     const google = createGoogleGenerativeAI({ apiKey: apiKey });
     
     // Create a prompt that considers existing ideas and message history
-    const existingIdeasText = existingIdeas && existingIdeas.length > 0 
-      ? `Existing ideas to avoid duplication:\n${existingIdeas.map((idea: any) => `- ${idea.title}: ${idea.description}`).join('\n')}\n\n`
+    const existingIdeasText = existingIdeas && existingIdeas.length > 0
+      ? `Existing ideas to avoid duplication:\n${existingIdeas.map((idea: Omit<IdeaDefinition, "id">) => `- ${idea.title}: ${idea.description}`).join('\n')}\n\n`
       : '';
       
     const prompt = `Based on the conversation history and the user's interests, generate 3-5 new thesis idea suggestions that are different from the existing ideas provided.
@@ -54,21 +62,21 @@ export async function generateIdeasHandler(
 ${existingIdeasText}Conversation history:
 ${JSON.stringify(modelMessages)}
 
-Please provide ideas with titles and detailed descriptions. Each idea should be unique and not overlap with the existing ideas. Focus on the user's main interests as shown in the conversation.`;
+Please provide ideas with titles and detailed descriptions. Each idea should be unique and not overlap with the existing ideas. Focus on the user's main interests as shown in the conversation. Each idea should be specific, well-defined, and suitable for a thesis topic.`;
     
     const { object } = await generateObject({
       model: google("gemini-1.5-flash-latest"),
-      schema: z.object({ 
-        ideas: z.array(z.object({ 
-          title: z.string(),
-          description: z.string()
-        }))
+      schema: z.object({
+        ideas: z.array(z.object({
+          title: z.string().min(1, "Title is required"),
+          description: z.string().min(10, "Description should be at least 10 characters")
+        })).min(1, "At least one idea is required").max(10, "Maximum 10 ideas allowed")
       }),
       prompt: prompt,
     });
     
     return c.json({ ideas: object.ideas });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Error in /api/generate-ideas:", err);
     return onError(c, err);
   }
