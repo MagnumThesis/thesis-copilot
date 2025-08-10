@@ -1,4 +1,5 @@
 import { AppSidebar } from "@/components/app-sidebar";
+import { Toaster } from "@/components/ui/shadcn/sonner";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -75,7 +76,8 @@ function Landing() {
   return !selectedItem ? (
     <></>
   ) : (
-    <SidebarProvider className="h-screen"> 
+    <SidebarProvider className="h-screen">
+      <Toaster />
       <AppSidebar
         items={items}
         onNew={() => {

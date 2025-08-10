@@ -25,6 +25,11 @@ app.post("/", async (c) => {
     return c.json({ error: "Title and description are required" }, 400);
   }
 
+  if (!conversationid) {
+    return c.json({ error: "Conversation ID is required" }, 400);
+  }
+
+
   const { data, error } = await supabase
     .from("ideas")
     .insert([
@@ -42,7 +47,18 @@ app.post("/", async (c) => {
 
 // GET /api/ideas - Get all ideas
 app.get("/", async (c) => {
-  const { data, error } = await supabase.from("ideas").select("*");
+  // Extract conversationId from query parameters
+  const conversationId = c.req.query("conversationId");
+
+  // Build the query based on whether conversationId is provided
+  let query = supabase.from("ideas").select("*");
+  
+  // Filter by conversationId if provided
+  if (conversationId) {
+    query = query.eq("conversationid", conversationId);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     console.error("Error fetching ideas:", error);
@@ -76,7 +92,7 @@ app.patch("/:id", async (c) => {
   const updates = await c.req.json<{
     title?: string;
     description?: string;
-    conversationId?: string;
+    conversationid?: string;
   }>();
 
   // Ensure at least one field is being updated

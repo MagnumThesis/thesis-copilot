@@ -11,7 +11,7 @@ import { Idealist } from "./idealist" // Import the new Idealist component
 interface ToolsPanelProps {
   className?: string
   children?: React.ReactNode
-  currentConversation?: { title: string; id: string } // Added prop for current conversation
+  currentConversation: { title: string; id: string } // Added prop for current conversation
 }
 
 export const ToolsPanel: React.FC<ToolsPanelProps> = ({
