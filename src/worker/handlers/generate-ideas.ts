@@ -75,6 +75,23 @@ Please provide ideas with titles and detailed descriptions. Each idea should be 
       prompt: prompt,
     });
     
+    // Save ideas to the database
+    const ideasToInsert = object.ideas.map(idea => ({
+      title: idea.title,
+      description: idea.description,
+      conversationid: chatId  // Fixed column name to match database schema
+    }));
+    
+    const { error: insertError } = await supabase
+      .from("ideas")
+      .insert(ideasToInsert);
+      
+    if (insertError) {
+      console.error("Failed to save ideas to database:", insertError);
+      // We don't return an error here as we still want to return the generated ideas
+      // The UI can handle the case where ideas weren't saved to the database
+    }
+    
     return c.json({ ideas: object.ideas });
   } catch (err: unknown) {
     console.error("Error in /api/generate-ideas:", err);
