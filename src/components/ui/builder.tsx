@@ -3,6 +3,8 @@
 import React from "react"
 import { ScrollArea } from "@/components/ui/shadcn/scroll-area"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/shadcn/sheet"
+import { MilkdownEditor } from "@/components/ui/milkdown-editor"
+import { MilkdownProvider } from "@milkdown/react"
 
 interface BuilderProps {
   isOpen: boolean;
@@ -13,7 +15,7 @@ interface BuilderProps {
 export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConversation }) => {
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
-      <SheetContent className="sm:max-w-[425px]">
+      <SheetContent className="sm:max-w-[425px] md:max-w-4/5">
         <SheetHeader>
           <SheetTitle>Builder</SheetTitle>
           <SheetDescription>
@@ -22,9 +24,9 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
         </SheetHeader>
         <ScrollArea className="h-[calc(100vh-150px)] pr-4">
           {/* Placeholder content - will be enhanced later */}
-          <div className="py-4 text-center text-muted-foreground">
-            Builder content will be added here
-          </div>
+          <MilkdownProvider >
+            <MilkdownEditor />
+          </MilkdownProvider>
         </ScrollArea>
       </SheetContent>
     </Sheet>

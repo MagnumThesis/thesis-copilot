@@ -116,7 +116,6 @@ export const ToolsPanel: React.FC<ToolsPanelProps> = ({
       </motion.div>
 
       {/* Idealist Sheet */}
-      {/* Pass currentConversation to Idealist */}
       <Idealist isOpen={isIdealistSheetOpen} onClose={() => setIsIdealistSheetOpen(false)} currentConversation={currentConversation} />
       {/* Builder Sheet */}
       <Builder isOpen={isBuilderSheetOpen} onClose={() => setIsBuilderSheetOpen(false)} currentConversation={currentConversation} />

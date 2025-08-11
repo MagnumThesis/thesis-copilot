@@ -1,0 +1,11 @@
+.milkdown {
+    max-width: calc(70w - 5em);
+    margin: 0;
+    margin-left: 5em;
+    padding: 1rem;
+  }
+
+  .milkdown .editor {
+    margin: 0;
+    padding: 0;
+  }
