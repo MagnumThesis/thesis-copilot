@@ -1,99 +1,51 @@
 "use client"
 
-import React from "react"
+import * as React from "react"
+import * as ScrollAreaPrimitive from "@radix-ui/react-scroll-area"
 import { cn } from "@/lib/utils"
 
-// Re-implementing ScrollArea components locally to avoid external dependency issues
-// Based on typical shadcn/ui implementations which use Radix UI primitives
-
-// --- Start of local ScrollAreaPrimitive implementation ---
-// Note: This is a simplified version and might not cover all Radix UI features.
-// For a full implementation, consider installing the package if permissions allow.
-
-const ScrollAreaViewport = React.forwardRef<
-  HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
->(({ className, children, ...props }, ref) => (
-  <div
+const ScrollArea = React.forwardRef<
+  React.ElementRef<typeof ScrollAreaPrimitive.Root>,
+  React.ComponentPropsWithoutRef<typeof ScrollAreaPrimitive.Root> & {
+    orientation?: "vertical" | "horizontal"
+  }
+>(({ className, children, orientation = "vertical", ...props }, ref) => (
+  <ScrollAreaPrimitive.Root
     ref={ref}
-    className={cn("h-full w-full rounded-[inherit]", className)}
+    className={cn("relative overflow-hidden", className)}
     {...props}
   >
-    {children}
-  </div>
+    <ScrollAreaPrimitive.Viewport className="h-full w-full rounded-[inherit]">
+      {children}
+    </ScrollAreaPrimitive.Viewport>
+    <ScrollBar orientation={orientation} />
+    <ScrollAreaPrimitive.Corner />
+  </ScrollAreaPrimitive.Root>
 ))
-ScrollAreaViewport.displayName = "ScrollAreaViewport"
+ScrollArea.displayName = ScrollAreaPrimitive.Root.displayName
 
-const ScrollAreaScrollbar = React.forwardRef<
-  HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement> & { orientation: "vertical" | "horizontal" }
->(({ className, orientation, children, ...props }, ref) => (
-  <div
+const ScrollBar = React.forwardRef<
+  React.ElementRef<typeof ScrollAreaPrimitive.ScrollAreaScrollbar>,
+  React.ComponentPropsWithoutRef<typeof ScrollAreaPrimitive.ScrollAreaScrollbar> & {
+    orientation?: "vertical" | "horizontal"
+  }
+>(({ className, orientation = "vertical", ...props }, ref) => (
+  <ScrollAreaPrimitive.ScrollAreaScrollbar
     ref={ref}
+    orientation={orientation}
     className={cn(
       "flex touch-none select-none transition-colors",
-      orientation === "vertical"
-        ? "h-full w-2.5 border-l border-l-transparent p-[1px]"
-        : "h-2.5 border-t border-t-transparent p-[1px]",
+      orientation === "vertical" &&
+        "h-full w-2.5 border-l border-l-transparent p-[1px]",
+      orientation === "horizontal" &&
+        "h-2.5 flex-col border-t border-t-transparent p-[1px]",
       className
     )}
     {...props}
   >
-    {children}
-  </div>
+    <ScrollAreaPrimitive.ScrollAreaThumb className="relative flex-1 rounded-full bg-border" />
+  </ScrollAreaPrimitive.ScrollAreaScrollbar>
 ))
-ScrollAreaScrollbar.displayName = "ScrollAreaScrollbar"
+ScrollBar.displayName = ScrollAreaPrimitive.ScrollAreaScrollbar.displayName
 
-const ScrollAreaThumb = React.forwardRef<
-  HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
->(({ className, children, ...props }, ref) => (
-  <div
-    ref={ref}
-    className={cn("relative flex-1 rounded-full bg-border", className)}
-    {...props}
-  >
-    {children}
-  </div>
-))
-ScrollAreaThumb.displayName = "ScrollAreaThumb"
-
-const ScrollAreaCorner = React.forwardRef<
-  HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
->(({ className, children, ...props }, ref) => (
-  <div
-    ref={ref}
-    className={cn("flex-1", className)}
-    {...props}
-  >
-    {children}
-  </div>
-))
-ScrollAreaCorner.displayName = "ScrollAreaCorner"
-
-// --- End of local ScrollAreaPrimitive implementation ---
-
-const ScrollArea = React.forwardRef<
-  HTMLDivElement,
-  React.ComponentPropsWithoutRef<"div"> & {
-    orientation?: "vertical" | "horizontal"
-  }
->(({ className, children, orientation = "vertical", ...props }, ref) => (
-  <div
-    ref={ref}
-    className={cn("overflow-hidden text-foreground", className)}
-    {...props}
-  >
-    <ScrollAreaViewport>
-      {children}
-    </ScrollAreaViewport>
-    <ScrollAreaScrollbar orientation={orientation}>
-      <ScrollAreaThumb />
-    </ScrollAreaScrollbar>
-    <ScrollAreaCorner />
-  </div>
-))
-ScrollArea.displayName = "ScrollArea"
-
-export { ScrollArea }
+export { ScrollArea, ScrollBar }
