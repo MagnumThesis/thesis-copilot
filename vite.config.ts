@@ -12,7 +12,7 @@ import { visualizer } from "rollup-plugin-visualizer";
 
 export default defineConfig({
   plugins: [react(), cloudflare(), tailwindcss(), visualizer({
-    open: true,
+    open: false,
     filename: "dist/stats.html",
   })],
   resolve: {

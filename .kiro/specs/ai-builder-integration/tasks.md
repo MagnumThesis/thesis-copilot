@@ -2,20 +2,12 @@
 
 - [x] 1. Set up core AI integration infrastructure
 
-
-
-
-
   - Create AI mode enumeration and type definitions
   - Implement base AI request/response interfaces
   - Set up error handling utilities for AI operations
   - _Requirements: 1.1, 4.1, 5.1_
 
 - [x] 2. Implement AI Mode Manager hook
-
-
-
-
 
   - Create useAIModeManager hook with state management
   - Implement mode transition logic and validation
@@ -25,10 +17,6 @@
 
 - [x] 3. Create AI Action Toolbar component
 
-
-
-
-
   - Build toolbar component with mode selection buttons
   - Implement tooltip system for mode explanations
   - Add visual indicators for active modes and disabled states
@@ -36,7 +24,9 @@
   - Write unit tests for toolbar interactions
   - _Requirements: 4.1, 4.2, 4.3, 4.5_
 
-- [ ] 4. Enhance Milkdown Editor with AI integration capabilities
+- [x] 4. Enhance Milkdown Editor with AI integration capabilities
+
+
   - Add text selection tracking functionality
   - Implement cursor position monitoring
   - Create content insertion and replacement methods
@@ -45,6 +35,7 @@
   - _Requirements: 3.1, 3.4, 3.5, 5.2, 5.3_
 
 - [ ] 5. Implement backend AI context manager
+
   - Create AI context manager service for document analysis
   - Implement idea definitions retrieval from database
   - Build context formatting utilities for AI prompts
@@ -53,6 +44,7 @@
   - _Requirements: 6.1, 6.2, 6.4_
 
 - [ ] 6. Create backend Builder AI handler
+
   - Implement prompt mode endpoint with AI integration
   - Create continue mode endpoint with context analysis
   - Build modify mode endpoint with text transformation options
@@ -61,6 +53,7 @@
   - _Requirements: 1.1, 1.2, 1.3, 2.1, 2.2, 3.2, 3.3_
 
 - [ ] 7. Implement prompt mode functionality
+
   - Connect AI Action Toolbar prompt mode to backend
   - Add prompt input interface with validation
   - Implement AI content generation and insertion workflow
@@ -69,6 +62,7 @@
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5_
 
 - [ ] 8. Implement continue mode functionality
+
   - Add cursor position analysis for content continuation
   - Implement context-aware content generation
   - Create style and tone consistency checking
@@ -77,6 +71,7 @@
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5_
 
 - [ ] 9. Implement modify mode functionality
+
   - Add text selection validation and mode enabling
   - Create modification type selection interface
   - Implement text transformation options (rewrite, expand, summarize, improve)
@@ -85,6 +80,7 @@
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6_
 
 - [ ] 10. Integrate AI features with existing Builder component
+
   - Update Builder component to include AI Action Toolbar
   - Connect AI Mode Manager with Milkdown Editor
   - Implement proper state management between components
@@ -93,6 +89,7 @@
   - _Requirements: 4.4, 5.1, 5.2, 5.4_
 
 - [ ] 11. Implement academic context integration
+
   - Connect AI context manager with Idealist tool data
   - Add academic tone and style validation for AI content
   - Implement thesis proposal structure awareness
@@ -101,6 +98,7 @@
   - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5_
 
 - [ ] 12. Add comprehensive error handling and recovery
+
   - Implement network error handling with retry logic
   - Add AI service error handling with user-friendly messages
   - Create graceful degradation to manual editing mode
@@ -109,6 +107,7 @@
   - _Requirements: 1.4, 2.5, 4.6_
 
 - [ ] 13. Implement performance optimizations
+
   - Add request debouncing for AI operations
   - Implement caching for similar AI requests
   - Add optimistic UI updates for better user experience
@@ -117,6 +116,7 @@
   - _Requirements: 1.5, 2.3, 5.4_
 
 - [ ] 14. Create comprehensive test suite
+
   - Write end-to-end tests for all AI modes
   - Add integration tests for editor and AI coordination
   - Create performance tests for AI operations
