@@ -6,6 +6,7 @@ import { getChatsHandler, createChatHandler, deleteChatHandler, updateChatHandle
 import { getMessagesHandler } from "./handlers/messages";
 import { generateTitleHandler } from "./handlers/generate-title";
 import { generateIdeasHandler } from "./handlers/generate-ideas";
+import { builderAIPromptHandler, builderAIContinueHandler, builderAIModifyHandler } from "./handlers/builder-ai";
 import ideasRouter from "./handlers/ideas"; // Import the ideas router
 
 const app = new Hono<{ Bindings: Env & SupabaseEnv }>();
@@ -26,6 +27,11 @@ app.get("/api/chats/:id/messages", getMessagesHandler);
 
 // Ideas CRUD
 app.route('/api/ideas', ideasRouter); // Mount the ideas router
+
+// Builder AI endpoints
+app.post("/api/builder/ai/prompt", builderAIPromptHandler);
+app.post("/api/builder/ai/continue", builderAIContinueHandler);
+app.post("/api/builder/ai/modify", builderAIModifyHandler);
 
 // Other
 app.post("/api/generate-title", generateTitleHandler);
