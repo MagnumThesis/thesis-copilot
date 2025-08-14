@@ -15,15 +15,8 @@ import {
   AIMode,
 } from "../../lib/ai-types";
 
-// AI Mode Manager interface (will be implemented in separate hook)
-export interface UseAIModeManager {
-  currentMode: AIMode;
-  setMode: (mode: AIMode) => void;
-  processPrompt: (prompt: string) => Promise<void>;
-  processContinue: () => Promise<void>;
-  processModify: (modificationType: string) => Promise<void>;
-  isProcessing: boolean;
-}
+// Import the actual AI Mode Manager interface
+import type { UseAIModeManager } from "../../hooks/use-ai-mode-manager";
 
 // Enhanced Milkdown Editor Props
 export interface MilkdownEditorProps {
@@ -32,6 +25,7 @@ export interface MilkdownEditorProps {
   onSelectionChange?: (selection: TextSelection | null) => void;
   onCursorPositionChange?: (position: number) => void;
   aiModeManager?: UseAIModeManager;
+  onEditorMethodsReady?: (methods: any) => void;
   className?: string;
 }
 
@@ -77,6 +71,7 @@ export const MilkdownEditor: FC<MilkdownEditorProps> = ({
   onSelectionChange,
   onCursorPositionChange,
   aiModeManager,
+  onEditorMethodsReady,
   className = "",
 }) => {
   const [content, setContent] = useState(initialContent);
@@ -84,7 +79,7 @@ export const MilkdownEditor: FC<MilkdownEditorProps> = ({
     useState<TextSelection | null>(null);
   const [cursorPosition, setCursorPosition] = useState(0);
   const [aiPreviewContent, setAIPreviewContent] = useState<string>("");
-  const [showAIPreview, setShowAIPreview] = useState(true);
+  const [showAIPreview, setShowAIPreview] = useState(false);
   const [pendingInsertionOptions, setPendingInsertionOptions] =
     useState<ContentInsertionOptions | null>(null);
 
@@ -298,7 +293,12 @@ export const MilkdownEditor: FC<MilkdownEditorProps> = ({
       // Extend aiModeManager with editor methods
       Object.assign(aiModeManager, { editorMethods });
     }
-  }, [aiModeManager, editorMethods]);
+    
+    // Notify parent component that editor methods are ready
+    if (onEditorMethodsReady) {
+      onEditorMethodsReady(editorMethods);
+    }
+  }, [aiModeManager, editorMethods, onEditorMethodsReady]);
 
   return (
     <div className={`milkdown-editor-container ${className}`}>

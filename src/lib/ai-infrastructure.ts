@@ -13,9 +13,12 @@ export * from './ai-interfaces';
 export * from './ai-error-handler';
 
 // Re-export commonly used types for convenience
-export type {
+export {
   AIMode,
-  ModificationType,
+  ModificationType
+} from './ai-types';
+
+export type {
   TextSelection,
   DocumentContext,
   AIProcessingState

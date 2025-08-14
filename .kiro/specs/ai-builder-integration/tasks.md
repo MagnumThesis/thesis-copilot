@@ -51,7 +51,8 @@
   - Write unit tests for all AI endpoints
   - _Requirements: 1.1, 1.2, 1.3, 2.1, 2.2, 3.2, 3.3_
 
-- [ ] 7. Implement prompt mode functionality
+- [x] 7. Implement prompt mode functionality
+
 
   - Connect AI Action Toolbar prompt mode to backend
   - Add prompt input interface with validation
