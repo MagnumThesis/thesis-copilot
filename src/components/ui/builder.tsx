@@ -3,6 +3,7 @@
 import React, { useState, useCallback, useRef } from "react"
 import { ScrollArea } from "@/components/ui/shadcn/scroll-area"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/shadcn/sheet"
+import { Button } from "@/components/ui/shadcn/button"
 import { MilkdownEditor } from "@/components/ui/milkdown-editor"
 import { MilkdownProvider } from "@milkdown/react"
 import { AIActionToolbar } from "@/components/ui/ai-action-toolbar"
@@ -118,6 +119,32 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
     }
   }, [aiModeManager.currentMode, handleRejectAIContent]);
 
+  // Handle continue mode activation
+  const handleContinueMode = useCallback(async () => {
+    try {
+      const response = await aiModeManager.processContinue(cursorPosition, currentSelection?.text);
+      
+      if (response.success && response.content) {
+        setAIGeneratedContent(response.content);
+        setAIMetadata(response.metadata);
+        
+        // Set up insertion options for cursor position
+        const insertionOptions: ContentInsertionOptions = {
+          insertAt: cursorPosition,
+          preserveFormatting: true
+        };
+        setPendingInsertionOptions(insertionOptions);
+        setShowContentConfirmation(true);
+      } else {
+        const errorMessage = !response.success ? (response as any).error : "Failed to continue content";
+        toast.error(errorMessage || "Failed to continue content");
+      }
+    } catch (error: any) {
+      console.error("Error processing continue mode:", error);
+      toast.error(error.message || "Failed to continue content");
+    }
+  }, [aiModeManager, cursorPosition, currentSelection]);
+
   // Handle prompt cancellation
   const handlePromptCancel = useCallback(() => {
     aiModeManager.resetMode();
@@ -154,6 +181,26 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
               onCancel={handlePromptCancel}
               isProcessing={aiModeManager.isProcessing}
             />
+          )}
+
+          {/* Continue Mode Activation (shown when in continue mode) */}
+          {aiModeManager.currentMode === AIMode.CONTINUE && !showContentConfirmation && !aiModeManager.isProcessing && (
+            <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border">
+              <div className="flex-1">
+                <h4 className="font-medium">Continue Content Generation</h4>
+                <p className="text-sm text-muted-foreground mt-1">
+                  AI will continue writing from your current cursor position, maintaining the style and tone of your existing content.
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={handlePromptCancel}>
+                  Cancel
+                </Button>
+                <Button onClick={handleContinueMode}>
+                  Continue Writing
+                </Button>
+              </div>
+            </div>
           )}
 
           {/* AI Content Confirmation */}

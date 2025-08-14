@@ -53,7 +53,6 @@
 
 - [x] 7. Implement prompt mode functionality
 
-
   - Connect AI Action Toolbar prompt mode to backend
   - Add prompt input interface with validation
   - Implement AI content generation and insertion workflow
@@ -61,7 +60,8 @@
   - Write integration tests for prompt mode workflow
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5_
 
-- [ ] 8. Implement continue mode functionality
+- [x] 8. Implement continue mode functionality
+
 
   - Add cursor position analysis for content continuation
   - Implement context-aware content generation
