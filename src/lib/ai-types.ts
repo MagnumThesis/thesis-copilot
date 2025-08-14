@@ -66,3 +66,35 @@ export interface AIProcessingState {
   progress?: number;
   statusMessage?: string;
 }
+
+// AI Request/Response interfaces for backend handlers
+export interface AIPromptRequest {
+  prompt: string;
+  documentContent: string;
+  cursorPosition: number;
+  conversationId: string;
+}
+
+export interface AIContinueRequest {
+  documentContent: string;
+  cursorPosition: number;
+  selectedText?: string;
+  conversationId: string;
+}
+
+export interface AIModifyRequest {
+  selectedText: string;
+  modificationType: ModificationType;
+  documentContent: string;
+  conversationId: string;
+}
+
+export interface AIResponse {
+  success: boolean;
+  content?: string;
+  error?: string;
+  metadata?: {
+    tokensUsed: number;
+    processingTime: number;
+  };
+}
