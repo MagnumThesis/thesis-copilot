@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { IdeaDefinition } from "@/components/ui/idealist"; // Import IdeaDefinition
+import { IdeaDefinition } from "@/lib/ai-types"; // Import IdeaDefinition
 import { Button } from "@/components/ui/shadcn/button";
 import { Input } from "@/components/ui/shadcn/input";
 import { Textarea } from "@/components/ui/shadcn/textarea";

@@ -11,14 +11,7 @@ import { Textarea } from "@/components/ui/shadcn/textarea" // Import Textarea co
 import { IdeaDetail } from "@/react-app/pages/IdeaDetail"; // Import IdeaDetail component
 import { fetchIdeas, createIdea, updateIdea, deleteIdea, generateIdeas } from "@/lib/idea-api"; // Import API functions
 import { Skeleton } from "@/components/ui/shadcn/skeleton"; // Import Skeleton for loading states
-
-// Interface for idea definitions
-export interface IdeaDefinition {
-  id: number;
-  title: string;
-  description: string;
-  conversationid?: string; // Added conversationid
-}
+import { IdeaDefinition } from "@/lib/ai-types"; // Import shared IdeaDefinition interface
 
 interface IdealistProps {
   isOpen: boolean;

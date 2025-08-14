@@ -7,7 +7,7 @@ import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { ModelMessage } from "ai";
 import { onError } from "../lib/utils";
 import { getGoogleGenerativeAIKey } from "../lib/api-keys";
-import { IdeaDefinition } from "../../components/ui/idealist";
+import { IdeaDefinition } from "../../lib/ai-types";
 
 interface GenerateIdeasRequest {
   chatId: string;

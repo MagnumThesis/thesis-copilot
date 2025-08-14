@@ -3,7 +3,7 @@
  * @file src/lib/idea-api.ts
  */
 
-import { IdeaDefinition } from "@/components/ui/idealist";
+import { IdeaDefinition } from "@/lib/ai-types";
 
 const API_BASE_URL = "/api/ideas";
 
