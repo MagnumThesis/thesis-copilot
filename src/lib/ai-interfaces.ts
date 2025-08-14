@@ -28,6 +28,7 @@ export interface AIContinueRequest extends BaseAIRequest {
 export interface AIModifyRequest extends BaseAIRequest {
   selectedText: string;
   modificationType: ModificationType;
+  customPrompt?: string; // For ModificationType.PROMPT
 }
 
 // Base AI response interface

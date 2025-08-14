@@ -26,6 +26,7 @@ export interface UseAIModeManager {
   currentMode: AIMode;
   processingState: AIProcessingState;
   hasSelectedText: boolean;
+  selectedText: TextSelection | null;
   
   // Mode management
   setMode: (mode: AIMode) => void;
@@ -38,6 +39,25 @@ export interface UseAIModeManager {
   
   // Selection management
   updateSelection: (selection: TextSelection | null) => void;
+  validateTextSelection: (selection: TextSelection | null) => boolean;
+  
+  // Modify mode specific
+  showModificationTypeSelector: boolean;
+  showModificationPreview: boolean;
+  showCustomPromptInput: boolean;
+  currentModificationType: ModificationType | null;
+  modificationPreviewContent: string | null;
+  originalTextForModification: string | null;
+  customPrompt: string | null;
+  
+  // Modify mode actions
+  startModifyMode: () => void;
+  selectModificationType: (type: ModificationType) => Promise<void>;
+  submitCustomPrompt: (prompt: string) => Promise<void>;
+  backToModificationTypes: () => void;
+  acceptModification: () => void;
+  rejectModification: () => void;
+  regenerateModification: () => Promise<void>;
   
   // Utility methods
   canActivateMode: (mode: AIMode) => boolean;
@@ -69,6 +89,15 @@ export function useAIModeManager(
     currentMode: AIMode.NONE
   });
   const [selectedText, setSelectedText] = useState<TextSelection | null>(null);
+  
+  // Modify mode specific state
+  const [showModificationTypeSelector, setShowModificationTypeSelector] = useState(false);
+  const [showModificationPreview, setShowModificationPreview] = useState(false);
+  const [showCustomPromptInput, setShowCustomPromptInput] = useState(false);
+  const [currentModificationType, setCurrentModificationType] = useState<ModificationType | null>(null);
+  const [modificationPreviewContent, setModificationPreviewContent] = useState<string | null>(null);
+  const [originalTextForModification, setOriginalTextForModification] = useState<string | null>(null);
+  const [customPrompt, setCustomPrompt] = useState<string | null>(null);
   
   // Refs for managing async operations
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -129,16 +158,32 @@ export function useAIModeManager(
   }, [setMode]);
   
   /**
+   * Validates text selection for modify mode
+   */
+  const validateTextSelection = useCallback((selection: TextSelection | null): boolean => {
+    if (!selection) return false;
+    
+    const text = selection.text.trim();
+    if (text.length === 0) return false;
+    if (text.length < 3) return false; // Minimum text length for meaningful modification
+    if (text.length > 5000) return false; // Maximum text length to avoid API limits
+    
+    return true;
+  }, []);
+
+  /**
    * Updates text selection state
    */
   const updateSelection = useCallback((selection: TextSelection | null) => {
     setSelectedText(selection);
     
-    // If modify mode is active but no text is selected, reset to NONE
-    if (currentMode === AIMode.MODIFY && (!selection || !selection.text.trim())) {
+    // If modify mode is active but no valid text is selected, reset to NONE
+    if (currentMode === AIMode.MODIFY && !validateTextSelection(selection)) {
       resetMode();
+      setShowModificationTypeSelector(false);
+      setShowModificationPreview(false);
     }
-  }, [currentMode, resetMode]);
+  }, [currentMode, resetMode, validateTextSelection]);
   
   /**
    * Generic AI request handler with error handling and retry logic
@@ -346,7 +391,8 @@ export function useAIModeManager(
    */
   const processModify = useCallback(async (
     selectedText: string,
-    modificationType: ModificationType
+    modificationType: ModificationType,
+    customPromptText?: string
   ): Promise<AIResponse> => {
     if (!selectedText.trim()) {
       throw new AIError(
@@ -361,7 +407,10 @@ export function useAIModeManager(
       modificationType,
       documentContent,
       conversationId,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      ...(modificationType === ModificationType.PROMPT && customPromptText && {
+        customPrompt: customPromptText
+      })
     };
     
     return handleAIRequest(
@@ -387,12 +436,213 @@ export function useAIModeManager(
       `Modifying content (${modificationType})...`
     );
   }, [documentContent, conversationId, handleAIRequest]);
+
+  /**
+   * Starts modify mode workflow
+   */
+  const startModifyMode = useCallback(() => {
+    if (!validateTextSelection(selectedText)) {
+      console.warn('Cannot start modify mode: invalid text selection');
+      return;
+    }
+    
+    setCurrentMode(AIMode.MODIFY);
+    setShowModificationTypeSelector(true);
+    setShowModificationPreview(false);
+    setShowCustomPromptInput(false);
+    setCurrentModificationType(null);
+    setModificationPreviewContent(null);
+    setOriginalTextForModification(selectedText?.text || null);
+    setCustomPrompt(null);
+  }, [selectedText, validateTextSelection]);
+
+  /**
+   * Selects modification type and processes the modification
+   */
+  const selectModificationType = useCallback(async (type: ModificationType) => {
+    if (!selectedText || !validateTextSelection(selectedText)) {
+      throw new AIError(
+        'No valid text selected for modification',
+        AIErrorType.VALIDATION_ERROR,
+        'NO_SELECTION'
+      );
+    }
+
+    setCurrentModificationType(type);
+    setShowModificationTypeSelector(false);
+
+    // If it's a prompt type, show the custom prompt input
+    if (type === ModificationType.PROMPT) {
+      setShowCustomPromptInput(true);
+      return;
+    }
+
+    try {
+      // Process the modification for predefined types
+      const response = await processModify(selectedText.text, type);
+      
+      if (response.success && response.content) {
+        setModificationPreviewContent(response.content);
+        setShowModificationPreview(true);
+      } else {
+        throw new AIError(
+          response.error || 'Failed to generate modification',
+          AIErrorType.API_ERROR,
+          'MODIFICATION_FAILED'
+        );
+      }
+    } catch (error) {
+      // Reset state on error
+      setShowModificationTypeSelector(true);
+      setCurrentModificationType(null);
+      setModificationPreviewContent(null);
+      throw error;
+    }
+  }, [selectedText, validateTextSelection, processModify]);
+
+  /**
+   * Submits custom prompt and processes the modification
+   */
+  const submitCustomPrompt = useCallback(async (prompt: string) => {
+    if (!selectedText || !validateTextSelection(selectedText)) {
+      throw new AIError(
+        'No valid text selected for modification',
+        AIErrorType.VALIDATION_ERROR,
+        'NO_SELECTION'
+      );
+    }
+
+    if (!prompt.trim()) {
+      throw new AIError(
+        'Custom prompt cannot be empty',
+        AIErrorType.VALIDATION_ERROR,
+        'EMPTY_PROMPT'
+      );
+    }
+
+    try {
+      setCustomPrompt(prompt);
+      setShowCustomPromptInput(false);
+      
+      // Process the modification with custom prompt
+      const response = await processModify(selectedText.text, ModificationType.PROMPT, prompt);
+      
+      if (response.success && response.content) {
+        setModificationPreviewContent(response.content);
+        setShowModificationPreview(true);
+      } else {
+        throw new AIError(
+          response.error || 'Failed to generate modification',
+          AIErrorType.API_ERROR,
+          'MODIFICATION_FAILED'
+        );
+      }
+    } catch (error) {
+      // Reset state on error
+      setShowCustomPromptInput(true);
+      setModificationPreviewContent(null);
+      throw error;
+    }
+  }, [selectedText, validateTextSelection, processModify]);
+
+  /**
+   * Returns to modification type selection
+   */
+  const backToModificationTypes = useCallback(() => {
+    setShowCustomPromptInput(false);
+    setShowModificationTypeSelector(true);
+    setCurrentModificationType(null);
+    setCustomPrompt(null);
+  }, []);
+
+  /**
+   * Accepts the current modification and applies it to the document
+   */
+  const acceptModification = useCallback(() => {
+    if (!modificationPreviewContent || !selectedText) {
+      console.warn('Cannot accept modification: no content or selection available');
+      return;
+    }
+
+    // This will be handled by the editor component
+    // The editor should replace the selected text with the modified content
+    
+    // Reset modify mode state
+    setCurrentMode(AIMode.NONE);
+    setShowModificationTypeSelector(false);
+    setShowModificationPreview(false);
+    setShowCustomPromptInput(false);
+    setCurrentModificationType(null);
+    setModificationPreviewContent(null);
+    setOriginalTextForModification(null);
+    setCustomPrompt(null);
+  }, [modificationPreviewContent, selectedText]);
+
+  /**
+   * Rejects the current modification and returns to type selection
+   */
+  const rejectModification = useCallback(() => {
+    setShowModificationPreview(false);
+    setModificationPreviewContent(null);
+    
+    // Return to type selection if we have valid text selected
+    if (validateTextSelection(selectedText)) {
+      setShowModificationTypeSelector(true);
+      setShowCustomPromptInput(false);
+      setCurrentModificationType(null);
+      setCustomPrompt(null);
+    } else {
+      // No valid selection, exit modify mode completely
+      resetMode();
+      setShowModificationTypeSelector(false);
+      setShowCustomPromptInput(false);
+      setCurrentModificationType(null);
+      setOriginalTextForModification(null);
+      setCustomPrompt(null);
+    }
+  }, [selectedText, validateTextSelection, resetMode]);
+
+  /**
+   * Regenerates the current modification with the same type
+   */
+  const regenerateModification = useCallback(async () => {
+    if (!currentModificationType || !selectedText || !validateTextSelection(selectedText)) {
+      throw new AIError(
+        'Cannot regenerate: missing modification type or selection',
+        AIErrorType.VALIDATION_ERROR,
+        'INVALID_REGENERATE_STATE'
+      );
+    }
+
+    try {
+      // Process the modification again with the same type and prompt (if applicable)
+      const response = await processModify(
+        selectedText.text, 
+        currentModificationType,
+        currentModificationType === ModificationType.PROMPT ? customPrompt || undefined : undefined
+      );
+      
+      if (response.success && response.content) {
+        setModificationPreviewContent(response.content);
+      } else {
+        throw new AIError(
+          response.error || 'Failed to regenerate modification',
+          AIErrorType.API_ERROR,
+          'REGENERATION_FAILED'
+        );
+      }
+    } catch (error) {
+      console.error('Failed to regenerate modification:', error);
+      throw error;
+    }
+  }, [currentModificationType, selectedText, validateTextSelection, processModify, customPrompt]);
   
   return {
     // State
     currentMode,
     processingState,
     hasSelectedText,
+    selectedText,
     
     // Mode management
     setMode,
@@ -405,6 +655,25 @@ export function useAIModeManager(
     
     // Selection management
     updateSelection,
+    validateTextSelection,
+    
+    // Modify mode specific
+    showModificationTypeSelector,
+    showModificationPreview,
+    showCustomPromptInput,
+    currentModificationType,
+    modificationPreviewContent,
+    originalTextForModification,
+    customPrompt,
+    
+    // Modify mode actions
+    startModifyMode,
+    selectModificationType,
+    submitCustomPrompt,
+    backToModificationTypes,
+    acceptModification,
+    rejectModification,
+    regenerateModification,
     
     // Utility methods
     canActivateMode,

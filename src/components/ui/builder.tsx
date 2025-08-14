@@ -9,8 +9,11 @@ import { MilkdownProvider } from "@milkdown/react"
 import { AIActionToolbar } from "@/components/ui/ai-action-toolbar"
 import { AIPromptInput } from "@/components/ui/ai-prompt-input"
 import { AIContentConfirmation } from "@/components/ui/ai-content-confirmation"
+import { ModificationTypeSelector } from "@/components/ui/modification-type-selector"
+import { AIContentPreview } from "@/components/ui/ai-content-preview"
+import { CustomPromptInput } from "@/components/ui/custom-prompt-input"
 import { useAIModeManager } from "@/hooks/use-ai-mode-manager"
-import { AIMode, TextSelection, ContentInsertionOptions } from "@/lib/ai-types"
+import { AIMode, TextSelection, ContentInsertionOptions, ModificationType } from "@/lib/ai-types"
 import { toast } from "sonner"
 
 interface BuilderProps {
@@ -27,6 +30,8 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
   const [showContentConfirmation, setShowContentConfirmation] = useState(false);
   const [pendingInsertionOptions, setPendingInsertionOptions] = useState<ContentInsertionOptions | null>(null);
   const [aiMetadata, setAIMetadata] = useState<any>(null);
+  const [originalTextForModification, setOriginalTextForModification] = useState<string>("");
+  const [currentModificationType, setCurrentModificationType] = useState<ModificationType | null>(null);
 
   // Editor methods ref to interact with Milkdown editor
   const editorMethodsRef = useRef<any>(null);
@@ -93,6 +98,8 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
       setAIGeneratedContent("");
       setPendingInsertionOptions(null);
       setAIMetadata(null);
+      setOriginalTextForModification("");
+      setCurrentModificationType(null);
       aiModeManager.resetMode();
       
       toast.success("Content inserted successfully");
@@ -105,6 +112,8 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
     setAIGeneratedContent("");
     setPendingInsertionOptions(null);
     setAIMetadata(null);
+    setOriginalTextForModification("");
+    setCurrentModificationType(null);
     aiModeManager.resetMode();
   }, [aiModeManager]);
 
@@ -145,6 +154,76 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
     }
   }, [aiModeManager, cursorPosition, currentSelection]);
 
+  // Handle modification type selection
+  const handleModificationTypeSelect = useCallback(async (modificationType: ModificationType) => {
+    try {
+      await aiModeManager.selectModificationType(modificationType);
+      toast.success("Modification generated successfully");
+    } catch (error: any) {
+      console.error("Error processing modification:", error);
+      toast.error(error.message || "Failed to generate modification");
+    }
+  }, [aiModeManager]);
+
+  // Handle modification acceptance
+  const handleAcceptModification = useCallback(() => {
+    if (editorMethodsRef.current && aiModeManager.modificationPreviewContent && aiModeManager.selectedText) {
+      const insertionOptions: ContentInsertionOptions = {
+        insertAt: aiModeManager.selectedText.start,
+        replaceRange: {
+          start: aiModeManager.selectedText.start,
+          end: aiModeManager.selectedText.end
+        },
+        preserveFormatting: true
+      };
+      
+      editorMethodsRef.current.insertContent(aiModeManager.modificationPreviewContent, insertionOptions);
+      aiModeManager.acceptModification();
+      toast.success("Modification applied successfully");
+    }
+  }, [aiModeManager]);
+
+  // Handle modification rejection
+  const handleRejectModification = useCallback(() => {
+    aiModeManager.rejectModification();
+  }, [aiModeManager]);
+
+  // Handle modification regeneration
+  const handleRegenerateModification = useCallback(async () => {
+    try {
+      await aiModeManager.regenerateModification();
+      toast.success("Modification regenerated successfully");
+    } catch (error: any) {
+      console.error("Error regenerating modification:", error);
+      toast.error(error.message || "Failed to regenerate modification");
+    }
+  }, [aiModeManager]);
+
+  // Handle custom prompt submission
+  const handleCustomPromptSubmit = useCallback(async (prompt: string) => {
+    try {
+      await aiModeManager.submitCustomPrompt(prompt);
+      toast.success("Custom modification generated successfully");
+    } catch (error: any) {
+      console.error("Error processing custom prompt:", error);
+      toast.error(error.message || "Failed to generate custom modification");
+    }
+  }, [aiModeManager]);
+
+  // Handle back to modification types
+  const handleBackToModificationTypes = useCallback(() => {
+    aiModeManager.backToModificationTypes();
+  }, [aiModeManager]);
+
+  // Handle modify mode start
+  const handleStartModifyMode = useCallback(() => {
+    if (!aiModeManager.validateTextSelection(currentSelection)) {
+      toast.error("Please select text to modify");
+      return;
+    }
+    aiModeManager.startModifyMode();
+  }, [aiModeManager, currentSelection]);
+
   // Handle prompt cancellation
   const handlePromptCancel = useCallback(() => {
     aiModeManager.resetMode();
@@ -169,7 +248,13 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
           {/* AI Action Toolbar */}
           <AIActionToolbar
             currentMode={aiModeManager.currentMode}
-            onModeChange={aiModeManager.setMode}
+            onModeChange={(mode) => {
+              if (mode === AIMode.MODIFY) {
+                handleStartModifyMode();
+              } else {
+                aiModeManager.setMode(mode);
+              }
+            }}
             hasSelectedText={aiModeManager.hasSelectedText}
             isAIProcessing={aiModeManager.isProcessing}
           />
@@ -203,6 +288,44 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
             </div>
           )}
 
+          {/* Modification Type Selector (shown when selecting modification type) */}
+          {aiModeManager.showModificationTypeSelector && aiModeManager.selectedText && (
+            <ModificationTypeSelector
+              selectedText={aiModeManager.selectedText.text}
+              onModificationTypeSelect={handleModificationTypeSelect}
+              onCancel={handlePromptCancel}
+              isProcessing={aiModeManager.isProcessing}
+            />
+          )}
+
+          {/* Custom Prompt Input (shown when user selects prompt modification type) */}
+          {aiModeManager.showCustomPromptInput && aiModeManager.selectedText && (
+            <CustomPromptInput
+              selectedText={aiModeManager.selectedText.text}
+              onSubmit={handleCustomPromptSubmit}
+              onCancel={handlePromptCancel}
+              onBack={handleBackToModificationTypes}
+              isProcessing={aiModeManager.isProcessing}
+            />
+          )}
+
+          {/* Modification Preview (shown when previewing modifications) */}
+          {aiModeManager.showModificationPreview && 
+           aiModeManager.modificationPreviewContent && 
+           aiModeManager.originalTextForModification &&
+           aiModeManager.currentModificationType && (
+            <AIContentPreview
+              originalText={aiModeManager.originalTextForModification}
+              modifiedText={aiModeManager.modificationPreviewContent}
+              modificationType={aiModeManager.currentModificationType}
+              onAccept={handleAcceptModification}
+              onReject={handleRejectModification}
+              onRegenerate={handleRegenerateModification}
+              isVisible={aiModeManager.showModificationPreview}
+              isRegenerating={aiModeManager.isProcessing}
+            />
+          )}
+
           {/* AI Content Confirmation */}
           {showContentConfirmation && (
             <AIContentConfirmation
@@ -212,6 +335,8 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
               onRegenerate={handleRegenerateContent}
               isVisible={showContentConfirmation}
               metadata={aiMetadata}
+              originalText={originalTextForModification || undefined}
+              modificationType={currentModificationType || undefined}
             />
           )}
 

@@ -586,6 +586,37 @@ describe('Builder AI Handler Tests', () => {
       );
     });
 
+    it('should handle custom prompt modification successfully', async () => {
+      const { generateText } = await import('ai');
+      (generateText as any).mockResolvedValue({
+        text: 'This research methodology incorporates advanced statistical techniques and machine learning algorithms to analyze complex datasets.',
+        usage: { totalTokens: 120 }
+      });
+
+      const request: AIModifyRequest = {
+        selectedText: 'This research uses data analysis.',
+        modificationType: ModificationType.PROMPT,
+        customPrompt: 'Make this more technical and add details about statistical methods',
+        documentContent: '# Analysis\n\nThis research uses data analysis.',
+        conversationId: 'test-chat-id',
+      };
+
+      mockContext.req.json.mockResolvedValue(request);
+      mockContext.json.mockImplementation((data, status) => ({ 
+        json: () => data, 
+        status: status || 200 
+      }));
+
+      const response = await builderAIModifyHandler(mockContext as any);
+
+      expect(mockContext.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: true,
+          content: 'This research methodology incorporates advanced statistical techniques and machine learning algorithms to analyze complex datasets.'
+        })
+      );
+    });
+
     it('should handle AI service errors gracefully', async () => {
       const { generateText } = await import('ai');
       (generateText as any).mockRejectedValue(new Error('AI service error'));

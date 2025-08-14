@@ -27,6 +27,7 @@ describe('AI Infrastructure', () => {
       expect(ModificationType.EXPAND).toBe('expand');
       expect(ModificationType.SUMMARIZE).toBe('summarize');
       expect(ModificationType.IMPROVE_CLARITY).toBe('improve_clarity');
+      expect(ModificationType.PROMPT).toBe('prompt');
     });
   });
 

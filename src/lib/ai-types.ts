@@ -16,7 +16,8 @@ export enum ModificationType {
   REWRITE = 'rewrite',
   EXPAND = 'expand',
   SUMMARIZE = 'summarize',
-  IMPROVE_CLARITY = 'improve_clarity'
+  IMPROVE_CLARITY = 'improve_clarity',
+  PROMPT = 'prompt'
 }
 
 // Text selection interface for editor integration

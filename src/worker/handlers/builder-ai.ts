@@ -225,7 +225,7 @@ export async function builderAIModifyHandler(
   
   try {
     const body = await c.req.json();
-    const { selectedText, modificationType, documentContent, conversationId }: AIModifyRequest = body;
+    const { selectedText, modificationType, documentContent, conversationId, customPrompt }: AIModifyRequest = body;
     
     // Validate required fields
     if (!selectedText || !modificationType || !conversationId) {
@@ -268,7 +268,7 @@ export async function builderAIModifyHandler(
     const google = createGoogleGenerativeAI({ apiKey });
     
     // Create modification-specific instructions
-    const modificationInstructions = getModificationInstructions(modificationType);
+    const modificationInstructions = getModificationInstructions(modificationType, customPrompt);
     
     // Create AI prompt for text modification
     const aiPrompt = `You are an AI assistant helping with thesis proposal writing. Modify the selected text according to the specified modification type while maintaining academic standards.
@@ -327,7 +327,7 @@ Modified content:`;
 /**
  * Get modification-specific instructions for AI prompts
  */
-function getModificationInstructions(modificationType: ModificationType): string {
+function getModificationInstructions(modificationType: ModificationType, customPrompt?: string): string {
   switch (modificationType) {
     case ModificationType.REWRITE:
       return "Rewrite the text to improve clarity, flow, and academic quality while preserving the original meaning and key points.";
@@ -340,6 +340,9 @@ function getModificationInstructions(modificationType: ModificationType): string
     
     case ModificationType.IMPROVE_CLARITY:
       return "Improve the clarity and readability of the text by simplifying complex sentences, improving word choice, and enhancing logical flow.";
+    
+    case ModificationType.PROMPT:
+      return customPrompt || "Modify the text according to the provided instructions.";
     
     default:
       return "Improve the text according to general academic writing best practices.";

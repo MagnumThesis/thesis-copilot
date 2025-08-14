@@ -33,6 +33,8 @@ interface AIContentConfirmationProps {
     processingTime?: number;
     model?: string;
   };
+  originalText?: string; // For modify mode preview
+  modificationType?: string; // For modify mode context
   className?: string;
 }
 
@@ -44,6 +46,8 @@ export const AIContentConfirmation: React.FC<AIContentConfirmationProps> = ({
   isVisible,
   isRegenerating = false,
   metadata,
+  originalText,
+  modificationType,
   className,
 }) => {
   const [showPreview, setShowPreview] = useState(true);
@@ -81,7 +85,7 @@ export const AIContentConfirmation: React.FC<AIContentConfirmationProps> = ({
         <div className="flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-primary" />
           <h3 id="ai-content-title" className="font-medium">
-            AI Generated Content
+            {originalText ? `AI Modified Content${modificationType ? ` (${modificationType})` : ''}` : 'AI Generated Content'}
           </h3>
           {metadata && (
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -142,17 +146,53 @@ export const AIContentConfirmation: React.FC<AIContentConfirmationProps> = ({
             id="ai-content-description"
             className="text-sm text-muted-foreground mb-3"
           >
-            Review the generated content below. You can accept it to insert into your document, 
-            reject it to discard, or regenerate for a different version.
+            {originalText 
+              ? "Review the modified content below. You can accept it to replace the selected text, reject it to discard, or regenerate for a different version."
+              : "Review the generated content below. You can accept it to insert into your document, reject it to discard, or regenerate for a different version."
+            }
           </p>
           
-          <ScrollArea className="h-[200px] w-full border rounded-md">
-            <div className="p-3">
-              <pre className="whitespace-pre-wrap text-sm font-mono leading-relaxed">
-                {content}
-              </pre>
+          {originalText ? (
+            // Show before/after comparison for modify mode
+            <div className="space-y-3">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-3 h-3 bg-red-500/20 border border-red-500/40 rounded"></div>
+                  <span className="text-xs font-medium text-muted-foreground">Original Text</span>
+                </div>
+                <ScrollArea className="h-[120px] w-full border rounded-md bg-red-50/50 dark:bg-red-950/20">
+                  <div className="p-3">
+                    <pre className="whitespace-pre-wrap text-sm font-mono leading-relaxed text-red-800 dark:text-red-200">
+                      {originalText}
+                    </pre>
+                  </div>
+                </ScrollArea>
+              </div>
+              
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-3 h-3 bg-green-500/20 border border-green-500/40 rounded"></div>
+                  <span className="text-xs font-medium text-muted-foreground">Modified Text</span>
+                </div>
+                <ScrollArea className="h-[120px] w-full border rounded-md bg-green-50/50 dark:bg-green-950/20">
+                  <div className="p-3">
+                    <pre className="whitespace-pre-wrap text-sm font-mono leading-relaxed text-green-800 dark:text-green-200">
+                      {content}
+                    </pre>
+                  </div>
+                </ScrollArea>
+              </div>
             </div>
-          </ScrollArea>
+          ) : (
+            // Show single content view for prompt/continue modes
+            <ScrollArea className="h-[200px] w-full border rounded-md">
+              <div className="p-3">
+                <pre className="whitespace-pre-wrap text-sm font-mono leading-relaxed">
+                  {content}
+                </pre>
+              </div>
+            </ScrollArea>
+          )}
         </div>
       )}
 
