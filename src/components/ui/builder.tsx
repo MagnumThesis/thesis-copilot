@@ -1,5 +1,23 @@
 "use client"
 
+/**
+ * @fileoverview Builder Component with AI Integration
+ * 
+ * The Builder component is the main interface for the AI-powered thesis proposal editor.
+ * It integrates a Milkdown markdown editor with comprehensive AI assistance capabilities
+ * including prompt-based generation, content continuation, and text modification.
+ * 
+ * Key Features:
+ * - Multiple AI interaction modes (Prompt, Continue, Modify)
+ * - Real-time content synchronization
+ * - Comprehensive error handling and recovery
+ * - Academic context awareness
+ * - Accessibility compliance
+ * 
+ * @author Thesis Copilot Team
+ * @version 1.0.0
+ */
+
 import React, { useState, useCallback, useRef } from "react"
 import { ScrollArea } from "@/components/ui/shadcn/scroll-area"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/shadcn/sheet"
@@ -16,12 +34,39 @@ import { useAIModeManager } from "@/hooks/use-ai-mode-manager"
 import { AIMode, TextSelection, ContentInsertionOptions, ModificationType } from "@/lib/ai-types"
 import { toast } from "sonner"
 
+/**
+ * Props for the Builder component
+ */
 interface BuilderProps {
+  /** Whether the Builder sheet is open */
   isOpen: boolean;
+  /** Callback function to close the Builder */
   onClose: () => void;
+  /** Current conversation context for AI operations */
   currentConversation: { title: string; id: string };
 }
 
+/**
+ * Builder Component - AI-Powered Thesis Proposal Editor
+ * 
+ * The Builder component provides a comprehensive interface for creating and editing
+ * thesis proposals with AI assistance. It combines a rich markdown editor with
+ * multiple AI interaction modes to help users overcome writer's block, continue
+ * content generation, and modify existing text.
+ * 
+ * @component
+ * @example
+ * ```tsx
+ * <Builder
+ *   isOpen={true}
+ *   onClose={() => setBuilderOpen(false)}
+ *   currentConversation={{ title: "My Thesis", id: "conv-123" }}
+ * />
+ * ```
+ * 
+ * @param props - The component props
+ * @returns The Builder component JSX
+ */
 export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConversation }) => {
   const [documentContent, setDocumentContent] = useState("# Thesis Proposal\n\nStart writing your thesis proposal here...");
   const [currentSelection, setCurrentSelection] = useState<TextSelection | null>(null);

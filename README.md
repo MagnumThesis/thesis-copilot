@@ -23,6 +23,10 @@ This template provides a minimal setup for building a React application with Typ
 - ⚡ Zero-config deployment to Cloudflare's global network
 - 🎯 API routes with Hono's elegant routing
 - 🔄 Full-stack development setup
+- 🤖 **AI-Powered Builder Tool** - Advanced thesis proposal editor with AI assistance
+- 📝 **Multiple AI Modes** - Prompt generation, content continuation, and text modification
+- 🎓 **Academic Context Awareness** - AI understands thesis structure and academic tone
+- ♿ **Accessibility Compliant** - Full keyboard navigation and screen reader support
 
 Get started in minutes with local development or deploy directly via the Cloudflare dashboard. Perfect for building modern, performant web applications at the edge.
 
@@ -74,6 +78,15 @@ Deploy your project to Cloudflare Workers:
 ```bash
 npm run build && npm run deploy
 ```
+
+## Builder Tool Documentation
+
+The Builder tool is an AI-powered thesis proposal editor that helps users create academic content efficiently:
+
+- **[BUILDER.md](./BUILDER.md)** - Complete technical documentation and API reference
+- **[AI Features User Guide](./docs/ai-features-user-guide.md)** - User-friendly guide for AI features
+- **[AI Integration Developer Guide](./docs/ai-integration-developer-guide.md)** - Developer documentation for AI integration
+- **[Modify Mode Feature Guide](./docs/modify-mode-prompt-feature.md)** - Specific guide for text modification features
 
 ## Additional Resources
 
