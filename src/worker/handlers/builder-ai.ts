@@ -11,11 +11,12 @@ import {
   AIPromptRequest, 
   AIContinueRequest, 
   AIModifyRequest, 
-  AIResponse,
-  AISuccessResponse,
-  AIErrorResponse,
   ModificationType 
 } from "../../lib/ai-types";
+import { 
+  AISuccessResponse,
+  AIErrorResponse
+} from "../../lib/ai-interfaces";
 
 // Enhanced error handling for backend operations
 interface BackendErrorContext {
@@ -812,10 +813,10 @@ function assessContextSufficiency(beforeCursor: string, selectedText?: string): 
   const hasSubstantiveContent = wordCount > 10;
   
   // Check for incomplete sentences or thoughts
-  const endsWithIncomplete = /[,;:]$/.test(beforeCursor.trim()) || 
-                            beforeCursor.trim().endsWith('and') ||
-                            beforeCursor.trim().endsWith('or') ||
-                            beforeCursor.trim().endsWith('but');
+  // const endsWithIncomplete = /[,;:]$/.test(beforeCursor.trim()) || 
+  //                           beforeCursor.trim().endsWith('and') ||
+  //                           beforeCursor.trim().endsWith('or') ||
+  //                           beforeCursor.trim().endsWith('but');
   
   const suggestions: string[] = [];
   

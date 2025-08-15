@@ -4,7 +4,7 @@
  */
 
 import { SupabaseClient } from '@supabase/supabase-js';
-import { DocumentContext, DocumentSection, IdeaDefinition, AcademicContext } from '../../lib/ai-types';
+import { DocumentContext, DocumentSection, IdeaDefinition } from '../../lib/ai-types';
 import { AcademicContextAnalyzer } from './academic-context-analyzer';
 
 export interface AIContextManager {

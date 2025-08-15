@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import {
   AIMode,
   ModificationType,
@@ -14,6 +14,11 @@ import {
   ErrorRecoveryStrategy,
   ErrorContext,
 } from "@/lib/ai-infrastructure";
+import { 
+  aiPerformanceOptimizer, 
+  OptimisticUpdate, 
+  PerformanceMetrics 
+} from "@/lib/ai-performance-optimizer";
 
 // Configuration for AI mode manager
 interface AIModeManagerConfig {
@@ -22,6 +27,9 @@ interface AIModeManagerConfig {
   debounceMs?: number;
   enableGracefulDegradation?: boolean;
   showErrorNotifications?: boolean;
+  enableCaching?: boolean;
+  enableOptimisticUpdates?: boolean;
+  enableContextOptimization?: boolean;
 }
 
 // Error state interface for UI feedback
@@ -90,6 +98,12 @@ export interface UseAIModeManager {
   // Utility methods
   canActivateMode: (mode: AIMode) => boolean;
   isProcessing: boolean;
+
+  // Performance optimization features
+  optimisticUpdate: OptimisticUpdate | null;
+  performanceMetrics: PerformanceMetrics;
+  clearCache: () => void;
+  getOptimizedContent: (content: string, mode: AIMode) => string;
 }
 
 // Default configuration
@@ -99,6 +113,9 @@ const DEFAULT_CONFIG: Required<AIModeManagerConfig> = {
   debounceMs: 300,
   enableGracefulDegradation: true,
   showErrorNotifications: true,
+  enableCaching: true,
+  enableOptimisticUpdates: true,
+  enableContextOptimization: true,
 };
 
 /**
@@ -141,9 +158,14 @@ export function useAIModeManager(
     useState<string | null>(null);
   const [customPrompt, setCustomPrompt] = useState<string | null>(null);
 
+  // Performance optimization state
+  const [optimisticUpdate, setOptimisticUpdate] = useState<OptimisticUpdate | null>(null);
+  const [performanceMetrics, setPerformanceMetrics] = useState<PerformanceMetrics>(
+    aiPerformanceOptimizer.getMetrics()
+  );
+
   // Refs for managing async operations and error recovery
   const abortControllerRef = useRef<AbortController | null>(null);
-  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastOperationRef = useRef<{
     type: 'prompt' | 'continue' | 'modify';
     params: any;
@@ -231,15 +253,21 @@ export function useAIModeManager(
    */
   const handleError = useCallback(
     (error: unknown, context: ErrorContext) => {
-      const aiError = error instanceof AIError ? error : AIErrorHandler.normalizeError(error);
+      const aiError = error instanceof AIError ? error : new AIError(
+        error instanceof Error ? error.message : String(error),
+        AIErrorType.UNKNOWN_ERROR,
+        'UNKNOWN',
+        false,
+        error instanceof Error ? error : undefined
+      );
       const recoveryStrategy = AIErrorHandler.getRetryStrategy(aiError);
 
       setErrorState({
         hasError: true,
         error: aiError,
         recoveryStrategy,
-        canRetry: recoveryStrategy.retryAttempts > 0 && context.retryCount < recoveryStrategy.retryAttempts,
-        retryCount: context.retryCount,
+        canRetry: recoveryStrategy.retryAttempts > 0 && (context.retryCount || 0) < recoveryStrategy.retryAttempts,
+        retryCount: context.retryCount || 0,
       });
 
       // Log error with context
@@ -253,6 +281,9 @@ export function useAIModeManager(
           setCurrentMode(fallbackMode);
         }
       }
+
+      // Clear optimistic update on error
+      setOptimisticUpdate(null);
 
       // Reset processing state
       setProcessingState({
@@ -305,6 +336,41 @@ export function useAIModeManager(
 
     console.info(`Manual graceful degradation from ${currentMode} to ${fallbackMode}`);
   }, [errorState.error, currentMode, clearError]);
+
+  /**
+   * Clear performance cache
+   */
+  const clearCache = useCallback(() => {
+    aiPerformanceOptimizer.clearCache();
+    setPerformanceMetrics(aiPerformanceOptimizer.getMetrics());
+  }, []);
+
+  /**
+   * Get optimized content for AI processing
+   */
+  const getOptimizedContent = useCallback((content: string, mode: AIMode): string => {
+    if (!mergedConfig.enableContextOptimization) {
+      return content;
+    }
+    return aiPerformanceOptimizer.optimizeDocumentContent(content, mode);
+  }, [mergedConfig.enableContextOptimization]);
+
+  /**
+   * Update performance metrics
+   */
+  const updatePerformanceMetrics = useCallback(() => {
+    setPerformanceMetrics(aiPerformanceOptimizer.getMetrics());
+  }, []);
+
+  /**
+   * Create optimistic update for immediate UI feedback
+   */
+  const createOptimisticUpdate = useCallback((mode: AIMode, parameters: Record<string, any>) => {
+    if (!mergedConfig.enableOptimisticUpdates) {
+      return null;
+    }
+    return aiPerformanceOptimizer.createOptimisticUpdate(mode, parameters);
+  }, [mergedConfig.enableOptimisticUpdates]);
 
   /**
    * Validates text selection for modify mode
@@ -476,7 +542,7 @@ export function useAIModeManager(
   );
 
   /**
-   * Processes a prompt request with comprehensive error handling
+   * Processes a prompt request with comprehensive error handling and performance optimizations
    */
   const processPrompt = useCallback(
     async (prompt: string, cursorPosition: number): Promise<AIResponse> => {
@@ -488,120 +554,166 @@ export function useAIModeManager(
         );
       }
 
-      const request: AIPromptRequest = {
-        prompt: prompt.trim(),
-        documentContent,
-        cursorPosition,
-        conversationId,
-        timestamp: Date.now(),
-      };
-
       const operationParams = { prompt: prompt.trim(), cursorPosition };
 
-      return handleAIRequest(
-        async () => {
-          const response = await fetch("/api/builder/ai/prompt", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(request),
-            signal: abortControllerRef.current?.signal,
-          });
+      // Create optimistic update if enabled
+      if (mergedConfig.enableOptimisticUpdates) {
+        const optimistic = createOptimisticUpdate(AIMode.PROMPT, operationParams);
+        setOptimisticUpdate(optimistic);
+      }
 
-          if (!response.ok) {
-            const errorText = await response.text().catch(() => response.statusText);
-            throw new AIError(
-              `AI service error: ${errorText}`,
-              response.status >= 500 ? AIErrorType.SERVICE_UNAVAILABLE : AIErrorType.API_ERROR,
-              `HTTP_${response.status}`,
-              response.status >= 500 || response.status === 429
-            );
-          }
-
-          const result = await response.json();
-          
-          // Validate response structure
-          if (!result || typeof result.success !== 'boolean') {
-            throw new AIError(
-              "Invalid response format from AI service",
-              AIErrorType.API_ERROR,
-              "INVALID_RESPONSE",
-              true
-            );
-          }
-
-          return result as AIResponse;
-        },
+      // Use performance optimizer for the request
+      return aiPerformanceOptimizer.optimizedRequest(
         AIMode.PROMPT,
-        "Generating content from prompt...",
-        'prompt',
-        operationParams
+        documentContent,
+        operationParams,
+        async () => {
+          const request: AIPromptRequest = {
+            prompt: prompt.trim(),
+            documentContent: getOptimizedContent(documentContent, AIMode.PROMPT),
+            cursorPosition,
+            conversationId,
+            timestamp: Date.now(),
+          };
+
+          return handleAIRequest(
+            async () => {
+              const response = await fetch("/api/builder/ai/prompt", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(request),
+                signal: abortControllerRef.current?.signal,
+              });
+
+              if (!response.ok) {
+                const errorText = await response.text().catch(() => response.statusText);
+                throw new AIError(
+                  `AI service error: ${errorText}`,
+                  response.status >= 500 ? AIErrorType.SERVICE_UNAVAILABLE : AIErrorType.API_ERROR,
+                  `HTTP_${response.status}`,
+                  response.status >= 500 || response.status === 429
+                );
+              }
+
+              const result = await response.json();
+              
+              // Validate response structure
+              if (!result || typeof result.success !== 'boolean') {
+                throw new AIError(
+                  "Invalid response format from AI service",
+                  AIErrorType.API_ERROR,
+                  "INVALID_RESPONSE",
+                  true
+                );
+              }
+
+              // Clear optimistic update on success
+              setOptimisticUpdate(null);
+              updatePerformanceMetrics();
+
+              return result as AIResponse;
+            },
+            AIMode.PROMPT,
+            "Generating content from prompt...",
+            'prompt',
+            operationParams
+          );
+        },
+        {
+          enableCaching: mergedConfig.enableCaching,
+          enableDebouncing: true,
+          enableOptimization: mergedConfig.enableContextOptimization,
+        }
       );
     },
-    [documentContent, conversationId, handleAIRequest]
+    [documentContent, conversationId, handleAIRequest, mergedConfig, createOptimisticUpdate, getOptimizedContent, updatePerformanceMetrics]
   );
 
   /**
-   * Processes a continue request with comprehensive error handling
+   * Processes a continue request with comprehensive error handling and performance optimizations
    */
   const processContinue = useCallback(
     async (
       cursorPosition: number,
       selectedText?: string
     ): Promise<AIResponse> => {
-      const request: AIContinueRequest = {
-        documentContent,
-        cursorPosition,
-        selectedText,
-        conversationId,
-        timestamp: Date.now(),
-      };
+      const operationParams = { cursorPosition, selectedText, documentContent };
 
-      const operationParams = { cursorPosition, selectedText };
+      // Create optimistic update if enabled
+      if (mergedConfig.enableOptimisticUpdates) {
+        const optimistic = createOptimisticUpdate(AIMode.CONTINUE, operationParams);
+        setOptimisticUpdate(optimistic);
+      }
 
-      return handleAIRequest(
-        async () => {
-          const response = await fetch("/api/builder/ai/continue", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(request),
-            signal: abortControllerRef.current?.signal,
-          });
-
-          if (!response.ok) {
-            const errorText = await response.text().catch(() => response.statusText);
-            throw new AIError(
-              `AI service error: ${errorText}`,
-              response.status >= 500 ? AIErrorType.SERVICE_UNAVAILABLE : AIErrorType.API_ERROR,
-              `HTTP_${response.status}`,
-              response.status >= 500 || response.status === 429
-            );
-          }
-
-          const result = await response.json();
-          
-          // Validate response structure
-          if (!result || typeof result.success !== 'boolean') {
-            throw new AIError(
-              "Invalid response format from AI service",
-              AIErrorType.API_ERROR,
-              "INVALID_RESPONSE",
-              true
-            );
-          }
-
-          return result as AIResponse;
-        },
+      // Use performance optimizer for the request
+      return aiPerformanceOptimizer.optimizedRequest(
         AIMode.CONTINUE,
-        "Continuing content generation...",
-        'continue',
-        operationParams
+        documentContent,
+        operationParams,
+        async () => {
+          const request: AIContinueRequest = {
+            documentContent: getOptimizedContent(documentContent, AIMode.CONTINUE),
+            cursorPosition,
+            selectedText,
+            conversationId,
+            timestamp: Date.now(),
+          };
+
+          return handleAIRequest(
+            async () => {
+              const response = await fetch("/api/builder/ai/continue", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(request),
+                signal: abortControllerRef.current?.signal,
+              });
+
+              if (!response.ok) {
+                const errorText = await response.text().catch(() => response.statusText);
+                throw new AIError(
+                  `AI service error: ${errorText}`,
+                  response.status >= 500 ? AIErrorType.SERVICE_UNAVAILABLE : AIErrorType.API_ERROR,
+                  `HTTP_${response.status}`,
+                  response.status >= 500 || response.status === 429
+                );
+              }
+
+              const result = await response.json();
+              
+              // Validate response structure
+              if (!result || typeof result.success !== 'boolean') {
+                throw new AIError(
+                  "Invalid response format from AI service",
+                  AIErrorType.API_ERROR,
+                  "INVALID_RESPONSE",
+                  true
+                );
+              }
+
+              // Clear optimistic update on success
+              setOptimisticUpdate(null);
+              updatePerformanceMetrics();
+
+              return result as AIResponse;
+            },
+            AIMode.CONTINUE,
+            "Continuing content generation...",
+            'continue',
+            operationParams
+          );
+        },
+        {
+          enableCaching: mergedConfig.enableCaching,
+          enableDebouncing: true,
+          enableOptimization: mergedConfig.enableContextOptimization,
+        }
       );
     },
-    [documentContent, conversationId, handleAIRequest]
+    [documentContent, conversationId, handleAIRequest, mergedConfig, createOptimisticUpdate, getOptimizedContent, updatePerformanceMetrics]
   );
 
   /**
-   * Processes a modify request with comprehensive error handling
+   * Processes a modify request with comprehensive error handling and performance optimizations
    */
   const processModify = useCallback(
     async (
@@ -617,60 +729,83 @@ export function useAIModeManager(
         );
       }
 
-      const request: AIModifyRequest = {
-        selectedText: selectedText.trim(),
-        modificationType,
-        documentContent,
-        conversationId,
-        timestamp: Date.now(),
-        ...(modificationType === ModificationType.PROMPT &&
-          customPromptText && {
-            customPrompt: customPromptText,
-          }),
-      };
-
       const operationParams = { selectedText: selectedText.trim(), modificationType, customPrompt: customPromptText };
 
-      return handleAIRequest(
-        async () => {
-          const response = await fetch("/api/builder/ai/modify", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(request),
-            signal: abortControllerRef.current?.signal,
-          });
+      // Create optimistic update if enabled
+      if (mergedConfig.enableOptimisticUpdates) {
+        const optimistic = createOptimisticUpdate(AIMode.MODIFY, operationParams);
+        setOptimisticUpdate(optimistic);
+      }
 
-          if (!response.ok) {
-            const errorText = await response.text().catch(() => response.statusText);
-            throw new AIError(
-              `AI service error: ${errorText}`,
-              response.status >= 500 ? AIErrorType.SERVICE_UNAVAILABLE : AIErrorType.API_ERROR,
-              `HTTP_${response.status}`,
-              response.status >= 500 || response.status === 429
-            );
-          }
-
-          const result = await response.json();
-          
-          // Validate response structure
-          if (!result || typeof result.success !== 'boolean') {
-            throw new AIError(
-              "Invalid response format from AI service",
-              AIErrorType.API_ERROR,
-              "INVALID_RESPONSE",
-              true
-            );
-          }
-
-          return result as AIResponse;
-        },
+      // Use performance optimizer for the request
+      return aiPerformanceOptimizer.optimizedRequest(
         AIMode.MODIFY,
-        `Modifying content (${modificationType})...`,
-        'modify',
-        operationParams
+        documentContent,
+        operationParams,
+        async () => {
+          const request: AIModifyRequest = {
+            selectedText: selectedText.trim(),
+            modificationType,
+            documentContent: getOptimizedContent(documentContent, AIMode.MODIFY),
+            conversationId,
+            timestamp: Date.now(),
+            ...(modificationType === ModificationType.PROMPT &&
+              customPromptText && {
+                customPrompt: customPromptText,
+              }),
+          };
+
+          return handleAIRequest(
+            async () => {
+              const response = await fetch("/api/builder/ai/modify", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(request),
+                signal: abortControllerRef.current?.signal,
+              });
+
+              if (!response.ok) {
+                const errorText = await response.text().catch(() => response.statusText);
+                throw new AIError(
+                  `AI service error: ${errorText}`,
+                  response.status >= 500 ? AIErrorType.SERVICE_UNAVAILABLE : AIErrorType.API_ERROR,
+                  `HTTP_${response.status}`,
+                  response.status >= 500 || response.status === 429
+                );
+              }
+
+              const result = await response.json();
+              
+              // Validate response structure
+              if (!result || typeof result.success !== 'boolean') {
+                throw new AIError(
+                  "Invalid response format from AI service",
+                  AIErrorType.API_ERROR,
+                  "INVALID_RESPONSE",
+                  true
+                );
+              }
+
+              // Clear optimistic update on success
+              setOptimisticUpdate(null);
+              updatePerformanceMetrics();
+
+              return result as AIResponse;
+            },
+            AIMode.MODIFY,
+            `Modifying content (${modificationType})...`,
+            'modify',
+            operationParams
+          );
+        },
+        {
+          enableCaching: mergedConfig.enableCaching,
+          enableDebouncing: true,
+          enableOptimization: mergedConfig.enableContextOptimization,
+        }
       );
     },
-    [documentContent, conversationId, handleAIRequest]
+    [documentContent, conversationId, handleAIRequest, mergedConfig, createOptimisticUpdate, getOptimizedContent, updatePerformanceMetrics]
   );
 
   /**
@@ -723,7 +858,7 @@ export function useAIModeManager(
           setShowModificationPreview(true);
         } else {
           throw new AIError(
-            response.error || "Failed to generate modification",
+            !response.success ? (response as any).error || "Failed to generate modification" : "Failed to generate modification",
             AIErrorType.API_ERROR,
             "MODIFICATION_FAILED"
           );
@@ -776,7 +911,7 @@ export function useAIModeManager(
           setShowModificationPreview(true);
         } else {
           throw new AIError(
-            response.error || "Failed to generate modification",
+            !response.success ? (response as any).error || "Failed to generate modification" : "Failed to generate modification",
             AIErrorType.API_ERROR,
             "MODIFICATION_FAILED"
           );
@@ -880,7 +1015,7 @@ export function useAIModeManager(
         setModificationPreviewContent(response.content);
       } else {
         throw new AIError(
-          response.error || "Failed to regenerate modification",
+          !response.success ? (response as any).error || "Failed to regenerate modification" : "Failed to regenerate modification",
           AIErrorType.API_ERROR,
           "REGENERATION_FAILED"
         );
@@ -944,5 +1079,18 @@ export function useAIModeManager(
     // Utility methods
     canActivateMode,
     isProcessing,
+
+    // Performance optimization features
+    optimisticUpdate,
+    performanceMetrics,
+    clearCache,
+    getOptimizedContent,
   };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      aiPerformanceOptimizer.cancelPendingRequests();
+    };
+  }, []);
 }

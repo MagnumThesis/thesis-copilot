@@ -46,6 +46,9 @@ export interface AISuccessResponse extends BaseAIResponse {
     tokensUsed: number;
     processingTime: number;
     model?: string;
+    contextSufficiency?: boolean;
+    styleAnalysis?: string;
+    academicValidation?: any;
   };
 }
 
@@ -55,6 +58,10 @@ export interface AIErrorResponse extends BaseAIResponse {
   error: string;
   errorCode?: string;
   retryable?: boolean;
+  metadata?: {
+    tokensUsed: number;
+    processingTime: number;
+  };
 }
 
 // Union type for all AI responses

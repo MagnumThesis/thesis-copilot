@@ -12,6 +12,9 @@ export * from './ai-interfaces';
 // Export error handling utilities
 export * from './ai-error-handler';
 
+// Export performance optimization utilities
+export * from './ai-performance-optimizer';
+
 // Re-export commonly used types for convenience
 export {
   AIMode,
@@ -40,3 +43,13 @@ export {
   AIErrorType,
   AIErrorHandler
 } from './ai-error-handler';
+
+export {
+  AIPerformanceOptimizer,
+  aiPerformanceOptimizer
+} from './ai-performance-optimizer';
+
+export type {
+  PerformanceMetrics,
+  OptimisticUpdate
+} from './ai-performance-optimizer';

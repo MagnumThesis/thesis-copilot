@@ -198,7 +198,7 @@ export class AIErrorHandler {
   /**
    * Normalize various error types into AIError
    */
-  private static normalizeError(error: unknown): AIError {
+  static normalizeError(error: unknown): AIError {
     if (error instanceof AIError) {
       return error;
     }
