@@ -1,6 +1,8 @@
 # Implementation Plan
 
-- [-] 1. Set up database schema and migrations
+- [x] 1. Set up database schema and migrations
+
+
 
 
 
