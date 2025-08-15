@@ -2,18 +2,18 @@
 
 - [x] 1. Set up database schema and migrations
 
-
-
-
-
-
   - Create v3 migration script for proofreading tables with enums, indexes, and triggers
   - Create comprehensive new_db.sql file with complete schema for fresh installations
   - Test migration scripts against existing database structure
   - Verify foreign key relationships and cascading behavior
   - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 7.6_
 
-- [ ] 2. Create proofreader data types and interfaces
+- [x] 2. Create proofreader data types and interfaces
+
+
+
+
+
 
   - Add proofreading concern types to ai-types.ts file
   - Implement concern category, severity, and status enums
