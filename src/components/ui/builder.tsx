@@ -62,7 +62,7 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
     setCursorPosition(position);
   }, []);
 
-  // Handle prompt submission
+  // Handle prompt submission with enhanced error handling
   const handlePromptSubmit = useCallback(async (prompt: string) => {
     try {
       const response = await aiModeManager.processPrompt(prompt, cursorPosition);
@@ -79,12 +79,15 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
         setPendingInsertionOptions(insertionOptions);
         setShowContentConfirmation(true);
       } else {
-        const errorMessage = !response.success ? (response as any).error : "Failed to generate content";
-        toast.error(errorMessage || "Failed to generate content");
+        // Error is already handled by the AI mode manager
+        // Just show a generic message if needed
+        if (!aiModeManager.errorState.hasError) {
+          toast.error("Failed to generate content");
+        }
       }
     } catch (error: any) {
+      // Error is already handled by the AI mode manager
       console.error("Error processing prompt:", error);
-      toast.error(error.message || "Failed to generate content");
     }
   }, [aiModeManager, cursorPosition]);
 
@@ -128,7 +131,7 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
     }
   }, [aiModeManager.currentMode, handleRejectAIContent]);
 
-  // Handle continue mode activation
+  // Handle continue mode activation with enhanced error handling
   const handleContinueMode = useCallback(async () => {
     try {
       const response = await aiModeManager.processContinue(cursorPosition, currentSelection?.text);
@@ -145,23 +148,27 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
         setPendingInsertionOptions(insertionOptions);
         setShowContentConfirmation(true);
       } else {
-        const errorMessage = !response.success ? (response as any).error : "Failed to continue content";
-        toast.error(errorMessage || "Failed to continue content");
+        // Error is already handled by the AI mode manager
+        if (!aiModeManager.errorState.hasError) {
+          toast.error("Failed to continue content");
+        }
       }
     } catch (error: any) {
+      // Error is already handled by the AI mode manager
       console.error("Error processing continue mode:", error);
-      toast.error(error.message || "Failed to continue content");
     }
   }, [aiModeManager, cursorPosition, currentSelection]);
 
-  // Handle modification type selection
+  // Handle modification type selection with enhanced error handling
   const handleModificationTypeSelect = useCallback(async (modificationType: ModificationType) => {
     try {
       await aiModeManager.selectModificationType(modificationType);
-      toast.success("Modification generated successfully");
+      if (!aiModeManager.errorState.hasError) {
+        toast.success("Modification generated successfully");
+      }
     } catch (error: any) {
+      // Error is already handled by the AI mode manager
       console.error("Error processing modification:", error);
-      toast.error(error.message || "Failed to generate modification");
     }
   }, [aiModeManager]);
 
@@ -188,25 +195,29 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
     aiModeManager.rejectModification();
   }, [aiModeManager]);
 
-  // Handle modification regeneration
+  // Handle modification regeneration with enhanced error handling
   const handleRegenerateModification = useCallback(async () => {
     try {
       await aiModeManager.regenerateModification();
-      toast.success("Modification regenerated successfully");
+      if (!aiModeManager.errorState.hasError) {
+        toast.success("Modification regenerated successfully");
+      }
     } catch (error: any) {
+      // Error is already handled by the AI mode manager
       console.error("Error regenerating modification:", error);
-      toast.error(error.message || "Failed to regenerate modification");
     }
   }, [aiModeManager]);
 
-  // Handle custom prompt submission
+  // Handle custom prompt submission with enhanced error handling
   const handleCustomPromptSubmit = useCallback(async (prompt: string) => {
     try {
       await aiModeManager.submitCustomPrompt(prompt);
-      toast.success("Custom modification generated successfully");
+      if (!aiModeManager.errorState.hasError) {
+        toast.success("Custom modification generated successfully");
+      }
     } catch (error: any) {
+      // Error is already handled by the AI mode manager
       console.error("Error processing custom prompt:", error);
-      toast.error(error.message || "Failed to generate custom modification");
     }
   }, [aiModeManager]);
 
@@ -245,7 +256,7 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
         </SheetHeader>
         
         <div className="flex flex-col h-[calc(100vh-150px)] gap-4">
-          {/* AI Action Toolbar */}
+          {/* AI Action Toolbar with Error Handling */}
           <AIActionToolbar
             currentMode={aiModeManager.currentMode}
             onModeChange={(mode) => {
@@ -257,6 +268,12 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
             }}
             hasSelectedText={aiModeManager.hasSelectedText}
             isAIProcessing={aiModeManager.isProcessing}
+            error={aiModeManager.errorState.error}
+            canRetry={aiModeManager.errorState.canRetry}
+            retryCount={aiModeManager.errorState.retryCount}
+            onRetry={aiModeManager.retryLastOperation}
+            onClearError={aiModeManager.clearError}
+            onGracefulDegradation={aiModeManager.handleGracefulDegradation}
           />
 
           {/* Prompt Input (shown when in prompt mode) */}

@@ -12,55 +12,203 @@ import {
   AIContinueRequest, 
   AIModifyRequest, 
   AIResponse,
+  AISuccessResponse,
+  AIErrorResponse,
   ModificationType 
 } from "../../lib/ai-types";
 
+// Enhanced error handling for backend operations
+interface BackendErrorContext {
+  operation: string;
+  conversationId: string;
+  timestamp: number;
+  requestId?: string;
+}
+
+/**
+ * Create standardized error response
+ */
+function createErrorResponse(
+  error: unknown,
+  context: BackendErrorContext,
+  processingTime: number
+): AIErrorResponse {
+  let errorMessage = "An unexpected error occurred";
+  let errorCode = "UNKNOWN_ERROR";
+  let retryable = false;
+
+  if (error instanceof Error) {
+    errorMessage = error.message;
+    
+    // Categorize errors for better handling
+    if (error.message.includes('API key') || error.message.includes('authentication')) {
+      errorCode = "AUTH_ERROR";
+      errorMessage = "AI service authentication failed";
+      retryable = false;
+    } else if (error.message.includes('quota') || error.message.includes('limit')) {
+      errorCode = "QUOTA_EXCEEDED";
+      errorMessage = "AI service quota exceeded";
+      retryable = false;
+    } else if (error.message.includes('timeout') || error.message.includes('network')) {
+      errorCode = "NETWORK_ERROR";
+      errorMessage = "Network connection failed";
+      retryable = true;
+    } else if (error.message.includes('rate limit') || error.message.includes('429')) {
+      errorCode = "RATE_LIMITED";
+      errorMessage = "Too many requests, please wait";
+      retryable = true;
+    } else if (error.message.includes('content filter') || error.message.includes('safety')) {
+      errorCode = "CONTENT_FILTERED";
+      errorMessage = "Content was blocked by safety filters";
+      retryable = false;
+    } else {
+      errorCode = "SERVICE_ERROR";
+      errorMessage = "AI service temporarily unavailable";
+      retryable = true;
+    }
+  }
+
+  console.error(`Backend AI Error in ${context.operation}:`, {
+    error: errorMessage,
+    code: errorCode,
+    context,
+    processingTime,
+    timestamp: new Date().toISOString()
+  });
+
+  return {
+    success: false,
+    error: errorMessage,
+    errorCode,
+    retryable,
+    timestamp: Date.now(),
+    requestId: context.requestId,
+    metadata: {
+      tokensUsed: 0,
+      processingTime
+    }
+  };
+}
+
+/**
+ * Validate AI request with comprehensive checks
+ */
+function validateAIRequest(body: any, requiredFields: string[]): void {
+  if (!body || typeof body !== 'object') {
+    throw new Error('Invalid request body');
+  }
+
+  for (const field of requiredFields) {
+    if (!body[field]) {
+      throw new Error(`Missing required field: ${field}`);
+    }
+  }
+
+  // Validate conversation ID format
+  if (body.conversationId && typeof body.conversationId !== 'string') {
+    throw new Error('Invalid conversation ID format');
+  }
+
+  // Validate document content
+  if (body.documentContent && typeof body.documentContent !== 'string') {
+    throw new Error('Invalid document content format');
+  }
+
+  // Check content length limits
+  if (body.documentContent && body.documentContent.length > 100000) {
+    throw new Error('Document content too large (max 100KB)');
+  }
+
+  if (body.prompt && body.prompt.length > 10000) {
+    throw new Error('Prompt too large (max 10KB)');
+  }
+
+  if (body.selectedText && body.selectedText.length > 50000) {
+    throw new Error('Selected text too large (max 50KB)');
+  }
+}
+
 /**
  * Builder AI Handler - Prompt Mode
- * Handles AI content generation based on user prompts
+ * Handles AI content generation based on user prompts with comprehensive error handling
  */
 export async function builderAIPromptHandler(
   c: Context<{ Bindings: Env & SupabaseEnv }>
 ): Promise<Response> {
   const startTime = Date.now();
+  const requestId = crypto.randomUUID();
+  
+  // Initialize context outside try block for error handling
+  let context: BackendErrorContext = {
+    operation: 'prompt',
+    conversationId: 'unknown',
+    timestamp: startTime,
+    requestId
+  };
   
   try {
     const body = await c.req.json();
+    
+    // Validate request with comprehensive checks
+    try {
+      validateAIRequest(body, ['prompt', 'conversationId']);
+    } catch (validationError) {
+      const processingTime = Date.now() - startTime;
+      return c.json(createErrorResponse(
+        validationError,
+        context,
+        processingTime
+      ), 400);
+    }
+    
     const { prompt, documentContent, cursorPosition, conversationId }: AIPromptRequest = body;
     
-    // Validate required fields
-    if (!prompt || !conversationId) {
-      return c.json({ 
-        success: false, 
-        error: "Prompt and conversationId are required." 
-      } as AIResponse, 400);
-    }
+    // Update context with actual conversation ID
+    context = {
+      operation: 'prompt',
+      conversationId,
+      timestamp: startTime,
+      requestId
+    };
     
     const supabase = getSupabase(c.env);
     const contextManager = createAIContextManager(supabase);
     
-    // Build context for AI processing
-    const context = await contextManager.buildContext(
-      documentContent || "", 
-      conversationId, 
-      cursorPosition
-    );
+    // Build context for AI processing with error handling
+    let documentContext;
+    try {
+      documentContext = await contextManager.buildContext(
+        documentContent || "", 
+        conversationId, 
+        cursorPosition
+      );
+    } catch (error) {
+      console.error('Failed to build document context:', error);
+      const processingTime = Date.now() - startTime;
+      return c.json(createErrorResponse(
+        new Error('Failed to process document context'),
+        context,
+        processingTime
+      ), 500);
+    }
     
-    const formattedContext = contextManager.formatContextForAI(context);
+    const formattedContext = contextManager.formatContextForAI(documentContext);
     
-    // Get AI API key
+    // Get AI API key with validation
     const apiKey = getGoogleGenerativeAIKey(c);
     if (!apiKey) {
-      return c.json({ 
-        success: false, 
-        error: "AI service is currently unavailable." 
-      } as AIResponse, 500);
+      const processingTime = Date.now() - startTime;
+      return c.json(createErrorResponse(
+        new Error('AI service authentication failed'),
+        context,
+        processingTime
+      ), 503);
     }
     
     const google = createGoogleGenerativeAI({ apiKey });
     
     // Get academic writing guidelines
-    const academicGuidelines = contextManager.getAcademicWritingGuidelines(context);
+    const academicGuidelines = contextManager.getAcademicWritingGuidelines(documentContext);
     
     // Create AI prompt for content generation with academic context
     const aiPrompt = `You are an AI assistant helping with thesis proposal writing. Generate content based on the user's prompt while maintaining strict academic standards and integrating with existing context.
@@ -87,86 +235,150 @@ ${prompt}
 
 Generate the content:`;
 
-    // Generate AI response
-    const { text, usage } = await generateText({
-      model: google("gemini-1.5-flash-latest"),
-      prompt: aiPrompt,
-    });
+    // Generate AI response with timeout and error handling
+    let text: string;
+    let usage: any;
+    
+    try {
+      const result = await Promise.race([
+        generateText({
+          model: google("gemini-1.5-flash-latest"),
+          prompt: aiPrompt,
+        }),
+        new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error('AI generation timeout')), 45000);
+        })
+      ]);
+      
+      text = result.text;
+      usage = result.usage;
+      
+      // Validate generated content
+      if (!text || text.trim().length === 0) {
+        throw new Error('AI service returned empty content');
+      }
+      
+      if (text.length > 50000) {
+        console.warn('Generated content is very long, truncating');
+        text = text.substring(0, 50000) + '\n\n[Content truncated due to length]';
+      }
+      
+    } catch (error) {
+      console.error('AI generation failed:', error);
+      const processingTime = Date.now() - startTime;
+      return c.json(createErrorResponse(error, context, processingTime), 500);
+    }
     
     // Validate academic quality of generated content
     let academicValidation;
-    if (context.academicContext) {
-      academicValidation = AcademicContextAnalyzer.validateAcademicContent(text, context.academicContext);
+    try {
+      if (documentContext.academicContext) {
+        academicValidation = AcademicContextAnalyzer.validateAcademicContent(text, documentContext.academicContext);
+      }
+    } catch (error) {
+      console.warn('Academic validation failed:', error);
+      // Continue without validation rather than failing the request
     }
     
     const processingTime = Date.now() - startTime;
     
-    return c.json({
+    const successResponse: AISuccessResponse = {
       success: true,
       content: text,
+      timestamp: Date.now(),
+      requestId,
       metadata: {
         tokensUsed: usage?.totalTokens || 0,
         processingTime,
+        model: "gemini-1.5-flash-latest",
         academicValidation
       }
-    } as AIResponse);
+    };
+    
+    return c.json(successResponse);
     
   } catch (err: unknown) {
-    console.error("Error in builder AI prompt handler:", err);
     const processingTime = Date.now() - startTime;
-    
-    return c.json({
-      success: false,
-      error: "Failed to generate content. Please try again.",
-      metadata: {
-        tokensUsed: 0,
-        processingTime
-      }
-    } as AIResponse, 500);
+    return c.json(createErrorResponse(err, context, processingTime), 500);
   }
 }
 
 /**
  * Builder AI Handler - Continue Mode
- * Handles AI content continuation based on cursor position and context
+ * Handles AI content continuation based on cursor position and context with comprehensive error handling
  */
 export async function builderAIContinueHandler(
   c: Context<{ Bindings: Env & SupabaseEnv }>
 ): Promise<Response> {
   const startTime = Date.now();
+  const requestId = crypto.randomUUID();
+  
+  // Initialize context outside try block for error handling
+  let context: BackendErrorContext = {
+    operation: 'continue',
+    conversationId: 'unknown',
+    timestamp: startTime,
+    requestId
+  };
   
   try {
     const body = await c.req.json();
+    
+    // Validate request with comprehensive checks
+    try {
+      validateAIRequest(body, ['conversationId']);
+    } catch (validationError) {
+      const processingTime = Date.now() - startTime;
+      return c.json(createErrorResponse(
+        validationError,
+        context,
+        processingTime
+      ), 400);
+    }
+    
     const { documentContent, cursorPosition, selectedText, conversationId }: AIContinueRequest = body;
     
-    // Validate required fields
-    if (!conversationId) {
-      return c.json({ 
-        success: false, 
-        error: "ConversationId is required." 
-      } as AIResponse, 400);
-    }
+    // Update context with actual conversation ID
+    context = {
+      operation: 'continue',
+      conversationId,
+      timestamp: startTime,
+      requestId
+    };
     
     const supabase = getSupabase(c.env);
     const contextManager = createAIContextManager(supabase);
     
-    // Build context for AI processing
-    const context = await contextManager.buildContext(
-      documentContent || "", 
-      conversationId, 
-      cursorPosition,
-      selectedText
-    );
+    // Build context for AI processing with error handling
+    let documentContext;
+    try {
+      documentContext = await contextManager.buildContext(
+        documentContent || "", 
+        conversationId, 
+        cursorPosition,
+        selectedText
+      );
+    } catch (error) {
+      console.error('Failed to build document context:', error);
+      const processingTime = Date.now() - startTime;
+      return c.json(createErrorResponse(
+        new Error('Failed to process document context'),
+        context,
+        processingTime
+      ), 500);
+    }
     
-    const formattedContext = contextManager.formatContextForAI(context);
+    const formattedContext = contextManager.formatContextForAI(documentContext);
     
-    // Get AI API key
+    // Get AI API key with validation
     const apiKey = getGoogleGenerativeAIKey(c);
     if (!apiKey) {
-      return c.json({ 
-        success: false, 
-        error: "AI service is currently unavailable." 
-      } as AIResponse, 500);
+      const processingTime = Date.now() - startTime;
+      return c.json(createErrorResponse(
+        new Error('AI service authentication failed'),
+        context,
+        processingTime
+      ), 503);
     }
     
     const google = createGoogleGenerativeAI({ apiKey });
@@ -184,7 +396,7 @@ export async function builderAIContinueHandler(
     let aiPrompt: string;
     
     // Get academic writing guidelines
-    const academicGuidelines = contextManager.getAcademicWritingGuidelines(context);
+    const academicGuidelines = contextManager.getAcademicWritingGuidelines(documentContext);
     
     if (!contextSufficiency.sufficient) {
       // Fallback prompting for insufficient context
@@ -201,102 +413,168 @@ export async function builderAIContinueHandler(
       );
     }
 
-    // Generate AI response
-    const { text, usage } = await generateText({
-      model: google("gemini-1.5-flash-latest"),
-      prompt: aiPrompt,
-    });
+    // Generate AI response with timeout and error handling
+    let text: string;
+    let usage: any;
+    
+    try {
+      const result = await Promise.race([
+        generateText({
+          model: google("gemini-1.5-flash-latest"),
+          prompt: aiPrompt,
+        }),
+        new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error('AI generation timeout')), 45000);
+        })
+      ]);
+      
+      text = result.text;
+      usage = result.usage;
+      
+      // Validate generated content
+      if (!text || text.trim().length === 0) {
+        throw new Error('AI service returned empty content');
+      }
+      
+      if (text.length > 50000) {
+        console.warn('Generated content is very long, truncating');
+        text = text.substring(0, 50000) + '\n\n[Content truncated due to length]';
+      }
+      
+    } catch (error) {
+      console.error('AI generation failed:', error);
+      const processingTime = Date.now() - startTime;
+      return c.json(createErrorResponse(error, context, processingTime), 500);
+    }
     
     // Validate academic quality of generated content
     let academicValidation;
-    if (context.academicContext) {
-      academicValidation = AcademicContextAnalyzer.validateAcademicContent(text, context.academicContext);
+    try {
+      if (documentContext.academicContext) {
+        academicValidation = AcademicContextAnalyzer.validateAcademicContent(text, documentContext.academicContext);
+      }
+    } catch (error) {
+      console.warn('Academic validation failed:', error);
+      // Continue without validation rather than failing the request
     }
     
     const processingTime = Date.now() - startTime;
     
-    return c.json({
+    const successResponse: AISuccessResponse = {
       success: true,
       content: text,
+      timestamp: Date.now(),
+      requestId,
       metadata: {
         tokensUsed: usage?.totalTokens || 0,
         processingTime,
+        model: "gemini-1.5-flash-latest",
         contextSufficiency: contextSufficiency.sufficient,
         styleAnalysis: styleAnalysis.summary,
         academicValidation
       }
-    } as AIResponse);
+    };
+    
+    return c.json(successResponse);
     
   } catch (err: unknown) {
-    console.error("Error in builder AI continue handler:", err);
     const processingTime = Date.now() - startTime;
-    
-    return c.json({
-      success: false,
-      error: "Failed to continue content. Please try again.",
-      metadata: {
-        tokensUsed: 0,
-        processingTime
-      }
-    } as AIResponse, 500);
+    return c.json(createErrorResponse(err, context, processingTime), 500);
   }
 }
 
 /**
  * Builder AI Handler - Modify Mode
- * Handles AI text modification based on selected text and modification type
+ * Handles AI text modification based on selected text and modification type with comprehensive error handling
  */
 export async function builderAIModifyHandler(
   c: Context<{ Bindings: Env & SupabaseEnv }>
 ): Promise<Response> {
   const startTime = Date.now();
+  const requestId = crypto.randomUUID();
+  
+  // Initialize context outside try block for error handling
+  let context: BackendErrorContext = {
+    operation: 'modify',
+    conversationId: 'unknown',
+    timestamp: startTime,
+    requestId
+  };
   
   try {
     const body = await c.req.json();
+    
+    // Validate request with comprehensive checks
+    try {
+      validateAIRequest(body, ['selectedText', 'modificationType', 'conversationId']);
+    } catch (validationError) {
+      const processingTime = Date.now() - startTime;
+      return c.json(createErrorResponse(
+        validationError,
+        context,
+        processingTime
+      ), 400);
+    }
+    
     const { selectedText, modificationType, documentContent, conversationId, customPrompt }: AIModifyRequest = body;
     
-    // Validate required fields
-    if (!selectedText || !modificationType || !conversationId) {
-      return c.json({ 
-        success: false, 
-        error: "Selected text, modification type, and conversationId are required." 
-      } as AIResponse, 400);
-    }
+    // Update context with actual conversation ID
+    context = {
+      operation: 'modify',
+      conversationId,
+      timestamp: startTime,
+      requestId
+    };
     
     // Validate modification type
     if (!Object.values(ModificationType).includes(modificationType)) {
-      return c.json({ 
-        success: false, 
-        error: "Invalid modification type." 
-      } as AIResponse, 400);
+      const processingTime = Date.now() - startTime;
+      return c.json(createErrorResponse(
+        new Error('Invalid modification type'),
+        context,
+        processingTime
+      ), 400);
     }
     
     const supabase = getSupabase(c.env);
     const contextManager = createAIContextManager(supabase);
     
-    // Build context for AI processing
-    const context = await contextManager.buildContext(
-      documentContent || "", 
-      conversationId, 
-      0,
-      selectedText
-    );
+    // Build context for AI processing with error handling
+    let documentContext;
+    try {
+      documentContext = await contextManager.buildContext(
+        documentContent || "", 
+        conversationId, 
+        0,
+        selectedText
+      );
+    } catch (error) {
+      console.error('Failed to build document context:', error);
+      const processingTime = Date.now() - startTime;
+      return c.json(createErrorResponse(
+        new Error('Failed to process document context'),
+        context,
+        processingTime
+      ), 500);
+    }
     
-    const formattedContext = contextManager.formatContextForAI(context);
+    const formattedContext = contextManager.formatContextForAI(documentContext);
     
-    // Get AI API key
+    // Get AI API key with validation
     const apiKey = getGoogleGenerativeAIKey(c);
     if (!apiKey) {
-      return c.json({ 
-        success: false, 
-        error: "AI service is currently unavailable." 
-      } as AIResponse, 500);
+      const processingTime = Date.now() - startTime;
+      return c.json(createErrorResponse(
+        new Error('AI service authentication failed'),
+        context,
+        processingTime
+      ), 503);
     }
     
     const google = createGoogleGenerativeAI({ apiKey });
     
     // Get academic writing guidelines
-    const academicGuidelines = contextManager.getAcademicWritingGuidelines(context);
+    const academicGuidelines = contextManager.getAcademicWritingGuidelines(documentContext);
     
     // Create modification-specific instructions
     const modificationInstructions = getModificationInstructions(modificationType, customPrompt);
@@ -329,42 +607,71 @@ ${modificationInstructions}
 
 Modified content:`;
 
-    // Generate AI response
-    const { text, usage } = await generateText({
-      model: google("gemini-1.5-flash-latest"),
-      prompt: aiPrompt,
-    });
+    // Generate AI response with timeout and error handling
+    let text: string;
+    let usage: any;
+    
+    try {
+      const result = await Promise.race([
+        generateText({
+          model: google("gemini-1.5-flash-latest"),
+          prompt: aiPrompt,
+        }),
+        new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error('AI generation timeout')), 45000);
+        })
+      ]);
+      
+      text = result.text;
+      usage = result.usage;
+      
+      // Validate generated content
+      if (!text || text.trim().length === 0) {
+        throw new Error('AI service returned empty content');
+      }
+      
+      if (text.length > 50000) {
+        console.warn('Generated content is very long, truncating');
+        text = text.substring(0, 50000) + '\n\n[Content truncated due to length]';
+      }
+      
+    } catch (error) {
+      console.error('AI generation failed:', error);
+      const processingTime = Date.now() - startTime;
+      return c.json(createErrorResponse(error, context, processingTime), 500);
+    }
     
     // Validate academic quality of generated content
     let academicValidation;
-    if (context.academicContext) {
-      academicValidation = AcademicContextAnalyzer.validateAcademicContent(text, context.academicContext);
+    try {
+      if (documentContext.academicContext) {
+        academicValidation = AcademicContextAnalyzer.validateAcademicContent(text, documentContext.academicContext);
+      }
+    } catch (error) {
+      console.warn('Academic validation failed:', error);
+      // Continue without validation rather than failing the request
     }
     
     const processingTime = Date.now() - startTime;
     
-    return c.json({
+    const successResponse: AISuccessResponse = {
       success: true,
       content: text,
+      timestamp: Date.now(),
+      requestId,
       metadata: {
         tokensUsed: usage?.totalTokens || 0,
         processingTime,
+        model: "gemini-1.5-flash-latest",
         academicValidation
       }
-    } as AIResponse);
+    };
+    
+    return c.json(successResponse);
     
   } catch (err: unknown) {
-    console.error("Error in builder AI modify handler:", err);
     const processingTime = Date.now() - startTime;
-    
-    return c.json({
-      success: false,
-      error: "Failed to modify content. Please try again.",
-      metadata: {
-        tokensUsed: 0,
-        processingTime
-      }
-    } as AIResponse, 500);
+    return c.json(createErrorResponse(err, context, processingTime), 500);
   }
 }
 

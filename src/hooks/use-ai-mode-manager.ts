@@ -11,6 +11,8 @@ import {
   AIError,
   AIErrorType,
   AIErrorHandler,
+  ErrorRecoveryStrategy,
+  ErrorContext,
 } from "@/lib/ai-infrastructure";
 
 // Configuration for AI mode manager
@@ -18,6 +20,17 @@ interface AIModeManagerConfig {
   maxRetries?: number;
   timeout?: number;
   debounceMs?: number;
+  enableGracefulDegradation?: boolean;
+  showErrorNotifications?: boolean;
+}
+
+// Error state interface for UI feedback
+interface ErrorState {
+  hasError: boolean;
+  error: AIError | null;
+  recoveryStrategy: ErrorRecoveryStrategy | null;
+  canRetry: boolean;
+  retryCount: number;
 }
 
 // AI Mode Manager hook interface
@@ -27,6 +40,7 @@ export interface UseAIModeManager {
   processingState: AIProcessingState;
   hasSelectedText: boolean;
   selectedText: TextSelection | null;
+  errorState: ErrorState;
 
   // Mode management
   setMode: (mode: AIMode) => void;
@@ -45,6 +59,11 @@ export interface UseAIModeManager {
     selectedText: string,
     modificationType: ModificationType
   ) => Promise<AIResponse>;
+
+  // Error handling and recovery
+  retryLastOperation: () => Promise<void>;
+  clearError: () => void;
+  handleGracefulDegradation: () => void;
 
   // Selection management
   updateSelection: (selection: TextSelection | null) => void;
@@ -78,6 +97,8 @@ const DEFAULT_CONFIG: Required<AIModeManagerConfig> = {
   maxRetries: 3,
   timeout: 30000,
   debounceMs: 300,
+  enableGracefulDegradation: true,
+  showErrorNotifications: true,
 };
 
 /**
@@ -98,6 +119,13 @@ export function useAIModeManager(
     currentMode: AIMode.NONE,
   });
   const [selectedText, setSelectedText] = useState<TextSelection | null>(null);
+  const [errorState, setErrorState] = useState<ErrorState>({
+    hasError: false,
+    error: null,
+    recoveryStrategy: null,
+    canRetry: false,
+    retryCount: 0,
+  });
 
   // Modify mode specific state
   const [showModificationTypeSelector, setShowModificationTypeSelector] =
@@ -113,9 +141,13 @@ export function useAIModeManager(
     useState<string | null>(null);
   const [customPrompt, setCustomPrompt] = useState<string | null>(null);
 
-  // Refs for managing async operations
+  // Refs for managing async operations and error recovery
   const abortControllerRef = useRef<AbortController | null>(null);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastOperationRef = useRef<{
+    type: 'prompt' | 'continue' | 'modify';
+    params: any;
+  } | null>(null);
 
   // Computed properties
   const hasSelectedText =
@@ -174,11 +206,105 @@ export function useAIModeManager(
   );
 
   /**
-   * Resets mode to NONE
+   * Resets mode to NONE and clears errors
    */
   const resetMode = useCallback(() => {
     setMode(AIMode.NONE);
+    clearError();
   }, [setMode]);
+
+  /**
+   * Clear error state
+   */
+  const clearError = useCallback(() => {
+    setErrorState({
+      hasError: false,
+      error: null,
+      recoveryStrategy: null,
+      canRetry: false,
+      retryCount: 0,
+    });
+  }, []);
+
+  /**
+   * Handle error with recovery strategy
+   */
+  const handleError = useCallback(
+    (error: unknown, context: ErrorContext) => {
+      const aiError = error instanceof AIError ? error : AIErrorHandler.normalizeError(error);
+      const recoveryStrategy = AIErrorHandler.getRetryStrategy(aiError);
+
+      setErrorState({
+        hasError: true,
+        error: aiError,
+        recoveryStrategy,
+        canRetry: recoveryStrategy.retryAttempts > 0 && context.retryCount < recoveryStrategy.retryAttempts,
+        retryCount: context.retryCount,
+      });
+
+      // Log error with context
+      AIErrorHandler.handleError(aiError, context.operation, context);
+
+      // Handle graceful degradation if enabled
+      if (mergedConfig.enableGracefulDegradation && AIErrorHandler.shouldGracefullyDegrade(aiError)) {
+        const fallbackMode = AIErrorHandler.getFallbackMode(aiError, currentMode);
+        if (fallbackMode !== currentMode) {
+          console.info(`Gracefully degrading from ${currentMode} to ${fallbackMode}`);
+          setCurrentMode(fallbackMode);
+        }
+      }
+
+      // Reset processing state
+      setProcessingState({
+        isProcessing: false,
+        currentMode: currentMode,
+        progress: undefined,
+        statusMessage: undefined,
+      });
+    },
+    [mergedConfig.enableGracefulDegradation, currentMode]
+  );
+
+  /**
+   * Retry the last failed operation
+   */
+  const retryLastOperation = useCallback(async () => {
+    if (!errorState.canRetry || !lastOperationRef.current) {
+      console.warn('Cannot retry: no retryable operation available');
+      return;
+    }
+
+    const operation = lastOperationRef.current;
+    const newRetryCount = errorState.retryCount + 1;
+
+    try {
+      clearError();
+      console.info(`Retrying operation: ${operation.type}`);
+      
+      // For now, just clear the error state and let the user manually retry
+      // The actual retry logic will be handled by the UI components
+    } catch (error) {
+      const context = AIErrorHandler.createErrorContext(
+        `retry-${operation.type}`,
+        currentMode,
+        newRetryCount
+      );
+      handleError(error, context);
+    }
+  }, [errorState.canRetry, errorState.retryCount, currentMode, clearError, handleError]);
+
+  /**
+   * Handle graceful degradation manually
+   */
+  const handleGracefulDegradation = useCallback(() => {
+    if (!errorState.error) return;
+
+    const fallbackMode = AIErrorHandler.getFallbackMode(errorState.error, currentMode);
+    setCurrentMode(fallbackMode);
+    clearError();
+
+    console.info(`Manual graceful degradation from ${currentMode} to ${fallbackMode}`);
+  }, [errorState.error, currentMode, clearError]);
 
   /**
    * Validates text selection for modify mode
@@ -215,14 +341,28 @@ export function useAIModeManager(
   );
 
   /**
-   * Generic AI request handler with error handling and retry logic
+   * Generic AI request handler with comprehensive error handling and retry logic
    */
   const handleAIRequest = useCallback(
     async <T extends AIResponse>(
       requestFn: () => Promise<T>,
       mode: AIMode,
-      statusMessage: string
+      statusMessage: string,
+      operationType: 'prompt' | 'continue' | 'modify',
+      operationParams: any
     ): Promise<T> => {
+      // Clear any existing errors
+      clearError();
+
+      // Store operation for potential retry
+      lastOperationRef.current = {
+        type: operationType,
+        params: operationParams,
+      };
+
+      // Create error context
+      const errorContext = AIErrorHandler.createErrorContext(operationType, mode, 0);
+
       // Validate request parameters
       try {
         AIErrorHandler.validateRequest({ conversationId, documentContent }, [
@@ -230,7 +370,9 @@ export function useAIModeManager(
           "documentContent",
         ]);
       } catch (error) {
-        throw error;
+        const validationError = AIErrorHandler.normalizeError(error);
+        handleError(validationError, errorContext);
+        throw validationError;
       }
 
       // Set up abort controller for cancellation
@@ -244,106 +386,97 @@ export function useAIModeManager(
         statusMessage,
       });
 
-      let lastError: Error | null = null;
-
-      // Retry logic
-      for (let attempt = 1; attempt <= mergedConfig.maxRetries; attempt++) {
-        try {
-          // Check if operation was cancelled
-          if (abortControllerRef.current?.signal.aborted) {
-            throw new AIError(
-              "Operation was cancelled",
-              AIErrorType.OPERATION_CANCELLED,
-              "CANCELLED"
-            );
-          }
-
-          // Update progress
-          setProcessingState((prev) => ({
-            ...prev,
-            progress: ((attempt - 1) / mergedConfig.maxRetries) * 50,
-          }));
-
-          // Execute the request
-          const response = await Promise.race([
-            requestFn(),
-            new Promise<never>((_, reject) => {
-              setTimeout(
-                () =>
-                  reject(
-                    new AIError(
-                      "Request timeout",
-                      AIErrorType.TIMEOUT_ERROR,
-                      "TIMEOUT"
-                    )
-                  ),
-                mergedConfig.timeout
+      try {
+        // Use network error handler for robust retry logic
+        const response = await AIErrorHandler.handleNetworkError(
+          async () => {
+            // Check if operation was cancelled
+            if (abortControllerRef.current?.signal.aborted) {
+              throw new AIError(
+                "Operation was cancelled",
+                AIErrorType.OPERATION_CANCELLED,
+                "CANCELLED"
               );
-            }),
-          ]);
-
-          // Update progress to completion
-          setProcessingState((prev) => ({
-            ...prev,
-            progress: 100,
-            statusMessage: "Processing complete",
-          }));
-
-          // Reset processing state after a brief delay
-          setTimeout(() => {
-            setProcessingState({
-              isProcessing: false,
-              currentMode: mode,
-              progress: undefined,
-              statusMessage: undefined,
-            });
-          }, 500);
-
-          return response;
-        } catch (error) {
-          lastError = error as Error;
-
-          // Don't retry for certain error types
-          if (error instanceof AIError) {
-            if (
-              error.type === AIErrorType.OPERATION_CANCELLED ||
-              error.type === AIErrorType.VALIDATION_ERROR ||
-              !error.retryable
-            ) {
-              break;
             }
-          }
 
-          // Wait before retry (exponential backoff)
-          if (attempt < mergedConfig.maxRetries) {
-            const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
-            await new Promise((resolve) => setTimeout(resolve, delay));
-          }
-        }
+            // Update progress
+            setProcessingState((prev) => ({
+              ...prev,
+              progress: 25,
+              statusMessage: "Connecting to AI service...",
+            }));
+
+            // Execute the request with timeout
+            const response = await Promise.race([
+              requestFn(),
+              new Promise<never>((_, reject) => {
+                setTimeout(
+                  () =>
+                    reject(
+                      new AIError(
+                        "Request timeout",
+                        AIErrorType.TIMEOUT_ERROR,
+                        "TIMEOUT",
+                        true
+                      )
+                    ),
+                  mergedConfig.timeout
+                );
+              }),
+            ]);
+
+            // Update progress
+            setProcessingState((prev) => ({
+              ...prev,
+              progress: 75,
+              statusMessage: "Processing response...",
+            }));
+
+            // Validate response
+            if (!response) {
+              throw new AIError(
+                "Empty response from AI service",
+                AIErrorType.API_ERROR,
+                "EMPTY_RESPONSE",
+                true
+              );
+            }
+
+            return response;
+          },
+          errorContext,
+          mergedConfig.maxRetries
+        );
+
+        // Update progress to completion
+        setProcessingState((prev) => ({
+          ...prev,
+          progress: 100,
+          statusMessage: "Processing complete",
+        }));
+
+        // Reset processing state after a brief delay
+        setTimeout(() => {
+          setProcessingState({
+            isProcessing: false,
+            currentMode: mode,
+            progress: undefined,
+            statusMessage: undefined,
+          });
+        }, 500);
+
+        return response;
+      } catch (error) {
+        // Handle error with recovery strategy
+        handleError(error, errorContext);
+        throw error;
       }
-
-      // All retries failed, reset state and throw error
-      setProcessingState({
-        isProcessing: false,
-        currentMode: mode,
-        progress: undefined,
-        statusMessage: undefined,
-      });
-
-      throw (
-        lastError ||
-        new AIError(
-          "Unknown error occurred",
-          AIErrorType.UNKNOWN_ERROR,
-          "UNKNOWN"
-        )
-      );
     },
-    [conversationId, documentContent, mergedConfig]
+    [conversationId, documentContent, mergedConfig, clearError, handleError]
   );
 
   /**
-   * Processes a prompt request
+   * Processes a prompt request with comprehensive error handling
    */
   const processPrompt = useCallback(
     async (prompt: string, cursorPosition: number): Promise<AIResponse> => {
@@ -363,6 +496,8 @@ export function useAIModeManager(
         timestamp: Date.now(),
       };
 
+      const operationParams = { prompt: prompt.trim(), cursorPosition };
+
       return handleAIRequest(
         async () => {
           const response = await fetch("/api/builder/ai/prompt", {
@@ -373,24 +508,40 @@ export function useAIModeManager(
           });
 
           if (!response.ok) {
+            const errorText = await response.text().catch(() => response.statusText);
             throw new AIError(
-              `HTTP ${response.status}: ${response.statusText}`,
-              AIErrorType.API_ERROR,
-              `HTTP_${response.status}`
+              `AI service error: ${errorText}`,
+              response.status >= 500 ? AIErrorType.SERVICE_UNAVAILABLE : AIErrorType.API_ERROR,
+              `HTTP_${response.status}`,
+              response.status >= 500 || response.status === 429
             );
           }
 
-          return (await response.json()) as AIResponse;
+          const result = await response.json();
+          
+          // Validate response structure
+          if (!result || typeof result.success !== 'boolean') {
+            throw new AIError(
+              "Invalid response format from AI service",
+              AIErrorType.API_ERROR,
+              "INVALID_RESPONSE",
+              true
+            );
+          }
+
+          return result as AIResponse;
         },
         AIMode.PROMPT,
-        "Generating content from prompt..."
+        "Generating content from prompt...",
+        'prompt',
+        operationParams
       );
     },
     [documentContent, conversationId, handleAIRequest]
   );
 
   /**
-   * Processes a continue request
+   * Processes a continue request with comprehensive error handling
    */
   const processContinue = useCallback(
     async (
@@ -405,6 +556,8 @@ export function useAIModeManager(
         timestamp: Date.now(),
       };
 
+      const operationParams = { cursorPosition, selectedText };
+
       return handleAIRequest(
         async () => {
           const response = await fetch("/api/builder/ai/continue", {
@@ -415,24 +568,40 @@ export function useAIModeManager(
           });
 
           if (!response.ok) {
+            const errorText = await response.text().catch(() => response.statusText);
             throw new AIError(
-              `HTTP ${response.status}: ${response.statusText}`,
-              AIErrorType.API_ERROR,
-              `HTTP_${response.status}`
+              `AI service error: ${errorText}`,
+              response.status >= 500 ? AIErrorType.SERVICE_UNAVAILABLE : AIErrorType.API_ERROR,
+              `HTTP_${response.status}`,
+              response.status >= 500 || response.status === 429
             );
           }
 
-          return (await response.json()) as AIResponse;
+          const result = await response.json();
+          
+          // Validate response structure
+          if (!result || typeof result.success !== 'boolean') {
+            throw new AIError(
+              "Invalid response format from AI service",
+              AIErrorType.API_ERROR,
+              "INVALID_RESPONSE",
+              true
+            );
+          }
+
+          return result as AIResponse;
         },
         AIMode.CONTINUE,
-        "Continuing content generation..."
+        "Continuing content generation...",
+        'continue',
+        operationParams
       );
     },
     [documentContent, conversationId, handleAIRequest]
   );
 
   /**
-   * Processes a modify request
+   * Processes a modify request with comprehensive error handling
    */
   const processModify = useCallback(
     async (
@@ -460,6 +629,8 @@ export function useAIModeManager(
           }),
       };
 
+      const operationParams = { selectedText: selectedText.trim(), modificationType, customPrompt: customPromptText };
+
       return handleAIRequest(
         async () => {
           const response = await fetch("/api/builder/ai/modify", {
@@ -470,17 +641,33 @@ export function useAIModeManager(
           });
 
           if (!response.ok) {
+            const errorText = await response.text().catch(() => response.statusText);
             throw new AIError(
-              `HTTP ${response.status}: ${response.statusText}`,
-              AIErrorType.API_ERROR,
-              `HTTP_${response.status}`
+              `AI service error: ${errorText}`,
+              response.status >= 500 ? AIErrorType.SERVICE_UNAVAILABLE : AIErrorType.API_ERROR,
+              `HTTP_${response.status}`,
+              response.status >= 500 || response.status === 429
             );
           }
 
-          return (await response.json()) as AIResponse;
+          const result = await response.json();
+          
+          // Validate response structure
+          if (!result || typeof result.success !== 'boolean') {
+            throw new AIError(
+              "Invalid response format from AI service",
+              AIErrorType.API_ERROR,
+              "INVALID_RESPONSE",
+              true
+            );
+          }
+
+          return result as AIResponse;
         },
         AIMode.MODIFY,
-        `Modifying content (${modificationType})...`
+        `Modifying content (${modificationType})...`,
+        'modify',
+        operationParams
       );
     },
     [documentContent, conversationId, handleAIRequest]
@@ -716,6 +903,7 @@ export function useAIModeManager(
     processingState,
     hasSelectedText,
     selectedText,
+    errorState,
 
     // Mode management
     setMode,
@@ -725,6 +913,11 @@ export function useAIModeManager(
     processPrompt,
     processContinue,
     processModify,
+
+    // Error handling and recovery
+    retryLastOperation,
+    clearError,
+    handleGracefulDegradation,
 
     // Selection management
     updateSelection,
