@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef } from "react";
 import {
   AIMode,
   ModificationType,
@@ -10,8 +10,8 @@ import {
   AIModifyRequest,
   AIError,
   AIErrorType,
-  AIErrorHandler
-} from '@/lib/ai-infrastructure';
+  AIErrorHandler,
+} from "@/lib/ai-infrastructure";
 
 // Configuration for AI mode manager
 interface AIModeManagerConfig {
@@ -27,20 +27,29 @@ export interface UseAIModeManager {
   processingState: AIProcessingState;
   hasSelectedText: boolean;
   selectedText: TextSelection | null;
-  
+
   // Mode management
   setMode: (mode: AIMode) => void;
   resetMode: () => void;
-  
+
   // AI operations
-  processPrompt: (prompt: string, cursorPosition: number) => Promise<AIResponse>;
-  processContinue: (cursorPosition: number, selectedText?: string) => Promise<AIResponse>;
-  processModify: (selectedText: string, modificationType: ModificationType) => Promise<AIResponse>;
-  
+  processPrompt: (
+    prompt: string,
+    cursorPosition: number
+  ) => Promise<AIResponse>;
+  processContinue: (
+    cursorPosition: number,
+    selectedText?: string
+  ) => Promise<AIResponse>;
+  processModify: (
+    selectedText: string,
+    modificationType: ModificationType
+  ) => Promise<AIResponse>;
+
   // Selection management
   updateSelection: (selection: TextSelection | null) => void;
   validateTextSelection: (selection: TextSelection | null) => boolean;
-  
+
   // Modify mode specific
   showModificationTypeSelector: boolean;
   showModificationPreview: boolean;
@@ -49,7 +58,7 @@ export interface UseAIModeManager {
   modificationPreviewContent: string | null;
   originalTextForModification: string | null;
   customPrompt: string | null;
-  
+
   // Modify mode actions
   startModifyMode: () => void;
   selectModificationType: (type: ModificationType) => Promise<void>;
@@ -58,7 +67,7 @@ export interface UseAIModeManager {
   acceptModification: () => void;
   rejectModification: () => void;
   regenerateModification: () => Promise<void>;
-  
+
   // Utility methods
   canActivateMode: (mode: AIMode) => boolean;
   isProcessing: boolean;
@@ -68,7 +77,7 @@ export interface UseAIModeManager {
 const DEFAULT_CONFIG: Required<AIModeManagerConfig> = {
   maxRetries: 3,
   timeout: 30000,
-  debounceMs: 300
+  debounceMs: 300,
 };
 
 /**
@@ -81,371 +90,411 @@ export function useAIModeManager(
   config: AIModeManagerConfig = {}
 ): UseAIModeManager {
   const mergedConfig = { ...DEFAULT_CONFIG, ...config };
-  
+
   // State management
   const [currentMode, setCurrentMode] = useState<AIMode>(AIMode.NONE);
   const [processingState, setProcessingState] = useState<AIProcessingState>({
     isProcessing: false,
-    currentMode: AIMode.NONE
+    currentMode: AIMode.NONE,
   });
   const [selectedText, setSelectedText] = useState<TextSelection | null>(null);
-  
+
   // Modify mode specific state
-  const [showModificationTypeSelector, setShowModificationTypeSelector] = useState(false);
+  const [showModificationTypeSelector, setShowModificationTypeSelector] =
+    useState(false);
   const [showModificationPreview, setShowModificationPreview] = useState(false);
   const [showCustomPromptInput, setShowCustomPromptInput] = useState(false);
-  const [currentModificationType, setCurrentModificationType] = useState<ModificationType | null>(null);
-  const [modificationPreviewContent, setModificationPreviewContent] = useState<string | null>(null);
-  const [originalTextForModification, setOriginalTextForModification] = useState<string | null>(null);
+  const [currentModificationType, setCurrentModificationType] =
+    useState<ModificationType | null>(null);
+  const [modificationPreviewContent, setModificationPreviewContent] = useState<
+    string | null
+  >(null);
+  const [originalTextForModification, setOriginalTextForModification] =
+    useState<string | null>(null);
   const [customPrompt, setCustomPrompt] = useState<string | null>(null);
-  
+
   // Refs for managing async operations
   const abortControllerRef = useRef<AbortController | null>(null);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
-  
+
   // Computed properties
-  const hasSelectedText = selectedText !== null && selectedText.text.trim().length > 0;
+  const hasSelectedText =
+    selectedText !== null && selectedText.text.trim().length > 0;
   const isProcessing = processingState.isProcessing;
-  
+
   /**
    * Validates if a mode can be activated based on current state
    */
-  const canActivateMode = useCallback((mode: AIMode): boolean => {
-    switch (mode) {
-      case AIMode.NONE:
-        return true;
-      case AIMode.PROMPT:
-        return !isProcessing;
-      case AIMode.CONTINUE:
-        return !isProcessing && documentContent.trim().length > 0;
-      case AIMode.MODIFY:
-        return !isProcessing && hasSelectedText;
-      default:
-        return false;
-    }
-  }, [isProcessing, hasSelectedText, documentContent]);
-  
+  const canActivateMode = useCallback(
+    (mode: AIMode): boolean => {
+      switch (mode) {
+        case AIMode.NONE:
+          return true;
+        case AIMode.PROMPT:
+          return !isProcessing;
+        case AIMode.CONTINUE:
+          return !isProcessing && documentContent.trim().length > 0;
+        case AIMode.MODIFY:
+          return !isProcessing && hasSelectedText;
+        default:
+          return false;
+      }
+    },
+    [isProcessing, hasSelectedText, documentContent]
+  );
+
   /**
    * Sets the current AI mode with validation
    */
-  const setMode = useCallback((mode: AIMode) => {
-    if (!canActivateMode(mode)) {
-      console.warn(`Cannot activate mode ${mode}. Current state does not allow it.`);
-      return;
-    }
-    
-    // Cancel any ongoing operations when switching modes
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
-    }
-    
-    setCurrentMode(mode);
-    setProcessingState(prev => ({
-      ...prev,
-      currentMode: mode,
-      isProcessing: false,
-      progress: undefined,
-      statusMessage: undefined
-    }));
-  }, [canActivateMode]);
-  
+  const setMode = useCallback(
+    (mode: AIMode) => {
+      if (!canActivateMode(mode)) {
+        console.warn(
+          `Cannot activate mode ${mode}. Current state does not allow it.`
+        );
+        return;
+      }
+
+      // Cancel any ongoing operations when switching modes
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+
+      setCurrentMode(mode);
+      setProcessingState((prev) => ({
+        ...prev,
+        currentMode: mode,
+        isProcessing: false,
+        progress: undefined,
+        statusMessage: undefined,
+      }));
+    },
+    [canActivateMode]
+  );
+
   /**
    * Resets mode to NONE
    */
   const resetMode = useCallback(() => {
     setMode(AIMode.NONE);
   }, [setMode]);
-  
+
   /**
    * Validates text selection for modify mode
    */
-  const validateTextSelection = useCallback((selection: TextSelection | null): boolean => {
-    if (!selection) return false;
-    
-    const text = selection.text.trim();
-    if (text.length === 0) return false;
-    if (text.length < 3) return false; // Minimum text length for meaningful modification
-    if (text.length > 5000) return false; // Maximum text length to avoid API limits
-    
-    return true;
-  }, []);
+  const validateTextSelection = useCallback(
+    (selection: TextSelection | null): boolean => {
+      if (!selection) return false;
+
+      const text = selection.text.trim();
+      if (text.length === 0) return false;
+      if (text.length < 3) return false; // Minimum text length for meaningful modification
+      if (text.length > 5000) return false; // Maximum text length to avoid API limits
+
+      return true;
+    },
+    []
+  );
 
   /**
    * Updates text selection state
    */
-  const updateSelection = useCallback((selection: TextSelection | null) => {
-    setSelectedText(selection);
-    
-    // If modify mode is active but no valid text is selected, reset to NONE
-    if (currentMode === AIMode.MODIFY && !validateTextSelection(selection)) {
-      resetMode();
-      setShowModificationTypeSelector(false);
-      setShowModificationPreview(false);
-    }
-  }, [currentMode, resetMode, validateTextSelection]);
-  
+  const updateSelection = useCallback(
+    (selection: TextSelection | null) => {
+      setSelectedText(selection);
+
+      // If modify mode is active but no valid text is selected, reset to NONE
+      if (currentMode === AIMode.MODIFY && !validateTextSelection(selection)) {
+        resetMode();
+        setShowModificationTypeSelector(false);
+        setShowModificationPreview(false);
+      }
+    },
+    [currentMode, resetMode, validateTextSelection]
+  );
+
   /**
    * Generic AI request handler with error handling and retry logic
    */
-  const handleAIRequest = useCallback(async <T extends AIResponse>(
-    requestFn: () => Promise<T>,
-    mode: AIMode,
-    statusMessage: string
-  ): Promise<T> => {
-    // Validate request parameters
-    try {
-      AIErrorHandler.validateRequest(
-        { conversationId, documentContent },
-        ['conversationId', 'documentContent']
-      );
-    } catch (error) {
-      throw error;
-    }
-    
-    // Set up abort controller for cancellation
-    abortControllerRef.current = new AbortController();
-    
-    // Update processing state
-    setProcessingState({
-      isProcessing: true,
-      currentMode: mode,
-      progress: 0,
-      statusMessage
-    });
-    
-    let lastError: Error | null = null;
-    
-    // Retry logic
-    for (let attempt = 1; attempt <= mergedConfig.maxRetries; attempt++) {
+  const handleAIRequest = useCallback(
+    async <T extends AIResponse>(
+      requestFn: () => Promise<T>,
+      mode: AIMode,
+      statusMessage: string
+    ): Promise<T> => {
+      // Validate request parameters
       try {
-        // Check if operation was cancelled
-        if (abortControllerRef.current?.signal.aborted) {
-          throw new AIError(
-            'Operation was cancelled',
-            AIErrorType.OPERATION_CANCELLED,
-            'CANCELLED'
-          );
-        }
-        
-        // Update progress
-        setProcessingState(prev => ({
-          ...prev,
-          progress: (attempt - 1) / mergedConfig.maxRetries * 50
-        }));
-        
-        // Execute the request
-        const response = await Promise.race([
-          requestFn(),
-          new Promise<never>((_, reject) => {
-            setTimeout(() => reject(new AIError(
-              'Request timeout',
-              AIErrorType.TIMEOUT_ERROR,
-              'TIMEOUT'
-            )), mergedConfig.timeout);
-          })
+        AIErrorHandler.validateRequest({ conversationId, documentContent }, [
+          "conversationId",
+          "documentContent",
         ]);
-        
-        // Update progress to completion
-        setProcessingState(prev => ({
-          ...prev,
-          progress: 100,
-          statusMessage: 'Processing complete'
-        }));
-        
-        // Reset processing state after a brief delay
-        setTimeout(() => {
-          setProcessingState({
-            isProcessing: false,
-            currentMode: mode,
-            progress: undefined,
-            statusMessage: undefined
-          });
-        }, 500);
-        
-        return response;
-        
       } catch (error) {
-        lastError = error as Error;
-        
-        // Don't retry for certain error types
-        if (error instanceof AIError) {
-          if (error.type === AIErrorType.OPERATION_CANCELLED ||
+        throw error;
+      }
+
+      // Set up abort controller for cancellation
+      abortControllerRef.current = new AbortController();
+
+      // Update processing state
+      setProcessingState({
+        isProcessing: true,
+        currentMode: mode,
+        progress: 0,
+        statusMessage,
+      });
+
+      let lastError: Error | null = null;
+
+      // Retry logic
+      for (let attempt = 1; attempt <= mergedConfig.maxRetries; attempt++) {
+        try {
+          // Check if operation was cancelled
+          if (abortControllerRef.current?.signal.aborted) {
+            throw new AIError(
+              "Operation was cancelled",
+              AIErrorType.OPERATION_CANCELLED,
+              "CANCELLED"
+            );
+          }
+
+          // Update progress
+          setProcessingState((prev) => ({
+            ...prev,
+            progress: ((attempt - 1) / mergedConfig.maxRetries) * 50,
+          }));
+
+          // Execute the request
+          const response = await Promise.race([
+            requestFn(),
+            new Promise<never>((_, reject) => {
+              setTimeout(
+                () =>
+                  reject(
+                    new AIError(
+                      "Request timeout",
+                      AIErrorType.TIMEOUT_ERROR,
+                      "TIMEOUT"
+                    )
+                  ),
+                mergedConfig.timeout
+              );
+            }),
+          ]);
+
+          // Update progress to completion
+          setProcessingState((prev) => ({
+            ...prev,
+            progress: 100,
+            statusMessage: "Processing complete",
+          }));
+
+          // Reset processing state after a brief delay
+          setTimeout(() => {
+            setProcessingState({
+              isProcessing: false,
+              currentMode: mode,
+              progress: undefined,
+              statusMessage: undefined,
+            });
+          }, 500);
+
+          return response;
+        } catch (error) {
+          lastError = error as Error;
+
+          // Don't retry for certain error types
+          if (error instanceof AIError) {
+            if (
+              error.type === AIErrorType.OPERATION_CANCELLED ||
               error.type === AIErrorType.VALIDATION_ERROR ||
-              !error.retryable) {
-            break;
+              !error.retryable
+            ) {
+              break;
+            }
+          }
+
+          // Wait before retry (exponential backoff)
+          if (attempt < mergedConfig.maxRetries) {
+            const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+            await new Promise((resolve) => setTimeout(resolve, delay));
           }
         }
-        
-        // Wait before retry (exponential backoff)
-        if (attempt < mergedConfig.maxRetries) {
-          const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
-          await new Promise(resolve => setTimeout(resolve, delay));
-        }
       }
-    }
-    
-    // All retries failed, reset state and throw error
-    setProcessingState({
-      isProcessing: false,
-      currentMode: mode,
-      progress: undefined,
-      statusMessage: undefined
-    });
-    
-    throw lastError || new AIError(
-      'Unknown error occurred',
-      AIErrorType.UNKNOWN_ERROR,
-      'UNKNOWN'
-    );
-  }, [conversationId, documentContent, mergedConfig]);
-  
+
+      // All retries failed, reset state and throw error
+      setProcessingState({
+        isProcessing: false,
+        currentMode: mode,
+        progress: undefined,
+        statusMessage: undefined,
+      });
+
+      throw (
+        lastError ||
+        new AIError(
+          "Unknown error occurred",
+          AIErrorType.UNKNOWN_ERROR,
+          "UNKNOWN"
+        )
+      );
+    },
+    [conversationId, documentContent, mergedConfig]
+  );
+
   /**
    * Processes a prompt request
    */
-  const processPrompt = useCallback(async (
-    prompt: string,
-    cursorPosition: number
-  ): Promise<AIResponse> => {
-    if (!prompt.trim()) {
-      throw new AIError(
-        'Prompt cannot be empty',
-        AIErrorType.VALIDATION_ERROR,
-        'EMPTY_PROMPT'
+  const processPrompt = useCallback(
+    async (prompt: string, cursorPosition: number): Promise<AIResponse> => {
+      if (!prompt.trim()) {
+        throw new AIError(
+          "Prompt cannot be empty",
+          AIErrorType.VALIDATION_ERROR,
+          "EMPTY_PROMPT"
+        );
+      }
+
+      const request: AIPromptRequest = {
+        prompt: prompt.trim(),
+        documentContent,
+        cursorPosition,
+        conversationId,
+        timestamp: Date.now(),
+      };
+
+      return handleAIRequest(
+        async () => {
+          const response = await fetch("/api/builder/ai/prompt", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(request),
+            signal: abortControllerRef.current?.signal,
+          });
+
+          if (!response.ok) {
+            throw new AIError(
+              `HTTP ${response.status}: ${response.statusText}`,
+              AIErrorType.API_ERROR,
+              `HTTP_${response.status}`
+            );
+          }
+
+          return (await response.json()) as AIResponse;
+        },
+        AIMode.PROMPT,
+        "Generating content from prompt..."
       );
-    }
-    
-    const request: AIPromptRequest = {
-      prompt: prompt.trim(),
-      documentContent,
-      cursorPosition,
-      conversationId,
-      timestamp: Date.now()
-    };
-    
-    return handleAIRequest(
-      async () => {
-        const response = await fetch('/api/builder/ai/prompt', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(request),
-          signal: abortControllerRef.current?.signal
-        });
-        
-        if (!response.ok) {
-          throw new AIError(
-            `HTTP ${response.status}: ${response.statusText}`,
-            AIErrorType.API_ERROR,
-            `HTTP_${response.status}`
-          );
-        }
-        
-        return await response.json() as AIResponse;
-      },
-      AIMode.PROMPT,
-      'Generating content from prompt...'
-    );
-  }, [documentContent, conversationId, handleAIRequest]);
-  
+    },
+    [documentContent, conversationId, handleAIRequest]
+  );
+
   /**
    * Processes a continue request
    */
-  const processContinue = useCallback(async (
-    cursorPosition: number,
-    selectedText?: string
-  ): Promise<AIResponse> => {
-    const request: AIContinueRequest = {
-      documentContent,
-      cursorPosition,
-      selectedText,
-      conversationId,
-      timestamp: Date.now()
-    };
-    
-    return handleAIRequest(
-      async () => {
-        const response = await fetch('/api/builder/ai/continue', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(request),
-          signal: abortControllerRef.current?.signal
-        });
-        
-        if (!response.ok) {
-          throw new AIError(
-            `HTTP ${response.status}: ${response.statusText}`,
-            AIErrorType.API_ERROR,
-            `HTTP_${response.status}`
-          );
-        }
-        
-        return await response.json() as AIResponse;
-      },
-      AIMode.CONTINUE,
-      'Continuing content generation...'
-    );
-  }, [documentContent, conversationId, handleAIRequest]);
-  
+  const processContinue = useCallback(
+    async (
+      cursorPosition: number,
+      selectedText?: string
+    ): Promise<AIResponse> => {
+      const request: AIContinueRequest = {
+        documentContent,
+        cursorPosition,
+        selectedText,
+        conversationId,
+        timestamp: Date.now(),
+      };
+
+      return handleAIRequest(
+        async () => {
+          const response = await fetch("/api/builder/ai/continue", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(request),
+            signal: abortControllerRef.current?.signal,
+          });
+
+          if (!response.ok) {
+            throw new AIError(
+              `HTTP ${response.status}: ${response.statusText}`,
+              AIErrorType.API_ERROR,
+              `HTTP_${response.status}`
+            );
+          }
+
+          return (await response.json()) as AIResponse;
+        },
+        AIMode.CONTINUE,
+        "Continuing content generation..."
+      );
+    },
+    [documentContent, conversationId, handleAIRequest]
+  );
+
   /**
    * Processes a modify request
    */
-  const processModify = useCallback(async (
-    selectedText: string,
-    modificationType: ModificationType,
-    customPromptText?: string
-  ): Promise<AIResponse> => {
-    if (!selectedText.trim()) {
-      throw new AIError(
-        'Selected text cannot be empty',
-        AIErrorType.VALIDATION_ERROR,
-        'EMPTY_SELECTION'
+  const processModify = useCallback(
+    async (
+      selectedText: string,
+      modificationType: ModificationType,
+      customPromptText?: string
+    ): Promise<AIResponse> => {
+      if (!selectedText.trim()) {
+        throw new AIError(
+          "Selected text cannot be empty",
+          AIErrorType.VALIDATION_ERROR,
+          "EMPTY_SELECTION"
+        );
+      }
+
+      const request: AIModifyRequest = {
+        selectedText: selectedText.trim(),
+        modificationType,
+        documentContent,
+        conversationId,
+        timestamp: Date.now(),
+        ...(modificationType === ModificationType.PROMPT &&
+          customPromptText && {
+            customPrompt: customPromptText,
+          }),
+      };
+
+      return handleAIRequest(
+        async () => {
+          const response = await fetch("/api/builder/ai/modify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(request),
+            signal: abortControllerRef.current?.signal,
+          });
+
+          if (!response.ok) {
+            throw new AIError(
+              `HTTP ${response.status}: ${response.statusText}`,
+              AIErrorType.API_ERROR,
+              `HTTP_${response.status}`
+            );
+          }
+
+          return (await response.json()) as AIResponse;
+        },
+        AIMode.MODIFY,
+        `Modifying content (${modificationType})...`
       );
-    }
-    
-    const request: AIModifyRequest = {
-      selectedText: selectedText.trim(),
-      modificationType,
-      documentContent,
-      conversationId,
-      timestamp: Date.now(),
-      ...(modificationType === ModificationType.PROMPT && customPromptText && {
-        customPrompt: customPromptText
-      })
-    };
-    
-    return handleAIRequest(
-      async () => {
-        const response = await fetch('/api/builder/ai/modify', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(request),
-          signal: abortControllerRef.current?.signal
-        });
-        
-        if (!response.ok) {
-          throw new AIError(
-            `HTTP ${response.status}: ${response.statusText}`,
-            AIErrorType.API_ERROR,
-            `HTTP_${response.status}`
-          );
-        }
-        
-        return await response.json() as AIResponse;
-      },
-      AIMode.MODIFY,
-      `Modifying content (${modificationType})...`
-    );
-  }, [documentContent, conversationId, handleAIRequest]);
+    },
+    [documentContent, conversationId, handleAIRequest]
+  );
 
   /**
    * Starts modify mode workflow
    */
   const startModifyMode = useCallback(() => {
     if (!validateTextSelection(selectedText)) {
-      console.warn('Cannot start modify mode: invalid text selection');
+      console.warn("Cannot start modify mode: invalid text selection");
       return;
     }
-    
+
     setCurrentMode(AIMode.MODIFY);
     setShowModificationTypeSelector(true);
     setShowModificationPreview(false);
@@ -459,91 +508,101 @@ export function useAIModeManager(
   /**
    * Selects modification type and processes the modification
    */
-  const selectModificationType = useCallback(async (type: ModificationType) => {
-    if (!selectedText || !validateTextSelection(selectedText)) {
-      throw new AIError(
-        'No valid text selected for modification',
-        AIErrorType.VALIDATION_ERROR,
-        'NO_SELECTION'
-      );
-    }
-
-    setCurrentModificationType(type);
-    setShowModificationTypeSelector(false);
-
-    // If it's a prompt type, show the custom prompt input
-    if (type === ModificationType.PROMPT) {
-      setShowCustomPromptInput(true);
-      return;
-    }
-
-    try {
-      // Process the modification for predefined types
-      const response = await processModify(selectedText.text, type);
-      
-      if (response.success && response.content) {
-        setModificationPreviewContent(response.content);
-        setShowModificationPreview(true);
-      } else {
+  const selectModificationType = useCallback(
+    async (type: ModificationType) => {
+      if (!selectedText || !validateTextSelection(selectedText)) {
         throw new AIError(
-          response.error || 'Failed to generate modification',
-          AIErrorType.API_ERROR,
-          'MODIFICATION_FAILED'
+          "No valid text selected for modification",
+          AIErrorType.VALIDATION_ERROR,
+          "NO_SELECTION"
         );
       }
-    } catch (error) {
-      // Reset state on error
-      setShowModificationTypeSelector(true);
-      setCurrentModificationType(null);
-      setModificationPreviewContent(null);
-      throw error;
-    }
-  }, [selectedText, validateTextSelection, processModify]);
+
+      setCurrentModificationType(type);
+      setShowModificationTypeSelector(false);
+
+      // If it's a prompt type, show the custom prompt input
+      if (type === ModificationType.PROMPT) {
+        setShowCustomPromptInput(true);
+        return;
+      }
+
+      try {
+        // Process the modification for predefined types
+        const response = await processModify(selectedText.text, type);
+
+        if (response.success && response.content) {
+          setModificationPreviewContent(response.content);
+          setShowModificationPreview(true);
+        } else {
+          throw new AIError(
+            response.error || "Failed to generate modification",
+            AIErrorType.API_ERROR,
+            "MODIFICATION_FAILED"
+          );
+        }
+      } catch (error) {
+        // Reset state on error
+        setShowModificationTypeSelector(true);
+        setCurrentModificationType(null);
+        setModificationPreviewContent(null);
+        throw error;
+      }
+    },
+    [selectedText, validateTextSelection, processModify]
+  );
 
   /**
    * Submits custom prompt and processes the modification
    */
-  const submitCustomPrompt = useCallback(async (prompt: string) => {
-    if (!selectedText || !validateTextSelection(selectedText)) {
-      throw new AIError(
-        'No valid text selected for modification',
-        AIErrorType.VALIDATION_ERROR,
-        'NO_SELECTION'
-      );
-    }
-
-    if (!prompt.trim()) {
-      throw new AIError(
-        'Custom prompt cannot be empty',
-        AIErrorType.VALIDATION_ERROR,
-        'EMPTY_PROMPT'
-      );
-    }
-
-    try {
-      setCustomPrompt(prompt);
-      setShowCustomPromptInput(false);
-      
-      // Process the modification with custom prompt
-      const response = await processModify(selectedText.text, ModificationType.PROMPT, prompt);
-      
-      if (response.success && response.content) {
-        setModificationPreviewContent(response.content);
-        setShowModificationPreview(true);
-      } else {
+  const submitCustomPrompt = useCallback(
+    async (prompt: string) => {
+      if (!selectedText || !validateTextSelection(selectedText)) {
         throw new AIError(
-          response.error || 'Failed to generate modification',
-          AIErrorType.API_ERROR,
-          'MODIFICATION_FAILED'
+          "No valid text selected for modification",
+          AIErrorType.VALIDATION_ERROR,
+          "NO_SELECTION"
         );
       }
-    } catch (error) {
-      // Reset state on error
-      setShowCustomPromptInput(true);
-      setModificationPreviewContent(null);
-      throw error;
-    }
-  }, [selectedText, validateTextSelection, processModify]);
+
+      if (!prompt.trim()) {
+        throw new AIError(
+          "Custom prompt cannot be empty",
+          AIErrorType.VALIDATION_ERROR,
+          "EMPTY_PROMPT"
+        );
+      }
+
+      try {
+        setCustomPrompt(prompt);
+        setShowCustomPromptInput(false);
+
+        // Process the modification with custom prompt
+        const response = await processModify(
+          selectedText.text,
+          ModificationType.PROMPT,
+          prompt
+        );
+
+        if (response.success && response.content) {
+          setModificationPreviewContent(response.content);
+          setShowModificationPreview(true);
+        } else {
+          throw new AIError(
+            response.error || "Failed to generate modification",
+            AIErrorType.API_ERROR,
+            "MODIFICATION_FAILED"
+          );
+        }
+      } catch (error) {
+        // Reset state on error
+        setShowCustomPromptInput(true);
+        setModificationPreviewContent(null);
+        throw error;
+      }
+    },
+    [selectedText, validateTextSelection, processModify]
+  );
 
   /**
    * Returns to modification type selection
@@ -560,13 +619,15 @@ export function useAIModeManager(
    */
   const acceptModification = useCallback(() => {
     if (!modificationPreviewContent || !selectedText) {
-      console.warn('Cannot accept modification: no content or selection available');
+      console.warn(
+        "Cannot accept modification: no content or selection available"
+      );
       return;
     }
 
     // This will be handled by the editor component
     // The editor should replace the selected text with the modified content
-    
+
     // Reset modify mode state
     setCurrentMode(AIMode.NONE);
     setShowModificationTypeSelector(false);
@@ -584,7 +645,7 @@ export function useAIModeManager(
   const rejectModification = useCallback(() => {
     setShowModificationPreview(false);
     setModificationPreviewContent(null);
-    
+
     // Return to type selection if we have valid text selected
     if (validateTextSelection(selectedText)) {
       setShowModificationTypeSelector(true);
@@ -606,57 +667,69 @@ export function useAIModeManager(
    * Regenerates the current modification with the same type
    */
   const regenerateModification = useCallback(async () => {
-    if (!currentModificationType || !selectedText || !validateTextSelection(selectedText)) {
+    if (
+      !currentModificationType ||
+      !selectedText ||
+      !validateTextSelection(selectedText)
+    ) {
       throw new AIError(
-        'Cannot regenerate: missing modification type or selection',
+        "Cannot regenerate: missing modification type or selection",
         AIErrorType.VALIDATION_ERROR,
-        'INVALID_REGENERATE_STATE'
+        "INVALID_REGENERATE_STATE"
       );
     }
 
     try {
       // Process the modification again with the same type and prompt (if applicable)
       const response = await processModify(
-        selectedText.text, 
+        selectedText.text,
         currentModificationType,
-        currentModificationType === ModificationType.PROMPT ? customPrompt || undefined : undefined
+        currentModificationType === ModificationType.PROMPT
+          ? customPrompt || undefined
+          : undefined
       );
-      
+
       if (response.success && response.content) {
         setModificationPreviewContent(response.content);
       } else {
         throw new AIError(
-          response.error || 'Failed to regenerate modification',
+          response.error || "Failed to regenerate modification",
           AIErrorType.API_ERROR,
-          'REGENERATION_FAILED'
+          "REGENERATION_FAILED"
         );
       }
     } catch (error) {
-      console.error('Failed to regenerate modification:', error);
+      console.error("Failed to regenerate modification:", error);
       throw error;
     }
-  }, [currentModificationType, selectedText, validateTextSelection, processModify, customPrompt]);
-  
+  }, [
+    currentModificationType,
+    selectedText,
+    validateTextSelection,
+    processModify,
+    customPrompt,
+  ]);
+
   return {
     // State
     currentMode,
     processingState,
     hasSelectedText,
     selectedText,
-    
+
     // Mode management
     setMode,
     resetMode,
-    
+
     // AI operations
     processPrompt,
     processContinue,
     processModify,
-    
+
     // Selection management
     updateSelection,
     validateTextSelection,
-    
+
     // Modify mode specific
     showModificationTypeSelector,
     showModificationPreview,
@@ -665,7 +738,7 @@ export function useAIModeManager(
     modificationPreviewContent,
     originalTextForModification,
     customPrompt,
-    
+
     // Modify mode actions
     startModifyMode,
     selectModificationType,
@@ -674,9 +747,9 @@ export function useAIModeManager(
     acceptModification,
     rejectModification,
     regenerateModification,
-    
+
     // Utility methods
     canActivateMode,
-    isProcessing
+    isProcessing,
   };
 }

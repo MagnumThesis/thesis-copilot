@@ -4,13 +4,15 @@
  */
 
 import { SupabaseClient } from '@supabase/supabase-js';
-import { DocumentContext, DocumentSection, IdeaDefinition } from '../../lib/ai-types';
+import { DocumentContext, DocumentSection, IdeaDefinition, AcademicContext } from '../../lib/ai-types';
+import { AcademicContextAnalyzer } from './academic-context-analyzer';
 
 export interface AIContextManager {
   buildContext(documentContent: string, conversationId: string, cursorPosition?: number, selectedText?: string): Promise<DocumentContext>;
   getIdeaDefinitions(conversationId: string): Promise<IdeaDefinition[]>;
   formatContextForAI(context: DocumentContext): string;
   getConversationContext(conversationId: string): Promise<{ title: string; messages: Array<{ role: string; content: string }> }>;
+  getAcademicWritingGuidelines(context: DocumentContext): string;
 }
 
 export class AIContextManagerImpl implements AIContextManager {
@@ -34,6 +36,12 @@ export class AIContextManagerImpl implements AIContextManager {
 
       // Analyze document structure
       const documentStructure = this.analyzeDocumentStructure(documentContent);
+      
+      // Analyze academic context
+      const academicContext = AcademicContextAnalyzer.analyzeAcademicContext(
+        documentContent, 
+        conversationContext.title
+      );
 
       return {
         content: documentContent,
@@ -41,7 +49,8 @@ export class AIContextManagerImpl implements AIContextManager {
         conversationTitle: conversationContext.title,
         cursorPosition,
         selectedText,
-        documentStructure
+        documentStructure,
+        academicContext
       };
     } catch (error) {
       console.error('Error building AI context:', error);
@@ -52,7 +61,8 @@ export class AIContextManagerImpl implements AIContextManager {
         conversationTitle: 'Unknown',
         cursorPosition,
         selectedText,
-        documentStructure: []
+        documentStructure: [],
+        academicContext: undefined
       };
     }
   }
@@ -118,7 +128,7 @@ export class AIContextManagerImpl implements AIContextManager {
   }
 
   /**
-   * Format context for AI prompts
+   * Format context for AI prompts with academic context
    */
   formatContextForAI(context: DocumentContext): string {
     const sections: string[] = [];
@@ -126,6 +136,46 @@ export class AIContextManagerImpl implements AIContextManager {
     // Add conversation context
     sections.push(`## Conversation Context`);
     sections.push(`**Title:** ${context.conversationTitle}`);
+    
+    // Add academic context if available
+    if (context.academicContext) {
+      sections.push(`\n## Academic Context`);
+      sections.push(`**Academic Level:** ${context.academicContext.academicTone.level}`);
+      sections.push(`**Discipline:** ${context.academicContext.academicTone.discipline}`);
+      sections.push(`**Formality Score:** ${(context.academicContext.academicTone.formalityScore * 100).toFixed(0)}%`);
+      
+      if (context.academicContext.researchMethodology) {
+        sections.push(`**Research Methodology:** ${context.academicContext.researchMethodology}`);
+      }
+      
+      if (context.academicContext.citationFormat.detected) {
+        sections.push(`**Citation Style:** ${context.academicContext.citationFormat.style}`);
+        if (context.academicContext.citationFormat.examples.length > 0) {
+          sections.push(`**Citation Examples:** ${context.academicContext.citationFormat.examples.join(', ')}`);
+        }
+      }
+      
+      if (context.academicContext.keyTerms.length > 0) {
+        sections.push(`**Key Terms:** ${context.academicContext.keyTerms.join(', ')}`);
+      }
+      
+      // Add thesis structure information
+      const thesisStructure = context.academicContext.thesisStructure;
+      sections.push(`**Thesis Completeness:** ${(thesisStructure.completeness * 100).toFixed(0)}%`);
+      
+      const presentSections = thesisStructure.sections.filter(s => s.present).map(s => s.name);
+      const missingSections = thesisStructure.sections.filter(s => s.required && !s.present).map(s => s.name);
+      
+      if (presentSections.length > 0) {
+        sections.push(`**Present Sections:** ${presentSections.join(', ')}`);
+      }
+      if (missingSections.length > 0) {
+        sections.push(`**Missing Required Sections:** ${missingSections.join(', ')}`);
+      }
+      if (thesisStructure.currentSection) {
+        sections.push(`**Current Section:** ${thesisStructure.currentSection}`);
+      }
+    }
     
     // Add idea definitions if available
     if (context.ideaDefinitions.length > 0) {
@@ -221,6 +271,59 @@ export class AIContextManagerImpl implements AIContextManager {
     }
 
     return sections;
+  }
+
+  /**
+   * Get academic writing guidelines based on context
+   */
+  getAcademicWritingGuidelines(context: DocumentContext): string {
+    if (!context.academicContext) {
+      return "Follow general academic writing principles: formal tone, clear structure, evidence-based arguments.";
+    }
+
+    const guidelines: string[] = [];
+    const academic = context.academicContext;
+
+    // Level-specific guidelines
+    switch (academic.academicTone.level) {
+      case 'doctoral':
+        guidelines.push("Use sophisticated academic language and demonstrate original contribution to knowledge");
+        guidelines.push("Employ complex theoretical frameworks and advanced methodological approaches");
+        break;
+      case 'graduate':
+        guidelines.push("Use advanced academic vocabulary and demonstrate critical analysis");
+        guidelines.push("Show understanding of theoretical concepts and research methodologies");
+        break;
+      case 'undergraduate':
+        guidelines.push("Use clear academic language and demonstrate understanding of key concepts");
+        guidelines.push("Show ability to synthesize information from multiple sources");
+        break;
+    }
+
+    // Citation guidelines
+    if (academic.citationFormat.detected) {
+      guidelines.push(`Follow ${academic.citationFormat.style} citation format consistently`);
+      guidelines.push("Ensure all claims are properly supported with citations");
+    } else {
+      guidelines.push("Include proper citations to support all claims and arguments");
+    }
+
+    // Structure guidelines
+    if (academic.thesisStructure.completeness < 0.5) {
+      guidelines.push("Focus on developing the core thesis structure with clear sections");
+    }
+
+    // Discipline-specific guidelines
+    if (academic.academicTone.discipline !== 'general') {
+      guidelines.push(`Use terminology and conventions appropriate for ${academic.academicTone.discipline}`);
+    }
+
+    // Methodology guidelines
+    if (academic.researchMethodology) {
+      guidelines.push(`Align content with ${academic.researchMethodology} research approach`);
+    }
+
+    return guidelines.join('\n- ');
   }
 }
 

@@ -50,6 +50,7 @@ export interface DocumentContext {
   cursorPosition: number;
   selectedText?: string;
   documentStructure: DocumentSection[];
+  academicContext?: AcademicContext;
 }
 
 // Idea definition interface (from existing system)
@@ -88,6 +89,7 @@ export interface AIModifyRequest {
   modificationType: ModificationType;
   documentContent: string;
   conversationId: string;
+  customPrompt?: string;
 }
 
 export interface AIResponse {
@@ -97,5 +99,50 @@ export interface AIResponse {
   metadata?: {
     tokensUsed: number;
     processingTime: number;
+    contextSufficiency?: boolean;
+    styleAnalysis?: string;
+    academicValidation?: AcademicValidationResult;
   };
+}
+
+// Academic context interfaces
+export interface AcademicValidationResult {
+  isAcademic: boolean;
+  toneScore: number; // 0-1 scale
+  styleIssues: string[];
+  suggestions: string[];
+  citationFormat: CitationFormat;
+}
+
+export interface CitationFormat {
+  style: 'APA' | 'MLA' | 'Chicago' | 'Harvard' | 'IEEE' | 'Unknown';
+  detected: boolean;
+  examples: string[];
+}
+
+export interface ThesisStructure {
+  sections: ThesisSection[];
+  currentSection?: string;
+  completeness: number; // 0-1 scale
+}
+
+export interface ThesisSection {
+  name: string;
+  level: number;
+  required: boolean;
+  present: boolean;
+  content?: string;
+  subsections?: ThesisSection[];
+}
+
+export interface AcademicContext {
+  thesisStructure: ThesisStructure;
+  citationFormat: CitationFormat;
+  academicTone: {
+    level: 'undergraduate' | 'graduate' | 'doctoral';
+    discipline: string;
+    formalityScore: number;
+  };
+  keyTerms: string[];
+  researchMethodology?: string;
 }
