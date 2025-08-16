@@ -87,6 +87,11 @@ export const Idealist: React.FC<IdealistProps> = ({ isOpen, onClose, currentConv
       setNewIdeaTitle("");
       setNewIdeaDescription("");
       setIsFormOpen(false); // Close the form after submission
+      
+      // Notify content retrieval service that ideas have changed
+      const { contentRetrievalService } = await import("@/lib/content-retrieval-service");
+      contentRetrievalService.invalidateCache(currentConversation.id, 'ideas');
+      
       toast.success("Idea created successfully!");
     } catch (err) {
       console.error("Failed to create idea:", err);
@@ -103,6 +108,11 @@ export const Idealist: React.FC<IdealistProps> = ({ isOpen, onClose, currentConv
       setIdeaDefinitions(prevIdeas =>
         prevIdeas.map(idea => idea.id === id ? { ...idea, ...updatedIdea } : idea)
       );
+      
+      // Notify content retrieval service that ideas have changed
+      const { contentRetrievalService } = await import("@/lib/content-retrieval-service");
+      contentRetrievalService.invalidateCache(currentConversation.id, 'ideas');
+      
       toast.success("Idea updated successfully!");
     } catch (err) {
       console.error("Failed to update idea:", err);
@@ -116,6 +126,11 @@ export const Idealist: React.FC<IdealistProps> = ({ isOpen, onClose, currentConv
     try {
       await deleteIdea(id);
       setIdeaDefinitions(prevIdeas => prevIdeas.filter(idea => idea.id !== id));
+      
+      // Notify content retrieval service that ideas have changed
+      const { contentRetrievalService } = await import("@/lib/content-retrieval-service");
+      contentRetrievalService.invalidateCache(currentConversation.id, 'ideas');
+      
       toast.success("Idea deleted successfully!");
     } catch (err) {
       console.error("Failed to delete idea:", err);
@@ -139,6 +154,10 @@ export const Idealist: React.FC<IdealistProps> = ({ isOpen, onClose, currentConv
           id: Date.now() + Math.random(), // Temporary ID until saved to DB
           ...idea
         }))]);
+        
+        // Notify content retrieval service that ideas have changed
+        const { contentRetrievalService } = await import("@/lib/content-retrieval-service");
+        contentRetrievalService.invalidateCache(currentConversation.id, 'ideas');
       }
       
       // Show appropriate toast message based on results

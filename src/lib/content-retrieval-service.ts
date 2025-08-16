@@ -173,35 +173,93 @@ export class ContentRetrievalService {
   }
 
   /**
-   * Fetch Builder content from API or storage
-   * This is a placeholder implementation that would be replaced with actual API calls
+   * Fetch Builder content from storage
+   * Integrates with the Builder tool's content storage mechanism
    * 
    * @param conversationId - The conversation ID
    * @returns Promise resolving to Builder content or null
    */
   private async fetchBuilderContentFromAPI(conversationId: string): Promise<BuilderContent | null> {
     try {
-      // For now, we'll try to get content from localStorage as a fallback
-      // In a real implementation, this would be an API call to retrieve stored content
+      // First check if we have cached content from Builder component
+      const cachedContent = this.builderContentCache.get(conversationId);
+      if (cachedContent && this.isCacheValid(cachedContent.lastModified)) {
+        return cachedContent;
+      }
+
+      // Try to get content from localStorage (Builder tool stores content here)
       const storedContent = localStorage.getItem(`builder-content-${conversationId}`);
       
       if (storedContent) {
-        const parsed = JSON.parse(storedContent);
-        return {
-          content: parsed.content || "# Thesis Proposal\n\nStart writing your thesis proposal here...",
-          lastModified: new Date(parsed.lastModified || Date.now()),
-          conversationId
-        };
+        try {
+          const parsed = JSON.parse(storedContent);
+          const builderContent: BuilderContent = {
+            content: parsed.content || "# Thesis Proposal\n\nStart writing your thesis proposal here...",
+            lastModified: new Date(parsed.lastModified || Date.now()),
+            conversationId
+          };
+          
+          // Cache the retrieved content
+          this.builderContentCache.set(conversationId, builderContent);
+          return builderContent;
+        } catch (parseError) {
+          console.warn("Failed to parse stored Builder content:", parseError);
+        }
       }
 
-      // Return default content if nothing is stored
-      return {
-        content: "# Thesis Proposal\n\nStart writing your thesis proposal here...",
-        lastModified: new Date(),
-        conversationId
-      };
+      // Try to get content from conversation messages as fallback
+      const messageContent = await this.fetchContentFromMessages(conversationId);
+      if (messageContent) {
+        const builderContent: BuilderContent = {
+          content: messageContent,
+          lastModified: new Date(),
+          conversationId
+        };
+        
+        // Cache and store the content
+        this.builderContentCache.set(conversationId, builderContent);
+        this.storeBuilderContent(conversationId, messageContent);
+        return builderContent;
+      }
+
+      // Return null if no content is available
+      return null;
     } catch (error) {
       console.error("Error fetching Builder content:", error);
+      return null;
+    }
+  }
+
+  /**
+   * Fetch content from conversation messages as fallback
+   * 
+   * @param conversationId - The conversation ID
+   * @returns Promise resolving to content string or null
+   */
+  private async fetchContentFromMessages(conversationId: string): Promise<string | null> {
+    try {
+      // This would integrate with the existing message API
+      const response = await fetch(`/api/chats/${conversationId}/messages`);
+      
+      if (!response.ok) {
+        return null;
+      }
+
+      const data = await response.json();
+      const messages = data.messages || [];
+      
+      // Look for the most recent assistant message that contains substantial content
+      const assistantMessages = messages
+        .filter((msg: any) => msg.role === 'assistant' && msg.content && msg.content.length > 100)
+        .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      
+      if (assistantMessages.length > 0) {
+        return assistantMessages[0].content;
+      }
+
+      return null;
+    } catch (error) {
+      console.error("Error fetching content from messages:", error);
       return null;
     }
   }
@@ -214,14 +272,19 @@ export class ContentRetrievalService {
    */
   private async fetchIdeaDefinitionsFromAPI(conversationId: string): Promise<IdeaDefinition[]> {
     try {
-      const response = await fetch(`/api/ideas/${conversationId}`);
+      // Use the same API endpoint as the Idealist tool
+      const response = await fetch(`/api/ideas?conversationId=${encodeURIComponent(conversationId)}`);
       
       if (!response.ok) {
+        if (response.status === 404) {
+          // No ideas found is not an error - return empty array
+          return [];
+        }
         throw new Error(`Failed to fetch ideas: ${response.statusText}`);
       }
 
-      const data = await response.json();
-      return data.ideas || [];
+      const ideas = await response.json();
+      return Array.isArray(ideas) ? ideas : [];
     } catch (error) {
       console.error("Error fetching idea definitions:", error);
       return [];
@@ -299,6 +362,97 @@ export class ContentRetrievalService {
         hasContent: false,
         contentLength: 0,
         ideaCount: 0
+      };
+    }
+  }
+
+  /**
+   * Subscribe to content changes for real-time updates
+   * This allows other tools to be notified when Builder content or ideas change
+   * 
+   * @param conversationId - The conversation ID to watch
+   * @param callback - Function to call when content changes
+   * @returns Unsubscribe function
+   */
+  public subscribeToContentChanges(
+    conversationId: string, 
+    callback: (summary: Awaited<ReturnType<typeof this.getContentSummary>>) => void
+  ): () => void {
+    const intervalId = setInterval(async () => {
+      try {
+        const summary = await this.getContentSummary(conversationId);
+        callback(summary);
+      } catch (error) {
+        console.error("Error in content change subscription:", error);
+      }
+    }, 5000); // Check every 5 seconds
+
+    return () => clearInterval(intervalId);
+  }
+
+  /**
+   * Invalidate cache when content is updated externally
+   * This should be called by Builder and Idealist tools when they update content
+   * 
+   * @param conversationId - The conversation ID
+   * @param contentType - Type of content that was updated
+   */
+  public invalidateCache(conversationId: string, contentType: 'builder' | 'ideas' | 'all' = 'all'): void {
+    if (contentType === 'builder' || contentType === 'all') {
+      this.builderContentCache.delete(conversationId);
+    }
+    if (contentType === 'ideas' || contentType === 'all') {
+      this.ideaDefinitionsCache.delete(conversationId);
+    }
+  }
+
+  /**
+   * Get integration status with other tools
+   * 
+   * @param conversationId - The conversation ID
+   * @returns Promise resolving to integration status
+   */
+  public async getIntegrationStatus(conversationId: string): Promise<{
+    builderIntegration: {
+      connected: boolean;
+      hasContent: boolean;
+      lastSync?: Date;
+    };
+    idealistIntegration: {
+      connected: boolean;
+      ideaCount: number;
+      lastSync?: Date;
+    };
+  }> {
+    try {
+      const [builderResult, ideaDefinitions] = await Promise.all([
+        this.retrieveBuilderContent(conversationId),
+        this.retrieveIdeaDefinitions(conversationId)
+      ]);
+
+      return {
+        builderIntegration: {
+          connected: builderResult.success,
+          hasContent: !!builderResult.builderContent && builderResult.builderContent.content.trim().length > 50,
+          lastSync: builderResult.builderContent?.lastModified
+        },
+        idealistIntegration: {
+          connected: true, // API call succeeded if we got here
+          ideaCount: ideaDefinitions.length,
+          lastSync: new Date()
+        }
+      };
+    } catch (error) {
+      console.error("Failed to get integration status:", error);
+      return {
+        builderIntegration: {
+          connected: false,
+          hasContent: false
+        },
+        idealistIntegration: {
+          connected: false,
+          ideaCount: 0
+        }
       };
     }
   }

@@ -98,6 +98,8 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
     setDocumentContent(content);
     // Store content in retrieval service for other tools to access
     contentRetrievalService.storeBuilderContent(currentConversation.id, content);
+    // Invalidate cache to ensure other tools get fresh content
+    contentRetrievalService.invalidateCache(currentConversation.id, 'builder');
   }, [currentConversation.id]);
 
   // Handle selection changes from editor

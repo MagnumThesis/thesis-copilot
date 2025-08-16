@@ -25,6 +25,18 @@ interface ProofreaderState {
   error: string | null
   analysisProgress: number
   analysisStatusMessage: string
+  integrationStatus: {
+    builderIntegration: {
+      connected: boolean;
+      hasContent: boolean;
+      lastSync?: Date;
+    };
+    idealistIntegration: {
+      connected: boolean;
+      ideaCount: number;
+      lastSync?: Date;
+    };
+  } | null
 }
 
 export const Proofreader: React.FC<ProofreaderProps> = ({ 
@@ -39,18 +51,43 @@ export const Proofreader: React.FC<ProofreaderProps> = ({
     statusFilter: 'all',
     error: null,
     analysisProgress: 0,
-    analysisStatusMessage: 'Ready to analyze'
+    analysisStatusMessage: 'Ready to analyze',
+    integrationStatus: null
   })
 
   const [loading, setLoading] = useState<boolean>(true)
   const [retryCount, setRetryCount] = useState<number>(0)
 
-  // Load existing concerns when component mounts or when sheet opens
+  // Load existing concerns and check integration status when component mounts or when sheet opens
   useEffect(() => {
     if (isOpen) {
       loadConcerns()
+      checkIntegrationStatus()
     }
   }, [isOpen, currentConversation.id])
+
+  // Set up content change subscription for real-time updates
+  useEffect(() => {
+    if (!isOpen) return
+
+    const unsubscribe = contentRetrievalService.subscribeToContentChanges(
+      currentConversation.id,
+      (summary) => {
+        // Update integration status when content changes
+        checkIntegrationStatus()
+        
+        // If we have concerns and content has changed significantly, suggest re-analysis
+        if (state.concerns.length > 0 && summary.hasContent) {
+          setState(prev => ({
+            ...prev,
+            analysisStatusMessage: 'Content may have changed - consider re-analyzing'
+          }))
+        }
+      }
+    )
+
+    return unsubscribe
+  }, [isOpen, currentConversation.id, state.concerns.length])
 
   // Cleanup effect to cancel ongoing requests
   useEffect(() => {
@@ -121,6 +158,16 @@ export const Proofreader: React.FC<ProofreaderProps> = ({
     }
   }
 
+  const checkIntegrationStatus = async () => {
+    try {
+      const integrationStatus = await contentRetrievalService.getIntegrationStatus(currentConversation.id)
+      setState(prev => ({ ...prev, integrationStatus }))
+    } catch (error) {
+      console.error("Failed to check integration status:", error)
+      // Don't show error to user as this is background functionality
+    }
+  }
+
   const handleAnalyze = async () => {
     try {
       setState(prev => ({
@@ -156,10 +203,23 @@ export const Proofreader: React.FC<ProofreaderProps> = ({
       setState(prev => ({
         ...prev,
         analysisProgress: 25,
-        analysisStatusMessage: 'Loading idea definitions...'
+        analysisStatusMessage: 'Loading idea definitions from Idealist tool...'
       }))
 
       const ideaDefinitions = contentResult.ideaDefinitions || [];
+      
+      // Provide feedback about integration status
+      if (ideaDefinitions.length > 0) {
+        setState(prev => ({
+          ...prev,
+          analysisStatusMessage: `Found ${ideaDefinitions.length} idea definition${ideaDefinitions.length === 1 ? '' : 's'} for context...`
+        }))
+      } else {
+        setState(prev => ({
+          ...prev,
+          analysisStatusMessage: 'No idea definitions found - analysis will proceed without contextual information...'
+        }))
+      }
 
       // Step 3: Prepare analysis request
       setState(prev => ({
@@ -371,6 +431,43 @@ export const Proofreader: React.FC<ProofreaderProps> = ({
                 onRetry={handleAnalyze}
                 onDismissError={() => setState(prev => ({ ...prev, error: null }))}
               />
+
+              {/* Integration Status */}
+              {state.integrationStatus && (
+                <div className="p-3 bg-muted/30 rounded-lg border text-sm">
+                  <div className="font-medium mb-2">Tool Integration Status</div>
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span>Builder Tool:</span>
+                      <span className={`text-xs px-2 py-1 rounded ${
+                        state.integrationStatus.builderIntegration.connected && state.integrationStatus.builderIntegration.hasContent
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {state.integrationStatus.builderIntegration.connected 
+                          ? state.integrationStatus.builderIntegration.hasContent 
+                            ? 'Connected with content' 
+                            : 'Connected but no content'
+                          : 'Not connected'
+                        }
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>Idealist Tool:</span>
+                      <span className={`text-xs px-2 py-1 rounded ${
+                        state.integrationStatus.idealistIntegration.connected
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-red-100 text-red-800'
+                      }`}>
+                        {state.integrationStatus.idealistIntegration.connected 
+                          ? `${state.integrationStatus.idealistIntegration.ideaCount} idea${state.integrationStatus.idealistIntegration.ideaCount === 1 ? '' : 's'}`
+                          : 'Not connected'
+                        }
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Last Analysis Info */}
               {state.lastAnalyzed && (

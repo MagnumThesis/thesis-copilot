@@ -89,7 +89,11 @@
   - Write integration tests for analysis workflow
   - _Requirements: 1.1, 1.4, 1.5, 4.1, 4.2, 4.3_
 
-- [ ] 9. Integrate with existing Builder and Idealist tools
+- [x] 9. Integrate with existing Builder and Idealist tools
+
+
+
+
 
   - Connect proofreader to Builder tool for content retrieval
   - Integrate with Idealist tool for idea definitions context

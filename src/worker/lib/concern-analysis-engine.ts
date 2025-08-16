@@ -199,8 +199,16 @@ export class ConcernAnalysisEngineImpl implements ConcernAnalysisEngine {
     
     // Build context for AI analysis
     const ideaContext = ideaDefinitions.length > 0 
-      ? ideaDefinitions.map(idea => `**${idea.title}:** ${idea.description}`).join('\n')
-      : 'No idea definitions available';
+      ? `The following idea definitions provide context for this thesis proposal:
+
+${ideaDefinitions.map(idea => `**${idea.title}:** ${idea.description}`).join('\n\n')}
+
+Use these definitions to:
+- Check if the thesis content aligns with the defined concepts
+- Identify inconsistent use of terminology
+- Suggest improvements based on the established ideas
+- Verify that key concepts are properly explained and used`
+      : 'No idea definitions are available for contextual analysis. The analysis will focus on general academic writing quality without domain-specific context.';
     
     const analysisContext = this.formatAnalysisContext(contentAnalysis);
     
