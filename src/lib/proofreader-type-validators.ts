@@ -1,69 +1,73 @@
 /**
- * Type validation utilities for proofreader types
- * Provides runtime validation functions for proofreader data types
+ * Type validation utilities for proofreader functionality
+ * Provides validation functions and helper utilities for proofreader types
  */
 
 import {
   ConcernCategory,
   ConcernSeverity,
   ConcernStatus,
-  type ProofreadingConcern,
   type ContentLocation,
+  type ProofreadingConcern,
   type AnalysisOptions,
-  type ProofreaderAnalysisRequest,
   type ConcernStatusUpdate
 } from './ai-types';
 
 /**
- * Validates if a string is a valid ConcernCategory
+ * Validate if a string is a valid ConcernCategory
  */
-export function isValidConcernCategory(value: string): value is ConcernCategory {
-  return Object.values(ConcernCategory).includes(value as ConcernCategory);
+export function isValidConcernCategory(value: any): value is ConcernCategory {
+  return typeof value === 'string' && Object.values(ConcernCategory).includes(value as ConcernCategory);
 }
 
 /**
- * Validates if a string is a valid ConcernSeverity
+ * Validate if a string is a valid ConcernSeverity
  */
-export function isValidConcernSeverity(value: string): value is ConcernSeverity {
-  return Object.values(ConcernSeverity).includes(value as ConcernSeverity);
+export function isValidConcernSeverity(value: any): value is ConcernSeverity {
+  return typeof value === 'string' && Object.values(ConcernSeverity).includes(value as ConcernSeverity);
 }
 
 /**
- * Validates if a string is a valid ConcernStatus
+ * Validate if a string is a valid ConcernStatus
  */
-export function isValidConcernStatus(value: string): value is ConcernStatus {
-  return Object.values(ConcernStatus).includes(value as ConcernStatus);
+export function isValidConcernStatus(value: any): value is ConcernStatus {
+  return typeof value === 'string' && Object.values(ConcernStatus).includes(value as ConcernStatus);
 }
 
 /**
- * Validates if a string is a valid academic level
+ * Validate if a string is a valid academic level
  */
-export function isValidAcademicLevel(value: string): value is 'undergraduate' | 'graduate' | 'doctoral' {
-  return ['undergraduate', 'graduate', 'doctoral'].includes(value);
+export function isValidAcademicLevel(value: any): value is 'undergraduate' | 'graduate' | 'doctoral' {
+  return typeof value === 'string' && ['undergraduate', 'graduate', 'doctoral'].includes(value);
 }
 
 /**
- * Validates if an object has the required properties for ContentLocation
+ * Validate if an object is a valid ContentLocation
  */
-export function isValidContentLocation(obj: any): obj is ContentLocation {
-  if (typeof obj !== 'object' || obj === null) {
+export function isValidContentLocation(value: any): value is ContentLocation {
+  if (!value || typeof value !== 'object') {
     return false;
   }
 
-  // All properties are optional, but if present, they should be the correct type
-  if (obj.section !== undefined && typeof obj.section !== 'string') {
+  // All fields are optional, so empty object is valid
+  if (Object.keys(value).length === 0) {
+    return true;
+  }
+
+  // Check each field if present
+  if (value.section !== undefined && typeof value.section !== 'string') {
     return false;
   }
-  if (obj.paragraph !== undefined && typeof obj.paragraph !== 'number') {
+  if (value.paragraph !== undefined && typeof value.paragraph !== 'number') {
     return false;
   }
-  if (obj.startPosition !== undefined && typeof obj.startPosition !== 'number') {
+  if (value.startPosition !== undefined && typeof value.startPosition !== 'number') {
     return false;
   }
-  if (obj.endPosition !== undefined && typeof obj.endPosition !== 'number') {
+  if (value.endPosition !== undefined && typeof value.endPosition !== 'number') {
     return false;
   }
-  if (obj.context !== undefined && typeof obj.context !== 'string') {
+  if (value.context !== undefined && typeof value.context !== 'string') {
     return false;
   }
 
@@ -71,34 +75,34 @@ export function isValidContentLocation(obj: any): obj is ContentLocation {
 }
 
 /**
- * Validates if an object has the required properties for ProofreadingConcern
+ * Validate if an object is a valid ProofreadingConcern
  */
-export function isValidProofreadingConcern(obj: any): obj is ProofreadingConcern {
-  if (typeof obj !== 'object' || obj === null) {
+export function isValidProofreadingConcern(value: any): value is ProofreadingConcern {
+  if (!value || typeof value !== 'object') {
     return false;
   }
 
-  // Check required properties
-  if (typeof obj.id !== 'string' ||
-      typeof obj.conversationId !== 'string' ||
-      !isValidConcernCategory(obj.category) ||
-      !isValidConcernSeverity(obj.severity) ||
-      typeof obj.title !== 'string' ||
-      typeof obj.description !== 'string' ||
-      !isValidConcernStatus(obj.status) ||
-      !(obj.createdAt instanceof Date) ||
-      !(obj.updatedAt instanceof Date)) {
+  // Check required fields
+  if (typeof value.id !== 'string' ||
+      typeof value.conversationId !== 'string' ||
+      !isValidConcernCategory(value.category) ||
+      !isValidConcernSeverity(value.severity) ||
+      typeof value.title !== 'string' ||
+      typeof value.description !== 'string' ||
+      !isValidConcernStatus(value.status) ||
+      !(value.createdAt instanceof Date) ||
+      !(value.updatedAt instanceof Date)) {
     return false;
   }
 
-  // Check optional properties
-  if (obj.location !== undefined && !isValidContentLocation(obj.location)) {
+  // Check optional fields
+  if (value.location !== undefined && !isValidContentLocation(value.location)) {
     return false;
   }
-  if (obj.suggestions !== undefined && !Array.isArray(obj.suggestions)) {
+  if (value.suggestions !== undefined && !Array.isArray(value.suggestions)) {
     return false;
   }
-  if (obj.relatedIdeas !== undefined && !Array.isArray(obj.relatedIdeas)) {
+  if (value.relatedIdeas !== undefined && !Array.isArray(value.relatedIdeas)) {
     return false;
   }
 
@@ -106,27 +110,27 @@ export function isValidProofreadingConcern(obj: any): obj is ProofreadingConcern
 }
 
 /**
- * Validates if an object has the required properties for AnalysisOptions
+ * Validate if an object is valid AnalysisOptions
  */
-export function isValidAnalysisOptions(obj: any): obj is AnalysisOptions {
-  if (typeof obj !== 'object' || obj === null) {
+export function isValidAnalysisOptions(value: any): value is AnalysisOptions {
+  if (!value || typeof value !== 'object') {
     return false;
   }
 
-  // All properties are optional
-  if (obj.categories !== undefined) {
-    if (!Array.isArray(obj.categories) || 
-        !obj.categories.every((cat: any) => isValidConcernCategory(cat))) {
+  // Check optional fields
+  if (value.categories !== undefined) {
+    if (!Array.isArray(value.categories) || 
+        !value.categories.every((cat: any) => isValidConcernCategory(cat))) {
       return false;
     }
   }
-  if (obj.minSeverity !== undefined && !isValidConcernSeverity(obj.minSeverity)) {
+  if (value.minSeverity !== undefined && !isValidConcernSeverity(value.minSeverity)) {
     return false;
   }
-  if (obj.includeGrammar !== undefined && typeof obj.includeGrammar !== 'boolean') {
+  if (value.includeGrammar !== undefined && typeof value.includeGrammar !== 'boolean') {
     return false;
   }
-  if (obj.academicLevel !== undefined && !isValidAcademicLevel(obj.academicLevel)) {
+  if (value.academicLevel !== undefined && !isValidAcademicLevel(value.academicLevel)) {
     return false;
   }
 
@@ -134,23 +138,23 @@ export function isValidAnalysisOptions(obj: any): obj is AnalysisOptions {
 }
 
 /**
- * Validates if an object has the required properties for ConcernStatusUpdate
+ * Validate if an object is a valid ConcernStatusUpdate
  */
-export function isValidConcernStatusUpdate(obj: any): obj is ConcernStatusUpdate {
-  if (typeof obj !== 'object' || obj === null) {
+export function isValidConcernStatusUpdate(value: any): value is ConcernStatusUpdate {
+  if (!value || typeof value !== 'object') {
     return false;
   }
 
-  // Check required properties
-  if (typeof obj.concernId !== 'string' || !isValidConcernStatus(obj.status)) {
+  // Check required fields
+  if (typeof value.concernId !== 'string' || !isValidConcernStatus(value.status)) {
     return false;
   }
 
-  // Check optional properties
-  if (obj.updatedBy !== undefined && typeof obj.updatedBy !== 'string') {
+  // Check optional fields
+  if (value.updatedBy !== undefined && typeof value.updatedBy !== 'string') {
     return false;
   }
-  if (obj.notes !== undefined && typeof obj.notes !== 'string') {
+  if (value.notes !== undefined && typeof value.notes !== 'string') {
     return false;
   }
 
@@ -158,7 +162,7 @@ export function isValidConcernStatusUpdate(obj: any): obj is ConcernStatusUpdate
 }
 
 /**
- * Creates a default ProofreadingConcern object with required fields
+ * Create a default ProofreadingConcern with required fields
  */
 export function createDefaultProofreadingConcern(
   id: string,
@@ -168,7 +172,6 @@ export function createDefaultProofreadingConcern(
   title: string,
   description: string
 ): ProofreadingConcern {
-  const now = new Date();
   return {
     id,
     conversationId,
@@ -177,13 +180,13 @@ export function createDefaultProofreadingConcern(
     title,
     description,
     status: ConcernStatus.TO_BE_DONE,
-    createdAt: now,
-    updatedAt: now
+    createdAt: new Date(),
+    updatedAt: new Date()
   };
 }
 
 /**
- * Creates a default AnalysisOptions object
+ * Create default AnalysisOptions
  */
 export function createDefaultAnalysisOptions(): AnalysisOptions {
   return {
@@ -195,28 +198,28 @@ export function createDefaultAnalysisOptions(): AnalysisOptions {
 }
 
 /**
- * Gets all available concern categories as an array
+ * Get all concern categories
  */
 export function getAllConcernCategories(): ConcernCategory[] {
   return Object.values(ConcernCategory);
 }
 
 /**
- * Gets all available concern severities as an array
+ * Get all concern severities
  */
 export function getAllConcernSeverities(): ConcernSeverity[] {
   return Object.values(ConcernSeverity);
 }
 
 /**
- * Gets all available concern statuses as an array
+ * Get all concern statuses
  */
 export function getAllConcernStatuses(): ConcernStatus[] {
   return Object.values(ConcernStatus);
 }
 
 /**
- * Gets human-readable label for concern category
+ * Get human-readable label for concern category
  */
 export function getConcernCategoryLabel(category: ConcernCategory): string {
   const labels: Record<ConcernCategory, string> = {
@@ -234,7 +237,7 @@ export function getConcernCategoryLabel(category: ConcernCategory): string {
 }
 
 /**
- * Gets human-readable label for concern severity
+ * Get human-readable label for concern severity
  */
 export function getConcernSeverityLabel(severity: ConcernSeverity): string {
   const labels: Record<ConcernSeverity, string> = {
@@ -247,7 +250,7 @@ export function getConcernSeverityLabel(severity: ConcernSeverity): string {
 }
 
 /**
- * Gets human-readable label for concern status
+ * Get human-readable label for concern status
  */
 export function getConcernStatusLabel(status: ConcernStatus): string {
   const labels: Record<ConcernStatus, string> = {

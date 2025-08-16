@@ -7,6 +7,12 @@ import { getMessagesHandler } from "./handlers/messages";
 import { generateTitleHandler } from "./handlers/generate-title";
 import { generateIdeasHandler } from "./handlers/generate-ideas";
 import { builderAIPromptHandler, builderAIContinueHandler, builderAIModifyHandler } from "./handlers/builder-ai";
+import { 
+  proofreaderAnalysisHandler, 
+  getConcernsHandler, 
+  updateConcernStatusHandler, 
+  getConcernStatisticsHandler 
+} from "./handlers/proofreader-ai";
 import ideasRouter from "./handlers/ideas"; // Import the ideas router
 
 const app = new Hono<{ Bindings: Env & SupabaseEnv }>();
@@ -32,6 +38,12 @@ app.route('/api/ideas', ideasRouter); // Mount the ideas router
 app.post("/api/builder/ai/prompt", builderAIPromptHandler);
 app.post("/api/builder/ai/continue", builderAIContinueHandler);
 app.post("/api/builder/ai/modify", builderAIModifyHandler);
+
+// Proofreader AI endpoints
+app.post("/api/proofreader/analyze", proofreaderAnalysisHandler);
+app.get("/api/proofreader/concerns/:conversationId", getConcernsHandler);
+app.put("/api/proofreader/concerns/:concernId/status", updateConcernStatusHandler);
+app.get("/api/proofreader/statistics/:conversationId", getConcernStatisticsHandler);
 
 // Other
 app.post("/api/generate-title", generateTitleHandler);

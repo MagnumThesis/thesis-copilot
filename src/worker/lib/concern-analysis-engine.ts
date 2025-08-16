@@ -185,9 +185,10 @@ export class ConcernAnalysisEngineImpl implements ConcernAnalysisEngine {
       clarityScore,
       styleIssues
     };
-  }  /**
-   *
- Generate AI-powered concerns using Google Generative AI
+  }
+
+  /**
+   * Generate AI-powered concerns using Google Generative AI
    */
   private async generateAIConcerns(
     content: string, 
@@ -306,7 +307,7 @@ Provide 3-8 most important concerns. Focus on quality over quantity.`;
   /**
    * Analyze section flow and logical progression
    */
-  private analyzeSectionFlow(content: string, headings: string[]): FlowAnalysis {
+  private analyzeSectionFlow(content: string, _headings: string[]): FlowAnalysis {
     const sections = this.extractSections(content);
     
     // Check for logical progression
@@ -576,9 +577,10 @@ Provide 3-8 most important concerns. Focus on quality over quantity.`;
       insufficientDetail,
       completenessScore
     };
-  }  /**
- 
-  * Generate structure-based concerns
+  }
+
+  /**
+   * Generate structure-based concerns
    */
   private generateStructureConcerns(structure: StructureAnalysis, conversationId: string): ProofreadingConcern[] {
     const concerns: ProofreadingConcern[] = [];
@@ -798,6 +800,39 @@ Provide 3-8 most important concerns. Focus on quality over quantity.`;
     };
   }
 
+  private checkHeadingFormatConsistency(headingTexts: string[]): boolean {
+    // Simple check for consistent capitalization
+    const titleCase = headingTexts.filter(text => 
+      text.charAt(0) === text.charAt(0).toUpperCase()
+    );
+    const sentenceCase = headingTexts.filter(text => 
+      text.split(' ').every(word => word.charAt(0) === word.charAt(0).toUpperCase())
+    );
+    
+    return titleCase.length >= headingTexts.length * 0.8 || 
+           sentenceCase.length >= headingTexts.length * 0.8;
+  }
+
+  private formatAnalysisContext(analysis: ContentAnalysis): string {
+    return `Structure: ${analysis.structure.hasIntroduction ? 'Has intro' : 'Missing intro'}, ${analysis.structure.hasConclusion ? 'Has conclusion' : 'Missing conclusion'}
+Style: Academic tone ${(analysis.style.academicTone * 100).toFixed(0)}%, Formality ${(analysis.style.formalityLevel * 100).toFixed(0)}%
+Completeness: ${(analysis.completeness.completenessScore * 100).toFixed(0)}%`;
+  }
+
+  private parseAIResponse(responseText: string): any[] {
+    try {
+      // Try to extract JSON from the response
+      const jsonMatch = responseText.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        return JSON.parse(jsonMatch[0]);
+      }
+      return [];
+    } catch (error) {
+      console.error('Failed to parse AI response:', error);
+      return [];
+    }
+  }
+
   private createConcernFromAI(aiConcern: any): ProofreadingConcern {
     return {
       id: crypto.randomUUID(),
@@ -815,16 +850,121 @@ Provide 3-8 most important concerns. Focus on quality over quantity.`;
     };
   }
 
+  private extractSections(content: string): Array<{title: string, content: string}> {
+    const lines = content.split('\n');
+    const sections: Array<{title: string, content: string}> = [];
+    let currentSection = { title: 'Introduction', content: '' };
+    
+    for (const line of lines) {
+      if (line.match(/^#{1,6}\s+/)) {
+        if (currentSection.content.trim()) {
+          sections.push(currentSection);
+        }
+        currentSection = { title: line.replace(/^#{1,6}\s+/, ''), content: '' };
+      } else {
+        currentSection.content += line + '\n';
+      }
+    }
+    
+    if (currentSection.content.trim()) {
+      sections.push(currentSection);
+    }
+    
+    return sections;
+  }
+
+  private checkLogicalProgression(sections: Array<{title: string, content: string}>): boolean {
+    // Simple check for logical section ordering
+    const expectedOrder = ['introduction', 'literature', 'methodology', 'results', 'discussion', 'conclusion'];
+    const sectionTitles = sections.map(s => s.title.toLowerCase());
+    
+    let lastIndex = -1;
+    for (const title of sectionTitles) {
+      const currentIndex = expectedOrder.findIndex(expected => title.includes(expected));
+      if (currentIndex !== -1) {
+        if (currentIndex < lastIndex) {
+          return false;
+        }
+        lastIndex = currentIndex;
+      }
+    }
+    
+    return true;
+  }
+
+  private mapStyleIssueToCategory(issueType: string): ConcernCategory {
+    switch (issueType) {
+      case 'tone':
+      case 'formality':
+        return ConcernCategory.ACADEMIC_STYLE;
+      case 'clarity':
+        return ConcernCategory.CLARITY;
+      case 'wordChoice':
+        return ConcernCategory.TERMINOLOGY;
+      case 'sentence_structure':
+        return ConcernCategory.STRUCTURE;
+      default:
+        return ConcernCategory.CLARITY;
+    }
+  }
+
+  private formatStyleIssueTitle(issueType: string): string {
+    switch (issueType) {
+      case 'tone':
+        return 'Inappropriate Tone';
+      case 'formality':
+        return 'Informal Language';
+      case 'clarity':
+        return 'Clarity Issues';
+      case 'wordChoice':
+        return 'Word Choice Issues';
+      case 'sentence_structure':
+        return 'Sentence Structure Problems';
+      default:
+        return 'Style Issue';
+    }
+  }
+
+  private formatCitationIssueTitle(issueType: string): string {
+    switch (issueType) {
+      case 'missing':
+        return 'Missing Citations';
+      case 'format':
+        return 'Citation Format Issues';
+      case 'incomplete':
+        return 'Incomplete Citations';
+      case 'style_inconsistency':
+        return 'Inconsistent Citation Style';
+      default:
+        return 'Citation Issue';
+    }
+  }
+
+  private formatFormattingIssueTitle(issueType: string): string {
+    switch (issueType) {
+      case 'spacing':
+        return 'Spacing Issues';
+      case 'indentation':
+        return 'Indentation Problems';
+      case 'numbering':
+        return 'Numbering Inconsistencies';
+      case 'alignment':
+        return 'Alignment Issues';
+      default:
+        return 'Formatting Issue';
+    }
+  }
+
   private prioritizeAndDeduplicateConcerns(concerns: ProofreadingConcern[]): ProofreadingConcern[] {
     // Remove duplicates based on title similarity
     const uniqueConcerns = concerns.filter((concern, index, array) => 
       array.findIndex(c => this.areConcernsSimilar(c, concern)) === index
     );
     
-    // Sort by severity and category
-    const severityOrder = { critical: 4, high: 3, medium: 2, low: 1 };
+    // Sort by severity (critical first) then by category
     return uniqueConcerns.sort((a, b) => {
-      const severityDiff = severityOrder[b.severity] - severityOrder[a.severity];
+      const severityOrder = [ConcernSeverity.CRITICAL, ConcernSeverity.HIGH, ConcernSeverity.MEDIUM, ConcernSeverity.LOW];
+      const severityDiff = severityOrder.indexOf(a.severity) - severityOrder.indexOf(b.severity);
       if (severityDiff !== 0) return severityDiff;
       return a.category.localeCompare(b.category);
     });
@@ -837,157 +977,12 @@ Provide 3-8 most important concerns. Focus on quality over quantity.`;
   }
 
   private calculateStringSimilarity(str1: string, str2: string): number {
-    const words1 = str1.toLowerCase().split(/\s+/);
-    const words2 = str2.toLowerCase().split(/\s+/);
-    const commonWords = words1.filter(word => words2.includes(word));
-    return commonWords.length / Math.max(words1.length, words2.length);
-  }
-
-  // Helper methods for parsing and formatting
-  private parseAIResponse(response: string): any[] {
-    try {
-      // Extract JSON from response
-      const jsonMatch = response.match(/\[[\s\S]*\]/);
-      if (!jsonMatch) {
-        console.warn('No JSON array found in AI response');
-        return [];
-      }
-      
-      return JSON.parse(jsonMatch[0]);
-    } catch (error) {
-      console.error('Failed to parse AI response:', error);
-      return [];
-    }
-  }
-
-  private formatAnalysisContext(analysis: ContentAnalysis): string {
-    return `
-Structure Analysis:
-- Has Introduction: ${analysis.structure.hasIntroduction}
-- Has Conclusion: ${analysis.structure.hasConclusion}
-- Coherence Score: ${(analysis.structure.sectionFlow.coherenceScore * 100).toFixed(0)}%
-
-Style Analysis:
-- Academic Tone: ${(analysis.style.academicTone * 100).toFixed(0)}%
-- Formality Level: ${(analysis.style.formalityLevel * 100).toFixed(0)}%
-- Clarity Score: ${(analysis.style.clarityScore * 100).toFixed(0)}%
-
-Completeness:
-- Overall Score: ${(analysis.completeness.completenessScore * 100).toFixed(0)}%
-- Missing Sections: ${analysis.completeness.missingSections.join(', ') || 'None'}
-`;
-  }
-
-  private mapStyleIssueToCategory(issueType: StyleIssue['type']): ConcernCategory {
-    switch (issueType) {
-      case 'tone': return ConcernCategory.ACADEMIC_STYLE;
-      case 'formality': return ConcernCategory.ACADEMIC_STYLE;
-      case 'clarity': return ConcernCategory.CLARITY;
-      case 'wordChoice': return ConcernCategory.TERMINOLOGY;
-      case 'sentence_structure': return ConcernCategory.GRAMMAR;
-      default: return ConcernCategory.ACADEMIC_STYLE;
-    }
-  }
-
-  private formatStyleIssueTitle(issueType: StyleIssue['type']): string {
-    switch (issueType) {
-      case 'tone': return 'Inappropriate Tone';
-      case 'formality': return 'Formality Issues';
-      case 'clarity': return 'Clarity Problems';
-      case 'wordChoice': return 'Word Choice Issues';
-      case 'sentence_structure': return 'Sentence Structure Problems';
-      default: return 'Style Issue';
-    }
-  }
-
-  private formatCitationIssueTitle(issueType: CitationIssue['type']): string {
-    switch (issueType) {
-      case 'format': return 'Citation Format Issues';
-      case 'missing': return 'Missing Citations';
-      case 'incomplete': return 'Incomplete Citations';
-      case 'style_inconsistency': return 'Inconsistent Citation Style';
-      default: return 'Citation Issue';
-    }
-  }
-
-  private formatFormattingIssueTitle(issueType: FormattingIssue['type']): string {
-    switch (issueType) {
-      case 'spacing': return 'Spacing Issues';
-      case 'indentation': return 'Indentation Problems';
-      case 'font': return 'Font Inconsistencies';
-      case 'alignment': return 'Alignment Issues';
-      case 'numbering': return 'Numbering Problems';
-      default: return 'Formatting Issue';
-    }
-  }
-
-  // Additional helper methods
-  private extractSections(content: string): Array<{title: string, content: string}> {
-    const lines = content.split('\n');
-    const sections: Array<{title: string, content: string}> = [];
-    let currentSection: {title: string, content: string} | null = null;
-    
-    for (const line of lines) {
-      const headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
-      if (headingMatch) {
-        if (currentSection) {
-          sections.push(currentSection);
-        }
-        currentSection = {
-          title: headingMatch[2].trim(),
-          content: ''
-        };
-      } else if (currentSection) {
-        currentSection.content += line + '\n';
-      }
-    }
-    
-    if (currentSection) {
-      sections.push(currentSection);
-    }
-    
-    return sections;
-  }
-
-  private checkLogicalProgression(sections: Array<{title: string, content: string}>): boolean {
-    if (sections.length < 2) return true;
-    
-    // Simple heuristic: check if sections follow a typical academic structure
-    const academicOrder = [
-      'introduction', 'background', 'literature', 'methodology', 'method',
-      'analysis', 'results', 'discussion', 'conclusion'
-    ];
-    
-    let lastIndex = -1;
-    for (const section of sections) {
-      const sectionTitle = section.title.toLowerCase();
-      const currentIndex = academicOrder.findIndex(term => sectionTitle.includes(term));
-      
-      if (currentIndex !== -1) {
-        if (currentIndex < lastIndex) {
-          return false; // Out of order
-        }
-        lastIndex = currentIndex;
-      }
-    }
-    
-    return true;
-  }
-
-  private checkHeadingFormatConsistency(headingTexts: string[]): boolean {
-    if (headingTexts.length < 2) return true;
-    
-    // Check capitalization consistency
-    const titleCase = headingTexts.filter(text => 
-      text === text.replace(/\b\w/g, l => l.toUpperCase())
-    );
-    const sentenceCase = headingTexts.filter(text => 
-      text === text.charAt(0).toUpperCase() + text.slice(1).toLowerCase()
-    );
-    
-    // If most headings follow one pattern, consider it consistent
-    return titleCase.length >= headingTexts.length * 0.8 || 
-           sentenceCase.length >= headingTexts.length * 0.8;
+    // Simple Jaccard similarity
+    const set1 = new Set(str1.toLowerCase().split(' '));
+    const set2 = new Set(str2.toLowerCase().split(' '));
+    const intersection = new Set([...set1].filter(x => set2.has(x)));
+    const union = new Set([...set1, ...set2]);
+    return intersection.size / union.size;
   }
 }
 
