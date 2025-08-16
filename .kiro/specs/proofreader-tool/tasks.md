@@ -38,7 +38,6 @@
 
 - [x] 5. Implement concern status management system
 
-
   - Create concern status manager for database operations
   - Implement status update persistence and validation
   - Build status filtering and statistics functionality
@@ -46,7 +45,8 @@
   - Write unit tests for status management operations
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
 
-- [ ] 6. Create proofreader UI components
+- [x] 6. Create proofreader UI components
+
 
   - Build main Proofreader component following Idealist tool pattern
   - Create ConcernList component with status filtering
