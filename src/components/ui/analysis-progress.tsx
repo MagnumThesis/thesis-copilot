@@ -13,6 +13,8 @@ interface AnalysisProgressProps {
   onCancel: () => void
   error?: string | null
   success?: boolean
+  onRetry?: () => void
+  onDismissError?: () => void
 }
 
 export const AnalysisProgress: React.FC<AnalysisProgressProps> = ({
@@ -21,7 +23,9 @@ export const AnalysisProgress: React.FC<AnalysisProgressProps> = ({
   statusMessage,
   onCancel,
   error,
-  success
+  success,
+  onRetry,
+  onDismissError
 }) => {
   if (!isAnalyzing && !error && !success) {
     return null
@@ -167,18 +171,20 @@ export const AnalysisProgress: React.FC<AnalysisProgressProps> = ({
           <Button
             size="sm"
             variant="outline"
-            onClick={onCancel}
+            onClick={onDismissError || onCancel}
             className="text-xs"
           >
             Dismiss
           </Button>
-          <Button
-            size="sm"
-            onClick={() => window.location.reload()}
-            className="text-xs"
-          >
-            Retry
-          </Button>
+          {onRetry && (
+            <Button
+              size="sm"
+              onClick={onRetry}
+              className="text-xs"
+            >
+              Retry
+            </Button>
+          )}
         </div>
       )}
     </div>

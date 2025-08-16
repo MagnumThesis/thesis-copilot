@@ -32,6 +32,7 @@ import { AIContentPreview } from "@/components/ui/ai-content-preview"
 import { CustomPromptInput } from "@/components/ui/custom-prompt-input"
 import { useAIModeManager } from "@/hooks/use-ai-mode-manager"
 import { AIMode, TextSelection, ContentInsertionOptions, ModificationType } from "@/lib/ai-types"
+import { contentRetrievalService } from "@/lib/content-retrieval-service"
 import { toast } from "sonner"
 
 /**
@@ -95,7 +96,9 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
   // Handle content changes from editor
   const handleContentChange = useCallback((content: string) => {
     setDocumentContent(content);
-  }, []);
+    // Store content in retrieval service for other tools to access
+    contentRetrievalService.storeBuilderContent(currentConversation.id, content);
+  }, [currentConversation.id]);
 
   // Handle selection changes from editor
   const handleSelectionChange = useCallback((selection: TextSelection | null) => {

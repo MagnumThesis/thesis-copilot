@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useRef } from "react"
 import { toast } from "sonner"
 import { ScrollArea } from "@/components/ui/shadcn/scroll-area"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/shadcn/sheet"
@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/shadcn/button"
 import { Skeleton } from "@/components/ui/shadcn/skeleton"
 import { ConcernList } from "./concern-list"
 import { AnalysisProgress } from "./analysis-progress"
-import { ProofreadingConcern, ConcernStatus } from "@/lib/ai-types"
+import { ProofreadingConcern, ConcernStatus, ProofreaderAnalysisRequest, ProofreaderAnalysisResponse } from "@/lib/ai-types"
+import { contentRetrievalService } from "@/lib/content-retrieval-service"
 
 interface ProofreaderProps {
   isOpen: boolean
@@ -51,16 +52,30 @@ export const Proofreader: React.FC<ProofreaderProps> = ({
     }
   }, [isOpen, currentConversation.id])
 
+  // Cleanup effect to cancel ongoing requests
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+        abortControllerRef.current = null
+      }
+    }
+  }, [])
+
   const loadConcerns = async () => {
     try {
       setLoading(true)
       setState(prev => ({ ...prev, error: null }))
       
-      // TODO: Replace with actual API call to fetch concerns
-      // const concerns = await fetchConcerns(currentConversation.id)
+      // Fetch existing concerns from API
+      const response = await fetch(`/api/proofreader/concerns/${currentConversation.id}`)
       
-      // For now, use empty array - this will be implemented in backend tasks
-      const concerns: ProofreadingConcern[] = []
+      if (!response.ok) {
+        throw new Error(`Failed to load concerns: ${response.statusText}`)
+      }
+      
+      const data = await response.json()
+      const concerns: ProofreadingConcern[] = data.concerns || []
       
       setState(prev => ({
         ...prev,
@@ -70,20 +85,36 @@ export const Proofreader: React.FC<ProofreaderProps> = ({
       setRetryCount(0)
       
       if (concerns.length > 0) {
-        toast.success("Concerns loaded successfully!")
+        toast.success(`Loaded ${concerns.length} existing concern${concerns.length === 1 ? '' : 's'}`)
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to load concerns:", err)
-      const errorMessage = "Failed to load concerns. Please try again."
-      setState(prev => ({ ...prev, error: errorMessage }))
-      toast.error(errorMessage)
       
-      // Implement retry mechanism
+      // Handle different error scenarios
+      let errorMessage = "Failed to load concerns. Please try again."
+      
+      if (err.message.includes('404')) {
+        // No concerns found is not really an error
+        setState(prev => ({ ...prev, concerns: [] }))
+        setLoading(false)
+        return
+      } else if (err.message.includes('network') || err.message.includes('fetch')) {
+        errorMessage = "Network error. Please check your connection."
+      }
+      
+      setState(prev => ({ ...prev, error: errorMessage }))
+      
+      // Implement retry mechanism with exponential backoff
       if (retryCount < 3) {
+        const delay = 2000 * Math.pow(2, retryCount) // 2s, 4s, 8s
         setTimeout(() => {
           setRetryCount(prev => prev + 1)
           loadConcerns()
-        }, 2000 * (retryCount + 1))
+        }, delay)
+        
+        toast.error(`${errorMessage} Retrying in ${delay / 1000} seconds...`)
+      } else {
+        toast.error(errorMessage)
       }
     } finally {
       setLoading(false)
@@ -100,38 +131,103 @@ export const Proofreader: React.FC<ProofreaderProps> = ({
         analysisStatusMessage: 'Starting analysis...'
       }))
 
-      // Simulate analysis progress
-      const progressSteps = [
-        { progress: 10, message: 'Retrieving thesis content...' },
-        { progress: 25, message: 'Loading idea definitions...' },
-        { progress: 50, message: 'Analyzing content structure...' },
-        { progress: 75, message: 'Generating concerns...' },
-        { progress: 90, message: 'Finalizing results...' },
-        { progress: 100, message: 'Analysis complete!' }
-      ]
-
-      for (const step of progressSteps) {
-        await new Promise(resolve => setTimeout(resolve, 800))
-        setState(prev => ({
-          ...prev,
-          analysisProgress: step.progress,
-          analysisStatusMessage: step.message
-        }))
-      }
-
-      // TODO: Replace with actual API call to analyze content
-      // const result = await analyzeContent(currentConversation.id)
+      // Create abort controller for cancellation support
+      abortControllerRef.current = new AbortController();
       
-      // For now, simulate successful analysis with empty results
+      // Step 1: Retrieve content from Builder tool
       setState(prev => ({
         ...prev,
-        isAnalyzing: false,
-        lastAnalyzed: new Date(),
-        analysisProgress: 100,
-        analysisStatusMessage: 'Analysis completed successfully!'
+        analysisProgress: 10,
+        analysisStatusMessage: 'Retrieving thesis content...'
       }))
 
-      toast.success("Analysis completed! No concerns found.")
+      const contentResult = await contentRetrievalService.retrieveAllContent(currentConversation.id);
+      
+      if (!contentResult.success || !contentResult.builderContent) {
+        throw new Error(contentResult.error || "No content available for analysis");
+      }
+
+      // Check if content is sufficient for analysis
+      if (contentResult.builderContent.content.trim().length < 50) {
+        throw new Error("Content is too short for meaningful analysis. Please add more content in the Builder tool.");
+      }
+
+      // Step 2: Load idea definitions
+      setState(prev => ({
+        ...prev,
+        analysisProgress: 25,
+        analysisStatusMessage: 'Loading idea definitions...'
+      }))
+
+      const ideaDefinitions = contentResult.ideaDefinitions || [];
+
+      // Step 3: Prepare analysis request
+      setState(prev => ({
+        ...prev,
+        analysisProgress: 40,
+        analysisStatusMessage: 'Preparing analysis request...'
+      }))
+
+      const analysisRequest: ProofreaderAnalysisRequest = {
+        conversationId: currentConversation.id,
+        documentContent: contentResult.builderContent.content,
+        ideaDefinitions,
+        analysisOptions: {
+          includeGrammar: true,
+          academicLevel: 'graduate' // Default level
+        }
+      };
+
+      // Step 4: Send analysis request to backend
+      setState(prev => ({
+        ...prev,
+        analysisProgress: 60,
+        analysisStatusMessage: 'Analyzing content structure...'
+      }))
+
+      const response = await fetch('/api/proofreader/analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(analysisRequest),
+        signal: abortControllerRef.current.signal
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Analysis failed with status ${response.status}`);
+      }
+
+      // Step 5: Process analysis results
+      setState(prev => ({
+        ...prev,
+        analysisProgress: 85,
+        analysisStatusMessage: 'Processing analysis results...'
+      }))
+
+      const analysisResult: ProofreaderAnalysisResponse = await response.json();
+
+      if (!analysisResult.success) {
+        throw new Error(analysisResult.error || "Analysis failed");
+      }
+
+      // Step 6: Update state with results
+      setState(prev => ({
+        ...prev,
+        analysisProgress: 100,
+        analysisStatusMessage: 'Analysis completed successfully!',
+        concerns: analysisResult.concerns || [],
+        isAnalyzing: false,
+        lastAnalyzed: new Date()
+      }))
+
+      const concernCount = analysisResult.concerns?.length || 0;
+      if (concernCount === 0) {
+        toast.success("Analysis completed! No concerns found.");
+      } else {
+        toast.success(`Analysis completed! Found ${concernCount} concern${concernCount === 1 ? '' : 's'} to review.`);
+      }
       
       // Reset progress after a delay
       setTimeout(() => {
@@ -142,20 +238,42 @@ export const Proofreader: React.FC<ProofreaderProps> = ({
         }))
       }, 3000)
 
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to analyze content:", err)
-      const errorMessage = "Failed to analyze content. Please try again."
+      
+      // Handle different types of errors
+      let errorMessage = "Failed to analyze content. Please try again.";
+      
+      if (err.name === 'AbortError') {
+        errorMessage = "Analysis was cancelled.";
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
       setState(prev => ({
         ...prev,
         isAnalyzing: false,
         error: errorMessage,
-        analysisStatusMessage: errorMessage
+        analysisStatusMessage: errorMessage,
+        analysisProgress: 0
       }))
-      toast.error(errorMessage)
+      
+      if (err.name !== 'AbortError') {
+        toast.error(errorMessage);
+      }
     }
   }
 
+  // Add abort controller ref for cancellation support
+  const abortControllerRef = useRef<AbortController | null>(null)
+
   const handleCancelAnalysis = () => {
+    // Cancel ongoing request if exists
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+      abortControllerRef.current = null
+    }
+    
     setState(prev => ({
       ...prev,
       isAnalyzing: false,
@@ -166,23 +284,50 @@ export const Proofreader: React.FC<ProofreaderProps> = ({
   }
 
   const handleStatusChange = async (concernId: string, status: ConcernStatus) => {
+    // Optimistically update UI first
+    const previousConcerns = state.concerns
+    setState(prev => ({
+      ...prev,
+      concerns: prev.concerns.map(concern =>
+        concern.id === concernId
+          ? { ...concern, status, updatedAt: new Date() }
+          : concern
+      )
+    }))
+    
     try {
-      // TODO: Replace with actual API call to update concern status
-      // await updateConcernStatus(concernId, status)
+      // Update status via API
+      const response = await fetch(`/api/proofreader/concerns/${concernId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status })
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to update status: ${response.statusText}`)
+      }
+
+      const result = await response.json()
       
-      setState(prev => ({
-        ...prev,
-        concerns: prev.concerns.map(concern =>
-          concern.id === concernId
-            ? { ...concern, status, updatedAt: new Date() }
-            : concern
-        )
-      }))
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to update concern status')
+      }
       
       toast.success(`Concern marked as ${status.replace('_', ' ')}`)
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to update concern status:", err)
-      toast.error("Failed to update concern status. Please try again.")
+      
+      // Rollback optimistic update on error
+      setState(prev => ({ ...prev, concerns: previousConcerns }))
+      
+      let errorMessage = "Failed to update concern status. Please try again."
+      if (err.message.includes('network') || err.message.includes('fetch')) {
+        errorMessage = "Network error. Please check your connection and try again."
+      }
+      
+      toast.error(errorMessage)
     }
   }
 
@@ -223,6 +368,8 @@ export const Proofreader: React.FC<ProofreaderProps> = ({
                 onCancel={handleCancelAnalysis}
                 error={state.error}
                 success={state.analysisProgress === 100 && !state.isAnalyzing}
+                onRetry={handleAnalyze}
+                onDismissError={() => setState(prev => ({ ...prev, error: null }))}
               />
 
               {/* Last Analysis Info */}
