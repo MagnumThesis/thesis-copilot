@@ -6,10 +6,14 @@ import { ScrollArea } from "@/components/ui/shadcn/scroll-area"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/shadcn/sheet"
 import { Button } from "@/components/ui/shadcn/button"
 import { Skeleton } from "@/components/ui/shadcn/skeleton"
+import { Badge } from "@/components/ui/shadcn/badge"
+import { AlertCircle, Wifi, WifiOff, RefreshCw } from "lucide-react"
 import { ConcernList } from "./concern-list"
 import { AnalysisProgress } from "./analysis-progress"
 import { ProofreadingConcern, ConcernStatus, ProofreaderAnalysisRequest, ProofreaderAnalysisResponse } from "@/lib/ai-types"
 import { contentRetrievalService } from "@/lib/content-retrieval-service"
+import { proofreaderErrorHandler, ErrorType } from "@/lib/proofreader-error-handling"
+import { proofreaderRecoveryService, RecoveryMode } from "@/lib/proofreader-recovery-service"
 
 interface ProofreaderProps {
   isOpen: boolean
@@ -37,6 +41,19 @@ interface ProofreaderState {
       lastSync?: Date;
     };
   } | null
+  recoveryState: {
+    isOnline: boolean;
+    recoveryMode: RecoveryMode;
+    pendingOperations: number;
+    lastSync: Date | null;
+    cacheUsed: boolean;
+  }
+  errorHistory: Array<{
+    timestamp: Date;
+    type: ErrorType;
+    message: string;
+    operation: string;
+  }>
 }
 
 export const Proofreader: React.FC<ProofreaderProps> = ({ 
@@ -52,7 +69,15 @@ export const Proofreader: React.FC<ProofreaderProps> = ({
     error: null,
     analysisProgress: 0,
     analysisStatusMessage: 'Ready to analyze',
-    integrationStatus: null
+    integrationStatus: null,
+    recoveryState: {
+      isOnline: navigator.onLine,
+      recoveryMode: RecoveryMode.NORMAL,
+      pendingOperations: 0,
+      lastSync: null,
+      cacheUsed: false
+    },
+    errorHistory: []
   })
 
   const [loading, setLoading] = useState<boolean>(true)
@@ -63,8 +88,54 @@ export const Proofreader: React.FC<ProofreaderProps> = ({
     if (isOpen) {
       loadConcerns()
       checkIntegrationStatus()
+      updateRecoveryState()
     }
   }, [isOpen, currentConversation.id])
+
+  // Monitor recovery state changes
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (isOpen) {
+        updateRecoveryState()
+      }
+    }, 5000) // Update every 5 seconds
+
+    return () => clearInterval(interval)
+  }, [isOpen])
+
+  // Network status monitoring
+  useEffect(() => {
+    const handleOnline = () => {
+      setState(prev => ({
+        ...prev,
+        recoveryState: {
+          ...prev.recoveryState,
+          isOnline: true
+        }
+      }))
+      toast.success('Connection restored')
+    }
+
+    const handleOffline = () => {
+      setState(prev => ({
+        ...prev,
+        recoveryState: {
+          ...prev.recoveryState,
+          isOnline: false,
+          recoveryMode: RecoveryMode.OFFLINE
+        }
+      }))
+      toast.warning('Working offline - changes will sync when connection is restored')
+    }
+
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [])
 
   // Set up content change subscription for real-time updates
   useEffect(() => {
@@ -104,20 +175,57 @@ export const Proofreader: React.FC<ProofreaderProps> = ({
       setLoading(true)
       setState(prev => ({ ...prev, error: null }))
       
-      // Fetch existing concerns from API
-      const response = await fetch(`/api/proofreader/concerns/${currentConversation.id}`)
-      
-      if (!response.ok) {
-        throw new Error(`Failed to load concerns: ${response.statusText}`)
+      // Try to load from cache first if offline
+      const cachedConcerns = proofreaderRecoveryService.getCachedConcerns(currentConversation.id)
+      if (!navigator.onLine && cachedConcerns) {
+        setState(prev => ({
+          ...prev,
+          concerns: cachedConcerns,
+          lastAnalyzed: cachedConcerns.length > 0 ? new Date() : null,
+          recoveryState: {
+            ...prev.recoveryState,
+            cacheUsed: true
+          }
+        }))
+        toast.info(`Loaded ${cachedConcerns.length} concerns from cache (offline mode)`)
+        setLoading(false)
+        return
       }
+      
+      // Fetch existing concerns from API with error handling
+      const response = await proofreaderErrorHandler.executeWithRetry(
+        async () => {
+          const res = await fetch(`/api/proofreader/concerns/${currentConversation.id}`)
+          if (!res.ok) {
+            throw new Error(`Failed to load concerns: ${res.statusText}`)
+          }
+          return res
+        },
+        'load_concerns',
+        {
+          maxAttempts: 3,
+          baseDelay: 1000,
+          maxDelay: 5000,
+          backoffMultiplier: 2,
+          retryableErrors: [ErrorType.NETWORK_ERROR, ErrorType.TIMEOUT_ERROR]
+        },
+        currentConversation.id
+      )
       
       const data = await response.json()
       const concerns: ProofreadingConcern[] = data.concerns || []
       
+      // Cache the concerns for offline use
+      proofreaderRecoveryService.cacheConcerns(currentConversation.id, concerns)
+      
       setState(prev => ({
         ...prev,
         concerns,
-        lastAnalyzed: concerns.length > 0 ? new Date() : null
+        lastAnalyzed: concerns.length > 0 ? new Date() : null,
+        recoveryState: {
+          ...prev.recoveryState,
+          cacheUsed: false
+        }
       }))
       setRetryCount(0)
       
@@ -125,33 +233,39 @@ export const Proofreader: React.FC<ProofreaderProps> = ({
         toast.success(`Loaded ${concerns.length} existing concern${concerns.length === 1 ? '' : 's'}`)
       }
     } catch (err: any) {
-      console.error("Failed to load concerns:", err)
+      const classifiedError = proofreaderErrorHandler.classifyError(err, 'load_concerns', currentConversation.id)
       
-      // Handle different error scenarios
-      let errorMessage = "Failed to load concerns. Please try again."
+      // Add to error history
+      setState(prev => ({
+        ...prev,
+        errorHistory: [
+          {
+            timestamp: new Date(),
+            type: classifiedError.type,
+            message: classifiedError.message,
+            operation: 'load_concerns'
+          },
+          ...prev.errorHistory.slice(0, 9) // Keep last 10 errors
+        ]
+      }))
       
-      if (err.message.includes('404')) {
-        // No concerns found is not really an error
-        setState(prev => ({ ...prev, concerns: [] }))
-        setLoading(false)
-        return
-      } else if (err.message.includes('network') || err.message.includes('fetch')) {
-        errorMessage = "Network error. Please check your connection."
-      }
-      
-      setState(prev => ({ ...prev, error: errorMessage }))
-      
-      // Implement retry mechanism with exponential backoff
-      if (retryCount < 3) {
-        const delay = 2000 * Math.pow(2, retryCount) // 2s, 4s, 8s
-        setTimeout(() => {
-          setRetryCount(prev => prev + 1)
-          loadConcerns()
-        }, delay)
-        
-        toast.error(`${errorMessage} Retrying in ${delay / 1000} seconds...`)
+      // Try cached data as fallback
+      const cachedConcerns = proofreaderRecoveryService.getCachedConcerns(currentConversation.id)
+      if (cachedConcerns) {
+        setState(prev => ({
+          ...prev,
+          concerns: cachedConcerns,
+          lastAnalyzed: cachedConcerns.length > 0 ? new Date() : null,
+          error: null,
+          recoveryState: {
+            ...prev.recoveryState,
+            cacheUsed: true
+          }
+        }))
+        toast.warning(`Using cached data due to connection issues (${cachedConcerns.length} concerns)`)
       } else {
-        toast.error(errorMessage)
+        setState(prev => ({ ...prev, error: classifiedError.userMessage }))
+        toast.error(classifiedError.userMessage)
       }
     } finally {
       setLoading(false)
@@ -166,6 +280,20 @@ export const Proofreader: React.FC<ProofreaderProps> = ({
       console.error("Failed to check integration status:", error)
       // Don't show error to user as this is background functionality
     }
+  }
+
+  const updateRecoveryState = () => {
+    const recoveryState = proofreaderRecoveryService.getRecoveryState()
+    setState(prev => ({
+      ...prev,
+      recoveryState: {
+        isOnline: recoveryState.isOnline,
+        recoveryMode: recoveryState.recoveryMode,
+        pendingOperations: recoveryState.pendingOperations.length,
+        lastSync: recoveryState.lastSync,
+        cacheUsed: prev.recoveryState.cacheUsed
+      }
+    }))
   }
 
   const handleAnalyze = async () => {
@@ -238,25 +366,17 @@ export const Proofreader: React.FC<ProofreaderProps> = ({
         }
       };
 
-      // Step 4: Send analysis request to backend
+      // Step 4: Use recovery service for analysis with fallback mechanisms
       setState(prev => ({
         ...prev,
         analysisProgress: 60,
-        analysisStatusMessage: 'Analyzing content structure...'
+        analysisStatusMessage: state.recoveryState.isOnline ? 'Analyzing content with AI...' : 'Performing offline analysis...'
       }))
 
-      const response = await fetch('/api/proofreader/analyze', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(analysisRequest),
-        signal: abortControllerRef.current.signal
-      });
+      const analysisResult = await proofreaderRecoveryService.performAnalysisWithRecovery(analysisRequest);
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Analysis failed with status ${response.status}`);
+      if (!analysisResult.success) {
+        throw new Error(analysisResult.error || "Analysis failed");
       }
 
       // Step 5: Process analysis results
@@ -266,27 +386,42 @@ export const Proofreader: React.FC<ProofreaderProps> = ({
         analysisStatusMessage: 'Processing analysis results...'
       }))
 
-      const analysisResult: ProofreaderAnalysisResponse = await response.json();
-
-      if (!analysisResult.success) {
-        throw new Error(analysisResult.error || "Analysis failed");
+      // Cache the concerns for offline use
+      if (analysisResult.concerns) {
+        proofreaderRecoveryService.cacheConcerns(currentConversation.id, analysisResult.concerns);
       }
 
       // Step 6: Update state with results
       setState(prev => ({
         ...prev,
         analysisProgress: 100,
-        analysisStatusMessage: 'Analysis completed successfully!',
+        analysisStatusMessage: analysisResult.analysisMetadata?.fallbackUsed 
+          ? 'Analysis completed using fallback method!' 
+          : 'Analysis completed successfully!',
         concerns: analysisResult.concerns || [],
         isAnalyzing: false,
-        lastAnalyzed: new Date()
+        lastAnalyzed: new Date(),
+        recoveryState: {
+          ...prev.recoveryState,
+          cacheUsed: analysisResult.analysisMetadata?.cacheUsed || false
+        }
       }))
 
       const concernCount = analysisResult.concerns?.length || 0;
+      const fallbackUsed = analysisResult.analysisMetadata?.fallbackUsed;
+      const cacheUsed = analysisResult.analysisMetadata?.cacheUsed;
+      
       if (concernCount === 0) {
-        toast.success("Analysis completed! No concerns found.");
+        toast.success(fallbackUsed ? "Basic analysis completed! No concerns found." : "Analysis completed! No concerns found.");
       } else {
-        toast.success(`Analysis completed! Found ${concernCount} concern${concernCount === 1 ? '' : 's'} to review.`);
+        const message = `${fallbackUsed ? 'Basic analysis' : 'Analysis'} completed! Found ${concernCount} concern${concernCount === 1 ? '' : 's'} to review.`;
+        const toastMessage = cacheUsed ? `${message} (using cached result)` : message;
+        toast.success(toastMessage);
+      }
+      
+      // Show additional info for fallback/offline analysis
+      if (fallbackUsed && !state.recoveryState.isOnline) {
+        toast.info("Offline analysis provides basic feedback. Connect to internet for comprehensive AI analysis.");
       }
       
       // Reset progress after a delay
@@ -299,15 +434,26 @@ export const Proofreader: React.FC<ProofreaderProps> = ({
       }, 3000)
 
     } catch (err: any) {
-      console.error("Failed to analyze content:", err)
+      const classifiedError = proofreaderErrorHandler.classifyError(err, 'analysis', currentConversation.id)
       
-      // Handle different types of errors
-      let errorMessage = "Failed to analyze content. Please try again.";
+      // Add to error history
+      setState(prev => ({
+        ...prev,
+        errorHistory: [
+          {
+            timestamp: new Date(),
+            type: classifiedError.type,
+            message: classifiedError.message,
+            operation: 'analysis'
+          },
+          ...prev.errorHistory.slice(0, 9)
+        ]
+      }))
+      
+      let errorMessage = classifiedError.userMessage;
       
       if (err.name === 'AbortError') {
         errorMessage = "Analysis was cancelled.";
-      } else if (err.message) {
-        errorMessage = err.message;
       }
       
       setState(prev => ({
@@ -320,6 +466,13 @@ export const Proofreader: React.FC<ProofreaderProps> = ({
       
       if (err.name !== 'AbortError') {
         toast.error(errorMessage);
+        
+        // Suggest recovery actions based on error type
+        if (classifiedError.type === ErrorType.NETWORK_ERROR) {
+          toast.info("Try using offline analysis mode or check your connection");
+        } else if (classifiedError.type === ErrorType.AI_SERVICE_ERROR) {
+          toast.info("AI service may be temporarily unavailable. Basic analysis is still available.");
+        }
       }
     }
   }
@@ -356,38 +509,52 @@ export const Proofreader: React.FC<ProofreaderProps> = ({
     }))
     
     try {
-      // Update status via API
-      const response = await fetch(`/api/proofreader/concerns/${concernId}/status`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ status })
-      })
-
-      if (!response.ok) {
-        throw new Error(`Failed to update status: ${response.statusText}`)
-      }
-
-      const result = await response.json()
+      // Use recovery service for status updates with offline queueing
+      const result = await proofreaderRecoveryService.updateConcernStatusWithRecovery(concernId, status);
       
       if (!result.success) {
         throw new Error(result.error || 'Failed to update concern status')
       }
       
-      toast.success(`Concern marked as ${status.replace('_', ' ')}`)
+      // Update cached concerns
+      const updatedConcerns = state.concerns.map(concern =>
+        concern.id === concernId
+          ? { ...concern, status, updatedAt: new Date() }
+          : concern
+      );
+      proofreaderRecoveryService.cacheConcerns(currentConversation.id, updatedConcerns);
+      
+      const statusText = status.replace('_', ' ');
+      if (state.recoveryState.isOnline) {
+        toast.success(`Concern marked as ${statusText}`)
+      } else {
+        toast.success(`Concern marked as ${statusText} (will sync when online)`)
+      }
+      
+      // Update recovery state
+      updateRecoveryState();
+      
     } catch (err: any) {
-      console.error("Failed to update concern status:", err)
+      const classifiedError = proofreaderErrorHandler.classifyError(err, 'status_update', currentConversation.id)
+      
+      // Add to error history
+      setState(prev => ({
+        ...prev,
+        errorHistory: [
+          {
+            timestamp: new Date(),
+            type: classifiedError.type,
+            message: classifiedError.message,
+            operation: 'status_update'
+          },
+          ...prev.errorHistory.slice(0, 9)
+        ]
+      }))
       
       // Rollback optimistic update on error
       setState(prev => ({ ...prev, concerns: previousConcerns }))
       
-      let errorMessage = "Failed to update concern status. Please try again."
-      if (err.message.includes('network') || err.message.includes('fetch')) {
-        errorMessage = "Network error. Please check your connection and try again."
-      }
-      
-      toast.error(errorMessage)
+      toast.error(classifiedError.userMessage)
     }
   }
 
@@ -406,10 +573,105 @@ export const Proofreader: React.FC<ProofreaderProps> = ({
         </SheetHeader>
         
         <ScrollArea className="h-[calc(100vh-150px)] pr-4">
-          {state.error && (
-            <div className="py-4 text-center text-red-500">
-              {state.error}
+          {/* Recovery Status Bar */}
+          <div className="py-2 space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <div className="flex items-center gap-2">
+                {state.recoveryState.isOnline ? (
+                  <Wifi className="h-3 w-3 text-green-500" />
+                ) : (
+                  <WifiOff className="h-3 w-3 text-red-500" />
+                )}
+                <span className={state.recoveryState.isOnline ? 'text-green-600' : 'text-red-600'}>
+                  {state.recoveryState.isOnline ? 'Online' : 'Offline'}
+                </span>
+                {state.recoveryState.recoveryMode !== RecoveryMode.NORMAL && (
+                  <Badge variant="outline" className="text-xs">
+                    {state.recoveryState.recoveryMode}
+                  </Badge>
+                )}
+              </div>
+              
+              <div className="flex items-center gap-2">
+                {state.recoveryState.pendingOperations > 0 && (
+                  <Badge variant="secondary" className="text-xs">
+                    {state.recoveryState.pendingOperations} pending
+                  </Badge>
+                )}
+                {state.recoveryState.cacheUsed && (
+                  <Badge variant="outline" className="text-xs">
+                    Cached
+                  </Badge>
+                )}
+              </div>
             </div>
+            
+            {state.recoveryState.lastSync && (
+              <div className="text-xs text-muted-foreground">
+                Last sync: {state.recoveryState.lastSync.toLocaleTimeString()}
+              </div>
+            )}
+          </div>
+
+          {/* Error Display with Recovery Options */}
+          {state.error && (
+            <div className="py-4">
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <div className="text-sm text-red-800">{state.error}</div>
+                    <div className="mt-2 flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setState(prev => ({ ...prev, error: null }))}
+                        className="text-xs"
+                      >
+                        Dismiss
+                      </Button>
+                      {!state.isAnalyzing && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={handleAnalyze}
+                          className="text-xs"
+                        >
+                          <RefreshCw className="h-3 w-3 mr-1" />
+                          Retry
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Error History (collapsible) */}
+          {state.errorHistory.length > 0 && (
+            <details className="py-2">
+              <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">
+                Recent errors ({state.errorHistory.length})
+              </summary>
+              <div className="mt-2 space-y-1">
+                {state.errorHistory.slice(0, 3).map((error, index) => (
+                  <div key={index} className="text-xs p-2 bg-muted/30 rounded border">
+                    <div className="flex items-center justify-between">
+                      <Badge variant="outline" className="text-xs">
+                        {error.type}
+                      </Badge>
+                      <span className="text-muted-foreground">
+                        {error.timestamp.toLocaleTimeString()}
+                      </span>
+                    </div>
+                    <div className="mt-1 text-muted-foreground">
+                      {error.operation}: {error.message}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </details>
           )}
           
           {loading ? (
@@ -430,6 +692,22 @@ export const Proofreader: React.FC<ProofreaderProps> = ({
                 success={state.analysisProgress === 100 && !state.isAnalyzing}
                 onRetry={handleAnalyze}
                 onDismissError={() => setState(prev => ({ ...prev, error: null }))}
+                isOnline={state.recoveryState.isOnline}
+                fallbackUsed={state.recoveryState.recoveryMode === RecoveryMode.DEGRADED || state.recoveryState.recoveryMode === RecoveryMode.OFFLINE}
+                cacheUsed={state.recoveryState.cacheUsed}
+                errorType={state.errorHistory.length > 0 ? state.errorHistory[0].type : undefined}
+                recoveryOptions={[
+                  ...(state.error && !state.recoveryState.isOnline ? [{
+                    label: 'Try Offline Analysis',
+                    action: handleAnalyze,
+                    variant: 'secondary' as const
+                  }] : []),
+                  ...(state.errorHistory.length > 0 ? [{
+                    label: 'Clear Error History',
+                    action: () => setState(prev => ({ ...prev, errorHistory: [] })),
+                    variant: 'outline' as const
+                  }] : [])
+                ]}
               />
 
               {/* Integration Status */}

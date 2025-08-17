@@ -3,7 +3,8 @@
 import React from "react"
 import { Button } from "@/components/ui/shadcn/button"
 import { Progress } from "@/components/ui/shadcn/progress"
-import { Loader2, X, CheckCircle, AlertCircle } from "lucide-react"
+import { Badge } from "@/components/ui/shadcn/badge"
+import { Loader2, X, CheckCircle, AlertCircle, Wifi, WifiOff, RefreshCw } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface AnalysisProgressProps {
@@ -15,6 +16,15 @@ interface AnalysisProgressProps {
   success?: boolean
   onRetry?: () => void
   onDismissError?: () => void
+  isOnline?: boolean
+  fallbackUsed?: boolean
+  cacheUsed?: boolean
+  errorType?: string
+  recoveryOptions?: Array<{
+    label: string
+    action: () => void
+    variant?: 'default' | 'outline' | 'secondary'
+  }>
 }
 
 export const AnalysisProgress: React.FC<AnalysisProgressProps> = ({
@@ -25,7 +35,12 @@ export const AnalysisProgress: React.FC<AnalysisProgressProps> = ({
   error,
   success,
   onRetry,
-  onDismissError
+  onDismissError,
+  isOnline = true,
+  fallbackUsed = false,
+  cacheUsed = false,
+  errorType,
+  recoveryOptions = []
 }) => {
   if (!isAnalyzing && !error && !success) {
     return null
@@ -55,6 +70,31 @@ export const AnalysisProgress: React.FC<AnalysisProgressProps> = ({
           )}>
             {error ? "Analysis Failed" : success ? "Analysis Complete" : "Analyzing Content"}
           </span>
+          
+          {/* Status badges */}
+          <div className="flex gap-1">
+            {!isOnline && (
+              <Badge variant="outline" className="text-xs">
+                <WifiOff className="h-3 w-3 mr-1" />
+                Offline
+              </Badge>
+            )}
+            {fallbackUsed && (
+              <Badge variant="secondary" className="text-xs">
+                Basic Mode
+              </Badge>
+            )}
+            {cacheUsed && (
+              <Badge variant="outline" className="text-xs">
+                Cached
+              </Badge>
+            )}
+            {errorType && (
+              <Badge variant="destructive" className="text-xs">
+                {errorType}
+              </Badge>
+            )}
+          </div>
         </div>
         
         {isAnalyzing && (
@@ -167,23 +207,85 @@ export const AnalysisProgress: React.FC<AnalysisProgressProps> = ({
 
       {/* Error Actions */}
       {error && (
-        <div className="mt-3 flex gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={onDismissError || onCancel}
-            className="text-xs"
-          >
-            Dismiss
-          </Button>
-          {onRetry && (
+        <div className="mt-3">
+          <div className="flex flex-wrap gap-2">
             <Button
               size="sm"
-              onClick={onRetry}
+              variant="outline"
+              onClick={onDismissError || onCancel}
               className="text-xs"
             >
-              Retry
+              Dismiss
             </Button>
+            {onRetry && (
+              <Button
+                size="sm"
+                onClick={onRetry}
+                className="text-xs"
+              >
+                <RefreshCw className="h-3 w-3 mr-1" />
+                Retry
+              </Button>
+            )}
+            
+            {/* Custom recovery options */}
+            {recoveryOptions.map((option, index) => (
+              <Button
+                key={index}
+                size="sm"
+                variant={option.variant || "outline"}
+                onClick={option.action}
+                className="text-xs"
+              >
+                {option.label}
+              </Button>
+            ))}
+          </div>
+          
+          {/* Error-specific guidance */}
+          {errorType && (
+            <div className="mt-2 p-2 bg-red-50 border border-red-100 rounded text-xs">
+              {errorType === 'network_error' && (
+                <div>
+                  <p className="font-medium text-red-800">Network Connection Issue</p>
+                  <p className="text-red-600 mt-1">
+                    • Check your internet connection<br/>
+                    • Try offline analysis mode<br/>
+                    • Changes will sync when connection is restored
+                  </p>
+                </div>
+              )}
+              {errorType === 'ai_service_error' && (
+                <div>
+                  <p className="font-medium text-red-800">AI Service Unavailable</p>
+                  <p className="text-red-600 mt-1">
+                    • AI service may be temporarily down<br/>
+                    • Try basic analysis mode<br/>
+                    • Full analysis will be available when service is restored
+                  </p>
+                </div>
+              )}
+              {errorType === 'rate_limit_error' && (
+                <div>
+                  <p className="font-medium text-red-800">Rate Limit Exceeded</p>
+                  <p className="text-red-600 mt-1">
+                    • Too many requests in a short time<br/>
+                    • Wait a few minutes before retrying<br/>
+                    • Consider analyzing smaller sections
+                  </p>
+                </div>
+              )}
+              {errorType === 'content_error' && (
+                <div>
+                  <p className="font-medium text-red-800">Content Issue</p>
+                  <p className="text-red-600 mt-1">
+                    • Check that your document has sufficient content<br/>
+                    • Ensure content is properly formatted<br/>
+                    • Add more content in the Builder tool
+                  </p>
+                </div>
+              )}
+            </div>
           )}
         </div>
       )}
