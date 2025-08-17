@@ -14,6 +14,9 @@ import { ProofreadingConcern, ConcernStatus, ProofreaderAnalysisRequest, Proofre
 import { contentRetrievalService } from "@/lib/content-retrieval-service"
 import { proofreaderErrorHandler, ErrorType } from "@/lib/proofreader-error-handling"
 import { proofreaderRecoveryService, RecoveryMode } from "@/lib/proofreader-recovery-service"
+import { proofreaderPerformanceOptimizer } from "@/lib/proofreader-performance-optimizer"
+import { proofreaderPerformanceMonitor } from "@/lib/proofreader-performance-monitor"
+import { useDebouncedStatusUpdate } from "@/hooks/use-debounced-status-update"
 
 interface ProofreaderProps {
   isOpen: boolean
@@ -297,6 +300,12 @@ export const Proofreader: React.FC<ProofreaderProps> = ({
   }
 
   const handleAnalyze = async () => {
+    // Start performance monitoring
+    proofreaderPerformanceMonitor.startMeasure('full_analysis_workflow', {
+      conversationId: currentConversation.id,
+      timestamp: Date.now()
+    });
+
     try {
       setState(prev => ({
         ...prev,
@@ -366,14 +375,45 @@ export const Proofreader: React.FC<ProofreaderProps> = ({
         }
       };
 
-      // Step 4: Use recovery service for analysis with fallback mechanisms
+      // Step 4: Use optimized analysis with caching and performance features
       setState(prev => ({
         ...prev,
         analysisProgress: 60,
         analysisStatusMessage: state.recoveryState.isOnline ? 'Analyzing content with AI...' : 'Performing offline analysis...'
       }))
 
-      const analysisResult = await proofreaderRecoveryService.performAnalysisWithRecovery(analysisRequest);
+      // Check cache first for faster results
+      const cachedResult = proofreaderPerformanceOptimizer.getCachedAnalysis(analysisRequest);
+      if (cachedResult && !abortControllerRef.current?.signal.aborted) {
+        setState(prev => ({
+          ...prev,
+          analysisProgress: 100,
+          analysisStatusMessage: 'Analysis completed from cache!',
+          concerns: cachedResult.concerns || [],
+          isAnalyzing: false,
+          lastAnalyzed: new Date(),
+          recoveryState: {
+            ...prev.recoveryState,
+            cacheUsed: true
+          }
+        }));
+
+        toast.success(`Analysis completed from cache! Found ${cachedResult.concerns?.length || 0} concerns.`);
+        return;
+      }
+
+      // Perform optimized analysis with recovery fallback
+      const analysisResult = await proofreaderPerformanceOptimizer.optimizedAnalysis(
+        analysisRequest,
+        async (request) => {
+          return await proofreaderRecoveryService.performAnalysisWithRecovery(request);
+        },
+        {
+          enableCaching: true,
+          enableOptimization: true,
+          forceRefresh: false
+        }
+      );
 
       if (!analysisResult.success) {
         throw new Error(analysisResult.error || "Analysis failed");
@@ -424,6 +464,12 @@ export const Proofreader: React.FC<ProofreaderProps> = ({
         toast.info("Offline analysis provides basic feedback. Connect to internet for comprehensive AI analysis.");
       }
       
+      // End performance monitoring
+      const analysisTime = proofreaderPerformanceMonitor.endMeasure('full_analysis_workflow');
+      if (analysisTime && analysisTime > 5000) {
+        console.warn(`Analysis took ${analysisTime.toFixed(0)}ms - consider optimization`);
+      }
+
       // Reset progress after a delay
       setTimeout(() => {
         setState(prev => ({
@@ -434,6 +480,8 @@ export const Proofreader: React.FC<ProofreaderProps> = ({
       }, 3000)
 
     } catch (err: any) {
+      // End performance monitoring on error
+      proofreaderPerformanceMonitor.endMeasure('full_analysis_workflow');
       const classifiedError = proofreaderErrorHandler.classifyError(err, 'analysis', currentConversation.id)
       
       // Add to error history
@@ -496,9 +544,37 @@ export const Proofreader: React.FC<ProofreaderProps> = ({
     toast.info("Analysis cancelled")
   }
 
+  // Set up debounced status updates for better performance
+  const statusUpdateFn = async (concernId: string, status: ConcernStatus) => {
+    const result = await proofreaderRecoveryService.updateConcernStatusWithRecovery(concernId, status);
+    
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to update concern status')
+    }
+    
+    // Update cached concerns
+    const updatedConcerns = state.concerns.map(concern =>
+      concern.id === concernId
+        ? { ...concern, status, updatedAt: new Date() }
+        : concern
+    );
+    proofreaderRecoveryService.cacheConcerns(currentConversation.id, updatedConcerns);
+    
+    // Update recovery state
+    updateRecoveryState();
+  };
+
+  const { debouncedUpdate: debouncedStatusUpdate } = useDebouncedStatusUpdate(statusUpdateFn, {
+    delay: 500,
+    maxWait: 2000,
+    batchSize: 5
+  });
+
   const handleStatusChange = async (concernId: string, status: ConcernStatus) => {
+    // Store previous state for rollback
+    const previousConcerns = state.concerns;
+    
     // Optimistically update UI first
-    const previousConcerns = state.concerns
     setState(prev => ({
       ...prev,
       concerns: prev.concerns.map(concern =>
@@ -506,23 +582,11 @@ export const Proofreader: React.FC<ProofreaderProps> = ({
           ? { ...concern, status, updatedAt: new Date() }
           : concern
       )
-    }))
+    }));
     
     try {
-      // Use recovery service for status updates with offline queueing
-      const result = await proofreaderRecoveryService.updateConcernStatusWithRecovery(concernId, status);
-      
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to update concern status')
-      }
-      
-      // Update cached concerns
-      const updatedConcerns = state.concerns.map(concern =>
-        concern.id === concernId
-          ? { ...concern, status, updatedAt: new Date() }
-          : concern
-      );
-      proofreaderRecoveryService.cacheConcerns(currentConversation.id, updatedConcerns);
+      // Use debounced update for better performance
+      await debouncedStatusUpdate(concernId, status);
       
       const statusText = status.replace('_', ' ');
       if (state.recoveryState.isOnline) {
@@ -530,9 +594,6 @@ export const Proofreader: React.FC<ProofreaderProps> = ({
       } else {
         toast.success(`Concern marked as ${statusText} (will sync when online)`)
       }
-      
-      // Update recovery state
-      updateRecoveryState();
       
     } catch (err: any) {
       const classifiedError = proofreaderErrorHandler.classifyError(err, 'status_update', currentConversation.id)

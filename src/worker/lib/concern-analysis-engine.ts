@@ -24,6 +24,93 @@ import {
   FlowAnalysis,
   HeadingAnalysis
 } from '../../lib/ai-types';
+import { proofreaderPerformanceMonitor } from '../../lib/proofreader-performance-monitor';
+import { string } from "zod";
+import { string } from "zod";
+import { number } from "zod";
+import { number } from "zod";
+import { string } from "zod";
+import { string } from "zod";
+import { string } from "zod";
+import { string } from "zod";
+import { string } from "zod";
+import { string } from "zod";
+import { number } from "zod";
+import { string } from "zod";
+import { string } from "zod";
+import { boolean } from "zod";
+import { string } from "zod";
+import { string } from "zod";
+import { string } from "zod";
+import { string } from "zod";
+import { string } from "zod";
+import { string } from "zod";
+import { string } from "zod";
+import { boolean } from "zod";
+import { string } from "zod";
+import { string } from "zod";
+import { string } from "zod";
+import { string } from "zod";
+import { string } from "zod";
+import { string } from "zod";
+import { string } from "zod";
+import { string } from "zod";
+import { any } from "zod";
+import { any } from "zod";
+import { string } from "zod";
+import { string } from "zod";
+import { boolean } from "zod";
+import { string } from "zod";
+import { string } from "zod";
+import { string } from "zod";
+import { string } from "zod";
+import { string } from "zod";
+import { string } from "zod";
+import { string } from "zod";
+import { string } from "zod";
+import { string } from "zod";
+import { string } from "zod";
+import { number } from "zod";
+import { number } from "zod";
+import { string } from "zod";
+import { string } from "zod";
+import { string } from "zod";
+import { boolean } from "zod";
+import { string } from "zod";
+import { string } from "zod";
+import { string } from "zod";
+import { string } from "zod";
+import { string } from "zod";
+import { boolean } from "zod";
+import { string } from "zod";
+import { string } from "zod";
+import { string } from "zod";
+import { string } from "zod";
+import { string } from "zod";
+import { string } from "zod";
+import { boolean } from "zod";
+import { string } from "zod";
+import { string } from "zod";
+import { boolean } from "zod";
+import { string } from "zod";
+import { string } from "zod";
+import { string } from "zod";
+import { string } from "zod";
+import { number } from "zod";
+import { boolean } from "zod";
+import { string } from "zod";
+import { string } from "zod";
+import { string } from "zod";
+import { boolean } from "zod";
+import { string } from "zod";
+import { boolean } from "zod";
+import { string } from "zod";
+import { string } from "zod";
+import { string } from "zod";
+import { boolean } from "zod";
+import { boolean } from "zod";
+import { boolean } from "zod";
+import { boolean } from "zod";
 
 export interface ConcernAnalysisEngine {
   analyzeContent(content: string, ideaDefinitions: IdeaDefinition[], conversationId: string): Promise<ProofreadingConcern[]>;
@@ -46,41 +133,76 @@ export class ConcernAnalysisEngineImpl implements ConcernAnalysisEngine {
       throw new Error('Content is required for analysis');
     }
 
-    try {
-      // Perform comprehensive content analysis
-      const contentAnalysis = await this.categorizeContent(content);
-      
-      // Generate AI-powered concerns
-      const aiConcerns = await this.generateAIConcerns(content, ideaDefinitions, contentAnalysis);
-      
-      // Generate structure-based concerns
-      const structureConcerns = this.generateStructureConcerns(contentAnalysis.structure, conversationId);
-      
-      // Generate style-based concerns
-      const styleConcerns = this.generateStyleConcerns(contentAnalysis.style, conversationId);
-      
-      // Generate consistency concerns
-      const consistencyConcerns = this.generateConsistencyConcerns(contentAnalysis.consistency, conversationId);
-      
-      // Generate completeness concerns
-      const completenessConcerns = this.generateCompletenessConcerns(contentAnalysis.completeness, conversationId);
-      
-      // Combine all concerns
-      const allConcerns = [
-        ...aiConcerns,
-        ...structureConcerns,
-        ...styleConcerns,
-        ...consistencyConcerns,
-        ...completenessConcerns
-      ];
-      
-      // Remove duplicates and prioritize concerns
-      return this.prioritizeAndDeduplicateConcerns(allConcerns);
-      
-    } catch (error) {
+    return await proofreaderPerformanceMonitor.measureAsync(
+      'full_content_analysis',
+      async () => {
+        // Perform comprehensive content analysis
+        const contentAnalysis = await proofreaderPerformanceMonitor.measureAsync(
+          'content_categorization',
+          () => this.categorizeContent(content),
+          { contentLength: content.length, ideaCount: ideaDefinitions.length }
+        );
+        
+        // Generate AI-powered concerns
+        const aiConcerns = await proofreaderPerformanceMonitor.measureAsync(
+          'ai_concern_generation',
+          () => this.generateAIConcerns(content, ideaDefinitions, contentAnalysis.result),
+          { contentLength: content.length, ideaCount: ideaDefinitions.length }
+        );
+        
+        // Generate structure-based concerns
+        const structureConcerns = proofreaderPerformanceMonitor.measureSync(
+          'structure_concern_generation',
+          () => this.generateStructureConcerns(contentAnalysis.result.structure, conversationId),
+          { operation: 'structure_analysis' }
+        );
+        
+        // Generate style-based concerns
+        const styleConcerns = proofreaderPerformanceMonitor.measureSync(
+          'style_concern_generation',
+          () => this.generateStyleConcerns(contentAnalysis.result.style, conversationId),
+          { operation: 'style_analysis' }
+        );
+        
+        // Generate consistency concerns
+        const consistencyConcerns = proofreaderPerformanceMonitor.measureSync(
+          'consistency_concern_generation',
+          () => this.generateConsistencyConcerns(contentAnalysis.result.consistency, conversationId),
+          { operation: 'consistency_analysis' }
+        );
+        
+        // Generate completeness concerns
+        const completenessConcerns = proofreaderPerformanceMonitor.measureSync(
+          'completeness_concern_generation',
+          () => this.generateCompletenessConcerns(contentAnalysis.result.completeness, conversationId),
+          { operation: 'completeness_analysis' }
+        );
+        
+        // Combine all concerns
+        const allConcerns = [
+          ...aiConcerns.result,
+          ...structureConcerns.result,
+          ...styleConcerns.result,
+          ...consistencyConcerns.result,
+          ...completenessConcerns.result
+        ];
+        
+        // Remove duplicates and prioritize concerns
+        return proofreaderPerformanceMonitor.measureSync(
+          'concern_deduplication',
+          () => this.prioritizeAndDeduplicateConcerns(allConcerns),
+          { totalConcerns: allConcerns.length }
+        ).result;
+      },
+      { 
+        contentLength: content.length, 
+        ideaCount: ideaDefinitions.length,
+        conversationId 
+      }
+    ).then(result => result.result).catch(error => {
       console.error('Error in concern analysis:', error);
       throw new Error(`Failed to analyze content: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
+    });
   }
 
   /**
@@ -308,7 +430,7 @@ export class ConcernAnalysisEngineImpl implements ConcernAnalysisEngine {
   }
 
   /**
-   * Generate AI-powered concerns using Google Generative AI
+   * Generate AI-powered concerns using Google Generative AI with optimized prompts
    */
   private async generateAIConcerns(
     content: string, 
@@ -317,69 +439,166 @@ export class ConcernAnalysisEngineImpl implements ConcernAnalysisEngine {
   ): Promise<ProofreadingConcern[]> {
     const google = createGoogleGenerativeAI({ apiKey: this.apiKey });
     
-    // Build context for AI analysis
-    const ideaContext = ideaDefinitions.length > 0 
-      ? `The following idea definitions provide context for this thesis proposal:
-
-${ideaDefinitions.map(idea => `**${idea.title}:** ${idea.description}`).join('\n\n')}
-
-Use these definitions to:
-- Check if the thesis content aligns with the defined concepts
-- Identify inconsistent use of terminology
-- Suggest improvements based on the established ideas
-- Verify that key concepts are properly explained and used`
-      : 'No idea definitions are available for contextual analysis. The analysis will focus on general academic writing quality without domain-specific context.';
+    // Optimize content length for faster processing
+    const optimizedContent = this.optimizeContentForAI(content);
     
-    const analysisContext = this.formatAnalysisContext(contentAnalysis);
+    // Build optimized context for AI analysis
+    const ideaContext = this.buildOptimizedIdeaContext(ideaDefinitions);
+    const analysisContext = this.formatOptimizedAnalysisContext(contentAnalysis);
     
-    const prompt = `You are an expert academic proofreader analyzing a thesis proposal. Identify specific concerns that need attention, focusing on academic writing quality and thesis-specific issues.
+    // Use optimized prompt for faster processing
+    const prompt = this.buildOptimizedPrompt(ideaContext, analysisContext, optimizedContent);
+    
+    try {
+      const result = await generateText({
+        model: google("gemini-1.5-flash-latest"),
+        prompt: prompt,
+        // Optimize generation parameters for speed
+        maxTokens: 2000, // Limit response length for faster processing
+        temperature: 0.3, // Lower temperature for more focused responses
+      });
 
-## Idea Definitions Context
-${ideaContext}
-
-## Current Analysis Results
-${analysisContext}
-
-## Content to Analyze
-${content}
-
-## Instructions
-Analyze the content and identify specific concerns in the following categories:
-- CLARITY: Issues with unclear explanations, ambiguous statements, or confusing language
-- COHERENCE: Problems with logical flow, argument structure, or connection between ideas
-- STRUCTURE: Issues with organization, section flow, or hierarchical problems
-- ACADEMIC_STYLE: Problems with tone, formality, or academic writing conventions
-- CONSISTENCY: Inconsistent terminology, formatting, or argumentation
-- COMPLETENESS: Missing information, insufficient detail, or gaps in argumentation
-- CITATIONS: Missing, incorrect, or inconsistent citations and references
-- GRAMMAR: Grammatical errors, punctuation issues, or syntax problems
-- TERMINOLOGY: Incorrect or inconsistent use of technical terms
-
-For each concern, provide:
-1. A clear, specific title (max 80 characters)
-2. A detailed description of the issue
-3. The severity level (low, medium, high, critical)
-4. Specific suggestions for improvement
-5. Location information if applicable
-
-Focus on issues that would impact the academic quality and credibility of the thesis proposal. Be specific and actionable in your feedback.
-
-Return your analysis as a JSON array of concerns with this exact structure:
-[
-  {
-    "category": "CLARITY",
-    "severity": "medium",
-    "title": "Specific issue title",
-    "description": "Detailed description of the concern",
-    "suggestions": ["Specific suggestion 1", "Specific suggestion 2"],
-    "location": {
-      "section": "Section name if identifiable",
-      "context": "Relevant text excerpt"
+      // Parse AI response
+      const aiResponse = this.parseAIResponse(result.text);
+      
+      // Convert to ProofreadingConcern objects
+      return aiResponse.map(concern => this.createConcernFromAI(concern));
+      
+    } catch (error) {
+      console.error('AI concern generation failed:', error);
+      // Return empty array rather than failing the entire analysis
+      return [];
     }
   }
-]
 
-Provide 3-8 most important concerns. Focus on quality over quantity.`;
+  /**
+   * Optimize content for AI processing to improve speed
+   */
+  private optimizeContentForAI(content: string): string {
+    // If content is short enough, return as-is
+    if (content.length <= 8000) {
+      return content;
+    }
+
+    // Extract key structural elements
+    const lines = content.split('\n');
+    const headings = lines.filter(line => line.match(/^#{1,6}\s+/));
+    const paragraphs = content.split('\n\n').filter(p => p.trim().length > 0);
+    
+    // Keep headings and sample paragraphs for structure analysis
+    const structuralContent = headings.join('\n');
+    
+    // Keep first and last paragraphs, and sample middle content
+    const sampleParagraphs = [
+      ...paragraphs.slice(0, 3), // First 3 paragraphs
+      '...[content sample]...',
+      ...paragraphs.slice(-3) // Last 3 paragraphs
+    ];
+    
+    const optimizedContent = structuralContent + '\n\n' + sampleParagraphs.join('\n\n');
+    
+    // If still too long, truncate more aggressively
+    if (optimizedContent.length > 8000) {
+      return optimizedContent.substring(0, 7500) + '\n\n[Content truncated for analysis efficiency]';
+    }
+    
+    return optimizedContent;
+  }
+
+  /**
+   * Build optimized idea context for faster processing
+   */
+  private buildOptimizedIdeaContext(ideaDefinitions: IdeaDefinition[]): string {
+    if (ideaDefinitions.length === 0) {
+      return 'No idea definitions available.';
+    }
+
+    // Limit to most relevant ideas and truncate descriptions
+    const relevantIdeas = ideaDefinitions
+      .slice(0, 10) // Limit to 10 most relevant ideas
+      .map(idea => ({
+        title: idea.title,
+        description: idea.description.length > 200 
+          ? idea.description.substring(0, 200) + '...'
+          : idea.description
+      }));
+
+    return `Key concepts: ${relevantIdeas.map(idea => `${idea.title}: ${idea.description}`).join(' | ')}`;
+  }
+
+  /**
+   * Format optimized analysis context for faster processing
+   */
+  private formatOptimizedAnalysisContext(contentAnalysis: ContentAnalysis): string {
+    const issues = [];
+    
+    // Structure issues
+    if (!contentAnalysis.structure.hasIntroduction) {
+      issues.push('Missing introduction');
+    }
+    if (!contentAnalysis.structure.hasConclusion) {
+      issues.push('Missing conclusion');
+    }
+    if (contentAnalysis.structure.sectionFlow.flowIssues.length > 0) {
+      issues.push('Flow issues detected');
+    }
+
+    // Style issues
+    if (contentAnalysis.style.academicTone < 0.3) {
+      issues.push('Low academic tone');
+    }
+    if (contentAnalysis.style.clarityScore < 0.6) {
+      issues.push('Clarity concerns');
+    }
+
+    return issues.length > 0 ? `Pre-analysis findings: ${issues.join(', ')}` : 'No major structural issues detected';
+  }
+
+  /**
+   * Build optimized prompt for faster AI processing
+   */
+  private buildOptimizedPrompt(ideaContext: string, analysisContext: string, content: string): string {
+    // Use shorter, more focused prompt for better performance
+    const promptTemplate = content.length > 5000 
+      ? this.buildLongContentPrompt(ideaContext, analysisContext, content)
+      : this.buildShortContentPrompt(ideaContext, analysisContext, content);
+    
+    return promptTemplate;
+  }
+
+  /**
+   * Optimized prompt for short content (faster processing)
+   */
+  private buildShortContentPrompt(ideaContext: string, analysisContext: string, content: string): string {
+    return `Analyze academic text for concerns. ${ideaContext ? `Context: ${ideaContext}` : ''}
+
+Text: ${content}
+
+Return JSON array with 3-5 key issues:
+[{"category":"CLARITY|COHERENCE|STRUCTURE|ACADEMIC_STYLE|CONSISTENCY","severity":"low|medium|high|critical","title":"Brief title","description":"Issue description","suggestions":["Fix 1","Fix 2"]}]
+
+Focus on critical issues only.`;
+  }
+
+  /**
+   * Optimized prompt for long content (structured analysis)
+   */
+  private buildLongContentPrompt(ideaContext: string, analysisContext: string, content: string): string {
+    return `Academic proofreader: Analyze thesis content for key concerns.
+
+${ideaContext ? `Context: ${ideaContext}` : ''}
+${analysisContext ? `Pre-analysis: ${analysisContext}` : ''}
+
+Content:
+${content}
+
+Find 3-5 critical issues in categories: CLARITY, COHERENCE, STRUCTURE, ACADEMIC_STYLE, CONSISTENCY.
+
+Return JSON array:
+[{"category":"CLARITY","severity":"medium","title":"Issue title","description":"Brief description","suggestions":["Fix 1","Fix 2"]}]
+
+Focus on actionable, high-impact concerns only.`;
+  }
 
     try {
       const result = await generateText({
@@ -1487,12 +1706,54 @@ Completeness: ${(analysis.completeness.completenessScore * 100).toFixed(0)}%`;
 
   private parseAIResponse(responseText: string): any[] {
     try {
-      // Try to extract JSON from the response
-      const jsonMatch = responseText.match(/\[[\s\S]*\]/);
+      // Clean response for better parsing
+      const cleanedResponse = responseText
+        .replace(/```json/g, '')
+        .replace(/```/g, '')
+        .trim();
+      
+      // Try to extract JSON array from the response
+      const jsonMatch = cleanedResponse.match(/\[[\s\S]*\]/);
       if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
+        const parsed = JSON.parse(jsonMatch[0]);
+        return Array.isArray(parsed) ? parsed : [];
       }
-      return [];
+      
+      // Try parsing the entire response as JSON
+      try {
+        const parsed = JSON.parse(cleanedResponse);
+        return Array.isArray(parsed) ? parsed : [parsed];
+      } catch {
+        // Continue to fallback parsing
+      }
+      
+      // Fallback: parse line by line for malformed JSON
+      const lines = cleanedResponse.split('\n').filter(line => line.trim());
+      const concerns = [];
+      
+      for (const line of lines) {
+        if (line.includes('"category"') && line.includes('"severity"')) {
+          try {
+            // Try to fix common JSON issues
+            let fixedLine = line.trim();
+            if (!fixedLine.startsWith('{')) {
+              fixedLine = '{' + fixedLine;
+            }
+            if (!fixedLine.endsWith('}')) {
+              fixedLine = fixedLine + '}';
+            }
+            
+            const concern = JSON.parse(fixedLine);
+            if (concern.category && concern.severity && concern.title) {
+              concerns.push(concern);
+            }
+          } catch {
+            // Skip invalid lines
+          }
+        }
+      }
+      
+      return concerns;
     } catch (error) {
       console.error('Failed to parse AI response:', error);
       return [];

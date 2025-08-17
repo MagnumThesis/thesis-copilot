@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useMemo, useRef, useEffect } from "react"
 import { ProofreadingConcern, ConcernStatus, ConcernCategory, ConcernSeverity } from "@/lib/ai-types"
 import { ConcernDetail } from "./concern-detail"
 import { Button } from "@/components/ui/shadcn/button"
@@ -8,6 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/shadcn/badge"
 import { Separator } from "@/components/ui/shadcn/separator"
 import { Filter, SortAsc, SortDesc } from "lucide-react"
+import { useVirtualScroll } from "@/hooks/use-virtual-scroll"
+import { proofreaderPerformanceMonitor } from "@/lib/proofreader-performance-monitor"
 
 interface ConcernListProps {
   concerns: ProofreadingConcern[]
@@ -30,20 +32,44 @@ export const ConcernList: React.FC<ConcernListProps> = ({
   const [sortBy, setSortBy] = useState<SortOption>('severity')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
   const [expandedConcerns, setExpandedConcerns] = useState<Set<string>>(new Set())
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [containerHeight, setContainerHeight] = useState(400)
 
-  // Filter concerns based on all filters
-  const filteredConcerns = concerns.filter(concern => {
-    // Status filter
-    if (statusFilter !== 'all' && concern.status !== statusFilter) return false
+  // Filter concerns based on all filters with performance monitoring
+  const filteredConcerns = useMemo(() => {
+    if (concerns.length > 100) {
+      // Monitor performance for large lists
+      return proofreaderPerformanceMonitor.measureSync(
+        'concern_filtering',
+        () => concerns.filter(concern => {
+          // Status filter
+          if (statusFilter !== 'all' && concern.status !== statusFilter) return false
+          
+          // Category filter
+          if (categoryFilter !== 'all' && concern.category !== categoryFilter) return false
+          
+          // Severity filter
+          if (severityFilter !== 'all' && concern.severity !== severityFilter) return false
+          
+          return true
+        }),
+        { totalConcerns: concerns.length, filters: { statusFilter, categoryFilter, severityFilter } }
+      ).result;
+    }
     
-    // Category filter
-    if (categoryFilter !== 'all' && concern.category !== categoryFilter) return false
-    
-    // Severity filter
-    if (severityFilter !== 'all' && concern.severity !== severityFilter) return false
-    
-    return true
-  })
+    return concerns.filter(concern => {
+      // Status filter
+      if (statusFilter !== 'all' && concern.status !== statusFilter) return false
+      
+      // Category filter
+      if (categoryFilter !== 'all' && concern.category !== categoryFilter) return false
+      
+      // Severity filter
+      if (severityFilter !== 'all' && concern.severity !== severityFilter) return false
+      
+      return true
+    });
+  }, [concerns, statusFilter, categoryFilter, severityFilter])
 
   // Sort concerns
   const sortedConcerns = [...filteredConcerns].sort((a, b) => {
@@ -74,6 +100,39 @@ export const ConcernList: React.FC<ConcernListProps> = ({
     [ConcernStatus.ADDRESSED]: sortedConcerns.filter(c => c.status === ConcernStatus.ADDRESSED),
     [ConcernStatus.REJECTED]: sortedConcerns.filter(c => c.status === ConcernStatus.REJECTED)
   }
+
+  // Use virtual scrolling for large lists (>20 items)
+  const useVirtualScrolling = sortedConcerns.length > 20;
+  const itemHeight = 120; // Approximate height of each concern item
+
+  const virtualScrollResult = useVirtualScroll(sortedConcerns, {
+    itemHeight,
+    containerHeight,
+    overscan: 3
+  });
+
+  // Update container height when component mounts or resizes
+  useEffect(() => {
+    const updateHeight = () => {
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        const maxHeight = Math.min(600, window.innerHeight - rect.top - 100);
+        setContainerHeight(maxHeight);
+      }
+    };
+
+    updateHeight();
+    window.addEventListener('resize', updateHeight);
+    return () => window.removeEventListener('resize', updateHeight);
+  }, []);
+
+  // Memoize rendered concerns for performance
+  const renderedConcerns = useMemo(() => {
+    if (!useVirtualScrolling) {
+      return sortedConcerns;
+    }
+    return virtualScrollResult.virtualItems.map(item => item.item);
+  }, [useVirtualScrolling, sortedConcerns, virtualScrollResult.virtualItems]);
 
   const toggleConcernExpansion = (concernId: string) => {
     setExpandedConcerns(prev => {
@@ -316,9 +375,45 @@ export const ConcernList: React.FC<ConcernListProps> = ({
             </div>
           )}
         </div>
+      ) : useVirtualScrolling ? (
+        // Virtual scrolling for large lists
+        <div ref={containerRef}>
+          <div {...virtualScrollResult.scrollElementProps}>
+            <div {...virtualScrollResult.containerProps}>
+              {virtualScrollResult.virtualItems.map((virtualItem) => (
+                <div
+                  key={virtualItem.item.id}
+                  style={{
+                    position: 'absolute',
+                    top: virtualItem.offsetTop,
+                    left: 0,
+                    right: 0,
+                    height: itemHeight
+                  }}
+                >
+                  <div className="px-1 pb-3">
+                    <ConcernDetail
+                      concern={virtualItem.item}
+                      onStatusChange={(status) => onStatusChange(virtualItem.item.id, status)}
+                      isExpanded={expandedConcerns.has(virtualItem.item.id)}
+                      onToggleExpanded={() => toggleConcernExpansion(virtualItem.item.id)}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          {useVirtualScrolling && (
+            <div className="mt-2 text-xs text-muted-foreground text-center">
+              Showing {virtualScrollResult.virtualItems.length} of {sortedConcerns.length} concerns
+              {virtualScrollResult.isScrolling && " • Scrolling..."}
+            </div>
+          )}
+        </div>
       ) : (
+        // Regular rendering for smaller lists
         <div className="space-y-3">
-          {sortedConcerns.map((concern) => (
+          {renderedConcerns.map((concern) => (
             <ConcernDetail
               key={concern.id}
               concern={concern}
