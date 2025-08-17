@@ -10,6 +10,8 @@ import { Separator } from "@/components/ui/shadcn/separator"
 import { Filter, SortAsc, SortDesc } from "lucide-react"
 import { useVirtualScroll } from "@/hooks/use-virtual-scroll"
 import { proofreaderPerformanceMonitor } from "@/lib/proofreader-performance-monitor"
+import { useAccessibility, useLiveRegion } from "@/hooks/use-accessibility"
+import { AccessibleTooltip } from "@/components/ui/accessible-tooltip"
 
 interface ConcernListProps {
   concerns: ProofreadingConcern[]
@@ -27,13 +29,19 @@ export const ConcernList: React.FC<ConcernListProps> = ({
   statusFilter,
   onFilterChange
 }) => {
+  // Accessibility hooks
+  const { preferences, getAccessibilityClasses, generateId } = useAccessibility()
+  const { announce } = useLiveRegion()
   const [categoryFilter, setCategoryFilter] = useState<ConcernCategory | 'all'>('all')
   const [severityFilter, setSeverityFilter] = useState<ConcernSeverity | 'all'>('all')
   const [sortBy, setSortBy] = useState<SortOption>('severity')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
   const [expandedConcerns, setExpandedConcerns] = useState<Set<string>>(new Set())
+  const [focusedConcernIndex, setFocusedConcernIndex] = useState<number>(-1)
   const containerRef = useRef<HTMLDivElement>(null)
   const [containerHeight, setContainerHeight] = useState(400)
+  const concernRefs = useRef<(HTMLDivElement | null)[]>([])
+  const listId = generateId('concern-list')
 
   // Filter concerns based on all filters with performance monitoring
   const filteredConcerns = useMemo(() => {
@@ -135,6 +143,9 @@ export const ConcernList: React.FC<ConcernListProps> = ({
   }, [useVirtualScrolling, sortedConcerns, virtualScrollResult.virtualItems]);
 
   const toggleConcernExpansion = (concernId: string) => {
+    const concern = sortedConcerns.find(c => c.id === concernId)
+    const isExpanding = !expandedConcerns.has(concernId)
+    
     setExpandedConcerns(prev => {
       const newSet = new Set(prev)
       if (newSet.has(concernId)) {
@@ -144,14 +155,67 @@ export const ConcernList: React.FC<ConcernListProps> = ({
       }
       return newSet
     })
+
+    // Announce expansion state change
+    if (concern) {
+      announce(`${concern.title} ${isExpanding ? 'expanded' : 'collapsed'}`)
+    }
   }
 
   const expandAllConcerns = () => {
     setExpandedConcerns(new Set(sortedConcerns.map(c => c.id)))
+    announce(`Expanded all ${sortedConcerns.length} concerns`)
   }
 
   const collapseAllConcerns = () => {
     setExpandedConcerns(new Set())
+    announce(`Collapsed all concerns`)
+  }
+
+  // Keyboard navigation handlers
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (sortedConcerns.length === 0) return
+
+    switch (event.key) {
+      case 'ArrowDown':
+        event.preventDefault()
+        setFocusedConcernIndex(prev => {
+          const newIndex = Math.min(prev + 1, sortedConcerns.length - 1)
+          concernRefs.current[newIndex]?.focus()
+          return newIndex
+        })
+        break
+      case 'ArrowUp':
+        event.preventDefault()
+        setFocusedConcernIndex(prev => {
+          const newIndex = Math.max(prev - 1, 0)
+          concernRefs.current[newIndex]?.focus()
+          return newIndex
+        })
+        break
+      case 'Home':
+        event.preventDefault()
+        setFocusedConcernIndex(0)
+        concernRefs.current[0]?.focus()
+        break
+      case 'End':
+        event.preventDefault()
+        const lastIndex = sortedConcerns.length - 1
+        setFocusedConcernIndex(lastIndex)
+        concernRefs.current[lastIndex]?.focus()
+        break
+      case 'Enter':
+      case ' ':
+        if (focusedConcernIndex >= 0) {
+          event.preventDefault()
+          toggleConcernExpansion(sortedConcerns[focusedConcernIndex].id)
+        }
+        break
+    }
+  }
+
+  const handleConcernFocus = (index: number) => {
+    setFocusedConcernIndex(index)
   }
 
   const getStatusLabel = (status: ConcernStatus | 'all') => {
@@ -195,10 +259,17 @@ export const ConcernList: React.FC<ConcernListProps> = ({
   }
 
   return (
-    <div className="space-y-4">
+    <div 
+      className={`space-y-4 ${getAccessibilityClasses()}`}
+      data-testid="concern-list-container"
+      onKeyDown={handleKeyDown}
+      role="region"
+      aria-labelledby={`${listId}-heading`}
+      aria-describedby={`${listId}-description`}
+    >
       {/* Header with count and expand/collapse controls */}
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium">
+        <h3 id={`${listId}-heading`} className="text-sm font-medium">
           {sortedConcerns.length} {sortedConcerns.length === 1 ? 'concern' : 'concerns'}
           {sortedConcerns.length !== concerns.length && (
             <span className="text-muted-foreground"> (filtered from {concerns.length})</span>
@@ -206,22 +277,36 @@ export const ConcernList: React.FC<ConcernListProps> = ({
         </h3>
         {sortedConcerns.length > 0 && (
           <div className="flex gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={expandAllConcerns}
-              className="text-xs"
+            <AccessibleTooltip 
+              content="Expand all concerns to show full details"
+              type="help"
+              hotkey="Ctrl+E"
             >
-              Expand All
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={collapseAllConcerns}
-              className="text-xs"
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={expandAllConcerns}
+                className="text-xs"
+                aria-label="Expand all concerns"
+              >
+                Expand All
+              </Button>
+            </AccessibleTooltip>
+            <AccessibleTooltip 
+              content="Collapse all concerns to show only titles"
+              type="help"
+              hotkey="Ctrl+C"
             >
-              Collapse All
-            </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={collapseAllConcerns}
+                className="text-xs"
+                aria-label="Collapse all concerns"
+              >
+                Collapse All
+              </Button>
+            </AccessibleTooltip>
           </div>
         )}
       </div>
@@ -233,12 +318,23 @@ export const ConcernList: React.FC<ConcernListProps> = ({
           <span>Filters & Sorting</span>
         </div>
         
+        <div id={`${listId}-description`} className="sr-only">
+          Use arrow keys to navigate concerns, Enter or Space to expand/collapse, Home/End to jump to first/last concern.
+        </div>
+        
         <div className="grid grid-cols-2 gap-2">
           {/* Status Filter */}
-          <Select value={statusFilter} onValueChange={onFilterChange}>
-            <SelectTrigger className="text-xs">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
+          <AccessibleTooltip 
+            content="Filter concerns by their current status: pending, addressed, or rejected"
+            type="help"
+          >
+            <Select value={statusFilter} onValueChange={onFilterChange}>
+              <SelectTrigger 
+                className="text-xs"
+                aria-label="Filter concerns by status"
+              >
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All status ({getStatusCount('all')})</SelectItem>
               <SelectItem value={ConcernStatus.TO_BE_DONE}>
@@ -251,13 +347,21 @@ export const ConcernList: React.FC<ConcernListProps> = ({
                 Rejected ({getStatusCount(ConcernStatus.REJECTED)})
               </SelectItem>
             </SelectContent>
-          </Select>
+            </Select>
+          </AccessibleTooltip>
 
           {/* Category Filter */}
-          <Select value={categoryFilter} onValueChange={(value) => setCategoryFilter(value as ConcernCategory | 'all')}>
-            <SelectTrigger className="text-xs">
-              <SelectValue placeholder="Category" />
-            </SelectTrigger>
+          <AccessibleTooltip 
+            content="Filter concerns by category such as clarity, structure, citations, etc."
+            type="help"
+          >
+            <Select value={categoryFilter} onValueChange={(value) => setCategoryFilter(value as ConcernCategory | 'all')}>
+              <SelectTrigger 
+                className="text-xs"
+                aria-label="Filter concerns by category"
+              >
+                <SelectValue placeholder="Category" />
+              </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All categories ({getCategoryCount('all')})</SelectItem>
               {Object.values(ConcernCategory).map(category => (
@@ -266,7 +370,8 @@ export const ConcernList: React.FC<ConcernListProps> = ({
                 </SelectItem>
               ))}
             </SelectContent>
-          </Select>
+            </Select>
+          </AccessibleTooltip>
         </div>
 
         <div className="grid grid-cols-2 gap-2">

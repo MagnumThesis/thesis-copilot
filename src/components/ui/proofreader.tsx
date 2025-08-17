@@ -17,6 +17,8 @@ import { proofreaderRecoveryService, RecoveryMode } from "@/lib/proofreader-reco
 import { proofreaderPerformanceOptimizer } from "@/lib/proofreader-performance-optimizer"
 import { proofreaderPerformanceMonitor } from "@/lib/proofreader-performance-monitor"
 import { useDebouncedStatusUpdate } from "@/hooks/use-debounced-status-update"
+import { useAccessibility, useFocusRestore, useLiveRegion } from "@/hooks/use-accessibility"
+import { AccessibleTooltip } from "@/components/ui/accessible-tooltip"
 
 interface ProofreaderProps {
   isOpen: boolean
@@ -64,6 +66,10 @@ export const Proofreader: React.FC<ProofreaderProps> = ({
   onClose, 
   currentConversation 
 }) => {
+  // Accessibility hooks
+  const { preferences, announce, getAccessibilityClasses, generateId } = useAccessibility()
+  const { saveFocus, restoreFocus } = useFocusRestore()
+  const { announce: liveAnnounce } = useLiveRegion()
   const [state, setState] = useState<ProofreaderState>({
     concerns: [],
     isAnalyzing: false,
@@ -89,11 +95,14 @@ export const Proofreader: React.FC<ProofreaderProps> = ({
   // Load existing concerns and check integration status when component mounts or when sheet opens
   useEffect(() => {
     if (isOpen) {
+      saveFocus() // Save focus for restoration when closing
       loadConcerns()
       checkIntegrationStatus()
       updateRecoveryState()
+    } else {
+      restoreFocus() // Restore focus when closing
     }
-  }, [isOpen, currentConversation.id])
+  }, [isOpen, currentConversation.id, saveFocus, restoreFocus])
 
   // Monitor recovery state changes
   useEffect(() => {
@@ -233,7 +242,9 @@ export const Proofreader: React.FC<ProofreaderProps> = ({
       setRetryCount(0)
       
       if (concerns.length > 0) {
-        toast.success(`Loaded ${concerns.length} existing concern${concerns.length === 1 ? '' : 's'}`)
+        const message = `Loaded ${concerns.length} existing concern${concerns.length === 1 ? '' : 's'}`
+        toast.success(message)
+        liveAnnounce(message)
       }
     } catch (err: any) {
       const classifiedError = proofreaderErrorHandler.classifyError(err, 'load_concerns', currentConversation.id)
@@ -452,11 +463,14 @@ export const Proofreader: React.FC<ProofreaderProps> = ({
       const cacheUsed = analysisResult.analysisMetadata?.cacheUsed;
       
       if (concernCount === 0) {
-        toast.success(fallbackUsed ? "Basic analysis completed! No concerns found." : "Analysis completed! No concerns found.");
+        const message = fallbackUsed ? "Basic analysis completed! No concerns found." : "Analysis completed! No concerns found."
+        toast.success(message);
+        liveAnnounce(message, 'assertive')
       } else {
         const message = `${fallbackUsed ? 'Basic analysis' : 'Analysis'} completed! Found ${concernCount} concern${concernCount === 1 ? '' : 's'} to review.`;
         const toastMessage = cacheUsed ? `${message} (using cached result)` : message;
         toast.success(toastMessage);
+        liveAnnounce(`Analysis complete. ${concernCount} concerns found and ready for review.`, 'assertive')
       }
       
       // Show additional info for fallback/offline analysis
@@ -589,11 +603,12 @@ export const Proofreader: React.FC<ProofreaderProps> = ({
       await debouncedStatusUpdate(concernId, status);
       
       const statusText = status.replace('_', ' ');
-      if (state.recoveryState.isOnline) {
-        toast.success(`Concern marked as ${statusText}`)
-      } else {
-        toast.success(`Concern marked as ${statusText} (will sync when online)`)
-      }
+      const message = state.recoveryState.isOnline 
+        ? `Concern marked as ${statusText}`
+        : `Concern marked as ${statusText} (will sync when online)`
+      
+      toast.success(message)
+      liveAnnounce(message)
       
     } catch (err: any) {
       const classifiedError = proofreaderErrorHandler.classifyError(err, 'status_update', currentConversation.id)
@@ -623,13 +638,26 @@ export const Proofreader: React.FC<ProofreaderProps> = ({
     setState(prev => ({ ...prev, statusFilter: filter }))
   }
 
+  // Keyboard navigation handler
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === 'Escape') {
+      onClose()
+    }
+  }
+
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
-      <SheetContent className="sm:max-w-[425px]">
+      <SheetContent 
+        className={`sm:max-w-[425px] ${getAccessibilityClasses()}`}
+        onKeyDown={handleKeyDown}
+        role="dialog"
+        aria-labelledby="proofreader-title"
+        aria-describedby="proofreader-description"
+      >
         <SheetHeader>
-          <SheetTitle>Proofreader</SheetTitle>
-          <SheetDescription>
-            AI-powered proofreading analysis for your thesis proposal
+          <SheetTitle id="proofreader-title">Proofreader</SheetTitle>
+          <SheetDescription id="proofreader-description">
+            AI-powered proofreading analysis for your thesis proposal. Use Tab to navigate, Enter to activate buttons, and Escape to close.
           </SheetDescription>
         </SheetHeader>
         

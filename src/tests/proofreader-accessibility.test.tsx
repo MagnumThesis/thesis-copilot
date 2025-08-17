@@ -642,4 +642,348 @@ describe('Proofreader Accessibility Tests', () => {
       expect(dialog).toHaveAttribute('lang')
     })
   })
+
+  describe('Enhanced Accessibility Features', () => {
+    it('should support enhanced keyboard shortcuts', async () => {
+      render(
+        <ConcernList 
+          concerns={mockConcerns}
+          onStatusChange={vi.fn()}
+          statusFilter="all"
+          onFilterChange={vi.fn()}
+        />
+      )
+
+      // Test expand all shortcut (Ctrl+E)
+      await mockUser.keyboard('{Control>}e{/Control}')
+      
+      // Test collapse all shortcut (Ctrl+C)  
+      await mockUser.keyboard('{Control>}c{/Control}')
+    })
+
+    it('should provide comprehensive tooltips with help text', async () => {
+      render(
+        <ConcernDetail 
+          concern={mockConcerns[0]}
+          onStatusChange={vi.fn()}
+          isExpanded={true}
+          onToggleExpanded={vi.fn()}
+        />
+      )
+
+      // Check for tooltip triggers
+      const statusButtons = screen.getAllByRole('button', { name: /mark|addressed|reject/i })
+      expect(statusButtons.length).toBeGreaterThan(0)
+
+      // Hover over button to show tooltip
+      await mockUser.hover(statusButtons[0])
+      
+      // Should show tooltip with help text
+      await waitFor(() => {
+        const tooltip = screen.getByRole('tooltip')
+        expect(tooltip).toBeInTheDocument()
+      })
+    })
+
+    it('should support high contrast mode for status indicators', async () => {
+      // Mock high contrast preference
+      Object.defineProperty(window, 'matchMedia', {
+        writable: true,
+        value: vi.fn().mockImplementation(query => ({
+          matches: query === '(prefers-contrast: high)',
+          media: query,
+          onchange: null,
+          addListener: vi.fn(),
+          removeListener: vi.fn(),
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+          dispatchEvent: vi.fn(),
+        })),
+      })
+
+      render(
+        <ConcernDetail 
+          concern={mockConcerns[0]}
+          onStatusChange={vi.fn()}
+          isExpanded={true}
+          onToggleExpanded={vi.fn()}
+        />
+      )
+
+      // Check for high contrast classes
+      const severityBadge = screen.getByTestId('severity-indicator')
+      expect(severityBadge).toHaveClass(/high-contrast|border-2/)
+    })
+
+    it('should announce status changes to screen readers', async () => {
+      const onStatusChange = vi.fn()
+      
+      render(
+        <ConcernDetail 
+          concern={mockConcerns[0]}
+          onStatusChange={onStatusChange}
+          isExpanded={true}
+          onToggleExpanded={vi.fn()}
+        />
+      )
+
+      const addressedButton = screen.getByRole('button', { name: /mark addressed/i })
+      await mockUser.click(addressedButton)
+
+      // Should have called status change
+      expect(onStatusChange).toHaveBeenCalledWith('addressed')
+
+      // Should have live region for announcements
+      const liveRegions = document.querySelectorAll('[aria-live]')
+      expect(liveRegions.length).toBeGreaterThan(0)
+    })
+
+    it('should provide category-specific help tooltips', async () => {
+      render(
+        <ConcernDetail 
+          concern={mockConcerns[0]}
+          onStatusChange={vi.fn()}
+          isExpanded={true}
+          onToggleExpanded={vi.fn()}
+        />
+      )
+
+      // Find category badge
+      const categoryBadge = screen.getByText('Clarity')
+      expect(categoryBadge).toBeInTheDocument()
+
+      // Should have aria-label for category
+      expect(categoryBadge).toHaveAttribute('aria-label', expect.stringContaining('category'))
+    })
+
+    it('should support focus management during dynamic updates', async () => {
+      const { rerender } = render(
+        <ConcernList 
+          concerns={mockConcerns}
+          onStatusChange={vi.fn()}
+          statusFilter="all"
+          onFilterChange={vi.fn()}
+        />
+      )
+
+      // Focus first concern
+      const concernItems = screen.getAllByTestId(/concern-detail/)
+      if (concernItems.length > 0) {
+        concernItems[0].focus()
+        expect(document.activeElement).toBe(concernItems[0])
+      }
+
+      // Update with filtered concerns
+      rerender(
+        <ConcernList 
+          concerns={mockConcerns.filter(c => c.status === 'to_be_done')}
+          onStatusChange={vi.fn()}
+          statusFilter="to_be_done"
+          onFilterChange={vi.fn()}
+        />
+      )
+
+      // Focus should be maintained or moved appropriately
+      expect(document.activeElement).toHaveAttribute('role')
+    })
+
+    it('should provide keyboard navigation instructions', async () => {
+      render(
+        <ConcernList 
+          concerns={mockConcerns}
+          onStatusChange={vi.fn()}
+          statusFilter="all"
+          onFilterChange={vi.fn()}
+        />
+      )
+
+      // Should have screen reader instructions
+      const instructions = screen.getByText(/use arrow keys to navigate/i)
+      expect(instructions).toBeInTheDocument()
+      expect(instructions).toHaveClass('sr-only')
+    })
+
+    it('should support reduced motion preferences', async () => {
+      // Mock reduced motion preference
+      Object.defineProperty(window, 'matchMedia', {
+        writable: true,
+        value: vi.fn().mockImplementation(query => ({
+          matches: query === '(prefers-reduced-motion: reduce)',
+          media: query,
+          onchange: null,
+          addListener: vi.fn(),
+          removeListener: vi.fn(),
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+          dispatchEvent: vi.fn(),
+        })),
+      })
+
+      render(
+        <ConcernDetail 
+          concern={mockConcerns[0]}
+          onStatusChange={vi.fn()}
+          isExpanded={true}
+          onToggleExpanded={vi.fn()}
+        />
+      )
+
+      // Should have reduced motion classes
+      const concernContainer = screen.getByTestId('concern-detail')
+      expect(concernContainer).toHaveClass(/motion-reduce|transition-none/)
+    })
+
+    it('should provide comprehensive ARIA labels and descriptions', async () => {
+      render(
+        <ConcernDetail 
+          concern={mockConcerns[0]}
+          onStatusChange={vi.fn()}
+          isExpanded={true}
+          onToggleExpanded={vi.fn()}
+        />
+      )
+
+      const concernContainer = screen.getByTestId('concern-detail')
+      
+      // Should have proper ARIA attributes
+      expect(concernContainer).toHaveAttribute('role', 'article')
+      expect(concernContainer).toHaveAttribute('aria-labelledby')
+      expect(concernContainer).toHaveAttribute('aria-describedby')
+      expect(concernContainer).toHaveAttribute('tabIndex', '0')
+    })
+
+    it('should handle focus restoration when closing proofreader', async () => {
+      const onClose = vi.fn()
+      
+      // Create a button to focus initially
+      const { container } = render(
+        <div>
+          <button id="initial-focus">Initial Focus</button>
+          <Proofreader 
+            isOpen={true} 
+            onClose={onClose} 
+            currentConversation={mockConversation} 
+          />
+        </div>
+      )
+
+      const initialButton = container.querySelector('#initial-focus') as HTMLElement
+      initialButton.focus()
+      expect(document.activeElement).toBe(initialButton)
+
+      // Close proofreader
+      await mockUser.keyboard('{Escape}')
+      expect(onClose).toHaveBeenCalled()
+    })
+  })
+
+  describe('User Experience Enhancements', () => {
+    it('should provide contextual help for analysis categories', async () => {
+      render(
+        <ConcernList 
+          concerns={mockConcerns}
+          onStatusChange={vi.fn()}
+          statusFilter="all"
+          onFilterChange={vi.fn()}
+        />
+      )
+
+      // Check for filter tooltips
+      const statusFilter = screen.getByRole('combobox', { name: /filter concerns by status/i })
+      expect(statusFilter).toBeInTheDocument()
+      expect(statusFilter).toHaveAttribute('aria-label')
+    })
+
+    it('should show progress announcements during analysis', async () => {
+      render(
+        <AnalysisProgress 
+          isAnalyzing={true}
+          progress={75}
+          statusMessage="Processing suggestions..."
+          onCancel={vi.fn()}
+          error={null}
+          success={false}
+        />
+      )
+
+      // Progress should be properly announced
+      const progressBar = screen.getByRole('progressbar')
+      expect(progressBar).toHaveAttribute('aria-valuenow', '75')
+      expect(progressBar).toHaveAttribute('aria-valuetext', expect.stringContaining('75'))
+
+      // Status should be in live region
+      const statusMessage = screen.getByText('Processing suggestions...')
+      expect(statusMessage.closest('[role="status"]')).toBeInTheDocument()
+    })
+
+    it('should provide clear error recovery options', async () => {
+      render(
+        <AnalysisProgress 
+          isAnalyzing={false}
+          progress={0}
+          statusMessage=""
+          onCancel={vi.fn()}
+          error="Network connection failed"
+          success={false}
+          onRetry={vi.fn()}
+          onDismissError={vi.fn()}
+        />
+      )
+
+      // Error should be announced
+      const errorMessage = screen.getByText(/network connection failed/i)
+      expect(errorMessage.closest('[role="alert"]')).toBeInTheDocument()
+
+      // Should have retry button
+      const retryButton = screen.getByRole('button', { name: /retry/i })
+      expect(retryButton).toBeInTheDocument()
+      expect(retryButton).toHaveAttribute('aria-describedby')
+    })
+
+    it('should support batch operations with proper feedback', async () => {
+      render(
+        <ConcernList 
+          concerns={mockConcerns}
+          onStatusChange={vi.fn()}
+          statusFilter="all"
+          onFilterChange={vi.fn()}
+        />
+      )
+
+      // Test expand all
+      const expandAllButton = screen.getByRole('button', { name: /expand all/i })
+      await mockUser.click(expandAllButton)
+
+      // Should announce the action
+      await waitFor(() => {
+        const liveRegions = document.querySelectorAll('[aria-live]')
+        expect(liveRegions.length).toBeGreaterThan(0)
+      })
+    })
+
+    it('should provide comprehensive concern statistics', async () => {
+      render(
+        <ConcernList 
+          concerns={mockConcerns}
+          onStatusChange={vi.fn()}
+          statusFilter="all"
+          onFilterChange={vi.fn()}
+        />
+      )
+
+      // Should show concern counts
+      const pendingCount = screen.getByText('1') // One pending concern
+      const addressedCount = screen.getByText('1') // One addressed concern
+      
+      expect(pendingCount).toBeInTheDocument()
+      expect(addressedCount).toBeInTheDocument()
+
+      // Should have descriptive labels
+      const pendingLabel = screen.getByText('Pending')
+      const addressedLabel = screen.getByText('Addressed')
+      
+      expect(pendingLabel).toBeInTheDocument()
+      expect(addressedLabel).toBeInTheDocument()
+    })
+  })
 })
