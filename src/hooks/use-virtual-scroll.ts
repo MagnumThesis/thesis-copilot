@@ -312,7 +312,8 @@ export function useInfiniteVirtualScroll<T>(
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   
   const virtualScrollResult = useVirtualScroll(items, virtualScrollOptions);
-  const { scrollTop, totalHeight, containerHeight } = virtualScrollResult;
+  const { scrollTop, totalHeight } = virtualScrollResult;
+  const { containerHeight } = virtualScrollOptions;
 
   // Check if we need to load more items
   useEffect(() => {

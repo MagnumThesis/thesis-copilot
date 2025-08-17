@@ -228,6 +228,11 @@ export interface AnalysisMetadata {
   analysisTime: number;
   contentLength: number;
   ideaDefinitionsUsed: number;
+  fallbackUsed?: boolean;
+  cacheUsed?: boolean;
+  cacheTimestamp?: number;
+  offlineMode?: boolean;
+  errorType?: string;
 }
 
 // Proofreader analysis response interface

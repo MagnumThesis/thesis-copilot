@@ -2,7 +2,7 @@ import { Context } from "hono";
 import { getSupabase, SupabaseEnv } from "../lib/supabase";
 import { Env } from "../types/env";
 import { getGoogleGenerativeAIKey } from "../lib/api-keys";
-import { ConcernAnalysisEngineImpl } from "../lib/concern-analysis-engine";
+import { createConcernAnalysisEngine } from "../lib/concern-analysis-engine";
 import { 
   ProofreaderAnalysisRequest,
   ProofreaderAnalysisResponse,
@@ -169,12 +169,12 @@ export async function proofreaderAnalysisHandler(
     }
     
     // Initialize concern analysis engine
-    const analysisEngine = new ConcernAnalysisEngineImpl(apiKey);
+    const analysisEngine = createConcernAnalysisEngine(apiKey);
     
     // Perform content analysis
     let concerns: ProofreadingConcern[];
     try {
-      concerns = await analysisEngine.analyzeContent(documentContent, ideaDefinitions, conversationId);
+      concerns = await analysisEngine.analyzeContent(documentContent, conversationId);
     } catch (error) {
       console.error('Content analysis failed:', error);
       const processingTime = Date.now() - startTime;

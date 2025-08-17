@@ -8,6 +8,8 @@
 import { 
   ProofreadingConcern, 
   ConcernStatus, 
+  ConcernCategory,
+  ConcernSeverity,
   ProofreaderAnalysisRequest,
   ProofreaderAnalysisResponse 
 } from './ai-types';
@@ -285,7 +287,27 @@ export class ProofreaderRecoveryService {
       return {
         ...cachedResult,
         analysisMetadata: {
-          ...cachedResult.analysisMetadata,
+          totalConcerns: cachedResult.analysisMetadata?.totalConcerns || 0,
+          concernsByCategory: cachedResult.analysisMetadata?.concernsByCategory || {
+            [ConcernCategory.CLARITY]: 0,
+            [ConcernCategory.COHERENCE]: 0,
+            [ConcernCategory.STRUCTURE]: 0,
+            [ConcernCategory.ACADEMIC_STYLE]: 0,
+            [ConcernCategory.CITATIONS]: 0,
+            [ConcernCategory.TERMINOLOGY]: 0,
+            [ConcernCategory.COMPLETENESS]: 0,
+            [ConcernCategory.GRAMMAR]: 0,
+            [ConcernCategory.CONSISTENCY]: 0
+          },
+          concernsBySeverity: cachedResult.analysisMetadata?.concernsBySeverity || {
+            [ConcernSeverity.LOW]: 0,
+            [ConcernSeverity.MEDIUM]: 0,
+            [ConcernSeverity.HIGH]: 0,
+            [ConcernSeverity.CRITICAL]: 0
+          },
+          analysisTime: cachedResult.analysisMetadata?.analysisTime || 0,
+          contentLength: cachedResult.analysisMetadata?.contentLength || 0,
+          ideaDefinitionsUsed: cachedResult.analysisMetadata?.ideaDefinitionsUsed || 0,
           fallbackUsed: true,
           cacheUsed: true
         }
@@ -303,8 +325,23 @@ export class ProofreaderRecoveryService {
         error: 'Analysis service is temporarily unavailable. Please try again later.',
         analysisMetadata: {
           totalConcerns: 0,
-          concernsByCategory: {},
-          concernsBySeverity: {},
+          concernsByCategory: {
+            [ConcernCategory.CLARITY]: 0,
+            [ConcernCategory.COHERENCE]: 0,
+            [ConcernCategory.STRUCTURE]: 0,
+            [ConcernCategory.ACADEMIC_STYLE]: 0,
+            [ConcernCategory.CITATIONS]: 0,
+            [ConcernCategory.TERMINOLOGY]: 0,
+            [ConcernCategory.COMPLETENESS]: 0,
+            [ConcernCategory.GRAMMAR]: 0,
+            [ConcernCategory.CONSISTENCY]: 0
+          },
+          concernsBySeverity: {
+            [ConcernSeverity.LOW]: 0,
+            [ConcernSeverity.MEDIUM]: 0,
+            [ConcernSeverity.HIGH]: 0,
+            [ConcernSeverity.CRITICAL]: 0
+          },
           analysisTime: 0,
           contentLength: request.documentContent.length,
           ideaDefinitionsUsed: request.ideaDefinitions?.length || 0,

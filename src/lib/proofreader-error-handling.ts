@@ -133,7 +133,7 @@ export class ProofreaderErrorHandler {
     let proofreaderError: ProofreaderError;
 
     if (error instanceof Error) {
-      proofreaderError = this.classifyKnownError(error, operation, conversationId, timestamp);
+      proofreaderError = this.classifyKnownError(error, operation, timestamp, conversationId);
     } else if (typeof error === 'string') {
       proofreaderError = {
         type: ErrorType.UNKNOWN_ERROR,
@@ -173,8 +173,8 @@ export class ProofreaderErrorHandler {
   private classifyKnownError(
     error: Error,
     operation: string,
-    conversationId?: string,
-    timestamp: Date
+    timestamp: Date,
+    conversationId?: string
   ): ProofreaderError {
     const message = error.message.toLowerCase();
 
@@ -722,6 +722,9 @@ export class ProofreaderErrorHandler {
       [ErrorType.AI_SERVICE_ERROR]: 3000,
       [ErrorType.DATABASE_ERROR]: 1500,
       [ErrorType.RATE_LIMIT_ERROR]: 5000,
+      [ErrorType.VALIDATION_ERROR]: 1000,
+      [ErrorType.AUTHENTICATION_ERROR]: 2000,
+      [ErrorType.CONTENT_ERROR]: 1000,
       [ErrorType.UNKNOWN_ERROR]: 2000
     };
 

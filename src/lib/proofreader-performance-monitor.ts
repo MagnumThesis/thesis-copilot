@@ -291,11 +291,27 @@ export class ProofreaderPerformanceMonitor {
 export const proofreaderPerformanceMonitor = new ProofreaderPerformanceMonitor();
 
 // Development helper to enable/disable monitoring based on environment
-if (typeof window !== 'undefined') {
+if (typeof globalThis !== 'undefined') {
   // Enable monitoring in development
   const isDevelopment = process.env.NODE_ENV === 'development';
   proofreaderPerformanceMonitor.setEnabled(isDevelopment);
   
-  // Add global access for debugging
-  (window as any).proofreaderPerformance = proofreaderPerformanceMonitor;
+  // Add global access for debugging (works in both browser and worker)
+  try {
+    const globalObj = (() => {
+      try {
+        // Check if we're in a browser environment
+        if (typeof globalThis !== 'undefined' && globalThis && 'window' in globalThis) {
+          return (globalThis as any).window;
+        }
+        // Fallback to globalThis
+        return globalThis;
+      } catch {
+        return {};
+      }
+    })();
+    (globalObj as any).proofreaderPerformance = proofreaderPerformanceMonitor;
+  } catch {
+    // Ignore errors in environments where global assignment fails
+  }
 }

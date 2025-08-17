@@ -6,6 +6,8 @@
 import { 
   ProofreadingConcern, 
   ConcernStatus, 
+  ConcernCategory,
+  ConcernSeverity,
   ProofreaderAnalysisRequest,
   ProofreaderAnalysisResponse,
   AnalysisMetadata
@@ -181,7 +183,27 @@ export class ProofreaderPerformanceOptimizer {
     const cachedResponse: ProofreaderAnalysisResponse = {
       ...entry.response,
       analysisMetadata: {
-        ...entry.response.analysisMetadata,
+        totalConcerns: entry.response.analysisMetadata?.totalConcerns || 0,
+        concernsByCategory: entry.response.analysisMetadata?.concernsByCategory || {
+          [ConcernCategory.CLARITY]: 0,
+          [ConcernCategory.COHERENCE]: 0,
+          [ConcernCategory.STRUCTURE]: 0,
+          [ConcernCategory.ACADEMIC_STYLE]: 0,
+          [ConcernCategory.CITATIONS]: 0,
+          [ConcernCategory.TERMINOLOGY]: 0,
+          [ConcernCategory.COMPLETENESS]: 0,
+          [ConcernCategory.GRAMMAR]: 0,
+          [ConcernCategory.CONSISTENCY]: 0
+        },
+        concernsBySeverity: entry.response.analysisMetadata?.concernsBySeverity || {
+          [ConcernSeverity.LOW]: 0,
+          [ConcernSeverity.MEDIUM]: 0,
+          [ConcernSeverity.HIGH]: 0,
+          [ConcernSeverity.CRITICAL]: 0
+        },
+        analysisTime: entry.response.analysisMetadata?.analysisTime || 0,
+        contentLength: entry.response.analysisMetadata?.contentLength || 0,
+        ideaDefinitionsUsed: entry.response.analysisMetadata?.ideaDefinitionsUsed || 0,
         cacheUsed: true,
         cacheTimestamp: entry.timestamp
       }
@@ -260,9 +282,9 @@ export class ProofreaderPerformanceOptimizer {
       ...request.analysisOptions,
       // Focus on most important categories for faster processing
       categories: request.analysisOptions?.categories || [
-        'CLARITY', 'COHERENCE', 'STRUCTURE', 'ACADEMIC_STYLE'
+        ConcernCategory.CLARITY, ConcernCategory.COHERENCE, ConcernCategory.STRUCTURE, ConcernCategory.ACADEMIC_STYLE
       ],
-      minSeverity: request.analysisOptions?.minSeverity || 'medium'
+      minSeverity: request.analysisOptions?.minSeverity || ConcernSeverity.MEDIUM
     };
 
     return optimizedRequest;
