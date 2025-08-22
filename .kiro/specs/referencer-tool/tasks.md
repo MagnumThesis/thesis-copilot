@@ -178,58 +178,106 @@
   - ✅ Build process completed successfully with no TypeScript errors
   - _Requirements: 1.1, 4.1, 6.1_
 
-- [ ] 9. Implement citation insertion integration
-- [ ] 9.1 Create citation insertion functionality
+- [x] 9. Implement citation insertion integration
+- [x] 9.1 Create citation insertion functionality ✅
 
-  - Implement text selection detection for citation insertion
-  - Create citation insertion into Builder tool content
-  - Add citation tracking in document
-  - Implement citation update when references change
-  - Write integration tests for citation insertion
+  - ✅ Implement text selection detection for citation insertion
+  - ✅ Create citation insertion into Builder tool content
+  - ✅ Add citation tracking in document
+  - ✅ Implement citation update when references change
+  - ✅ Write integration tests for citation insertion
   - _Requirements: 1.1, 1.4, 4.2, 6.4_
 
-- [ ] 9.2 Add bibliography insertion to Builder tool
+- [x] 9.2 Add bibliography insertion to Builder tool ✅
 
-  - Create bibliography insertion at cursor position
-  - Implement automatic bibliography updates
-  - Add bibliography formatting preservation
-  - Create bibliography regeneration on style changes
-  - Write integration tests for bibliography insertion
+  - ✅ Create bibliography insertion at cursor position
+  - ✅ Implement automatic bibliography updates
+  - ✅ Add bibliography formatting preservation
+  - ✅ Create bibliography regeneration on style changes
+  - ✅ Write integration tests for bibliography insertion
   - _Requirements: 1.4, 3.3, 4.1_
 
-- [ ] 10. Implement advanced features and polish
-- [ ] 10.1 Add reference validation and checking
+- [x] 10. Implement advanced features and polish
+- [x] 10.1 Add reference validation and checking ✅
 
-  - Implement reference completeness validation
-  - Create broken URL and invalid DOI detection
-  - Add orphaned citation detection and warnings
-  - Implement reference quality scoring
-  - Write unit tests for validation features
+  - ✅ Implement reference completeness validation
+  - ✅ Create broken URL and invalid DOI detection
+  - ✅ Add orphaned citation detection and warnings
+  - ✅ Implement reference quality scoring
+  - ✅ Write unit tests for validation features
   - _Requirements: 5.1, 5.2, 5.3, 5.4_
 
-- [ ] 10.2 Create export and sharing functionality
+- [x] 10.2 Create export and sharing functionality ✅
 
-  - Implement bibliography export in multiple formats
-  - Add reference sharing between conversations
-  - Create reference import from external files
-  - Implement reference backup and restore
-  - Write integration tests for export/import features
+  - ✅ Implement bibliography export in multiple formats
+  - ✅ Add reference sharing between conversations
+  - ✅ Create reference import from external files
+  - ✅ Implement reference backup and restore
+  - ✅ Write integration tests for export/import features
   - _Requirements: 4.1, 4.2, 6.6_
 
-- [ ] 11. Add error handling and performance optimization
-- [ ] 11.1 Implement comprehensive error handling
+- [x] 11. Add error handling and performance optimization
+- [x] 11.1 Implement comprehensive error handling ✅
 
-  - Add error boundaries for referencer components
-  - Implement retry logic for metadata extraction
-  - Create graceful degradation for offline mode
-  - Add user-friendly error messages and recovery
-  - Write error handling tests
+  - ✅ Add error boundaries for referencer components
+  - ✅ Implement retry logic for metadata extraction
+  - ✅ Create graceful degradation for offline mode
+  - ✅ Add user-friendly error messages and recovery
+  - ✅ Write error handling tests
   - _Requirements: 2.3, 5.2_
 
-- [ ] 11.2 Optimize performance and user experience
-  - Implement caching for formatted citations
-  - Add debounced search and filtering
-  - Create loading states and progress indicators
-  - Optimize database queries and API calls
-  - Write performance tests and benchmarks
+- [x] 11.2 Optimize performance and user experience ✅
+
+  - ✅ Implement caching for formatted citations
+  - ✅ Add debounced search and filtering
+  - ✅ Create loading states and progress indicators
+  - ✅ Optimize database queries and API calls
+  - ✅ Write performance tests and benchmarks
   - _Requirements: 6.5, 3.1, 3.2_
+
+- [ ] 12. AI-Powered Reference Searcher
+
+- [ ] 12.1 Create content extraction engine
+
+  - Implement content extractor for Ideas tool data
+  - Implement content extractor for Builder tool content
+  - Create text preprocessing and keyword extraction
+  - Handle different content formats and structures
+  - Write unit tests for content extraction
+  - _Requirements: 7.1, 7.2_
+
+- [ ] 12.2 Implement Google Scholar search integration
+
+  - Create Google Scholar search API client
+  - Implement search query generation from extracted content
+  - Add rate limiting and request throttling
+  - Handle search result parsing and filtering
+  - Write unit tests for search integration
+  - _Requirements: 7.3, 7.4_
+
+- [ ] 12.3 Build reference suggestion engine
+
+  - Create reference suggestion scoring algorithm
+  - Implement relevance ranking based on content similarity
+  - Add duplicate detection for existing references
+  - Create confidence scoring for suggestions
+  - Write unit tests for suggestion engine
+  - _Requirements: 7.5, 7.6_
+
+- [ ] 12.4 Create AI Searcher frontend component
+
+  - Implement AI Searcher tab in referencer tool
+  - Create content selection interface (Ideas/Builder)
+  - Add search progress indicators and results display
+  - Implement reference suggestion acceptance/rejection
+  - Write component unit tests
+  - _Requirements: 7.1, 7.2, 7.7_
+
+- [ ] 12.5 Add search history and analytics
+
+  - Implement search query history storage
+  - Create search analytics and usage tracking
+  - Add search result caching for performance
+  - Implement privacy controls for search data
+  - Write integration tests for search features
+  - _Requirements: 7.8, 7.9_

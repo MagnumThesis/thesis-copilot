@@ -1,147 +1,286 @@
 # Implementation Plan
 
-## [Overview]
-Implement a comprehensive BibliographyGenerator component for the referencer tool that provides users with bibliography generation, sorting options, and export functionality. This component will serve as the primary interface for generating formatted bibliographies from reference collections and inserting them into documents.
+Implement AI-powered reference discovery system that extracts content from Ideas and Builder tools, searches Google Scholar for relevant academic papers, and suggests references to users.
 
-The component will integrate with the existing CitationStyleEngine.generateBibliography method and provide additional features like export to multiple formats (BibTeX, RIS), bibliography sorting, and seamless document insertion.
+## Overview
 
-## [Types]
-### BibliographyGeneratorProps Interface
+The AI Searcher feature will enhance the existing Referencer tool by providing intelligent academic paper discovery based on user's research content. The system will analyze content from Ideas and Builder tools, generate optimized search queries, fetch results from Google Scholar, and present ranked reference suggestions to users.
+
+## Types
+
+New type definitions for AI Searcher functionality:
+
 ```typescript
-interface BibliographyGeneratorProps {
-  references: Reference[];
-  selectedStyle: CitationStyle;
-  onStyleChange: (style: CitationStyle) => void;
-  onBibliographyInsert?: (bibliography: string) => Promise<boolean>;
-  onExport?: (format: ExportFormat, content: string) => Promise<boolean>;
-  className?: string;
-  compact?: boolean;
-  showExportOptions?: boolean;
-  autoGenerate?: boolean;
-  maxReferences?: number;
-}
-```
-
-### BibliographyOptions Interface
-```typescript
-interface BibliographyOptions {
-  sortOrder: 'alphabetical' | 'chronological' | 'appearance';
-  includeUrls: boolean;
-  includeDOIs: boolean;
-  lineSpacing: 'single' | 'double';
-  hangingIndent: boolean;
-}
-```
-
-### ExportFormat Enum
-```typescript
-enum ExportFormat {
-  BIBTEX = 'bibtex',
-  RIS = 'ris',
-  ENDNOTE = 'endnote',
-  ZOTERO = 'zotero',
-  PLAIN_TEXT = 'plain_text'
-}
-```
-
-### BibliographyPreviewData Interface
-```typescript
-interface BibliographyPreviewData {
+// Content extraction types
+interface ExtractedContent {
+  source: 'ideas' | 'builder';
   content: string;
-  referenceCount: number;
-  wordCount: number;
-  estimatedReadingTime: number;
-  exportFormats: Record<ExportFormat, string>;
+  keywords: string[];
+  keyPhrases: string[];
+  topics: string[];
+  confidence: number;
+}
+
+// Google Scholar search types
+interface ScholarSearchQuery {
+  query: string;
+  filters: {
+    yearRange?: [number, number];
+    citationCount?: number;
+    language?: string;
+  };
+}
+
+interface ScholarSearchResult {
+  title: string;
+  authors: string[];
+  journal?: string;
+  year?: number;
+  citations?: number;
+  url: string;
+  doi?: string;
+  abstract?: string;
+  fullTextUrl?: string;
+}
+
+// Reference suggestion types
+interface ReferenceSuggestion {
+  id: string;
+  reference: ReferenceMetadata;
+  relevanceScore: number;
+  confidence: number;
+  source: string;
+  searchQuery: string;
+  isDuplicate: boolean;
+  reasoning: string;
+}
+
+interface SuggestionRanking {
+  relevance: number;
+  recency: number;
+  citations: number;
+  authorAuthority: number;
+  overall: number;
+}
+
+// Search history and analytics types
+interface SearchHistoryItem {
+  id: string;
+  timestamp: Date;
+  query: string;
+  sources: ('ideas' | 'builder')[];
+  results: {
+    total: number;
+    accepted: number;
+    rejected: number;
+  };
+  userId: string;
+}
+
+interface SearchAnalytics {
+  totalSearches: number;
+  successRate: number;
+  popularTopics: string[];
+  averageResults: number;
+  topSources: ('ideas' | 'builder')[];
 }
 ```
 
-## [Files]
+## Files
+
 ### New Files to Create
-- `src/components/ui/bibliography-generator.tsx` - Main bibliography generator component
-- `src/components/ui/bibliography-preview.tsx` - Component for displaying bibliography preview
-- `src/components/ui/bibliography-controls.tsx` - Component for sorting and formatting options
-- `src/components/ui/export-options.tsx` - Component for export format selection
-- `src/hooks/useBibliographyGenerator.ts` - Custom hook for bibliography generation logic
-- `src/utils/export-formatters.ts` - Utility functions for different export formats
-- `src/tests/bibliography-generator.test.tsx` - Unit tests for the main component
-- `src/tests/bibliography-preview.test.tsx` - Unit tests for bibliography preview
-- `src/tests/export-formatters.test.ts` - Unit tests for export formatters
 
-### Existing Files to Modify
-- None identified at this stage
+1. **Backend Components:**
+   - `src/worker/lib/content-extraction-engine.ts` - Extract and analyze content from Ideas/Builder
+   - `src/worker/lib/google-scholar-client.ts` - Google Scholar API integration
+   - `src/worker/lib/reference-suggestion-engine.ts` - Rank and score suggestions
+   - `src/worker/lib/search-history-manager.ts` - Manage search analytics
+   - `src/worker/handlers/ai-searcher-api.ts` - API endpoints for AI searcher
 
-## [Functions]
-### New Functions
-- `generateBibliography(references: Reference[], style: CitationStyle, options: BibliographyOptions): string` - Main bibliography generation function
-- `exportBibliography(content: string, format: ExportFormat): string` - Export format conversion
-- `validateBibliographyReferences(references: Reference[]): ValidationResult` - Bibliography-specific validation
-- `calculateBibliographyStats(references: Reference[], content: string): BibliographyStats` - Statistics calculation
-- `applyBibliographyFormatting(content: string, options: BibliographyOptions): string` - Apply formatting options
-- `sortReferences(references: Reference[], sortOrder: BibliographySortOrder): Reference[]` - Reference sorting logic
-- `generateExportFilename(style: CitationStyle, format: ExportFormat): string` - Generate export filename
+2. **Frontend Components:**
+   - `src/components/ui/ai-searcher.tsx` - Main AI searcher interface
+   - `src/components/ui/content-selector.tsx` - Select Ideas/Builder content
+   - `src/components/ui/search-results.tsx` - Display search results
+   - `src/components/ui/suggestion-item.tsx` - Individual suggestion display
+   - `src/components/ui/search-history.tsx` - View search history
 
-### Modified Functions
-- None identified at this stage
+3. **Utilities and Hooks:**
+   - `src/hooks/useContentExtraction.ts` - Hook for content extraction
+   - `src/hooks/useScholarSearch.ts` - Hook for search operations
+   - `src/utils/text-analysis.ts` - Text analysis utilities
+   - `src/utils/scholar-parser.ts` - Parse Google Scholar results
 
-### Removed Functions
-- None identified at this stage
+### Files to Modify
 
-## [Classes]
-### New Classes
-- `BibliographyGenerator` - Main React component class
-- `BibliographyPreview` - Bibliography preview display component
-- `BibliographyControls` - Controls and options component
-- `ExportOptions` - Export format selection component
+1. **Existing Referencer Component:**
+   - `src/components/ui/referencer.tsx` - Add AI Searcher tab
 
-### Modified Classes
-- None identified at this stage
+2. **Type Definitions:**
+   - `src/lib/ai-types.ts` - Add AI searcher types
 
-### Removed Classes
-- None identified at this stage
+3. **API Integration:**
+   - `src/worker/index.ts` - Register new API endpoints
 
-## [Dependencies]
-### New Dependencies
-- None - All required dependencies (CitationStyleEngine, UI components) already exist
+## Functions
 
-### Version Changes
-- No version changes required
+### New Functions to Implement
 
-### Integration Requirements
-- Integration with existing CitationStyleEngine.generateBibliography method
-- Integration with existing UI components (Button, Select, Card, Badge, etc.)
-- Integration with document editor for bibliography insertion
-- Integration with file system APIs for export functionality
-- Integration with clipboard API for copy functionality
+1. **Content Extraction Engine:**
+   - `extractFromIdeas(ideaId: string): Promise<ExtractedContent>`
+   - `extractFromBuilder(builderId: string): Promise<ExtractedContent>`
+   - `analyzeText(content: string): TextAnalysis`
+   - `extractKeywords(text: string): string[]`
+   - `generateSearchQuery(content: ExtractedContent): ScholarSearchQuery`
 
-## [Testing]
-### Test Categories
-1. **Unit Tests** - Individual component functionality
-2. **Integration Tests** - Component interaction and CitationStyleEngine integration
-3. **Export Tests** - Testing different export format generation
-4. **Sorting Tests** - Testing bibliography sorting functionality
-5. **User Interaction Tests** - Style selection, preview updates, bibliography insertion
-6. **Accessibility Tests** - Keyboard navigation, screen reader support
-7. **Error Handling Tests** - Invalid references, export failures, validation failures
+2. **Google Scholar Client:**
+   - `searchScholar(query: ScholarSearchQuery): Promise<ScholarSearchResult[]>`
+   - `parseSearchResults(html: string): ScholarSearchResult[]`
+   - `rateLimitDelay(): Promise<void>`
+   - `handleSearchErrors(error: Error): SearchError`
 
-### Test Coverage Requirements
-- Component rendering with different props
-- Bibliography generation for all citation styles
-- Sorting functionality (alphabetical, chronological, appearance)
-- Export format generation (BibTeX, RIS, etc.)
-- Bibliography insertion into document
-- Error handling and validation
-- Loading states and edge cases
-- Performance with large reference lists
-- Accessibility compliance
+3. **Reference Suggestion Engine:**
+   - `generateSuggestions(results: ScholarSearchResult[], originalContent: string): ReferenceSuggestion[]`
+   - `calculateRelevanceScore(result: ScholarSearchResult, content: string): number`
+   - `detectDuplicates(suggestions: ReferenceSuggestion[]): ReferenceSuggestion[]`
+   - `rankSuggestions(suggestions: ReferenceSuggestion[]): ReferenceSuggestion[]`
 
-## [Implementation Order]
-1. **Create export formatters utility** - Functions for different export formats
-2. **Create useBibliographyGenerator hook** - Core logic for bibliography generation
-3. **Create BibliographyControls component** - Sorting and formatting controls
-4. **Create ExportOptions component** - Export format selection
-5. **Create BibliographyPreview component** - Bibliography preview display
-6. **Create main BibliographyGenerator component** - Main component integration
-7. **Create comprehensive unit tests** - Test all components and functionality
-8. **Integration testing** - Test with CitationStyleEngine and document editor
-9. **Performance optimization** - Optimize rendering for large bibliographies
-10. **Documentation** - Add component documentation and usage examples
+4. **Search History Manager:**
+   - `recordSearch(searchData: SearchHistoryItem): Promise<void>`
+   - `getSearchHistory(userId: string): Promise<SearchHistoryItem[]>`
+   - `getAnalytics(userId: string): Promise<SearchAnalytics>`
+   - `clearHistory(userId: string): Promise<void>`
+
+5. **Frontend Components:**
+   - `AISearcher.handleSearch()` - Initiate search process
+   - `ContentSelector.selectContent()` - Choose content sources
+   - `SearchResults.renderSuggestions()` - Display ranked results
+   - `SuggestionItem.acceptSuggestion()` - Add to references
+
+## Classes
+
+### New Classes to Implement
+
+1. **ContentExtractionEngine:**
+   ```typescript
+   class ContentExtractionEngine {
+     constructor(private ideaApi: IdeaApi, private builderApi: BuilderApi)
+     async extractContent(source: 'ideas' | 'builder', id: string): Promise<ExtractedContent>
+     private analyzeContent(content: string): TextAnalysis
+     private extractKeyPhrases(text: string): string[]
+   }
+   ```
+
+2. **GoogleScholarClient:**
+   ```typescript
+   class GoogleScholarClient {
+     constructor(private baseUrl: string, private rateLimiter: RateLimiter)
+     async search(query: ScholarSearchQuery): Promise<ScholarSearchResult[]>
+     private buildSearchUrl(query: ScholarSearchQuery): string
+     private parseResults(html: string): ScholarSearchResult[]
+   }
+   ```
+
+3. **ReferenceSuggestionEngine:**
+   ```typescript
+   class ReferenceSuggestionEngine {
+     constructor(private similarity: TextSimilarity)
+     generateSuggestions(searchResults: ScholarSearchResult[], content: string): ReferenceSuggestion[]
+     private calculateSimilarity(text1: string, text2: string): number
+     private scoreResult(result: ScholarSearchResult, content: string): SuggestionRanking
+   }
+   ```
+
+## Dependencies
+
+### New Package Dependencies
+
+1. **Text Analysis:**
+   - `natural` - Natural language processing
+   - `node-nlp` - NLP utilities
+   - `sentiment` - Text analysis
+
+2. **Web Scraping:**
+   - `cheerio` - HTML parsing
+   - `puppeteer` - Headless browser for Google Scholar
+   - `got` - HTTP requests
+
+3. **Similarity Analysis:**
+   - `string-similarity` - Text similarity comparison
+   - `jaccard` - Jaccard similarity coefficient
+
+4. **Rate Limiting:**
+   - `bottleneck` - Rate limiting library
+
+### Existing Dependencies to Extend
+
+1. **UI Components:**
+   - Extend existing Shadcn components for new UI elements
+   - Reuse existing modal and form components
+
+2. **State Management:**
+   - Integrate with existing conversation context
+   - Use existing localStorage patterns
+
+## Testing
+
+### Unit Tests
+
+1. **Content Extraction:**
+   - Test text analysis and keyword extraction
+   - Test content parsing from different sources
+   - Test search query generation
+
+2. **Google Scholar Integration:**
+   - Test API request formatting
+   - Test result parsing
+   - Test error handling and rate limiting
+
+3. **Suggestion Engine:**
+   - Test relevance scoring algorithms
+   - Test duplicate detection
+   - Test ranking logic
+
+4. **Frontend Components:**
+   - Test search interface interactions
+   - Test result display and filtering
+   - Test suggestion acceptance/rejection
+
+### Integration Tests
+
+1. **End-to-End Search Flow:**
+   - Test complete search workflow from content to suggestions
+   - Test integration with existing reference system
+   - Test error scenarios and recovery
+
+2. **API Integration:**
+   - Test API endpoint functionality
+   - Test data persistence and retrieval
+   - Test cross-component communication
+
+## Implementation Order
+
+1. **Setup Foundation (Week 1):**
+   - Create type definitions and interfaces
+   - Set up project structure and dependencies
+   - Implement basic content extraction utilities
+
+2. **Backend Core (Week 2):**
+   - Implement ContentExtractionEngine
+   - Create Google Scholar client
+   - Build reference suggestion engine
+
+3. **API Layer (Week 3):**
+   - Create API handlers for search operations
+   - Implement search history management
+   - Add error handling and validation
+
+4. **Frontend Components (Week 4):**
+   - Build AI Searcher main component
+   - Create content selection interface
+   - Implement search results display
+
+5. **Integration and Polish (Week 5):**
+   - Integrate with existing Referencer tool
+   - Add search history and analytics
+   - Implement responsive design and accessibility
+   - Add comprehensive testing and documentation

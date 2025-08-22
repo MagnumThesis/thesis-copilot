@@ -566,3 +566,117 @@ export interface ReferenceListResponse {
   statistics?: ReferenceStatistics;
   error?: string;
 }
+
+// ============================================================================
+// AI SEARCHER TOOL TYPES AND INTERFACES
+// ============================================================================
+
+// Content extraction types
+export interface ExtractedContent {
+  source: 'ideas' | 'builder';
+  content: string;
+  keywords: string[];
+  keyPhrases: string[];
+  topics: string[];
+  confidence: number;
+}
+
+// Google Scholar search types
+export interface ScholarSearchQuery {
+  query: string;
+  filters: {
+    yearRange?: [number, number];
+    citationCount?: number;
+    language?: string;
+  };
+}
+
+export interface ScholarSearchResult {
+  title: string;
+  authors: string[];
+  journal?: string;
+  year?: number;
+  citations?: number;
+  url: string;
+  doi?: string;
+  abstract?: string;
+  fullTextUrl?: string;
+}
+
+// Reference suggestion types
+export interface ReferenceSuggestion {
+  id: string;
+  reference: ReferenceMetadata;
+  relevanceScore: number;
+  confidence: number;
+  source: string;
+  searchQuery: string;
+  isDuplicate: boolean;
+  reasoning: string;
+}
+
+export interface SuggestionRanking {
+  relevance: number;
+  recency: number;
+  citations: number;
+  authorAuthority: number;
+  overall: number;
+}
+
+// Search history and analytics types
+export interface SearchHistoryItem {
+  id: string;
+  timestamp: Date;
+  query: string;
+  sources: ('ideas' | 'builder')[];
+  results: {
+    total: number;
+    accepted: number;
+    rejected: number;
+  };
+  userId: string;
+}
+
+export interface SearchAnalytics {
+  totalSearches: number;
+  successRate: number;
+  popularTopics: string[];
+  averageResults: number;
+  topSources: ('ideas' | 'builder')[];
+}
+
+// Content extraction request interface
+export interface ContentExtractionRequest {
+  source: 'ideas' | 'builder';
+  id: string;
+  conversationId: string;
+}
+
+// Content extraction response interface
+export interface ContentExtractionResponse {
+  success: boolean;
+  extractedContent?: ExtractedContent;
+  error?: string;
+  extractionTime: number;
+}
+
+// AI Searcher request interface
+export interface AISearcherRequest {
+  conversationId: string;
+  contentSources: {
+    ideas?: string[];
+    builder?: string[];
+  };
+  searchFilters?: ScholarSearchQuery['filters'];
+  maxResults?: number;
+}
+
+// AI Searcher response interface
+export interface AISearcherResponse {
+  success: boolean;
+  suggestions?: ReferenceSuggestion[];
+  searchAnalytics?: SearchAnalytics;
+  error?: string;
+  searchTime: number;
+  totalResults: number;
+}

@@ -17,43 +17,57 @@ graph TB
         CF[Citation Formatter]
         RF[Reference Form]
         BG[Bibliography Generator]
+        AS[AI Searcher Component]
     end
-    
+
     subgraph "Reference Management Layer"
         RMH[Reference Manager Handler]
         CMH[Citation Manager Handler]
         MDE[Metadata Extraction Engine]
         CSE[Citation Style Engine]
+        CEE[Content Extraction Engine]
+        SSE[Search Suggestion Engine]
     end
-    
+
     subgraph "Backend (Hono Worker)"
         RAH[Referencer API Handler]
         RME[Reference Management Engine]
         DB[(Supabase DB)]
     end
-    
+
     subgraph "External Services"
         DOI[DOI Resolution Service]
         URL[URL Metadata Service]
         CSL[Citation Style Language]
+        GS[Google Scholar Search]
     end
-    
+
     RT --> RMH
+    RT --> AS
     RL --> RMH
     RD --> RMH
     CF --> CMH
     RF --> RMH
     BG --> CMH
+    AS --> CEE
+    AS --> SSE
+
     RMH --> RAH
     CMH --> RAH
+    CEE --> RAH
+    SSE --> RAH
+
     RAH --> RME
     RAH --> DB
     MDE --> DOI
     MDE --> URL
     CSE --> CSL
-    
+    SSE --> GS
+
     RME --> MDE
     RME --> CSE
+    CEE --> RME
+    SSE --> RME
 ```
 
 ### Component Interaction Flow
@@ -588,6 +602,7 @@ gration Points
 2. **URL Metadata**: Open Graph and Dublin Core metadata extraction
 3. **Citation Styles**: Citation Style Language (CSL) for formatting
 4. **Export Formats**: Standard bibliography export formats
+5. **Google Scholar Search**: Academic paper search and metadata extraction
 
 ## Performance Considerations
 
