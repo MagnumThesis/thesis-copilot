@@ -358,6 +358,7 @@ export interface SearchAnalytics {
   averageResults?: number;
   popular_sources: string[];
   popularTopics?: string[];
+  topSources?: string[];
   search_frequency: Record<string, number>;
   successRate?: number;
   period: {

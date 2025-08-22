@@ -1,4 +1,4 @@
-import { SearchHistoryItem, SearchAnalytics } from '../../lib/ai-types';
+import { SearchHistoryItem, SearchAnalytics, safeDate } from '../../lib/ai-types';
 
 /**
  * Search History Manager
@@ -32,6 +32,10 @@ export class SearchHistoryManager {
     };
 
     const userId = searchData.userId;
+    if (!userId) {
+      throw new Error('User ID is required for search recording');
+    }
+
     if (!this.history.has(userId)) {
       this.history.set(userId, []);
     }
@@ -50,7 +54,11 @@ export class SearchHistoryManager {
   async getSearchHistory(userId: string, limit: number = 50): Promise<SearchHistoryItem[]> {
     const userHistory = this.history.get(userId) || [];
     return userHistory
-      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+      .sort((a, b) => {
+        const aTime = safeDate(a.timestamp)?.getTime() ?? 0;
+        const bTime = safeDate(b.timestamp)?.getTime() ?? 0;
+        return bTime - aTime;
+      })
       .slice(0, limit);
   }
 
@@ -110,7 +118,14 @@ export class SearchHistoryManager {
       .map(([source]) => source as 'ideas' | 'builder');
 
     const analytics: SearchAnalytics = {
-      totalSearches,
+      total_searches: totalSearches,
+      average_results: averageResults,
+      popular_sources: topSources || [],
+      search_frequency: {}, // Empty for now, could be populated with actual frequency data
+      period: {
+        start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days ago
+        end: new Date().toISOString()
+      },
       successRate,
       popularTopics,
       averageResults,
@@ -258,7 +273,14 @@ export class SearchHistoryManager {
    */
   private createEmptyAnalytics(): SearchAnalytics {
     return {
-      totalSearches: 0,
+      total_searches: 0,
+      average_results: 0,
+      popular_sources: [],
+      search_frequency: {},
+      period: {
+        start: new Date().toISOString(),
+        end: new Date().toISOString()
+      },
       successRate: 0,
       popularTopics: [],
       averageResults: 0,
@@ -270,15 +292,19 @@ export class SearchHistoryManager {
    * Convert to database record
    */
   private toDatabaseRecord(item: SearchHistoryItem): DatabaseRecord {
+    const timestamp = safeDate(item.timestamp) || new Date();
+    const userId = item.userId || 'unknown';
+    const results = item.results || { total: 0, accepted: 0, rejected: 0 };
+
     return {
       id: item.id,
-      userId: item.userId,
-      timestamp: item.timestamp,
+      userId,
+      timestamp,
       query: item.query,
       contentSources: JSON.stringify(item.sources),
-      resultsTotal: item.results.total,
-      resultsAccepted: item.results.accepted,
-      resultsRejected: item.results.rejected,
+      resultsTotal: results.total,
+      resultsAccepted: results.accepted,
+      resultsRejected: results.rejected,
       sessionId: `session_${Date.now()}`
     };
   }
@@ -292,6 +318,7 @@ export class SearchHistoryManager {
       userId: record.userId,
       timestamp: record.timestamp,
       query: record.query,
+      results_count: record.resultsTotal,
       sources: JSON.parse(record.contentSources),
       results: {
         total: record.resultsTotal,
@@ -322,13 +349,20 @@ export class SearchHistoryManager {
     }
 
     const lastSearchDate = userHistory
-      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())[0].timestamp;
+      .sort((a, b) => {
+        const aTime = safeDate(a.timestamp)?.getTime() ?? 0;
+        const bTime = safeDate(b.timestamp)?.getTime() ?? 0;
+        return bTime - aTime;
+      })[0].timestamp;
 
     // Calculate most active day of week
     const dayCounts = new Map<string, number>();
     userHistory.forEach(search => {
-      const day = search.timestamp.toLocaleDateString('en-US', { weekday: 'long' });
-      dayCounts.set(day, (dayCounts.get(day) || 0) + 1);
+      const date = safeDate(search.timestamp);
+      if (date) {
+        const day = date.toLocaleDateString('en-US', { weekday: 'long' });
+        dayCounts.set(day, (dayCounts.get(day) || 0) + 1);
+      }
     });
 
     const mostActiveDay = Array.from(dayCounts.entries())
@@ -347,7 +381,7 @@ export class SearchHistoryManager {
 
     return {
       totalSearches: userHistory.length,
-      lastSearchDate,
+      lastSearchDate: safeDate(lastSearchDate),
       mostActiveDay,
       favoriteSource
     };
