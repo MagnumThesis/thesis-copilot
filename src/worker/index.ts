@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import referencerApi from './handlers/referencer-api';
+import aiSearcherApi from './handlers/ai-searcher-api';
 import { getChatsHandler, createChatHandler, deleteChatHandler, updateChatHandler } from './handlers/chats';
 import { getMessagesHandler } from './handlers/messages';
 import { generateTitleHandler } from './handlers/generate-title';
@@ -69,6 +70,15 @@ app.get('/health', (c) => {
   });
 });
 
+// API health check endpoint (for frontend compatibility)
+app.get('/api/health', (c) => {
+  return c.json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    service: 'Thesis Copilot API'
+  });
+});
+
 // Builder API routes
 const builderApi = new Hono();
 builderApi.post('/ai/prompt', builderAIPromptHandler);
@@ -77,6 +87,7 @@ builderApi.post('/ai/modify', builderAIModifyHandler);
 
 // API routes
 app.route('/api/referencer', referencerApi);
+app.route('/api/ai-searcher', aiSearcherApi);
 app.route('/api/ideas', ideasApi);
 app.route('/api/builder', builderApi);
 app.route('/api/builder-content', builderContentApi);
@@ -192,7 +203,8 @@ app.notFound((c) => {
       ],
       generalEndpoints: [
         'GET /',
-        'GET /health'
+        'GET /health',
+        'GET /api/health'
       ]
     }
   }, 404);
