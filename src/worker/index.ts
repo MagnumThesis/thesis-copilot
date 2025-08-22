@@ -5,6 +5,7 @@ import { getChatsHandler, createChatHandler, deleteChatHandler, updateChatHandle
 import { getMessagesHandler } from './handlers/messages';
 import { generateTitleHandler } from './handlers/generate-title';
 import ideasApi from './handlers/ideas';
+import { builderAIPromptHandler, builderAIContinueHandler, builderAIModifyHandler } from './handlers/builder-ai';
 
 const app = new Hono();
 
@@ -67,9 +68,16 @@ app.get('/health', (c) => {
   });
 });
 
+// Builder API routes
+const builderApi = new Hono();
+builderApi.post('/ai/prompt', builderAIPromptHandler);
+builderApi.post('/ai/continue', builderAIContinueHandler);
+builderApi.post('/ai/modify', builderAIModifyHandler);
+
 // API routes
 app.route('/api/ai-searcher', aiSearcherApi);
 app.route('/api/ideas', ideasApi);
+app.route('/api/builder', builderApi);
 
 // Chat API routes
 app.get('/api/chats', getChatsHandler);
@@ -111,6 +119,12 @@ app.get('/', (c) => {
         getIdea: 'GET /api/ideas/:id',
         updateIdea: 'PATCH /api/ideas/:id',
         deleteIdea: 'DELETE /api/ideas/:id'
+      },
+      // Builder endpoints
+      builder: {
+        prompt: 'POST /api/builder/ai/prompt',
+        continue: 'POST /api/builder/ai/continue',
+        modify: 'POST /api/builder/ai/modify'
       },
       // General endpoints
       general: {
@@ -162,6 +176,11 @@ app.notFound((c) => {
         'GET /api/ideas/:id',
         'PATCH /api/ideas/:id',
         'DELETE /api/ideas/:id'
+      ],
+      builderEndpoints: [
+        'POST /api/builder/ai/prompt',
+        'POST /api/builder/ai/continue',
+        'POST /api/builder/ai/modify'
       ],
       generalEndpoints: [
         'GET /',
