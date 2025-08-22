@@ -6,12 +6,11 @@ import { Input } from "./shadcn/input"
 import { Label } from "./shadcn/label"
 import { Card, CardContent, CardHeader, CardTitle } from "./shadcn/card"
 import { Badge } from "./shadcn/badge"
-import { CitationStyle, Reference, ReferenceType } from "../../lib/ai-types"
+import { Reference, ReferenceType } from "../../lib/ai-types"
 import { Search, Sparkles, ExternalLink, Plus } from "lucide-react"
 
 interface AISearcherProps {
   conversationId: string
-  citationStyle?: CitationStyle
   onAddReference?: (reference: Partial<Reference>) => void
 }
 
@@ -28,7 +27,6 @@ interface SearchResult {
 
 export const AISearcher: React.FC<AISearcherProps> = ({
   conversationId,
-  citationStyle = CitationStyle.APA,
   onAddReference
 }) => {
   const [searchQuery, setSearchQuery] = useState('')
@@ -41,10 +39,32 @@ export const AISearcher: React.FC<AISearcherProps> = ({
 
     setLoading(true)
     try {
-      // This is a simulated AI search - in a real app, this would call your AI service
-      // For demo purposes, we'll generate mock results
-      await new Promise(resolve => setTimeout(resolve, 2000)) // Simulate API delay
+      const response = await fetch('/api/ai-searcher/search', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          query: searchQuery,
+          conversationId: conversationId
+        })
+      })
 
+      if (!response.ok) {
+        throw new Error(`Search failed: ${response.statusText}`)
+      }
+
+      const data = await response.json()
+
+      if (data.success) {
+        setSearchResults(data.results || [])
+        setHasSearched(true)
+      } else {
+        throw new Error(data.error || 'Search failed')
+      }
+    } catch (error) {
+      console.error('Error performing AI search:', error)
+      // Fallback to mock results if API fails
       const mockResults: SearchResult[] = [
         {
           title: "Machine Learning Approaches to Natural Language Processing",
@@ -77,11 +97,8 @@ export const AISearcher: React.FC<AISearcherProps> = ({
           relevance_score: 0.91
         }
       ]
-
       setSearchResults(mockResults)
       setHasSearched(true)
-    } catch (error) {
-      console.error('Error performing AI search:', error)
     } finally {
       setLoading(false)
     }

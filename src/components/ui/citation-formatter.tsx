@@ -1,428 +1,494 @@
 "use client"
 
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './shadcn/card';
 import { Button } from './shadcn/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './shadcn/select';
+import { Label } from './shadcn/label';
+import { Card, CardContent, CardHeader, CardTitle } from './shadcn/card';
 import { Badge } from './shadcn/badge';
-import { Separator } from './shadcn/separator';
-import { CitationStyle, Reference } from '../../lib/ai-types';
-import { Copy, Check, AlertCircle, Info } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './shadcn/select';
+import { Alert, AlertDescription } from './shadcn/alert';
+import { CitationStyle, Reference, ReferenceType } from '../../lib/ai-types';
+import { CitationStyleEngine } from '../../worker/lib/citation-style-engine';
+import {
+  BookOpen,
+  FileText,
+  Globe,
+  Quote,
+  Copy,
+  CheckCircle,
+  AlertTriangle,
+  Info,
+  RefreshCw
+} from 'lucide-react';
 
 interface CitationFormatterProps {
-  reference?: Reference;
-  conversationId: string;
-  onStyleChange?: (style: CitationStyle) => void;
+  references?: Reference[];
+  onFormattedCitations?: (citations: { inline: string; bibliography: string }) => void;
 }
 
-// Simplified frontend citation formatter
-class SimpleCitationFormatter {
-  static formatInlineCitation(reference: Reference, style: CitationStyle): string {
-    if (!reference.authors.length) {
-      return `("${reference.title.substring(0, 30)}...")`;
-    }
-
-    const firstAuthor = reference.authors[0];
-    const authorName = this.parseAuthorName(firstAuthor);
-    const year = reference.publication_date || 'n.d.';
-
-    switch (style) {
-      case CitationStyle.APA:
-        return `(${authorName}, ${year})`;
-      case CitationStyle.MLA:
-        return `(${authorName})`;
-      case CitationStyle.CHICAGO:
-        return `(${authorName} ${year})`;
-      case CitationStyle.HARVARD:
-        return `(${authorName} ${year})`;
-      default:
-        return `(${authorName}, ${year})`;
-    }
-  }
-
-  static parseAuthorName(authorString: string): string {
-    // Simple parsing: assume "Last, First" or "First Last" format
-    if (authorString.includes(',')) {
-      const parts = authorString.split(',').map(p => p.trim());
-      return `${parts[0]} ${parts[1]?.charAt(0) || ''}.`;
-    } else {
-      const parts = authorString.split(' ');
-      if (parts.length >= 2) {
-        return `${parts[parts.length - 1]} ${parts[0].charAt(0)}.`;
-      }
-      return authorString;
-    }
-  }
-
-  static formatBibliographyEntry(reference: Reference, style: CitationStyle): string {
-    const authors = reference.authors.map(author =>
-      this.parseAuthorName(author)
-    ).join(', ');
-
-    const year = reference.publication_date || 'n.d.';
-    const title = reference.title;
-
-    switch (style) {
-      case CitationStyle.APA:
-        return `${authors} (${year}). ${title}. ${reference.journal || ''}.`;
-
-      case CitationStyle.MLA:
-        return `${authors}. "${title}." ${reference.journal || ''}, ${year}.`;
-
-      case CitationStyle.CHICAGO:
-        return `${authors}. "${title}." ${reference.journal || ''} ${year}.`;
-
-      case CitationStyle.HARVARD:
-        return `${authors} ${year}, '${title}', ${reference.journal || ''}.`;
-
-      default:
-        return `${authors} (${year}). ${title}.`;
-    }
-  }
-
-  static validateReference(reference: Reference): { isValid: boolean; errors: string[]; warnings: string[] } {
-    const errors: string[] = [];
-    const warnings: string[] = [];
-
-    if (!reference.title?.trim()) {
-      errors.push('Title is required');
-    }
-
-    if (!reference.authors.length) {
-      warnings.push('Author information is recommended');
-    }
-
-    if (!reference.publication_date) {
-      warnings.push('Publication date is recommended');
-    }
-
-    return { isValid: errors.length === 0, errors, warnings };
-  }
-}
-
-interface CitationResult {
+interface FormattingResult {
   inline: string;
   bibliography: string;
-  isValid: boolean;
-  errors: string[];
-  warnings: string[];
+  validation: {
+    isValid: boolean;
+    errors: Array<{ field: string; message: string; severity: 'error' | 'warning' }>;
+    warnings: Array<{ field: string; message: string; severity: 'error' | 'warning' }>;
+    missingFields: string[];
+  };
 }
 
 export const CitationFormatter: React.FC<CitationFormatterProps> = ({
-  reference,
-  conversationId,
-  onStyleChange
+  references = [],
+  onFormattedCitations
 }) => {
   const [selectedStyle, setSelectedStyle] = useState<CitationStyle>(CitationStyle.APA);
-  const [citationResults, setCitationResults] = useState<Record<CitationStyle, CitationResult>>({} as Record<CitationStyle, CitationResult>);
-  const [copiedCitation, setCopiedCitation] = useState<string | null>(null);
-  const [copiedBibliography, setCopiedBibliography] = useState<string | null>(null);
+  const [selectedReferences, setSelectedReferences] = useState<Reference[]>([]);
+  const [formattingResults, setFormattingResults] = useState<Map<string, FormattingResult>>(new Map());
+  const [bibliography, setBibliography] = useState<string>('');
+  const [sortOrder, setSortOrder] = useState<'alphabetical' | 'chronological' | 'appearance'>('alphabetical');
+  const [loading, setLoading] = useState(false);
+  const [copiedToClipboard, setCopiedToClipboard] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'citations' | 'bibliography'>('citations');
 
-  // Generate citations when reference or style changes
-  useEffect(() => {
-    if (reference) {
-      generateAllCitations(reference);
-    }
-  }, [reference]);
+  // Available citation styles
+  const citationStyles = [
+    { value: CitationStyle.APA, label: 'APA (7th Edition)', description: 'American Psychological Association' },
+    { value: CitationStyle.MLA, label: 'MLA (9th Edition)', description: 'Modern Language Association' },
+    { value: CitationStyle.CHICAGO, label: 'Chicago (17th Edition)', description: 'Chicago Manual of Style' },
+    { value: CitationStyle.HARVARD, label: 'Harvard', description: 'Harvard Referencing Style' }
+  ];
 
-  // Notify parent when style changes
-  useEffect(() => {
-    if (onStyleChange) {
-      onStyleChange(selectedStyle);
-    }
-  }, [selectedStyle, onStyleChange]);
+  // Reference types with icons
+  const referenceTypeIcons = {
+    [ReferenceType.JOURNAL_ARTICLE]: <FileText className="h-4 w-4" />,
+    [ReferenceType.BOOK]: <BookOpen className="h-4 w-4" />,
+    [ReferenceType.BOOK_CHAPTER]: <BookOpen className="h-4 w-4" />,
+    [ReferenceType.WEBSITE]: <Globe className="h-4 w-4" />,
+    [ReferenceType.CONFERENCE_PAPER]: <FileText className="h-4 w-4" />,
+    [ReferenceType.THESIS]: <FileText className="h-4 w-4" />,
+    [ReferenceType.REPORT]: <FileText className="h-4 w-4" />
+  };
 
-  const generateAllCitations = (ref: Reference) => {
-    const styles = Object.values(CitationStyle);
-    const results: Record<CitationStyle, CitationResult> = {} as Record<CitationStyle, CitationResult>;
+  // Format individual citations
+  const formatCitations = async () => {
+    if (selectedReferences.length === 0) return;
 
-    styles.forEach(style => {
+    setLoading(true);
+    const results = new Map<string, FormattingResult>();
+
+    for (const reference of selectedReferences) {
       try {
-        const inlineCitation = SimpleCitationFormatter.formatInlineCitation(ref, style);
-        const bibliographyEntry = SimpleCitationFormatter.formatBibliographyEntry(ref, style);
-        const validation = SimpleCitationFormatter.validateReference(ref);
+        const inline = CitationStyleEngine.formatInlineCitation(reference, selectedStyle);
+        const bibliography = CitationStyleEngine.formatBibliographyEntry(reference, selectedStyle);
+        const validation = CitationStyleEngine.validateStyleRequirements(reference, selectedStyle);
 
-        results[style] = {
-          inline: inlineCitation,
-          bibliography: bibliographyEntry,
-          isValid: validation.isValid,
-          errors: validation.errors,
-          warnings: validation.warnings
-        };
+        results.set(reference.id, {
+          inline,
+          bibliography,
+          validation: {
+            isValid: validation.isValid,
+            errors: validation.errors.map((error: string) => ({ field: 'general', message: error, severity: 'error' as const })),
+            warnings: validation.warnings.map((warning: string) => ({ field: 'general', message: warning, severity: 'warning' as const })),
+            missingFields: []
+          }
+        });
       } catch (error) {
-        results[style] = {
-          inline: '',
-          bibliography: '',
-          isValid: false,
-          errors: [error instanceof Error ? error.message : 'Unknown error'],
-          warnings: []
-        };
+        console.error(`Error formatting reference ${reference.id}:`, error);
+        results.set(reference.id, {
+          inline: 'Error formatting citation',
+          bibliography: 'Error formatting bibliography entry',
+          validation: {
+            isValid: false,
+            errors: [{ field: 'formatting', message: 'Failed to format citation', severity: 'error' }],
+            warnings: [],
+            missingFields: []
+          }
+        });
       }
-    });
+    }
 
-    setCitationResults(results);
+    setFormattingResults(results);
+
+    // Call callback if provided
+    if (onFormattedCitations) {
+      const allInline = Array.from(results.values()).map(r => r.inline).join('; ');
+      const allBibliography = Array.from(results.values()).map(r => r.bibliography).join('\n\n');
+      onFormattedCitations({ inline: allInline, bibliography: allBibliography });
+    }
+
+    setLoading(false);
   };
 
-  const handleStyleChange = (style: CitationStyle) => {
-    setSelectedStyle(style);
+  // Generate bibliography
+  const generateBibliography = () => {
+    if (selectedReferences.length === 0) return;
+
+    setLoading(true);
+    try {
+      const generated = CitationStyleEngine.generateBibliography(
+        selectedReferences,
+        selectedStyle,
+        sortOrder
+      );
+      setBibliography(generated);
+    } catch (error) {
+      console.error('Error generating bibliography:', error);
+      setBibliography('Error generating bibliography');
+    }
+    setLoading(false);
   };
 
-  const copyToClipboard = async (text: string, type: 'citation' | 'bibliography') => {
+  // Copy to clipboard
+  const copyToClipboard = async (text: string, id: string) => {
     try {
       await navigator.clipboard.writeText(text);
-
-      if (type === 'citation') {
-        setCopiedCitation(text);
-        setTimeout(() => setCopiedCitation(null), 2000);
-      } else {
-        setCopiedBibliography(text);
-        setTimeout(() => setCopiedBibliography(null), 2000);
-      }
+      setCopiedToClipboard(id);
+      setTimeout(() => setCopiedToClipboard(null), 2000);
     } catch (error) {
       console.error('Failed to copy to clipboard:', error);
     }
   };
 
-  const renderCitationCard = (style: CitationStyle) => {
-    const result = citationResults[style];
-    if (!result) return null;
-
-    const isSelected = style === selectedStyle;
-
-    return (
-      <Card className={`transition-all ${isSelected ? 'ring-2 ring-primary' : ''}`}>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base">{style.toUpperCase()}</CardTitle>
-            <div className="flex items-center gap-2">
-              {result.isValid ? (
-                <Badge variant="secondary" className="text-green-600">
-                  <Check className="h-3 w-3 mr-1" />
-                  Valid
-                </Badge>
-              ) : (
-                <Badge variant="destructive">
-                  <AlertCircle className="h-3 w-3 mr-1" />
-                  Issues
-                </Badge>
-              )}
-              {isSelected && (
-                <Badge variant="default">Selected</Badge>
-              )}
-            </div>
-          </div>
-          <CardDescription>
-            {getStyleDescription(style)}
-          </CardDescription>
-        </CardHeader>
-
-        <CardContent className="space-y-4">
-          {/* Inline Citation */}
-          <div>
-            <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
-              Inline Citation
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => copyToClipboard(result.inline, 'citation')}
-                className="h-6 w-6 p-0"
-              >
-                {copiedCitation === result.inline ? (
-                  <Check className="h-3 w-3" />
-                ) : (
-                  <Copy className="h-3 w-3" />
-                )}
-              </Button>
-            </h4>
-            <div className="bg-muted p-3 rounded-md font-mono text-sm">
-              {result.inline || 'No citation generated'}
-            </div>
-          </div>
-
-          <Separator />
-
-          {/* Bibliography Entry */}
-          <div>
-            <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
-              Bibliography Entry
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => copyToClipboard(result.bibliography, 'bibliography')}
-                className="h-6 w-6 p-0"
-              >
-                {copiedBibliography === result.bibliography ? (
-                  <Check className="h-3 w-3" />
-                ) : (
-                  <Copy className="h-3 w-3" />
-                )}
-              </Button>
-            </h4>
-            <div className="bg-muted p-3 rounded-md text-sm">
-              {result.bibliography || 'No bibliography entry generated'}
-            </div>
-          </div>
-
-          {/* Validation Messages */}
-          {(result.errors.length > 0 || result.warnings.length > 0) && (
-            <>
-              <Separator />
-              <div className="space-y-2">
-                {result.errors.map((error, index) => (
-                  <div key={index} className="flex items-start gap-2 text-sm text-red-600">
-                    <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                    <span>{error}</span>
-                  </div>
-                ))}
-                {result.warnings.map((warning, index) => (
-                  <div key={index} className="flex items-start gap-2 text-sm text-yellow-600">
-                    <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                    <span>{warning}</span>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
-    );
+  // Toggle reference selection
+  const toggleReferenceSelection = (reference: Reference) => {
+    setSelectedReferences(prev => {
+      const isSelected = prev.find(r => r.id === reference.id);
+      if (isSelected) {
+        return prev.filter(r => r.id !== reference.id);
+      } else {
+        return [...prev, reference];
+      }
+    });
   };
 
-  const getStyleDescription = (style: CitationStyle): string => {
-    switch (style) {
-      case CitationStyle.APA:
-        return 'American Psychological Association - Social sciences, education, psychology';
-      case CitationStyle.MLA:
-        return 'Modern Language Association - Humanities, literature, arts';
-      case CitationStyle.CHICAGO:
-        return 'Chicago Manual of Style - History, social sciences, fine arts';
-      case CitationStyle.HARVARD:
-        return 'Harvard Referencing - Natural sciences, technology, medicine';
-      case CitationStyle.IEEE:
-        return 'Institute of Electrical and Electronics Engineers - Engineering, computer science';
-      case CitationStyle.VANCOUVER:
-        return 'Vancouver System - Medicine, health sciences';
-      default:
-        return 'Citation style description not available';
+  // Select all references
+  const selectAllReferences = () => {
+    setSelectedReferences(references);
+  };
+
+  // Clear selection
+  const clearSelection = () => {
+    setSelectedReferences([]);
+    setFormattingResults(new Map());
+    setBibliography('');
+  };
+
+  // Get validation icon
+  const getValidationIcon = (validation: FormattingResult['validation']) => {
+    if (!validation.isValid) {
+      return <AlertTriangle className="h-4 w-4 text-red-500" />;
     }
+    if (validation.warnings.length > 0) {
+      return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
+    }
+    return <CheckCircle className="h-4 w-4 text-green-500" />;
   };
 
-  if (!reference) {
-    return (
-      <Card>
-        <CardContent className="flex items-center justify-center py-8">
-          <div className="text-center text-muted-foreground">
-            <Info className="h-8 w-8 mx-auto mb-2" />
-            <p className="text-sm">Select a reference to format citations</p>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+  // Get validation color
+  const getValidationColor = (validation: FormattingResult['validation']) => {
+    if (!validation.isValid) return 'border-red-200 bg-red-50';
+    if (validation.warnings.length > 0) return 'border-yellow-200 bg-yellow-50';
+    return 'border-green-200 bg-green-50';
+  };
+
+  // Auto-format when selection or style changes
+  useEffect(() => {
+    if (selectedReferences.length > 0) {
+      formatCitations();
+    }
+  }, [selectedReferences, selectedStyle]);
 
   return (
     <div className="space-y-6">
+      <div className="flex items-center gap-2">
+        <Quote className="h-5 w-5 text-blue-600" />
+        <h3 className="text-lg font-semibold">Citation & Bibliography Formatter</h3>
+      </div>
+
       {/* Style Selection */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Citation Style</CardTitle>
-          <CardDescription>
-            Choose a citation style for your academic work
-          </CardDescription>
+          <CardTitle className="text-base">Citation Style</CardTitle>
         </CardHeader>
         <CardContent>
-          <Select value={selectedStyle} onValueChange={handleStyleChange}>
-            <SelectTrigger className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {Object.values(CitationStyle).map(style => (
-                <SelectItem key={style} value={style}>
-                  {style.toUpperCase()} - {getStyleDescription(style)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </CardContent>
-      </Card>
-
-      {/* Citation Results */}
-      <div className="space-y-4">
-        {renderCitationCard(selectedStyle)}
-      </div>
-
-      {/* Style Selector Buttons */}
-      <div className="flex flex-wrap gap-2">
-        {Object.values(CitationStyle).map(style => (
-          <Button
-            key={style}
-            variant={style === selectedStyle ? "default" : "outline"}
-            size="sm"
-            onClick={() => handleStyleChange(style)}
-            className="text-xs"
-          >
-            {style.toUpperCase()}
-          </Button>
-        ))}
-      </div>
-
-      {/* Reference Information */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Reference Information</CardTitle>
-          <CardDescription>
-            Details about the selected reference
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+          <div className="space-y-4">
             <div>
-              <strong>Title:</strong> {reference.title}
+              <Label htmlFor="citation-style">Select Citation Style</Label>
+              <Select
+                value={selectedStyle}
+                onValueChange={(value) => setSelectedStyle(value as CitationStyle)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose citation style" />
+                </SelectTrigger>
+                <SelectContent>
+                  {citationStyles.map(style => (
+                    <SelectItem key={style.value} value={style.value}>
+                      <div className="flex flex-col">
+                        <span className="font-medium">{style.label}</span>
+                        <span className="text-xs text-muted-foreground">{style.description}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            {reference.authors.length > 0 && (
-              <div>
-                <strong>Authors:</strong> {reference.authors.join(', ')}
-              </div>
-            )}
-            {reference.journal && (
-              <div>
-                <strong>Journal:</strong> {reference.journal}
-              </div>
-            )}
-            {reference.publication_date && (
-              <div>
-                <strong>Publication Date:</strong> {reference.publication_date}
-              </div>
-            )}
-            {reference.doi && (
-              <div>
-                <strong>DOI:</strong>
-                <a
-                  href={`https://doi.org/${reference.doi}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline ml-1"
-                >
-                  {reference.doi}
-                </a>
-              </div>
-            )}
-            {reference.url && (
-              <div>
-                <strong>URL:</strong>
-                <a
-                  href={reference.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline ml-1"
-                >
-                  {reference.url}
-                </a>
-              </div>
-            )}
           </div>
         </CardContent>
       </Card>
+
+      {/* Reference Selection */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base">Select References</CardTitle>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={selectAllReferences}>
+                Select All
+              </Button>
+              <Button variant="outline" size="sm" onClick={clearSelection}>
+                Clear
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {references.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <BookOpen className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>No references available</p>
+              <p className="text-sm">Add references to your conversation first</p>
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-60 overflow-y-auto">
+              {references.map(reference => (
+                <div
+                  key={reference.id}
+                  className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
+                    selectedReferences.find(r => r.id === reference.id)
+                      ? 'border-blue-300 bg-blue-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                  onClick={() => toggleReferenceSelection(reference)}
+                >
+                  <div className="flex-shrink-0">
+                    {referenceTypeIcons[reference.type as keyof typeof referenceTypeIcons] || <FileText className="h-4 w-4" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{reference.title}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {reference.authors.length > 0
+                        ? reference.authors.join(', ')
+                        : 'No author'
+                      }
+                    </p>
+                  </div>
+                  <div className="flex-shrink-0">
+                    <Badge variant="outline" className="text-xs">
+                      {reference.type.replace(/_/g, ' ').toLowerCase()}
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Results */}
+      {selectedReferences.length > 0 && (
+        <div className="space-y-4">
+          {/* Simple Tab Navigation */}
+          <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
+            <button
+              className={`flex-1 py-2 px-4 text-sm font-medium rounded-md transition-colors ${
+                activeTab === 'citations'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-800'
+              }`}
+              onClick={() => setActiveTab('citations')}
+            >
+              Individual Citations
+            </button>
+            <button
+              className={`flex-1 py-2 px-4 text-sm font-medium rounded-md transition-colors ${
+                activeTab === 'bibliography'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-800'
+              }`}
+              onClick={() => setActiveTab('bibliography')}
+            >
+              Bibliography
+            </button>
+          </div>
+
+          {/* Citations Tab */}
+          {activeTab === 'citations' && (
+            <div className="space-y-4">
+              {Array.from(formattingResults.entries()).map(([referenceId, result]) => {
+                const reference = selectedReferences.find(r => r.id === referenceId);
+                if (!reference) return null;
+
+                return (
+                  <Card key={referenceId} className={getValidationColor(result.validation)}>
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <CardTitle className="text-sm font-medium">{reference.title}</CardTitle>
+                          <div className="flex items-center gap-2 mt-1">
+                            {getValidationIcon(result.validation)}
+                            <span className="text-xs text-muted-foreground">
+                              {result.validation.isValid ? 'Valid' : 'Invalid'}
+                            </span>
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => copyToClipboard(result.inline, `${referenceId}-inline`)}
+                          className="flex-shrink-0"
+                        >
+                          {copiedToClipboard === `${referenceId}-inline` ? (
+                            <CheckCircle className="h-4 w-4 text-green-500" />
+                          ) : (
+                            <Copy className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      {/* Inline Citation */}
+                      <div>
+                        <Label className="text-xs font-medium text-muted-foreground">Inline Citation</Label>
+                        <div className="mt-1 p-2 bg-white border rounded text-sm font-mono">
+                          {result.inline}
+                        </div>
+                      </div>
+
+                      {/* Bibliography Entry */}
+                      <div>
+                        <Label className="text-xs font-medium text-muted-foreground">Bibliography Entry</Label>
+                        <div className="mt-1 p-2 bg-white border rounded text-sm">
+                          {result.bibliography}
+                        </div>
+                      </div>
+
+                      {/* Validation Messages */}
+                      {result.validation.errors.length > 0 && (
+                        <Alert className="border-red-200 bg-red-50">
+                          <AlertTriangle className="h-4 w-4" />
+                          <AlertDescription className="text-sm">
+                            <strong>Errors:</strong>
+                            <ul className="list-disc list-inside mt-1 space-y-1">
+                              {result.validation.errors.map((error: { message: string }, index: number) => (
+                                <li key={index}>{error.message}</li>
+                              ))}
+                            </ul>
+                          </AlertDescription>
+                        </Alert>
+                      )}
+
+                      {result.validation.warnings.length > 0 && (
+                        <Alert className="border-yellow-200 bg-yellow-50">
+                          <AlertTriangle className="h-4 w-4" />
+                          <AlertDescription className="text-sm">
+                            <strong>Warnings:</strong>
+                            <ul className="list-disc list-inside mt-1 space-y-1">
+                              {result.validation.warnings.map((warning: { message: string }, index: number) => (
+                                <li key={index}>{warning.message}</li>
+                              ))}
+                            </ul>
+                          </AlertDescription>
+                        </Alert>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Bibliography Tab */}
+          {activeTab === 'bibliography' && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base">Generated Bibliography</CardTitle>
+                  <div className="flex items-center gap-2">
+                    <Select
+                      value={sortOrder}
+                      onValueChange={(value) => setSortOrder(value as typeof sortOrder)}
+                    >
+                      <SelectTrigger className="w-40">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="alphabetical">Alphabetical</SelectItem>
+                        <SelectItem value="chronological">Chronological</SelectItem>
+                        <SelectItem value="appearance">Order of Appearance</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button variant="outline" size="sm" onClick={generateBibliography}>
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Generate
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {bibliography ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">
+                        {selectedReferences.length} references • {selectedStyle} style
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => copyToClipboard(bibliography, 'bibliography')}
+                      >
+                        {copiedToClipboard === 'bibliography' ? (
+                          <CheckCircle className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <Copy className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                    <div className="p-4 bg-white border rounded font-serif text-sm leading-relaxed whitespace-pre-line">
+                      {bibliography}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>No bibliography generated</p>
+                    <p className="text-sm">Select references and click "Generate" to create a bibliography</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+
+      {/* Loading State */}
+      {loading && (
+        <div className="flex items-center justify-center py-8">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <RefreshCw className="h-4 w-4 animate-spin" />
+            <span>Formatting citations...</span>
+          </div>
+        </div>
+      )}
+
+      {/* Info */}
+      <Alert>
+        <Info className="h-4 w-4" />
+        <AlertDescription>
+          <strong>Tip:</strong> Citations are automatically formatted when you select references or change the citation style.
+          Copy individual citations or generate a complete bibliography for your document.
+        </AlertDescription>
+      </Alert>
     </div>
   );
 };

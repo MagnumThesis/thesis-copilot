@@ -455,6 +455,7 @@ export interface AIProcessingState {
   error?: string;
   startTime?: Date;
   estimatedCompletionTime?: Date;
+  currentMode?: AIMode;
 }
 
 // Proofreader analysis types
@@ -470,6 +471,9 @@ export interface ProofreaderAnalysisRequest {
     timeout?: number;
     maxRetries?: number;
     model?: string;
+    categories?: ConcernCategory[];
+    minSeverity?: ConcernSeverity;
+    includeGrammar?: boolean;
   };
 }
 
@@ -488,8 +492,13 @@ export interface ProofreaderAnalysisResponse {
   analysisMetadata?: {
     totalConcerns?: number;
     concernsByCategory?: Record<ConcernCategory, number>;
+    concernsBySeverity?: Record<ConcernSeverity, number>;
+    analysisTime?: number;
+    contentLength?: number;
+    ideaDefinitionsUsed?: number;
     fallbackUsed?: boolean;
     cacheUsed?: boolean;
+    cacheTimestamp?: number;
   };
   error?: string;
 }
@@ -501,6 +510,15 @@ export interface AnalysisMetadata {
   analysisTimestamp: string;
   version: string;
   confidence: number;
+  totalConcerns?: number;
+  concernsByCategory?: Record<ConcernCategory, number>;
+  concernsBySeverity?: Record<ConcernSeverity, number>;
+  analysisTime?: number;
+  contentLength?: number;
+  ideaDefinitionsUsed?: number;
+  fallbackUsed?: boolean;
+  cacheUsed?: boolean;
+  cacheTimestamp?: number;
 }
 
 // Utility functions for safe type conversions
