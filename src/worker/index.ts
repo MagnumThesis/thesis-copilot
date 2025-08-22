@@ -8,6 +8,7 @@ import { generateTitleHandler } from './handlers/generate-title';
 import ideasApi from './handlers/ideas';
 import builderContentApi from './handlers/builder-content';
 import { builderAIPromptHandler, builderAIContinueHandler, builderAIModifyHandler } from './handlers/builder-ai';
+import { proofreaderAnalysisHandler, getConcernsHandler, updateConcernStatusHandler, getConcernStatisticsHandler } from './handlers/proofreader-ai';
 
 const app = new Hono();
 
@@ -100,6 +101,12 @@ app.patch('/api/chats/:id', updateChatHandler);
 app.get('/api/chats/:id/messages', getMessagesHandler);
 app.post('/api/generate-title', generateTitleHandler);
 
+// Proofreader API routes
+app.post('/api/proofreader/analyze', proofreaderAnalysisHandler);
+app.get('/api/proofreader/concerns/:conversationId', getConcernsHandler);
+app.put('/api/proofreader/concerns/:concernId/status', updateConcernStatusHandler);
+app.get('/api/proofreader/concerns/:conversationId/statistics', getConcernStatisticsHandler);
+
 // Root endpoint
 app.get('/', (c) => {
   return c.json({
@@ -144,6 +151,13 @@ app.get('/', (c) => {
         save: 'POST /api/builder-content',
         get: 'GET /api/builder-content/:conversationId',
         delete: 'DELETE /api/builder-content/:conversationId'
+      },
+      // Proofreader endpoints
+      proofreader: {
+        analyze: 'POST /api/proofreader/analyze',
+        getConcerns: 'GET /api/proofreader/concerns/:conversationId',
+        updateStatus: 'PUT /api/proofreader/concerns/:concernId/status',
+        getStatistics: 'GET /api/proofreader/concerns/:conversationId/statistics'
       },
       // General endpoints
       general: {
@@ -200,6 +214,12 @@ app.notFound((c) => {
         'POST /api/builder/ai/prompt',
         'POST /api/builder/ai/continue',
         'POST /api/builder/ai/modify'
+      ],
+      proofreaderEndpoints: [
+        'POST /api/proofreader/analyze',
+        'GET /api/proofreader/concerns/:conversationId',
+        'PUT /api/proofreader/concerns/:concernId/status',
+        'GET /api/proofreader/concerns/:conversationId/statistics'
       ],
       generalEndpoints: [
         'GET /',

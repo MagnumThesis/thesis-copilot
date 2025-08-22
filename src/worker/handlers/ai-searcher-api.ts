@@ -1,7 +1,12 @@
 import { Hono } from 'hono';
 import { Context } from 'hono';
-import { SupabaseEnv } from '../lib/supabase';
 import { Env } from '../types/env';
+
+// Define SupabaseEnv type locally since it's not exported from supabase.ts
+export type SupabaseEnv = {
+  SUPABASE_URL: string;
+  SUPABASE_ANON: string;
+};
 
 // Type for the Hono context
 type AISearcherContext = {
