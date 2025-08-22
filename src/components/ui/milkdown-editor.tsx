@@ -20,7 +20,7 @@ import type { UseAIModeManager } from "../../hooks/use-ai-mode-manager";
 
 // Enhanced Milkdown Editor Props
 export interface MilkdownEditorProps {
-  initialContent?: string;
+  content: string; // Make content required and controlled
   onContentChange?: (content: string) => void;
   onSelectionChange?: (selection: TextSelection | null) => void;
   onCursorPositionChange?: (position: number) => void;
@@ -66,7 +66,7 @@ const AIContentPreview: FC<AIContentPreviewProps> = ({
 };
 
 export const MilkdownEditor: FC<MilkdownEditorProps> = ({
-  initialContent = "# Hello",
+  content,
   onContentChange,
   onSelectionChange,
   onCursorPositionChange,
@@ -74,7 +74,6 @@ export const MilkdownEditor: FC<MilkdownEditorProps> = ({
   onEditorMethodsReady,
   className = "",
 }) => {
-  const [content, setContent] = useState(initialContent);
   const [currentSelection, setCurrentSelection] =
     useState<TextSelection | null>(null);
   const [cursorPosition, setCursorPosition] = useState(0);
@@ -85,6 +84,7 @@ export const MilkdownEditor: FC<MilkdownEditorProps> = ({
 
   const editorRef = useRef<Editor | null>(null);
   const selectionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastContentRef = useRef<string>(content);
 
   const { get } = useEditor((root) => {
     const crepe = new Crepe({
@@ -98,13 +98,15 @@ export const MilkdownEditor: FC<MilkdownEditorProps> = ({
     return crepe;
   }, []);
 
-  // Handle content changes
+  // Handle content changes from editor
   const handleContentChange = useCallback(
     (newContent: string) => {
-      setContent(newContent);
-      onContentChange?.(newContent);
+      // Only notify parent if content actually changed
+      if (newContent !== content) {
+        onContentChange?.(newContent);
+      }
     },
-    [onContentChange]
+    [onContentChange, content]
   );
 
   // Track text selection changes
@@ -146,7 +148,7 @@ export const MilkdownEditor: FC<MilkdownEditorProps> = ({
         }
 
         // Update cursor position
-        const newCursorPosition = range.startOffset;
+        const newCursorPosition = range.startOffset || 0;
         setCursorPosition(newCursorPosition);
         onCursorPositionChange?.(newCursorPosition);
       } catch (error) {
@@ -179,10 +181,11 @@ export const MilkdownEditor: FC<MilkdownEditorProps> = ({
   // Update editor content when content prop changes
   useEffect(() => {
     const editor = get();
-    if (editor && content !== initialContent) {
+    if (editor && content !== lastContentRef.current) {
+      lastContentRef.current = content;
       editor.action(replaceAll(content));
     }
-  }, [content, get, initialContent]);
+  }, [content, get]);
 
   // Content insertion method for AI-generated content
   const insertContent = useCallback(

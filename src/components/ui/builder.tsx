@@ -75,12 +75,19 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
   const [aiGeneratedContent, setAIGeneratedContent] = useState<string>("");
   const [showContentConfirmation, setShowContentConfirmation] = useState(false);
   const [pendingInsertionOptions, setPendingInsertionOptions] = useState<ContentInsertionOptions | null>(null);
-  const [aiMetadata, setAIMetadata] = useState<any>(null);
+  const [aiMetadata, setAIMetadata] = useState<{
+    tokensUsed?: number;
+    processingTime?: number;
+    model?: string;
+    academicValidation?: any;
+  } | undefined>(undefined);
   const [originalTextForModification, setOriginalTextForModification] = useState<string>("");
   const [currentModificationType, setCurrentModificationType] = useState<ModificationType | null>(null);
 
   // Editor methods ref to interact with Milkdown editor
-  const editorMethodsRef = useRef<any>(null);
+  const editorMethodsRef = useRef<{
+    insertContent: (content: string, options: ContentInsertionOptions) => void;
+  } | null>(null);
 
   // AI Mode Manager
   const aiModeManager = useAIModeManager(
@@ -93,13 +100,35 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
     aiModeManager.updateSelection(currentSelection);
   }, [currentSelection, aiModeManager]);
 
+  // Load saved content when component mounts or conversation changes
+  React.useEffect(() => {
+    const loadSavedContent = async () => {
+      try {
+        const result = await contentRetrievalService.retrieveBuilderContent(currentConversation.id);
+        if (result.success && result.builderContent && result.builderContent.content.trim()) {
+          // Load the saved content instead of default
+          setDocumentContent(result.builderContent.content);
+        }
+      } catch (error) {
+        console.error('Failed to load saved Builder content:', error);
+        // Keep default content if loading fails
+      }
+    };
+
+    loadSavedContent();
+  }, [currentConversation.id]);
+
   // Handle content changes from editor
-  const handleContentChange = useCallback((content: string) => {
+  const handleContentChange = useCallback(async (content: string) => {
     setDocumentContent(content);
     // Store content in retrieval service for other tools to access
-    contentRetrievalService.storeBuilderContent(currentConversation.id, content);
-    // Invalidate cache to ensure other tools get fresh content
-    contentRetrievalService.invalidateCache(currentConversation.id, 'builder');
+    try {
+      await contentRetrievalService.storeBuilderContent(currentConversation.id, content);
+      // Invalidate cache to ensure other tools get fresh content
+      contentRetrievalService.invalidateCache(currentConversation.id, 'builder');
+    } catch (error) {
+      console.error('Failed to save Builder content:', error);
+    }
   }, [currentConversation.id]);
 
   // Handle selection changes from editor
@@ -135,7 +164,7 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
           toast.error("Failed to generate content");
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Error is already handled by the AI mode manager
       console.error("Error processing prompt:", error);
     }
@@ -150,7 +179,7 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
       setShowContentConfirmation(false);
       setAIGeneratedContent("");
       setPendingInsertionOptions(null);
-      setAIMetadata(null);
+      setAIMetadata(undefined);
       setOriginalTextForModification("");
       setCurrentModificationType(null);
       aiModeManager.resetMode();
@@ -164,7 +193,7 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
     setShowContentConfirmation(false);
     setAIGeneratedContent("");
     setPendingInsertionOptions(null);
-    setAIMetadata(null);
+      setAIMetadata(undefined);
     setOriginalTextForModification("");
     setCurrentModificationType(null);
     aiModeManager.resetMode();
@@ -203,7 +232,7 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
           toast.error("Failed to continue content");
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Error is already handled by the AI mode manager
       console.error("Error processing continue mode:", error);
     }
@@ -216,7 +245,7 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
       if (!aiModeManager.errorState.hasError) {
         toast.success("Modification generated successfully");
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Error is already handled by the AI mode manager
       console.error("Error processing modification:", error);
     }
@@ -252,7 +281,7 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
       if (!aiModeManager.errorState.hasError) {
         toast.success("Modification regenerated successfully");
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Error is already handled by the AI mode manager
       console.error("Error regenerating modification:", error);
     }
@@ -265,7 +294,7 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
       if (!aiModeManager.errorState.hasError) {
         toast.success("Custom modification generated successfully");
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Error is already handled by the AI mode manager
       console.error("Error processing custom prompt:", error);
     }
@@ -291,7 +320,9 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
   }, [aiModeManager]);
 
   // Store editor methods when they become available
-  const handleEditorMethodsReady = useCallback((methods: any) => {
+  const handleEditorMethodsReady = useCallback((methods: {
+    insertContent: (content: string, options: ContentInsertionOptions) => void;
+  }) => {
     editorMethodsRef.current = methods;
   }, []);
 
@@ -411,7 +442,7 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
           <ScrollArea className="flex-1 pr-4">
             <MilkdownProvider>
               <MilkdownEditor
-                initialContent={documentContent}
+                content={documentContent}
                 onContentChange={handleContentChange}
                 onSelectionChange={handleSelectionChange}
                 onCursorPositionChange={handleCursorPositionChange}

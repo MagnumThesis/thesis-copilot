@@ -1,10 +1,11 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import aiSearcherApi from './handlers/ai-searcher-api';
+import referencerApi from './handlers/referencer-api';
 import { getChatsHandler, createChatHandler, deleteChatHandler, updateChatHandler } from './handlers/chats';
 import { getMessagesHandler } from './handlers/messages';
 import { generateTitleHandler } from './handlers/generate-title';
 import ideasApi from './handlers/ideas';
+import builderContentApi from './handlers/builder-content';
 import { builderAIPromptHandler, builderAIContinueHandler, builderAIModifyHandler } from './handlers/builder-ai';
 
 const app = new Hono();
@@ -75,9 +76,10 @@ builderApi.post('/ai/continue', builderAIContinueHandler);
 builderApi.post('/ai/modify', builderAIModifyHandler);
 
 // API routes
-app.route('/api/ai-searcher', aiSearcherApi);
+app.route('/api/referencer', referencerApi);
 app.route('/api/ideas', ideasApi);
 app.route('/api/builder', builderApi);
+app.route('/api/builder-content', builderContentApi);
 
 // Chat API routes
 app.get('/api/chats', getChatsHandler);
@@ -125,6 +127,12 @@ app.get('/', (c) => {
         prompt: 'POST /api/builder/ai/prompt',
         continue: 'POST /api/builder/ai/continue',
         modify: 'POST /api/builder/ai/modify'
+      },
+      // Builder Content endpoints
+      builderContent: {
+        save: 'POST /api/builder-content',
+        get: 'GET /api/builder-content/:conversationId',
+        delete: 'DELETE /api/builder-content/:conversationId'
       },
       // General endpoints
       general: {

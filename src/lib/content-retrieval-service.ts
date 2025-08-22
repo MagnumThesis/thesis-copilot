@@ -247,11 +247,17 @@ export class ContentRetrievalService {
 
       const data = await response.json();
       const messages = data.messages || [];
-      
+
+      interface Message {
+        role: string;
+        content: string;
+        created_at: string;
+      }
+
       // Look for the most recent assistant message that contains substantial content
-      const assistantMessages = messages
-        .filter((msg: any) => msg.role === 'assistant' && msg.content && msg.content.length > 100)
-        .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      const assistantMessages = (messages as Message[])
+        .filter((msg) => msg.role === 'assistant' && msg.content && msg.content.length > 100)
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
       
       if (assistantMessages.length > 0) {
         return assistantMessages[0].content;
@@ -294,11 +300,11 @@ export class ContentRetrievalService {
   /**
    * Store Builder content (for integration with Builder component)
    * This method can be called by the Builder component to store content
-   * 
+   *
    * @param conversationId - The conversation ID
    * @param content - The content to store
    */
-  public storeBuilderContent(conversationId: string, content: string): void {
+  public async storeBuilderContent(conversationId: string, content: string): Promise<void> {
     const builderContent: BuilderContent = {
       content,
       lastModified: new Date(),
@@ -316,6 +322,26 @@ export class ContentRetrievalService {
       }));
     } catch (error) {
       console.error("Failed to store content in localStorage:", error);
+    }
+
+    // Store in database
+    try {
+      const response = await fetch('/api/builder-content', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          conversationId,
+          content
+        })
+      });
+
+      if (!response.ok) {
+        console.error('Failed to save Builder content to database:', response.statusText);
+      }
+    } catch (error) {
+      console.error('Failed to save Builder content to database:', error);
     }
   }
 
