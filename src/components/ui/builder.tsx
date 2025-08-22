@@ -100,6 +100,10 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
     aiModeManager.updateSelection(currentSelection);
   }, [currentSelection, aiModeManager]);
 
+  React.useEffect(() => {
+    console.log("Document Content: ", documentContent)
+  }, [documentContent]);
+
   // Load saved content when component mounts or conversation changes
   React.useEffect(() => {
     const loadSavedContent = async () => {

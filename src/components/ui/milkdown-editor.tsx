@@ -207,8 +207,9 @@ export const MilkdownEditor: FC<MilkdownEditorProps> = ({
         } else {
           // Insert at cursor position
           const currentContent = content;
-          const beforeCursor = currentContent.substring(0, options.insertAt);
-          const afterCursor = currentContent.substring(options.insertAt);
+          const insertAt = options.insertAt || 0;
+          const beforeCursor = currentContent.substring(0, insertAt);
+          const afterCursor = currentContent.substring(insertAt);
           const updatedContent = beforeCursor + newContent + afterCursor;
 
           editor.action(replaceAll(updatedContent));
