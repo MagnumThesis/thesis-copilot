@@ -18,7 +18,7 @@
  * @version 1.0.0
  */
 
-import React, { useState, useCallback, useRef } from "react"
+import React, { useState, useCallback, useRef, useEffect } from "react"
 import { ScrollArea } from "@/components/ui/shadcn/scroll-area"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/shadcn/sheet"
 import { Button } from "@/components/ui/shadcn/button"
@@ -68,6 +68,14 @@ interface BuilderProps {
  * @param props - The component props
  * @returns The Builder component JSX
  */
+
+interface EditorMethods {
+  insertContent: (content: string, options: ContentInsertionOptions) => void;
+  setContent?: (newContent: string) => void; // Make setContent optional to match the callback
+  // Add other methods if you need to use them in the parent component
+}
+
+
 export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConversation }) => {
   const [documentContent, setDocumentContent] = useState("# Thesis Proposal\n\nStart writing your thesis proposal here...");
   const [currentSelection, setCurrentSelection] = useState<TextSelection | null>(null);
@@ -85,9 +93,7 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
   const [currentModificationType, setCurrentModificationType] = useState<ModificationType | null>(null);
 
   // Editor methods ref to interact with Milkdown editor
-  const editorMethodsRef = useRef<{
-    insertContent: (content: string, options: ContentInsertionOptions) => void;
-  } | null>(null);
+  const editorMethodsRef = useRef<EditorMethods | null>(null);
 
   // AI Mode Manager
   const aiModeManager = useAIModeManager(
@@ -111,7 +117,18 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
         const result = await contentRetrievalService.retrieveBuilderContent(currentConversation.id);
         if (result.success && result.builderContent && result.builderContent.content.trim()) {
           // Load the saved content instead of default
-          setDocumentContent(result.builderContent.content);
+          const savedContent = result.builderContent.content;
+
+          // Use the exposed setContent method to update the editor
+          if (editorMethodsRef.current?.setContent) {
+            editorMethodsRef.current.setContent(savedContent);
+          } else {
+            // Fallback if editor methods aren't ready yet
+            // You might need a more robust solution for this edge case
+            console.log("fallback");
+            setDocumentContent(savedContent);
+          }
+
         }
       } catch (error) {
         console.error('Failed to load saved Builder content:', error);
@@ -149,11 +166,11 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
   const handlePromptSubmit = useCallback(async (prompt: string) => {
     try {
       const response = await aiModeManager.processPrompt(prompt, cursorPosition);
-      
+
       if (response.success && response.content) {
         setAIGeneratedContent(response.content);
         setAIMetadata(response.metadata);
-        
+
         // Set up insertion options for cursor position
         const insertionOptions: ContentInsertionOptions = {
           insertAt: cursorPosition,
@@ -178,7 +195,7 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
   const handleAcceptAIContent = useCallback(() => {
     if (editorMethodsRef.current && aiGeneratedContent && pendingInsertionOptions) {
       editorMethodsRef.current.insertContent(aiGeneratedContent, pendingInsertionOptions);
-      
+
       // Reset state
       setShowContentConfirmation(false);
       setAIGeneratedContent("");
@@ -187,7 +204,7 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
       setOriginalTextForModification("");
       setCurrentModificationType(null);
       aiModeManager.resetMode();
-      
+
       toast.success("Content inserted successfully");
     }
   }, [aiGeneratedContent, pendingInsertionOptions, aiModeManager]);
@@ -197,7 +214,7 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
     setShowContentConfirmation(false);
     setAIGeneratedContent("");
     setPendingInsertionOptions(null);
-      setAIMetadata(undefined);
+    setAIMetadata(undefined);
     setOriginalTextForModification("");
     setCurrentModificationType(null);
     aiModeManager.resetMode();
@@ -218,11 +235,11 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
   const handleContinueMode = useCallback(async () => {
     try {
       const response = await aiModeManager.processContinue(cursorPosition, currentSelection?.text);
-      
+
       if (response.success && response.content) {
         setAIGeneratedContent(response.content);
         setAIMetadata(response.metadata);
-        
+
         // Set up insertion options for cursor position
         const insertionOptions: ContentInsertionOptions = {
           insertAt: cursorPosition,
@@ -266,7 +283,7 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
         },
         preserveFormatting: true
       };
-      
+
       editorMethodsRef.current.insertContent(aiModeManager.modificationPreviewContent, insertionOptions);
       aiModeManager.acceptModification();
       toast.success("Modification applied successfully");
@@ -323,12 +340,35 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
     aiModeManager.resetMode();
   }, [aiModeManager]);
 
-  // Store editor methods when they become available
+
+  // Store editor methods when they become avail able
+
+  const hasRun = useRef(false);
+
   const handleEditorMethodsReady = useCallback((methods: {
     insertContent: (content: string, options: ContentInsertionOptions) => void;
+    setContent?: (newContent: string) => void;
   }) => {
+    if (hasRun.current) {
+      return; // Do nothing if the function has already run
+    }
+  
     editorMethodsRef.current = methods;
-  }, []);
+  
+    if (editorMethodsRef?.current?.setContent) {
+      console.log("Setting content in 2 seconds...");
+      // Use setTimeout to delay the content setting
+      setTimeout(() => {
+        editorMethodsRef.current?.setContent?.(documentContent);
+        console.log("Content has been set!");
+      }, 1); // 2000 milliseconds = 2 seconds
+  
+      // Set the flag to true immediately to prevent subsequent calls
+      hasRun.current = true;
+    }
+  }, [documentContent]);
+
+
 
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
@@ -339,7 +379,7 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
             Build and manage your thesis components for "{currentConversation.title}"
           </SheetDescription>
         </SheetHeader>
-        
+
         <div className="flex flex-col h-[calc(100vh-150px)] gap-4">
           {/* AI Action Toolbar with Error Handling */}
           <AIActionToolbar
@@ -412,21 +452,21 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
           )}
 
           {/* Modification Preview (shown when previewing modifications) */}
-          {aiModeManager.showModificationPreview && 
-           aiModeManager.modificationPreviewContent && 
-           aiModeManager.originalTextForModification &&
-           aiModeManager.currentModificationType && (
-            <AIContentPreview
-              originalText={aiModeManager.originalTextForModification}
-              modifiedText={aiModeManager.modificationPreviewContent}
-              modificationType={aiModeManager.currentModificationType}
-              onAccept={handleAcceptModification}
-              onReject={handleRejectModification}
-              onRegenerate={handleRegenerateModification}
-              isVisible={aiModeManager.showModificationPreview}
-              isRegenerating={aiModeManager.isProcessing}
-            />
-          )}
+          {aiModeManager.showModificationPreview &&
+            aiModeManager.modificationPreviewContent &&
+            aiModeManager.originalTextForModification &&
+            aiModeManager.currentModificationType && (
+              <AIContentPreview
+                originalText={aiModeManager.originalTextForModification}
+                modifiedText={aiModeManager.modificationPreviewContent}
+                modificationType={aiModeManager.currentModificationType}
+                onAccept={handleAcceptModification}
+                onReject={handleRejectModification}
+                onRegenerate={handleRegenerateModification}
+                isVisible={aiModeManager.showModificationPreview}
+                isRegenerating={aiModeManager.isProcessing}
+              />
+            )}
 
           {/* AI Content Confirmation */}
           {showContentConfirmation && (
@@ -446,13 +486,11 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
           <ScrollArea className="flex-1 pr-4">
             <MilkdownProvider>
               <MilkdownEditor
-                content={documentContent}
                 onContentChange={handleContentChange}
                 onSelectionChange={handleSelectionChange}
                 onCursorPositionChange={handleCursorPositionChange}
                 aiModeManager={aiModeManager}
-                onEditorMethodsReady={handleEditorMethodsReady}
-              />
+                onEditorMethodsReady={handleEditorMethodsReady} />
             </MilkdownProvider>
           </ScrollArea>
         </div>
