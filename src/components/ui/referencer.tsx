@@ -15,7 +15,8 @@ import { ReferenceList } from "./reference-list"
 import { ReferenceForm } from "./reference-form"
 import { CitationFormatter } from "./citation-formatter"
 import { BibliographyGenerator } from "./bibliography-generator"
-import { BookOpen, FileText, Quote, Settings, Search, Plus, Filter, Keyboard } from "lucide-react"
+import { BookOpen, FileText, Quote, Settings, Search, Plus, Filter, Sparkles } from "lucide-react"
+import { AISearcher } from "./ai-searcher"
 
 interface ReferencerProps {
   isOpen: boolean
@@ -23,7 +24,7 @@ interface ReferencerProps {
   currentConversation: { title: string; id: string }
 }
 
-type ReferencerTab = 'references' | 'citations' | 'bibliography'
+type ReferencerTab = 'references' | 'citations' | 'bibliography' | 'ai-searcher'
 
 interface ReferencerState {
   activeTab: ReferencerTab

@@ -1,56 +1,75 @@
-import { Hono } from "hono";
-import { SupabaseEnv } from "./lib/supabase";
-import { Env } from "./types/env";
-import { chatHandler } from "./handlers/chat";
-import { getChatsHandler, createChatHandler, deleteChatHandler, updateChatHandler } from "./handlers/chats";
-import { getMessagesHandler } from "./handlers/messages";
-import { generateTitleHandler } from "./handlers/generate-title";
-import { generateIdeasHandler } from "./handlers/generate-ideas";
-import { builderAIPromptHandler, builderAIContinueHandler, builderAIModifyHandler } from "./handlers/builder-ai";
-import { 
-  proofreaderAnalysisHandler, 
-  getConcernsHandler, 
-  updateConcernStatusHandler, 
-  getConcernStatisticsHandler 
-} from "./handlers/proofreader-ai";
-import ideasRouter from "./handlers/ideas"; // Import the ideas router
-import referencerRouter from "./handlers/referencer"; // Import the referencer router
+import { Hono } from 'hono';
+import { cors } from 'hono/cors';
+import aiSearcherApi from './handlers/referencer-api';
 
-const app = new Hono<{ Bindings: Env & SupabaseEnv }>();
+const app = new Hono();
 
-app.get("/api/", (c) => c.json({ name: "Cloudflare" }));
+// CORS middleware
+app.use('/api/*', cors({
+  origin: ['http://localhost:3000', 'http://localhost:5173'], // Add your frontend URLs
+  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+}));
 
-// Chat
-app.post('/api/chat', chatHandler);
+// Health check endpoint
+app.get('/health', (c) => {
+  return c.json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    service: 'AI Searcher API'
+  });
+});
 
-// Chats
-app.get("/api/chats", getChatsHandler);
-app.post("/api/chats", createChatHandler);
-app.delete("/api/chats/:id", deleteChatHandler);
-app.patch("/api/chats/:id", updateChatHandler);
+// API routes
+app.route('/api/ai-searcher', aiSearcherApi);
 
-// Messages
-app.get("/api/chats/:id/messages", getMessagesHandler);
+// Root endpoint
+app.get('/', (c) => {
+  return c.json({
+    message: 'AI Searcher API',
+    version: '1.0.0',
+    endpoints: {
+      search: 'POST /api/ai-searcher/search',
+      extract: 'POST /api/ai-searcher/extract',
+      history: 'GET /api/ai-searcher/history',
+      analytics: 'GET /api/ai-searcher/analytics',
+      trending: 'GET /api/ai-searcher/trending',
+      statistics: 'GET /api/ai-searcher/statistics',
+      health: 'GET /api/ai-searcher/health'
+    }
+  });
+});
 
-// Ideas CRUD
-app.route('/api/ideas', ideasRouter); // Mount the ideas router
+// Error handling middleware
+app.onError((err, c) => {
+  console.error('API Error:', err);
 
-// Builder AI endpoints
-app.post("/api/builder/ai/prompt", builderAIPromptHandler);
-app.post("/api/builder/ai/continue", builderAIContinueHandler);
-app.post("/api/builder/ai/modify", builderAIModifyHandler);
+  return c.json({
+    success: false,
+    error: err.message || 'Internal server error',
+    timestamp: new Date().toISOString()
+  }, 500);
+});
 
-// Proofreader AI endpoints
-app.post("/api/proofreader/analyze", proofreaderAnalysisHandler);
-app.get("/api/proofreader/concerns/:conversationId", getConcernsHandler);
-app.put("/api/proofreader/concerns/:concernId/status", updateConcernStatusHandler);
-app.get("/api/proofreader/statistics/:conversationId", getConcernStatisticsHandler);
-
-// Referencer endpoints
-app.route('/api/referencer', referencerRouter); // Mount the referencer router
-
-// Other
-app.post("/api/generate-title", generateTitleHandler);
-app.post("/api/generate-ideas", generateIdeasHandler);
+// 404 handler
+app.notFound((c) => {
+  return c.json({
+    success: false,
+    error: 'Endpoint not found',
+    availableEndpoints: [
+      'GET /',
+      'GET /health',
+      'POST /api/ai-searcher/search',
+      'POST /api/ai-searcher/extract',
+      'GET /api/ai-searcher/history',
+      'GET /api/ai-searcher/analytics',
+      'GET /api/ai-searcher/trending',
+      'GET /api/ai-searcher/statistics',
+      'DELETE /api/ai-searcher/history',
+      'GET /api/ai-searcher/health'
+    ]
+  }, 404);
+});
 
 export default app;

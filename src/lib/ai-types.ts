@@ -1,356 +1,19 @@
 /**
- * AI Integration Types and Enumerations
- * Core type definitions for AI Builder Integration
+ * AI Types and Enums
+ * Core types for AI functionality in the thesis copilot
  */
 
-// AI Mode enumeration for different interaction modes
-export enum AIMode {
-  NONE = 'none',
-  PROMPT = 'prompt',
-  CONTINUE = 'continue',
-  MODIFY = 'modify'
+// Citation styles enum
+export enum CitationStyle {
+  APA = 'apa',
+  MLA = 'mla',
+  CHICAGO = 'chicago',
+  HARVARD = 'harvard',
+  IEEE = 'ieee',
+  VANCOUVER = 'vancouver'
 }
 
-// Modification types for AI modify mode
-export enum ModificationType {
-  REWRITE = 'rewrite',
-  EXPAND = 'expand',
-  SUMMARIZE = 'summarize',
-  IMPROVE_CLARITY = 'improve_clarity',
-  PROMPT = 'prompt'
-}
-
-// Text selection interface for editor integration
-export interface TextSelection {
-  start: number;
-  end: number;
-  text: string;
-}
-
-// Content insertion options for AI-generated content
-export interface ContentInsertionOptions {
-  insertAt: number;
-  replaceRange?: { start: number; end: number };
-  preserveFormatting: boolean;
-}
-
-// Document section structure for context analysis
-export interface DocumentSection {
-  type: 'heading' | 'paragraph' | 'list' | 'code';
-  level?: number;
-  content: string;
-  position: { start: number; end: number };
-}
-
-// Document context for AI processing
-export interface DocumentContext {
-  content: string;
-  ideaDefinitions: IdeaDefinition[];
-  conversationTitle: string;
-  cursorPosition: number;
-  selectedText?: string;
-  documentStructure: DocumentSection[];
-  academicContext?: AcademicContext;
-}
-
-// Idea definition interface (from existing system)
-export interface IdeaDefinition {
-  id: number;
-  title: string;
-  description: string;
-  conversationid?: string; // Added conversationid
-}
-
-// AI processing state for UI feedback
-export interface AIProcessingState {
-  isProcessing: boolean;
-  currentMode: AIMode;
-  progress?: number;
-  statusMessage?: string;
-}
-
-// AI Request/Response interfaces for backend handlers
-export interface AIPromptRequest {
-  prompt: string;
-  documentContent: string;
-  cursorPosition: number;
-  conversationId: string;
-}
-
-export interface AIContinueRequest {
-  documentContent: string;
-  cursorPosition: number;
-  selectedText?: string;
-  conversationId: string;
-}
-
-export interface AIModifyRequest {
-  selectedText: string;
-  modificationType: ModificationType;
-  documentContent: string;
-  conversationId: string;
-  customPrompt?: string;
-}
-
-export interface AIResponse {
-  success: boolean;
-  content?: string;
-  error?: string;
-  metadata?: {
-    tokensUsed: number;
-    processingTime: number;
-    contextSufficiency?: boolean;
-    styleAnalysis?: string;
-    academicValidation?: AcademicValidationResult;
-  };
-}
-
-// Academic context interfaces
-export interface AcademicValidationResult {
-  isAcademic: boolean;
-  toneScore: number; // 0-1 scale
-  styleIssues: string[];
-  suggestions: string[];
-  citationFormat: CitationFormat;
-}
-
-export interface CitationFormat {
-  style: 'APA' | 'MLA' | 'Chicago' | 'Harvard' | 'IEEE' | 'Unknown';
-  detected: boolean;
-  examples: string[];
-}
-
-export interface ThesisStructure {
-  sections: ThesisSection[];
-  currentSection?: string;
-  completeness: number; // 0-1 scale
-}
-
-export interface ThesisSection {
-  name: string;
-  level: number;
-  required: boolean;
-  present: boolean;
-  content?: string;
-  subsections?: ThesisSection[];
-}
-
-export interface AcademicContext {
-  thesisStructure: ThesisStructure;
-  citationFormat: CitationFormat;
-  academicTone: {
-    level: 'undergraduate' | 'graduate' | 'doctoral';
-    discipline: string;
-    formalityScore: number;
-  };
-  keyTerms: string[];
-  researchMethodology?: string;
-}
-
-// ============================================================================
-// PROOFREADER TOOL TYPES AND INTERFACES
-// ============================================================================
-
-// Proofreading concern category enumeration
-export enum ConcernCategory {
-  CLARITY = 'clarity',
-  COHERENCE = 'coherence',
-  STRUCTURE = 'structure',
-  ACADEMIC_STYLE = 'academic_style',
-  CONSISTENCY = 'consistency',
-  COMPLETENESS = 'completeness',
-  CITATIONS = 'citations',
-  GRAMMAR = 'grammar',
-  TERMINOLOGY = 'terminology'
-}
-
-// Proofreading concern severity enumeration
-export enum ConcernSeverity {
-  LOW = 'low',
-  MEDIUM = 'medium',
-  HIGH = 'high',
-  CRITICAL = 'critical'
-}
-
-// Proofreading concern status enumeration
-export enum ConcernStatus {
-  TO_BE_DONE = 'to_be_done',
-  ADDRESSED = 'addressed',
-  REJECTED = 'rejected'
-}
-
-// Content location interface for pinpointing issues
-export interface ContentLocation {
-  section?: string;
-  paragraph?: number;
-  startPosition?: number;
-  endPosition?: number;
-  context?: string; // Surrounding text for reference
-}
-
-// Main proofreading concern interface
-export interface ProofreadingConcern {
-  id: string;
-  conversationId: string;
-  category: ConcernCategory;
-  severity: ConcernSeverity;
-  title: string;
-  description: string;
-  location?: ContentLocation;
-  suggestions?: string[];
-  relatedIdeas?: string[]; // References to idea definitions
-  status: ConcernStatus;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-// Analysis options for proofreader requests
-export interface AnalysisOptions {
-  categories?: ConcernCategory[];
-  minSeverity?: ConcernSeverity;
-  includeGrammar?: boolean;
-  academicLevel?: 'undergraduate' | 'graduate' | 'doctoral';
-}
-
-// Proofreader analysis request interface
-export interface ProofreaderAnalysisRequest {
-  conversationId: string;
-  documentContent: string;
-  ideaDefinitions: IdeaDefinition[];
-  analysisOptions?: AnalysisOptions;
-}
-
-// Analysis metadata for tracking analysis performance
-export interface AnalysisMetadata {
-  totalConcerns: number;
-  concernsByCategory: Record<ConcernCategory, number>;
-  concernsBySeverity: Record<ConcernSeverity, number>;
-  analysisTime: number;
-  contentLength: number;
-  ideaDefinitionsUsed: number;
-  fallbackUsed?: boolean;
-  cacheUsed?: boolean;
-  cacheTimestamp?: number;
-  offlineMode?: boolean;
-  errorType?: string;
-}
-
-// Proofreader analysis response interface
-export interface ProofreaderAnalysisResponse {
-  success: boolean;
-  concerns?: ProofreadingConcern[];
-  analysisMetadata?: AnalysisMetadata;
-  error?: string;
-}
-
-// Concern status update interface
-export interface ConcernStatusUpdate {
-  concernId: string;
-  status: ConcernStatus;
-  updatedBy?: string;
-  notes?: string;
-}
-
-// Concern status breakdown for statistics
-export interface ConcernStatusBreakdown {
-  total: number;
-  toBeDone: number;
-  addressed: number;
-  rejected: number;
-}
-
-// Concern statistics interface
-export interface ConcernStatistics {
-  total: number;
-  toBeDone: number;
-  addressed: number;
-  rejected: number;
-  byCategory: Record<ConcernCategory, ConcernStatusBreakdown>;
-  bySeverity: Record<ConcernSeverity, ConcernStatusBreakdown>;
-}
-
-// Content analysis interfaces for detailed analysis
-export interface StructureAnalysis {
-  hasIntroduction: boolean;
-  hasConclusion: boolean;
-  sectionFlow: FlowAnalysis;
-  headingHierarchy: HeadingAnalysis;
-}
-
-export interface FlowAnalysis {
-  logicalProgression: boolean;
-  transitionQuality: number; // 0-1 scale
-  coherenceScore: number; // 0-1 scale
-  flowIssues: string[];
-}
-
-export interface HeadingAnalysis {
-  properHierarchy: boolean;
-  consistentFormatting: boolean;
-  descriptiveHeadings: boolean;
-  hierarchyIssues: string[];
-}
-
-export interface StyleAnalysis {
-  academicTone: number; // 0-1 scale
-  formalityLevel: number; // 0-1 scale
-  clarityScore: number; // 0-1 scale
-  styleIssues: StyleIssue[];
-}
-
-export interface StyleIssue {
-  type: 'tone' | 'formality' | 'clarity' | 'wordChoice' | 'sentence_structure';
-  description: string;
-  location?: ContentLocation;
-  suggestion?: string;
-}
-
-export interface TerminologyIssue {
-  term: string;
-  inconsistentUsage: string[];
-  suggestedStandardization: string;
-  locations: ContentLocation[];
-}
-
-export interface CitationIssue {
-  type: 'format' | 'missing' | 'incomplete' | 'style_inconsistency';
-  description: string;
-  location?: ContentLocation;
-  suggestion?: string;
-}
-
-export interface FormattingIssue {
-  type: 'spacing' | 'indentation' | 'font' | 'alignment' | 'numbering';
-  description: string;
-  location?: ContentLocation;
-  suggestion?: string;
-}
-
-export interface ConsistencyAnalysis {
-  terminologyConsistency: TerminologyIssue[];
-  citationConsistency: CitationIssue[];
-  formattingConsistency: FormattingIssue[];
-}
-
-export interface CompletenessAnalysis {
-  missingSections: string[];
-  insufficientDetail: string[];
-  completenessScore: number; // 0-1 scale
-}
-
-// Main content analysis interface
-export interface ContentAnalysis {
-  structure: StructureAnalysis;
-  style: StyleAnalysis;
-  consistency: ConsistencyAnalysis;
-  completeness: CompletenessAnalysis;
-}
-
-// ============================================================================
-// REFERENCER TOOL TYPES AND INTERFACES
-// ============================================================================
-
-// Reference type enumeration
+// Reference types enum
 export enum ReferenceType {
   JOURNAL_ARTICLE = 'journal_article',
   BOOK = 'book',
@@ -363,32 +26,45 @@ export enum ReferenceType {
   OTHER = 'other'
 }
 
-// Citation style enumeration
-export enum CitationStyle {
-  APA = 'apa',
-  MLA = 'mla',
-  CHICAGO = 'chicago',
-  HARVARD = 'harvard',
-  IEEE = 'ieee',
-  VANCOUVER = 'vancouver'
+// AI modification types
+export enum ModificationType {
+  PROMPT = 'prompt',
+  EXPAND = 'expand',
+  SHORTEN = 'shorten',
+  REPHRASE = 'rephrase',
+  CORRECT = 'correct',
+  TONE = 'tone',
+  FORMAT = 'format',
+  REWRITE = 'rewrite',
+  SUMMARIZE = 'summarize',
+  IMPROVE_CLARITY = 'improve_clarity'
 }
 
-// Author interface for reference authors
-export interface Author {
-  firstName: string;
-  lastName: string;
-  middleName?: string;
-  suffix?: string;
+// AI processing status
+export enum AIProcessingStatus {
+  IDLE = 'idle',
+  PROCESSING = 'processing',
+  COMPLETED = 'completed',
+  ERROR = 'error'
 }
 
-// Main reference interface
+// AI error types
+export enum AIErrorType {
+  NETWORK_ERROR = 'network_error',
+  API_ERROR = 'api_error',
+  VALIDATION_ERROR = 'validation_error',
+  TIMEOUT_ERROR = 'timeout_error',
+  QUOTA_ERROR = 'quota_error'
+}
+
+// Reference interface matching database schema
 export interface Reference {
   id: string;
-  conversationId: string;
+  conversation_id: string;
   type: ReferenceType;
   title: string;
-  authors: Author[];
-  publicationDate?: Date;
+  authors: string[];
+  publication_date?: string;
   url?: string;
   doi?: string;
   journal?: string;
@@ -400,155 +76,319 @@ export interface Reference {
   edition?: string;
   chapter?: string;
   editor?: string;
-  accessDate?: Date;
+  access_date?: string;
   notes?: string;
   tags: string[];
-  metadataConfidence: number; // 0-1 scale for extraction confidence
-  createdAt: Date;
-  updatedAt: Date;
+  metadata_confidence: number;
+  ai_search_source?: string;
+  ai_confidence: number;
+  ai_relevance_score: number;
+  ai_search_query?: string;
+  ai_search_timestamp?: string;
+  created_at: string;
+  updated_at: string;
 }
 
-// Citation instance interface for tracking citations in documents
+// Citation instance interface
 export interface CitationInstance {
   id: string;
-  referenceId: string;
-  conversationId: string;
-  citationStyle: CitationStyle;
-  citationText: string;
-  documentPosition?: number;
+  reference_id: string;
+  conversation_id: string;
+  citation_style: CitationStyle;
+  citation_text: string;
+  document_position?: number;
   context?: string;
-  createdAt: Date;
+  created_at: string;
 }
 
-// Reference form data interface for creating/editing references
-export interface ReferenceFormData {
-  type: ReferenceType;
+// Chat/Conversation interface
+export interface Chat {
+  id: string;
   title: string;
-  authors: Author[];
-  publicationDate?: string;
-  url?: string;
-  doi?: string;
-  journal?: string;
-  volume?: string;
-  issue?: string;
-  pages?: string;
-  publisher?: string;
-  isbn?: string;
-  edition?: string;
-  chapter?: string;
-  editor?: string;
-  accessDate?: string;
-  notes?: string;
-  tags: string[];
+  created_at: string;
+  updated_at: string;
 }
 
-// Validation error interface
-export interface ValidationError {
-  field: string;
-  message: string;
-  severity: 'error' | 'warning';
+// AI search result interface
+export interface AISearchResult {
+  reference: Partial<Reference>;
+  confidence: number;
+  relevance_score: number;
+  source: string;
+  search_query: string;
+  timestamp: string;
+}
+
+// AI processing context
+export interface AIProcessingContext {
+  conversationId: string;
+  documentContent: string;
+  cursorPosition: number;
+  selectedText?: string;
+  modificationType?: ModificationType;
+  citationStyle?: CitationStyle;
+}
+
+// AI performance metrics
+export interface AIPerformanceMetrics {
+  tokensUsed: number;
+  processingTime: number;
+  model: string;
+  success: boolean;
+  error?: string;
 }
 
 // Validation result interface
 export interface ValidationResult {
   isValid: boolean;
-  errors: ValidationError[];
-  warnings: ValidationError[];
-  missingFields: string[];
+  errors: string[];
+  warnings: string[];
 }
 
-// Reference metadata interface for extraction
-export interface ReferenceMetadata {
+// Export configuration
+export interface ExportConfig {
+  format: 'bibtex' | 'ris' | 'json' | 'csv';
+  citationStyle: CitationStyle;
+  includeNotes: boolean;
+  includeTags: boolean;
+}
+
+// Filter options for reference lists
+export interface ReferenceFilters {
+  type?: ReferenceType;
+  citationStyle?: CitationStyle;
+  searchQuery?: string;
+  dateRange?: {
+    start: string;
+    end: string;
+  };
+  tags?: string[];
+  confidenceRange?: {
+    min: number;
+    max: number;
+  };
+}
+
+// Sort options for reference lists
+export interface ReferenceSort {
+  field: keyof Reference;
+  direction: 'asc' | 'desc';
+}
+
+// Pagination options
+export interface PaginationOptions {
+  page: number;
+  limit: number;
+  total: number;
+}
+
+// Missing types that are being imported by other components
+export enum AIMode {
+  PROMPT = 'prompt',
+  CONTINUE = 'continue',
+  MODIFY = 'modify',
+  NONE = 'none'
+}
+
+// Text selection interface
+export interface TextSelection {
+  start: number;
+  end: number;
+  text: string;
+}
+
+// Content insertion options
+export interface ContentInsertionOptions {
+  position: 'start' | 'end' | 'cursor' | 'replace';
+  content: string;
+  insertAt?: number;
+  preserveFormatting?: boolean;
+  replaceRange?: {
+    start: number;
+    end: number;
+  };
+}
+
+// Proofreading concern types
+export enum ConcernStatus {
+  OPEN = 'open',
+  RESOLVED = 'resolved',
+  DISMISSED = 'dismissed',
+  ADDRESSED = 'addressed',
+  REJECTED = 'rejected',
+  TO_BE_DONE = 'to_be_done'
+}
+
+export enum ConcernSeverity {
+  LOW = 'low',
+  MEDIUM = 'medium',
+  HIGH = 'high',
+  CRITICAL = 'critical'
+}
+
+export enum ConcernCategory {
+  GRAMMAR = 'grammar',
+  STYLE = 'style',
+  CLARITY = 'clarity',
+  CONSISTENCY = 'consistency',
+  ACADEMIC_TONE = 'academic_tone',
+  CITATION = 'citation',
+  STRUCTURE = 'structure',
+  COHERENCE = 'coherence',
+  COMPLETENESS = 'completeness',
+  TERMINOLOGY = 'terminology'
+}
+
+export interface ProofreadingConcern {
+  id: string;
+  text: string;
+  category: ConcernCategory;
+  severity: ConcernSeverity;
+  status: ConcernStatus;
+  suggestions: string[];
+  relatedIdeas: string[];
+  position: {
+    start: number;
+    end: number;
+  };
+  explanation: string;
+  created_at: string;
+  updated_at: string;
+  createdAt?: string;
+  updatedAt?: string;
   title?: string;
-  authors?: Author[];
-  publicationDate?: Date;
+  description?: string;
+  location?: {
+    section?: string;
+    paragraph?: number;
+    context?: string;
+  };
+}
+
+// AI search and reference types
+export interface ScholarSearchResult {
+  title: string;
+  authors: string[];
+  journal?: string;
+  publication_date?: string;
+  doi?: string;
+  url?: string;
+  abstract?: string;
+  keywords?: string[];
+  confidence: number;
+  relevance_score: number;
+  citation_count?: number;
+}
+
+export interface ReferenceMetadata {
+  title: string;
+  authors: string[];
   journal?: string;
   volume?: string;
   issue?: string;
   pages?: string;
-  publisher?: string;
+  publication_date?: string;
+  publicationDate?: Date;
   doi?: string;
   isbn?: string;
   url?: string;
-  type?: ReferenceType;
   abstract?: string;
-  keywords?: string[];
-  confidence: number; // 0-1 scale for extraction confidence
+  keywords: string[];
+  confidence: number;
 }
 
-// Metadata extraction request interface
-export interface MetadataExtractionRequest {
-  source: string;
-  type: 'url' | 'doi';
-  conversationId: string;
+export interface ReferenceSuggestion {
+  reference: ReferenceMetadata;
+  reasoning: string;
+  relevance_score: number;
+  relevanceScore?: number;
+  confidence: number;
+  isDuplicate?: boolean;
 }
 
-// Metadata extraction response interface
-export interface MetadataExtractionResponse {
-  success: boolean;
-  metadata?: ReferenceMetadata;
-  error?: string;
-  extractionTime: number;
-  source: string;
+export interface SuggestionRanking {
+  relevance: number;
+  recency: number;
+  authority: number;
+  citation_count: number;
 }
 
-// Citation request interface
-export interface CitationRequest {
-  referenceId: string;
-  style: CitationStyle;
-  type: 'inline' | 'bibliography';
-  context?: string;
-}
-
-// Citation response interface
-export interface CitationResponse {
-  success: boolean;
-  citation?: string;
-  error?: string;
-  style: CitationStyle;
-  type: 'inline' | 'bibliography';
-}
-
-// Bibliography request interface
+// Bibliography types
 export interface BibliographyRequest {
   conversationId: string;
   style: CitationStyle;
-  sortOrder: 'alphabetical' | 'chronological' | 'appearance';
-  includeUrls: boolean;
+  format: 'text' | 'html' | 'markdown' | 'bibtex' | 'ris';
+  sortOrder?: 'alphabetical' | 'chronological' | 'appearance';
+  includeUrls?: boolean;
 }
 
-// Bibliography response interface
 export interface BibliographyResponse {
   success: boolean;
-  bibliography?: string;
+  bibliography: string;
+  format: string;
+  citation_count: number;
   error?: string;
-  referenceCount: number;
-  style: CitationStyle;
 }
 
-// Export format enumeration
-export enum ExportFormat {
-  BIBTEX = 'bibtex',
-  RIS = 'ris',
-  ENDNOTE = 'endnote',
-  ZOTERO = 'zotero',
-  MENDELEY = 'mendeley'
+// Search history types
+export interface SearchHistoryItem {
+  id: string;
+  query: string;
+  timestamp: string | Date;
+  results_count: number;
+  results?: {
+    total: number;
+    accepted: number;
+    rejected: number;
+  };
+  sources: string[];
+  filters?: Record<string, unknown>;
+  user_id?: string;
+  userId?: string;
 }
 
-// Reference statistics interface
-export interface ReferenceStatistics {
-  total: number;
-  byType: Record<ReferenceType, number>;
-  byYear: Record<string, number>;
-  withDoi: number;
-  withUrl: number;
-  averageConfidence: number;
+export interface SearchAnalytics {
+  total_searches: number;
+  totalSearches?: number;
+  average_results: number;
+  averageResults?: number;
+  popular_sources: string[];
+  popularTopics?: string[];
+  search_frequency: Record<string, number>;
+  successRate?: number;
+  period: {
+    start: string;
+    end: string;
+  };
 }
 
-// Reference search and filter options
+// Content extraction types
+export interface ExtractedContent {
+  title?: string;
+  authors?: string[];
+  abstract?: string;
+  keywords?: string[];
+  publication_date?: string;
+  doi?: string;
+  journal?: string;
+  volume?: string;
+  issue?: string;
+  pages?: string;
+  confidence: number;
+}
+
+// Author interface
+export interface Author {
+  firstName: string;
+  lastName: string;
+  middleName?: string;
+  affiliation?: string;
+}
+
+// Reference search options
 export interface ReferenceSearchOptions {
   query?: string;
-  type?: ReferenceType | 'all';
+  type?: ReferenceType;
   author?: string;
   year?: number;
   tags?: string[];
@@ -558,125 +398,17 @@ export interface ReferenceSearchOptions {
   offset?: number;
 }
 
-// Reference list response interface
-export interface ReferenceListResponse {
-  success: boolean;
-  references?: Reference[];
-  total?: number;
-  statistics?: ReferenceStatistics;
-  error?: string;
-}
-
-// ============================================================================
-// AI SEARCHER TOOL TYPES AND INTERFACES
-// ============================================================================
-
-// Content extraction types
-export interface ExtractedContent {
-  source: 'ideas' | 'builder';
-  content: string;
-  keywords: string[];
-  keyPhrases: string[];
-  topics: string[];
-  confidence: number;
-}
-
-// Google Scholar search types
-export interface ScholarSearchQuery {
-  query: string;
-  filters: {
-    yearRange?: [number, number];
-    citationCount?: number;
-    language?: string;
-  };
-}
-
-export interface ScholarSearchResult {
-  title: string;
-  authors: string[];
-  journal?: string;
-  year?: number;
-  citations?: number;
-  url: string;
-  doi?: string;
-  abstract?: string;
-  fullTextUrl?: string;
-}
-
-// Reference suggestion types
-export interface ReferenceSuggestion {
-  id: string;
-  reference: ReferenceMetadata;
-  relevanceScore: number;
-  confidence: number;
+// Metadata extraction request
+export interface MetadataExtractionRequest {
   source: string;
-  searchQuery: string;
-  isDuplicate: boolean;
-  reasoning: string;
-}
-
-export interface SuggestionRanking {
-  relevance: number;
-  recency: number;
-  citations: number;
-  authorAuthority: number;
-  overall: number;
-}
-
-// Search history and analytics types
-export interface SearchHistoryItem {
-  id: string;
-  timestamp: Date;
-  query: string;
-  sources: ('ideas' | 'builder')[];
-  results: {
-    total: number;
-    accepted: number;
-    rejected: number;
-  };
-  userId: string;
-}
-
-export interface SearchAnalytics {
-  totalSearches: number;
-  successRate: number;
-  popularTopics: string[];
-  averageResults: number;
-  topSources: ('ideas' | 'builder')[];
-}
-
-// Content extraction request interface
-export interface ContentExtractionRequest {
-  source: 'ideas' | 'builder';
-  id: string;
+  type: 'url' | 'doi';
   conversationId: string;
 }
 
-// Content extraction response interface
-export interface ContentExtractionResponse {
-  success: boolean;
-  extractedContent?: ExtractedContent;
-  error?: string;
-  extractionTime: number;
-}
-
-// AI Searcher request interface
-export interface AISearcherRequest {
-  conversationId: string;
-  contentSources: {
-    ideas?: string[];
-    builder?: string[];
-  };
-  searchFilters?: ScholarSearchQuery['filters'];
-  maxResults?: number;
-}
-
-// AI Searcher response interface
-export interface AISearcherResponse {
-  success: boolean;
-  suggestions?: ReferenceSuggestion[];
-  searchAnalytics?: SearchAnalytics;
-  error?: string;
-  searchTime: number;
-  totalResults: number;
+// Citation request
+export interface CitationRequest {
+  referenceId: string;
+  style: CitationStyle;
+  type: 'inline' | 'bibliography';
+  context?: string;
 }

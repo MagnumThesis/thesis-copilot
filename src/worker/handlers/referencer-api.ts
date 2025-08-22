@@ -1,4 +1,4 @@
-import { Context } from "hono";
+import { Hono, Context } from "hono";
 import { SupabaseEnv } from "../lib/supabase";
 import { Env } from "../types/env";
 import { ReferenceManagementEngine } from "../lib/reference-management-engine";
@@ -514,6 +514,7 @@ export class ReferencerAPIHandler {
       const request: BibliographyRequest = {
         conversationId,
         style,
+        format: 'text', // Default format
         sortOrder,
         includeUrls
       };
@@ -593,5 +594,21 @@ export class ReferencerAPIHandler {
   }
 }
 
-// Create a singleton instance
-export const referencerAPIHandler = new ReferencerAPIHandler();
+// Create Hono app instance
+const app = new Hono<ReferencerContext>();
+
+// Create handler instance
+const referencerAPIHandler = new ReferencerAPIHandler();
+
+// Routes
+app.post('/references', (c) => referencerAPIHandler.createReference(c));
+app.get('/references/:conversationId', (c) => referencerAPIHandler.getReferencesForConversation(c));
+app.get('/references/:referenceId', (c) => referencerAPIHandler.getReferenceById(c));
+app.put('/references/:referenceId', (c) => referencerAPIHandler.updateReference(c));
+app.delete('/references/:referenceId', (c) => referencerAPIHandler.deleteReference(c));
+app.post('/extract-metadata', (c) => referencerAPIHandler.extractMetadata(c));
+app.post('/format-citation', (c) => referencerAPIHandler.formatCitation(c));
+app.post('/generate-bibliography', (c) => referencerAPIHandler.generateBibliography(c));
+
+// Export Hono app as default
+export default app;
