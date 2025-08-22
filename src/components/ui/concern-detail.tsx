@@ -5,7 +5,8 @@ import { ProofreadingConcern, ConcernStatus, ConcernSeverity, ConcernCategory } 
 import { Button } from "@/components/ui/shadcn/button"
 import { Badge } from "@/components/ui/shadcn/badge"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/shadcn/collapsible"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/shadcn/tooltip"
+import { TooltipProvider } from "@/components/ui/shadcn/tooltip"
+
 import { ChevronDown, ChevronRight, CheckCircle, XCircle, Clock, AlertTriangle, AlertCircle, Info, Lightbulb, MapPin } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAccessibility, useLiveRegion } from "@/hooks/use-accessibility"
@@ -80,13 +81,13 @@ export const ConcernDetail: React.FC<ConcernDetailProps> = ({
         return "Coherence"
       case ConcernCategory.STRUCTURE:
         return "Structure"
-      case ConcernCategory.ACADEMIC_STYLE:
+      case ConcernCategory.ACADEMIC_TONE:
         return "Academic Style"
       case ConcernCategory.CONSISTENCY:
         return "Consistency"
       case ConcernCategory.COMPLETENESS:
         return "Completeness"
-      case ConcernCategory.CITATIONS:
+      case ConcernCategory.CITATION:
         return "Citations"
       case ConcernCategory.GRAMMAR:
         return "Grammar"
@@ -103,10 +104,10 @@ export const ConcernDetail: React.FC<ConcernDetailProps> = ({
       [ConcernCategory.COHERENCE]: "bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900/20 dark:text-purple-300 dark:border-purple-800",
       [ConcernCategory.STRUCTURE]: "bg-indigo-100 text-indigo-800 border-indigo-200 dark:bg-indigo-900/20 dark:text-indigo-300 dark:border-indigo-800",
       [ConcernCategory.COMPLETENESS]: "bg-indigo-100 text-indigo-800 border-indigo-200 dark:bg-indigo-900/20 dark:text-indigo-300 dark:border-indigo-800",
-      [ConcernCategory.ACADEMIC_STYLE]: "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/20 dark:text-green-300 dark:border-green-800",
+      [ConcernCategory.ACADEMIC_TONE]: "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/20 dark:text-green-300 dark:border-green-800",
       [ConcernCategory.TERMINOLOGY]: "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/20 dark:text-green-300 dark:border-green-800",
       [ConcernCategory.CONSISTENCY]: "bg-cyan-100 text-cyan-800 border-cyan-200 dark:bg-cyan-900/20 dark:text-cyan-300 dark:border-cyan-800",
-      [ConcernCategory.CITATIONS]: "bg-cyan-100 text-cyan-800 border-cyan-200 dark:bg-cyan-900/20 dark:text-cyan-300 dark:border-cyan-800",
+      [ConcernCategory.CITATION]: "bg-cyan-100 text-cyan-800 border-cyan-200 dark:bg-cyan-900/20 dark:text-cyan-300 dark:border-cyan-800",
       [ConcernCategory.GRAMMAR]: "bg-pink-100 text-pink-800 border-pink-200 dark:bg-pink-900/20 dark:text-pink-300 dark:border-pink-800"
     }
     
@@ -115,15 +116,15 @@ export const ConcernDetail: React.FC<ConcernDetailProps> = ({
       [ConcernCategory.COHERENCE]: "bg-purple-200 text-purple-900 border-purple-400 dark:bg-purple-800 dark:text-purple-100 dark:border-purple-600",
       [ConcernCategory.STRUCTURE]: "bg-indigo-200 text-indigo-900 border-indigo-400 dark:bg-indigo-800 dark:text-indigo-100 dark:border-indigo-600",
       [ConcernCategory.COMPLETENESS]: "bg-indigo-200 text-indigo-900 border-indigo-400 dark:bg-indigo-800 dark:text-indigo-100 dark:border-indigo-600",
-      [ConcernCategory.ACADEMIC_STYLE]: "bg-green-200 text-green-900 border-green-400 dark:bg-green-800 dark:text-green-100 dark:border-green-600",
+      [ConcernCategory.ACADEMIC_TONE]: "bg-green-200 text-green-900 border-green-400 dark:bg-green-800 dark:text-green-100 dark:border-green-600",
       [ConcernCategory.TERMINOLOGY]: "bg-green-200 text-green-900 border-green-400 dark:bg-green-800 dark:text-green-100 dark:border-green-600",
       [ConcernCategory.CONSISTENCY]: "bg-cyan-200 text-cyan-900 border-cyan-400 dark:bg-cyan-800 dark:text-cyan-100 dark:border-cyan-600",
-      [ConcernCategory.CITATIONS]: "bg-cyan-200 text-cyan-900 border-cyan-400 dark:bg-cyan-800 dark:text-cyan-100 dark:border-cyan-600",
+      [ConcernCategory.CITATION]: "bg-cyan-200 text-cyan-900 border-cyan-400 dark:bg-cyan-800 dark:text-cyan-100 dark:border-cyan-600",
       [ConcernCategory.GRAMMAR]: "bg-pink-200 text-pink-900 border-pink-400 dark:bg-pink-800 dark:text-pink-100 dark:border-pink-600"
     }
     
     const colors = preferences.prefersHighContrast ? highContrastColors : baseColors
-    return colors[category] || "bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700"
+    return (colors as Record<string, string>)[category] || "bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700"
   }
 
   const getStatusIcon = (status: ConcernStatus) => {
@@ -272,7 +273,7 @@ export const ConcernDetail: React.FC<ConcernDetailProps> = ({
                   )}
                   
                   <div className="text-xs text-muted-foreground">
-                    Updated: {new Date(concern.updatedAt).toLocaleDateString()}
+                    Updated: {new Date(concern.updatedAt || '').toLocaleDateString()}
                   </div>
                 </div>
               </div>

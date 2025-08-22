@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useMemo, useRef, useEffect } from "react"
-import { ProofreadingConcern, ConcernStatus, ConcernCategory, ConcernSeverity } from "@/lib/ai-types"
+import { ProofreadingConcern, ConcernStatus, ConcernCategory, ConcernSeverity, safeDate } from "@/lib/ai-types"
 import { ConcernDetail } from "./concern-detail"
 import { Button } from "@/components/ui/shadcn/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/shadcn/select"
@@ -91,23 +91,24 @@ export const ConcernList: React.FC<ConcernListProps> = ({
       case 'category':
         comparison = a.category.localeCompare(b.category)
         break
-      case 'created':
-        comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-        break
-      case 'updated':
-        comparison = new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime()
-        break
+      case 'created': {
+        const aCreated = safeDate(a.createdAt);
+        const bCreated = safeDate(b.createdAt);
+        comparison = (aCreated?.getTime() ?? 0) - (bCreated?.getTime() ?? 0);
+        break;
+      }
+      case 'updated': {
+        const aUpdated = safeDate(a.updatedAt);
+        const bUpdated = safeDate(b.updatedAt);
+        comparison = (aUpdated?.getTime() ?? 0) - (bUpdated?.getTime() ?? 0);
+        break;
+      }
     }
     
     return sortDirection === 'asc' ? comparison : -comparison
   })
 
-  // Group concerns by status for display
-  const concernsByStatus = {
-    [ConcernStatus.TO_BE_DONE]: sortedConcerns.filter(c => c.status === ConcernStatus.TO_BE_DONE),
-    [ConcernStatus.ADDRESSED]: sortedConcerns.filter(c => c.status === ConcernStatus.ADDRESSED),
-    [ConcernStatus.REJECTED]: sortedConcerns.filter(c => c.status === ConcernStatus.REJECTED)
-  }
+  // Note: concernsByStatus removed as it was unused
 
   // Use virtual scrolling for large lists (>20 items)
   const useVirtualScrolling = sortedConcerns.length > 20;
@@ -214,22 +215,25 @@ export const ConcernList: React.FC<ConcernListProps> = ({
     }
   }
 
-  const handleConcernFocus = (index: number) => {
-    setFocusedConcernIndex(index)
-  }
+  // Note: handleConcernFocus removed as it was unused
 
   const getStatusLabel = (status: ConcernStatus | 'all') => {
     switch (status) {
-      case ConcernStatus.TO_BE_DONE:
+      case ConcernStatus.TO_BE_DONE: {
         return 'To be done'
-      case ConcernStatus.ADDRESSED:
+      }
+      case ConcernStatus.ADDRESSED: {
         return 'Addressed'
-      case ConcernStatus.REJECTED:
+      }
+      case ConcernStatus.REJECTED: {
         return 'Rejected'
-      case 'all':
+      }
+      case 'all': {
         return 'All concerns'
-      default:
+      }
+      default: {
         return 'All concerns'
+      }
     }
   }
 

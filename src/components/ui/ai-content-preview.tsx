@@ -32,11 +32,16 @@ interface AIContentPreviewProps {
 }
 
 const modificationTypeLabels: Record<ModificationType, string> = {
-  [ModificationType.REWRITE]: "Rewritten",
+  [ModificationType.PROMPT]: "Custom Modified",
   [ModificationType.EXPAND]: "Expanded",
+  [ModificationType.SHORTEN]: "Shortened",
+  [ModificationType.REPHRASE]: "Rephrased",
+  [ModificationType.CORRECT]: "Corrected",
+  [ModificationType.TONE]: "Tone Adjusted",
+  [ModificationType.FORMAT]: "Formatted",
+  [ModificationType.REWRITE]: "Rewritten",
   [ModificationType.SUMMARIZE]: "Summarized",
   [ModificationType.IMPROVE_CLARITY]: "Clarity Improved",
-  [ModificationType.PROMPT]: "Custom Modified",
 };
 
 export const AIContentPreview: React.FC<AIContentPreviewProps> = ({

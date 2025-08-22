@@ -64,13 +64,9 @@ export class ReferenceSuggestionEngine {
       const confidence = this.calculateConfidence(result, originalContent);
 
       const suggestion: ReferenceSuggestion = {
-        id: `suggestion_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         reference,
-        relevanceScore,
+        relevance_score: relevanceScore,
         confidence,
-        source: originalContent.source,
-        searchQuery: this.generateQueryFromContent(originalContent),
-        isDuplicate: false,
         reasoning: this.generateReasoning(result, originalContent, relevanceScore)
       };
 
@@ -81,7 +77,7 @@ export class ReferenceSuggestionEngine {
     this.markDuplicates(suggestions);
 
     // Sort by relevance score
-    suggestions.sort((a, b) => b.relevanceScore - a.relevanceScore);
+    suggestions.sort((a, b) => (b.relevance_score || 0) - (a.relevance_score || 0));
 
     return suggestions.slice(0, maxSuggestions);
   }
@@ -92,19 +88,13 @@ export class ReferenceSuggestionEngine {
   private convertToReference(result: ScholarSearchResult): ReferenceMetadata {
     return {
       title: result.title,
-      authors: result.authors.map(name => {
-        const parts = name.split(' ');
-        return {
-          firstName: parts.slice(1).join(' '),
-          lastName: parts[0],
-          middleName: parts.length > 2 ? parts.slice(1, -1).join(' ') : undefined
-        };
-      }),
+      authors: result.authors,
       publicationDate: result.year ? new Date(result.year, 0, 1) : undefined,
       journal: result.journal,
       url: result.url,
       doi: result.doi,
       abstract: result.abstract,
+      keywords: result.keywords || [],
       confidence: 0.8 // Base confidence for Scholar results
     };
   }
@@ -133,17 +123,17 @@ export class ReferenceSuggestionEngine {
   private calculateSimilarity(result: ScholarSearchResult, content: ExtractedContent): SimilarityScore {
     // Text similarity using title and abstract
     const resultText = `${result.title} ${result.abstract || ''}`.toLowerCase();
-    const contentText = content.content.toLowerCase();
+    const contentText = (content.content || '').toLowerCase();
 
     const textSimilarity = stringSimilarity.compareTwoStrings(resultText, contentText);
 
     // Keyword matching
     const resultKeywords = this.extractKeywordsFromResult(result);
-    const keywordMatch = this.calculateKeywordOverlap(content.keywords, resultKeywords);
+    const keywordMatch = this.calculateKeywordOverlap(content.keywords || [], resultKeywords);
 
     // Topic overlap
     const resultTopics = this.extractTopicsFromResult(result);
-    const topicOverlap = this.calculateTopicOverlap(content.topics, resultTopics);
+    const topicOverlap = this.calculateTopicOverlap(content.topics || [], resultTopics);
 
     // Overall similarity score
     const overall = (textSimilarity * 0.4 + keywordMatch * 0.3 + topicOverlap * 0.3);
@@ -328,7 +318,7 @@ export class ReferenceSuggestionEngine {
     // Boost confidence for high-quality sources
     if (result.doi) confidence += 0.1;
     if (result.citations && result.citations > 10) confidence += 0.1;
-    if (this.academicDomains.has(this.extractDomain(result.url))) confidence += 0.1;
+    if (result.url && this.academicDomains.has(this.extractDomain(result.url))) confidence += 0.1;
 
     // Reduce confidence for very old or low-quality results
     if (result.year && result.year < 2000) confidence -= 0.2;
@@ -355,7 +345,8 @@ export class ReferenceSuggestionEngine {
     const seen = new Set<string>();
 
     for (const suggestion of suggestions) {
-      const key = `${suggestion.reference.title}_${suggestion.reference.authors?.[0]?.lastName}`.toLowerCase();
+      const firstAuthor = suggestion.reference.authors?.[0] || '';
+      const key = `${suggestion.reference.title}_${firstAuthor}`.toLowerCase();
 
       if (seen.has(key)) {
         suggestion.isDuplicate = true;
@@ -401,7 +392,9 @@ export class ReferenceSuggestionEngine {
    * Generate search query from content
    */
   private generateQueryFromContent(content: ExtractedContent): string {
-    const terms = [...content.keywords.slice(0, 3), ...content.topics.slice(0, 2)];
+    const keywords = content.keywords || [];
+    const topics = content.topics || [];
+    const terms = [...keywords.slice(0, 3), ...topics.slice(0, 2)];
     return [...new Set(terms)].join(' AND ');
   }
 
@@ -411,12 +404,13 @@ export class ReferenceSuggestionEngine {
   getSuggestionRanking(suggestion: ReferenceSuggestion): SuggestionRanking {
     // This would contain detailed ranking metrics
     // For now, return simplified ranking
+    const relevance = suggestion.relevance_score || 0;
     return {
-      relevance: suggestion.relevanceScore,
+      relevance,
       recency: 0.5,
       citations: 0.5,
       authorAuthority: 0.5,
-      overall: suggestion.relevanceScore
+      overall: relevance
     };
   }
 
@@ -434,9 +428,10 @@ export class ReferenceSuggestionEngine {
     }
   ): ReferenceSuggestion[] {
     return suggestions.filter(suggestion => {
-      if (criteria.minScore && suggestion.relevanceScore < criteria.minScore) return false;
+      const relevanceScore = suggestion.relevance_score || 0;
+      if (criteria.minScore && relevanceScore < criteria.minScore) return false;
       if (criteria.excludeDuplicates && suggestion.isDuplicate) return false;
-      if (criteria.minCitations && (suggestion.reference as any).citations < criteria.minCitations) return false;
+      if (criteria.minCitations && (suggestion.reference.citations || 0) < criteria.minCitations) return false;
 
       const year = suggestion.reference.publicationDate?.getFullYear();
       if (criteria.minYear && year && year < criteria.minYear) return false;

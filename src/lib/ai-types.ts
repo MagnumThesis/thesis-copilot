@@ -199,8 +199,8 @@ export interface TextSelection {
 
 // Content insertion options
 export interface ContentInsertionOptions {
-  position: 'start' | 'end' | 'cursor' | 'replace';
-  content: string;
+  position?: 'start' | 'end' | 'cursor' | 'replace';
+  content?: string;
   insertAt?: number;
   preserveFormatting?: boolean;
   replaceRange?: {
@@ -270,6 +270,8 @@ export interface ScholarSearchResult {
   title: string;
   authors: string[];
   journal?: string;
+  year?: number;
+  citations?: number;
   publication_date?: string;
   doi?: string;
   url?: string;
@@ -294,6 +296,7 @@ export interface ReferenceMetadata {
   url?: string;
   abstract?: string;
   keywords: string[];
+  citations?: number;
   confidence: number;
 }
 
@@ -309,8 +312,9 @@ export interface ReferenceSuggestion {
 export interface SuggestionRanking {
   relevance: number;
   recency: number;
-  authority: number;
-  citation_count: number;
+  citations: number;
+  authorAuthority: number;
+  overall: number;
 }
 
 // Bibliography types
@@ -364,10 +368,13 @@ export interface SearchAnalytics {
 
 // Content extraction types
 export interface ExtractedContent {
+  source?: 'ideas' | 'builder';
   title?: string;
   authors?: string[];
   abstract?: string;
   keywords?: string[];
+  topics?: string[];
+  content?: string;
   publication_date?: string;
   doi?: string;
   journal?: string;
@@ -412,3 +419,106 @@ export interface CitationRequest {
   type: 'inline' | 'bibliography';
   context?: string;
 }
+
+// Missing type definitions needed by other components
+
+// Idea definition interface
+export interface IdeaDefinition {
+  id: string;
+  title: string;
+  content: string;
+  description: string;
+  type: 'concept' | 'hypothesis' | 'method' | 'result' | 'conclusion';
+  tags: string[];
+  confidence: number;
+  created_at: string;
+  updated_at: string;
+}
+
+// Document context interface
+export interface DocumentContext {
+  conversationId: string;
+  documentContent: string;
+  cursorPosition: number;
+  selectedText?: string;
+  wordCount: number;
+  paragraphCount: number;
+  section?: string;
+}
+
+// AI processing state (different from status)
+export interface AIProcessingState {
+  isProcessing: boolean;
+  currentOperation?: string;
+  progress?: number;
+  error?: string;
+  startTime?: Date;
+  estimatedCompletionTime?: Date;
+}
+
+// Proofreader analysis types
+export interface ProofreaderAnalysisRequest {
+  conversationId: string;
+  documentContent: string;
+  concerns?: ProofreadingConcern[];
+  ideaDefinitions?: IdeaDefinition[];
+  includeSuggestions?: boolean;
+  analysisDepth?: 'basic' | 'comprehensive' | 'detailed';
+  focusAreas?: ConcernCategory[];
+  analysisOptions?: {
+    timeout?: number;
+    maxRetries?: number;
+    model?: string;
+  };
+}
+
+export interface ProofreaderAnalysisResponse {
+  success: boolean;
+  concerns: ProofreadingConcern[];
+  analysis: {
+    totalConcerns: number;
+    concernsByCategory: Record<ConcernCategory, number>;
+    concernsBySeverity: Record<ConcernSeverity, number>;
+    overallQualityScore: number;
+    readabilityScore?: number;
+    academicToneScore?: number;
+  };
+  metadata: AnalysisMetadata;
+  analysisMetadata?: {
+    totalConcerns?: number;
+    concernsByCategory?: Record<ConcernCategory, number>;
+    fallbackUsed?: boolean;
+    cacheUsed?: boolean;
+  };
+  error?: string;
+}
+
+// Analysis metadata
+export interface AnalysisMetadata {
+  processingTime: number;
+  modelUsed: string;
+  analysisTimestamp: string;
+  version: string;
+  confidence: number;
+}
+
+// Utility functions for safe type conversions
+export const safeDate = (dateValue: string | Date | undefined | null): Date | null => {
+  if (!dateValue) return null;
+  if (dateValue instanceof Date) return dateValue;
+  try {
+    const parsed = new Date(dateValue);
+    return isNaN(parsed.getTime()) ? null : parsed;
+  } catch {
+    return null;
+  }
+};
+
+export const safeString = (value: unknown): string => {
+  return value?.toString() ?? '';
+};
+
+export const safeNumber = (value: unknown): number => {
+  const num = Number(value);
+  return isNaN(num) ? 0 : num;
+};
