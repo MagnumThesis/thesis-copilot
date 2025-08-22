@@ -62,7 +62,8 @@ export class ReferenceManagementEngine {
         const extractionResult = await this.metadataEngine.extractMetadata(extractionRequest);
         
         if (extractionResult.success && extractionResult.metadata) {
-          finalData = this.mergeMetadataWithFormData(data, extractionResult.metadata);
+          const mergedData = this.mergeMetadataWithFormData({ ...data, conversationId: undefined }, extractionResult.metadata);
+          finalData = { ...mergedData, conversationId: data.conversationId };
         }
       } catch (error) {
         // Log the error but don't fail the creation - use manual data
@@ -113,7 +114,10 @@ export class ReferenceManagementEngine {
           finalData = this.mergeMetadataWithFormData(mergedData, extractionResult.metadata);
           // Only keep the fields that were actually updated
           finalData = Object.keys(data).reduce((acc, key) => {
-            acc[key as keyof ReferenceFormData] = finalData[key as keyof ReferenceFormData];
+            const value = finalData[key as keyof typeof finalData];
+            if (value !== undefined) {
+              (acc as Record<string, unknown>)[key] = value;
+            }
             return acc;
           }, {} as Partial<ReferenceFormData>);
         }
@@ -466,7 +470,7 @@ export class ReferenceManagementEngine {
   /**
    * Merge extracted metadata with form data
    */
-  private mergeMetadataWithFormData(formData: ReferenceFormData, metadata: ReferenceMetadata): ReferenceFormData {
+  private mergeMetadataWithFormData(formData: ReferenceFormData & { conversationId?: string }, metadata: ReferenceMetadata): ReferenceFormData & { conversationId?: string } {
     return {
       type: metadata.type || formData.type,
       title: metadata.title || formData.title,

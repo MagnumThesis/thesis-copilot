@@ -69,7 +69,7 @@ function mapCrossRefTypeToReferenceType(crossRefType: string): ReferenceType {
 /**
  * Parses CrossRef author data into our Author format
  */
-function parseCrossRefAuthors(crossRefAuthors: any[]): Author[] {
+function parseCrossRefAuthors(crossRefAuthors: Record<string, unknown>[]): Author[] {
   if (!Array.isArray(crossRefAuthors)) {
     return [];
   }
@@ -77,10 +77,10 @@ function parseCrossRefAuthors(crossRefAuthors: any[]): Author[] {
   return crossRefAuthors
     .filter(author => author && (author.given || author.family))
     .map(author => ({
-      firstName: author.given || '',
-      lastName: author.family || '',
+      firstName: (author.given as string) || '',
+      lastName: (author.family as string) || '',
       middleName: undefined,
-      suffix: author.suffix || undefined
+      suffix: (author.suffix as string) || undefined
     }));
 }
 
@@ -116,19 +116,19 @@ function parseCrossRefDate(dateParts: number[][]): Date | null {
 /**
  * Extracts page information from CrossRef data
  */
-function extractPages(crossRefWork: any): string | undefined {
+function extractPages(crossRefWork: Record<string, unknown>): string | undefined {
   if (crossRefWork.page) {
-    return crossRefWork.page;
+    return String(crossRefWork.page);
   }
 
   // Try to construct from first and last page
   const firstPage = crossRefWork['first-page'];
   const lastPage = crossRefWork['last-page'];
-  
+
   if (firstPage && lastPage) {
     return `${firstPage}-${lastPage}`;
   } else if (firstPage) {
-    return firstPage;
+    return String(firstPage);
   }
 
   return undefined;
@@ -137,16 +137,16 @@ function extractPages(crossRefWork: any): string | undefined {
 /**
  * Calculates confidence score based on CrossRef data completeness
  */
-function calculateDoiConfidence(crossRefWork: any): number {
+function calculateDoiConfidence(crossRefWork: Record<string, unknown>): number {
   let score = 0.8; // Base score for successful DOI resolution
 
   // Essential fields
-  if (crossRefWork.title && crossRefWork.title.length > 0) score += 0.1;
-  if (crossRefWork.author && crossRefWork.author.length > 0) score += 0.05;
-  
+  if (crossRefWork.title && Array.isArray(crossRefWork.title) && crossRefWork.title.length > 0) score += 0.1;
+  if (crossRefWork.author && Array.isArray(crossRefWork.author) && crossRefWork.author.length > 0) score += 0.05;
+
   // Publication details
   if (crossRefWork['published-print'] || crossRefWork['published-online']) score += 0.02;
-  if (crossRefWork['container-title'] && crossRefWork['container-title'].length > 0) score += 0.02;
+  if (crossRefWork['container-title'] && Array.isArray(crossRefWork['container-title']) && crossRefWork['container-title'].length > 0) score += 0.02;
   if (crossRefWork.publisher) score += 0.01;
 
   return Math.min(score, 1.0);
@@ -155,62 +155,73 @@ function calculateDoiConfidence(crossRefWork: any): number {
 /**
  * Transforms CrossRef work data into our ReferenceMetadata format
  */
-function transformCrossRefWork(crossRefWork: any, doi: string): ReferenceMetadata {
+function transformCrossRefWork(crossRefWork: Record<string, unknown>, doi: string): ReferenceMetadata {
   const metadata: ReferenceMetadata = {
     confidence: calculateDoiConfidence(crossRefWork)
   };
 
   // Extract title
-  if (crossRefWork.title && crossRefWork.title.length > 0) {
-    metadata.title = crossRefWork.title[0];
+  if (crossRefWork.title && Array.isArray(crossRefWork.title) && crossRefWork.title.length > 0) {
+    metadata.title = String(crossRefWork.title[0]);
   }
 
   // Extract authors
-  if (crossRefWork.author) {
-    metadata.authors = parseCrossRefAuthors(crossRefWork.author);
+  if (crossRefWork.author && Array.isArray(crossRefWork.author)) {
+    metadata.authors = parseCrossRefAuthors(crossRefWork.author as Record<string, unknown>[]);
   }
 
   // Extract publication date
   const publishedDate = crossRefWork['published-print'] || crossRefWork['published-online'];
-  if (publishedDate && publishedDate['date-parts']) {
-    metadata.publicationDate = parseCrossRefDate(publishedDate['date-parts']);
+  if (publishedDate && typeof publishedDate === 'object' && publishedDate !== null) {
+    const pubDate = publishedDate as Record<string, unknown>;
+    if (pubDate['date-parts'] && Array.isArray(pubDate['date-parts'])) {
+      metadata.publicationDate = parseCrossRefDate(pubDate['date-parts'] as number[][]) || undefined;
+    }
   }
 
   // Extract journal/container information
-  if (crossRefWork['container-title'] && crossRefWork['container-title'].length > 0) {
-    metadata.journal = crossRefWork['container-title'][0];
+  if (crossRefWork['container-title'] && Array.isArray(crossRefWork['container-title']) && crossRefWork['container-title'].length > 0) {
+    metadata.journal = String(crossRefWork['container-title'][0]);
   }
 
   // Extract volume and issue
-  metadata.volume = crossRefWork.volume;
-  metadata.issue = crossRefWork.issue;
+  if (typeof crossRefWork.volume === 'string') {
+    metadata.volume = crossRefWork.volume;
+  }
+  if (typeof crossRefWork.issue === 'string') {
+    metadata.issue = crossRefWork.issue;
+  }
 
   // Extract pages
   metadata.pages = extractPages(crossRefWork);
 
   // Extract publisher
-  metadata.publisher = crossRefWork.publisher;
+  if (typeof crossRefWork.publisher === 'string') {
+    metadata.publisher = crossRefWork.publisher;
+  }
 
   // Extract ISBN (for books)
-  if (crossRefWork.ISBN && crossRefWork.ISBN.length > 0) {
-    metadata.isbn = crossRefWork.ISBN[0];
+  if (crossRefWork.ISBN && Array.isArray(crossRefWork.ISBN) && crossRefWork.ISBN.length > 0) {
+    metadata.isbn = String(crossRefWork.ISBN[0]);
   }
 
   // Set DOI
   metadata.doi = doi;
 
   // Extract abstract if available
-  if (crossRefWork.abstract) {
+  if (typeof crossRefWork.abstract === 'string') {
     metadata.abstract = crossRefWork.abstract;
   }
 
   // Extract keywords/subjects
   if (crossRefWork.subject && Array.isArray(crossRefWork.subject)) {
-    metadata.keywords = crossRefWork.subject;
+    metadata.keywords = crossRefWork.subject as string[];
   }
 
   // Determine reference type
-  metadata.type = mapCrossRefTypeToReferenceType(crossRefWork.type);
+  if (typeof crossRefWork.type === 'string') {
+    metadata.type = mapCrossRefTypeToReferenceType(crossRefWork.type);
+  }
 
   return metadata;
 }
@@ -249,7 +260,7 @@ export async function extractDoiMetadata(doi: string): Promise<ReferenceMetadata
     }
 
     // Parse response
-    const data = await response.json();
+    const data = await response.json() as { message?: Record<string, unknown> };
 
     if (!data || !data.message) {
       throw new Error('Invalid response from CrossRef API');

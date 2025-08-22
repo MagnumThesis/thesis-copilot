@@ -1,15 +1,14 @@
 import { getSupabase } from './supabase';
-import type { 
-  Reference, 
-  ReferenceFormData, 
-  ReferenceSearchOptions, 
+import type {
+  Reference,
+  ReferenceFormData,
+  ReferenceSearchOptions,
   ReferenceListResponse,
   ReferenceStatistics,
   CitationInstance,
-  Author,
-  ReferenceType,
   CitationStyle
 } from '../../lib/ai-types';
+import { ReferenceType } from '../../lib/ai-types';
 
 /**
  * Reference Database Operations
@@ -86,7 +85,7 @@ export class ReferenceDatabaseOperations {
    * Update a reference
    */
   async updateReference(id: string, data: Partial<ReferenceFormData>): Promise<Reference> {
-    const updateData: any = {};
+    const updateData: Record<string, unknown> = {};
     
     if (data.type !== undefined) updateData.type = data.type;
     if (data.title !== undefined) updateData.title = data.title;
@@ -415,47 +414,47 @@ export class ReferenceDatabaseOperations {
   /**
    * Map database row to Reference interface
    */
-  private mapDatabaseToReference(data: any): Reference {
+  private mapDatabaseToReference(data: Record<string, unknown>): Reference {
     return {
-      id: data.id,
-      conversationId: data.conversation_id,
+      id: String(data.id),
+      conversationId: String(data.conversation_id),
       type: data.type as ReferenceType,
-      title: data.title,
+      title: String(data.title),
       authors: typeof data.authors === 'string' ? JSON.parse(data.authors) : data.authors,
-      publicationDate: data.publication_date ? new Date(data.publication_date) : undefined,
-      url: data.url || undefined,
-      doi: data.doi || undefined,
-      journal: data.journal || undefined,
-      volume: data.volume || undefined,
-      issue: data.issue || undefined,
-      pages: data.pages || undefined,
-      publisher: data.publisher || undefined,
-      isbn: data.isbn || undefined,
-      edition: data.edition || undefined,
-      chapter: data.chapter || undefined,
-      editor: data.editor || undefined,
-      accessDate: data.access_date ? new Date(data.access_date) : undefined,
-      notes: data.notes || undefined,
-      tags: data.tags || [],
-      metadataConfidence: data.metadata_confidence || 1.0,
-      createdAt: new Date(data.created_at),
-      updatedAt: new Date(data.updated_at)
+      publicationDate: data.publication_date ? new Date(data.publication_date as string | number | Date) : undefined,
+      url: data.url ? String(data.url) : undefined,
+      doi: data.doi ? String(data.doi) : undefined,
+      journal: data.journal ? String(data.journal) : undefined,
+      volume: data.volume ? String(data.volume) : undefined,
+      issue: data.issue ? String(data.issue) : undefined,
+      pages: data.pages ? String(data.pages) : undefined,
+      publisher: data.publisher ? String(data.publisher) : undefined,
+      isbn: data.isbn ? String(data.isbn) : undefined,
+      edition: data.edition ? String(data.edition) : undefined,
+      chapter: data.chapter ? String(data.chapter) : undefined,
+      editor: data.editor ? String(data.editor) : undefined,
+      accessDate: data.access_date ? new Date(data.access_date as string | number | Date) : undefined,
+      notes: data.notes ? String(data.notes) : undefined,
+      tags: Array.isArray(data.tags) ? data.tags as string[] : [],
+      metadataConfidence: typeof data.metadata_confidence === 'number' ? data.metadata_confidence : 1.0,
+      createdAt: new Date(data.created_at as string | number | Date),
+      updatedAt: new Date(data.updated_at as string | number | Date)
     };
   }
 
   /**
    * Map database row to CitationInstance interface
    */
-  private mapDatabaseToCitationInstance(data: any): CitationInstance {
+  private mapDatabaseToCitationInstance(data: Record<string, unknown>): CitationInstance {
     return {
-      id: data.id,
-      referenceId: data.reference_id,
-      conversationId: data.conversation_id,
+      id: String(data.id),
+      referenceId: String(data.reference_id),
+      conversationId: String(data.conversation_id),
       citationStyle: data.citation_style as CitationStyle,
-      citationText: data.citation_text,
-      documentPosition: data.document_position || undefined,
-      context: data.context || undefined,
-      createdAt: new Date(data.created_at)
+      citationText: String(data.citation_text),
+      documentPosition: typeof data.document_position === 'number' ? data.document_position : undefined,
+      context: data.context ? String(data.context) : undefined,
+      createdAt: new Date(data.created_at as string | number | Date)
     };
   }
 }

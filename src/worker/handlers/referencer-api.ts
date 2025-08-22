@@ -1,16 +1,11 @@
 import { Context } from "hono";
-import { getSupabase, SupabaseEnv } from "../lib/supabase";
+import { SupabaseEnv } from "../lib/supabase";
 import { Env } from "../types/env";
 import { ReferenceManagementEngine } from "../lib/reference-management-engine";
-import { 
-  ReferenceFormData,
+import {
   MetadataExtractionRequest,
-  MetadataExtractionResponse,
   CitationRequest,
-  CitationResponse,
   BibliographyRequest,
-  BibliographyResponse,
-  ReferenceListResponse,
   ReferenceSearchOptions,
   ReferenceType,
   CitationStyle
@@ -75,7 +70,7 @@ function createReferencerErrorResponse(
 /**
  * Validate required fields in request body
  */
-function validateRequiredFields(data: any, requiredFields: string[]): string | null {
+function validateRequiredFields(data: Record<string, unknown>, requiredFields: string[]): string | null {
   for (const field of requiredFields) {
     if (!data[field]) {
       return `Missing required field: ${field}`;
