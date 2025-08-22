@@ -13,10 +13,10 @@ import {
   AIModifyRequest, 
   ModificationType 
 } from "../../lib/ai-types";
-import { 
+import {
   AISuccessResponse,
   AIErrorResponse
-} from "../../lib/ai-interfaces";
+} from "../../lib/ai-types";
 
 // Enhanced error handling for backend operations
 interface BackendErrorContext {
@@ -238,7 +238,7 @@ Generate the content:`;
 
     // Generate AI response with timeout and error handling
     let text: string;
-    let usage: any;
+    let usage: { totalTokens?: number } | undefined;
     
     try {
       const result = await Promise.race([
@@ -416,7 +416,7 @@ export async function builderAIContinueHandler(
 
     // Generate AI response with timeout and error handling
     let text: string;
-    let usage: any;
+    let usage: { totalTokens?: number } | undefined;
     
     try {
       const result = await Promise.race([
@@ -610,7 +610,7 @@ Modified content:`;
 
     // Generate AI response with timeout and error handling
     let text: string;
-    let usage: any;
+    let usage: { totalTokens?: number } | undefined;
     
     try {
       const result = await Promise.race([

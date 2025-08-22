@@ -445,6 +445,12 @@ export interface DocumentContext {
   wordCount: number;
   paragraphCount: number;
   section?: string;
+  academicContext?: {
+    discipline?: string;
+    level?: 'undergraduate' | 'graduate' | 'phd';
+    field?: string;
+    style?: string;
+  };
 }
 
 // AI processing state (different from status)
@@ -541,3 +547,61 @@ export const safeNumber = (value: unknown): number => {
   const num = Number(value);
   return isNaN(num) ? 0 : num;
 };
+
+// AI Request and Response Types
+export interface AIPromptRequest {
+  prompt: string;
+  documentContent: string;
+  cursorPosition: number;
+  conversationId: string;
+  timestamp: number;
+}
+
+export interface AIContinueRequest {
+  documentContent: string;
+  cursorPosition: number;
+  selectedText?: string;
+  conversationId: string;
+  timestamp: number;
+}
+
+export interface AIModifyRequest {
+  selectedText: string;
+  modificationType: ModificationType;
+  documentContent: string;
+  conversationId: string;
+  timestamp: number;
+  customPrompt?: string;
+}
+
+export interface AISuccessResponse {
+  success: true;
+  content: string;
+  timestamp: number;
+  requestId: string;
+  metadata: {
+    tokensUsed: number;
+    processingTime: number;
+    model: string;
+    academicValidation?: {
+      score: number;
+      issues: string[];
+      suggestions: string[];
+    };
+    contextSufficiency?: boolean;
+    styleAnalysis?: string;
+  };
+}
+
+export interface AIErrorResponse {
+  success: false;
+  error: string;
+  errorCode: string;
+  retryable: boolean;
+  timestamp: number;
+  requestId?: string;
+  metadata: {
+    tokensUsed: number;
+    processingTime: number;
+  };
+}

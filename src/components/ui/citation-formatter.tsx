@@ -8,7 +8,7 @@ import { Badge } from './shadcn/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './shadcn/select';
 import { Alert, AlertDescription } from './shadcn/alert';
 import { CitationStyle, Reference, ReferenceType } from '../../lib/ai-types';
-import { CitationStyleEngine } from '../../worker/lib/citation-style-engine';
+import { CitationStyleEngine } from '../../worker/lib/citation-style-engine.ts';
 import {
   BookOpen,
   FileText,
