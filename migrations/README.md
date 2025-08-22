@@ -12,6 +12,10 @@ This directory contains database migration scripts for the Thesis Copilot applic
 - `v3_create_proofreading_tables.sql` - Creates proofreading concerns and sessions tables
 - `v3_rollback_proofreading_tables.sql` - Rollback script for v3 migration
 
+### New Migrations (Referencer Tool)
+- `v4_create_referencer_tables.sql` - Creates references and citation_instances tables
+- `v4_rollback_referencer_tables.sql` - Rollback script for v4 migration
+
 ### Complete Schema
 - `new_db.sql` - Complete database schema for fresh installations
 
@@ -24,6 +28,7 @@ Migrations should be applied in version order:
 1. v1_create_ideas_table.sql
 2. v2_alter_ideas_table.sql  
 3. v3_create_proofreading_tables.sql
+4. v4_create_referencer_tables.sql
 
 ## Fresh Installation
 
@@ -66,6 +71,9 @@ Performance indexes on:
 
 - `proofreading_concerns.conversation_id` → `chats.id` (CASCADE DELETE)
 - `proofreading_sessions.conversation_id` → `chats.id` (CASCADE DELETE)
+- `references.conversation_id` → `chats.id` (CASCADE DELETE)
+- `citation_instances.reference_id` → `references.id` (CASCADE DELETE)
+- `citation_instances.conversation_id` → `chats.id` (CASCADE DELETE)
 - `ideas.conversationid` → `chats.id` (SET NULL on DELETE)
 
 ## Testing the Migration
@@ -78,9 +86,51 @@ Run `test_migration.sql` after applying v3 migration to verify:
 - Trigger functionality
 - Cascading delete behavior
 
+## Referencer Tables Schema
+
+### Tables Created in v4
+
+#### references
+- Stores bibliographic references for citation management
+- Links to conversations via `conversation_id` foreign key
+- Includes comprehensive reference metadata (authors, publication details, etc.)
+- Supports JSONB authors array and text array tags
+- Includes metadata confidence scoring for extracted references
+
+#### citation_instances
+- Tracks individual citations inserted into documents
+- Links to references and conversations
+- Stores formatted citation text and document position
+- Supports different citation styles per instance
+
+### Enums Created in v4
+
+- `reference_type` - Types of references (journal_article, book, website, etc.)
+- `citation_style` - Citation formatting styles (apa, mla, chicago, etc.)
+
+### Indexes Created in v4
+
+Performance indexes on:
+- conversation_id (both tables)
+- type, title, authors, tags (references table)
+- doi (references table, partial index)
+- reference_id, citation_style (citation_instances table)
+- created_at timestamps (both tables)
+
+### Triggers Created in v4
+
+- `update_references_updated_at` - Auto-updates updated_at timestamp
+
+### Constraints Created in v4
+
+- DOI format validation (10.xxxx/... pattern)
+- URL format validation (http/https protocol)
+- Metadata confidence range validation (0.0-1.0)
+
 ## Rollback
 
 If needed, use `v3_rollback_proofreading_tables.sql` to remove proofreading tables and related objects.
+If needed, use `v4_rollback_referencer_tables.sql` to remove referencer tables and related objects.
 
 ## Notes
 

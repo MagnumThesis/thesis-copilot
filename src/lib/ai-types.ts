@@ -345,3 +345,224 @@ export interface ContentAnalysis {
   consistency: ConsistencyAnalysis;
   completeness: CompletenessAnalysis;
 }
+
+// ============================================================================
+// REFERENCER TOOL TYPES AND INTERFACES
+// ============================================================================
+
+// Reference type enumeration
+export enum ReferenceType {
+  JOURNAL_ARTICLE = 'journal_article',
+  BOOK = 'book',
+  BOOK_CHAPTER = 'book_chapter',
+  CONFERENCE_PAPER = 'conference_paper',
+  THESIS = 'thesis',
+  WEBSITE = 'website',
+  REPORT = 'report',
+  PATENT = 'patent',
+  OTHER = 'other'
+}
+
+// Citation style enumeration
+export enum CitationStyle {
+  APA = 'apa',
+  MLA = 'mla',
+  CHICAGO = 'chicago',
+  HARVARD = 'harvard',
+  IEEE = 'ieee',
+  VANCOUVER = 'vancouver'
+}
+
+// Author interface for reference authors
+export interface Author {
+  firstName: string;
+  lastName: string;
+  middleName?: string;
+  suffix?: string;
+}
+
+// Main reference interface
+export interface Reference {
+  id: string;
+  conversationId: string;
+  type: ReferenceType;
+  title: string;
+  authors: Author[];
+  publicationDate?: Date;
+  url?: string;
+  doi?: string;
+  journal?: string;
+  volume?: string;
+  issue?: string;
+  pages?: string;
+  publisher?: string;
+  isbn?: string;
+  edition?: string;
+  chapter?: string;
+  editor?: string;
+  accessDate?: Date;
+  notes?: string;
+  tags: string[];
+  metadataConfidence: number; // 0-1 scale for extraction confidence
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Citation instance interface for tracking citations in documents
+export interface CitationInstance {
+  id: string;
+  referenceId: string;
+  conversationId: string;
+  citationStyle: CitationStyle;
+  citationText: string;
+  documentPosition?: number;
+  context?: string;
+  createdAt: Date;
+}
+
+// Reference form data interface for creating/editing references
+export interface ReferenceFormData {
+  type: ReferenceType;
+  title: string;
+  authors: Author[];
+  publicationDate?: string;
+  url?: string;
+  doi?: string;
+  journal?: string;
+  volume?: string;
+  issue?: string;
+  pages?: string;
+  publisher?: string;
+  isbn?: string;
+  edition?: string;
+  chapter?: string;
+  editor?: string;
+  accessDate?: string;
+  notes?: string;
+  tags: string[];
+}
+
+// Validation error interface
+export interface ValidationError {
+  field: string;
+  message: string;
+  severity: 'error' | 'warning';
+}
+
+// Validation result interface
+export interface ValidationResult {
+  isValid: boolean;
+  errors: ValidationError[];
+  warnings: ValidationError[];
+  missingFields: string[];
+}
+
+// Reference metadata interface for extraction
+export interface ReferenceMetadata {
+  title?: string;
+  authors?: Author[];
+  publicationDate?: Date;
+  journal?: string;
+  volume?: string;
+  issue?: string;
+  pages?: string;
+  publisher?: string;
+  doi?: string;
+  isbn?: string;
+  url?: string;
+  type?: ReferenceType;
+  abstract?: string;
+  keywords?: string[];
+  confidence: number; // 0-1 scale for extraction confidence
+}
+
+// Metadata extraction request interface
+export interface MetadataExtractionRequest {
+  source: string;
+  type: 'url' | 'doi';
+  conversationId: string;
+}
+
+// Metadata extraction response interface
+export interface MetadataExtractionResponse {
+  success: boolean;
+  metadata?: ReferenceMetadata;
+  error?: string;
+  extractionTime: number;
+  source: string;
+}
+
+// Citation request interface
+export interface CitationRequest {
+  referenceId: string;
+  style: CitationStyle;
+  type: 'inline' | 'bibliography';
+  context?: string;
+}
+
+// Citation response interface
+export interface CitationResponse {
+  success: boolean;
+  citation?: string;
+  error?: string;
+  style: CitationStyle;
+  type: 'inline' | 'bibliography';
+}
+
+// Bibliography request interface
+export interface BibliographyRequest {
+  conversationId: string;
+  style: CitationStyle;
+  sortOrder: 'alphabetical' | 'chronological' | 'appearance';
+  includeUrls: boolean;
+}
+
+// Bibliography response interface
+export interface BibliographyResponse {
+  success: boolean;
+  bibliography?: string;
+  error?: string;
+  referenceCount: number;
+  style: CitationStyle;
+}
+
+// Export format enumeration
+export enum ExportFormat {
+  BIBTEX = 'bibtex',
+  RIS = 'ris',
+  ENDNOTE = 'endnote',
+  ZOTERO = 'zotero',
+  MENDELEY = 'mendeley'
+}
+
+// Reference statistics interface
+export interface ReferenceStatistics {
+  total: number;
+  byType: Record<ReferenceType, number>;
+  byYear: Record<string, number>;
+  withDoi: number;
+  withUrl: number;
+  averageConfidence: number;
+}
+
+// Reference search and filter options
+export interface ReferenceSearchOptions {
+  query?: string;
+  type?: ReferenceType | 'all';
+  author?: string;
+  year?: number;
+  tags?: string[];
+  sortBy?: 'title' | 'author' | 'date' | 'created';
+  sortOrder?: 'asc' | 'desc';
+  limit?: number;
+  offset?: number;
+}
+
+// Reference list response interface
+export interface ReferenceListResponse {
+  success: boolean;
+  references?: Reference[];
+  total?: number;
+  statistics?: ReferenceStatistics;
+  error?: string;
+}
