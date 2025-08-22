@@ -14,6 +14,7 @@ import {
   getConcernStatisticsHandler 
 } from "./handlers/proofreader-ai";
 import ideasRouter from "./handlers/ideas"; // Import the ideas router
+import referencerRouter from "./handlers/referencer"; // Import the referencer router
 
 const app = new Hono<{ Bindings: Env & SupabaseEnv }>();
 
@@ -44,6 +45,9 @@ app.post("/api/proofreader/analyze", proofreaderAnalysisHandler);
 app.get("/api/proofreader/concerns/:conversationId", getConcernsHandler);
 app.put("/api/proofreader/concerns/:concernId/status", updateConcernStatusHandler);
 app.get("/api/proofreader/statistics/:conversationId", getConcernStatisticsHandler);
+
+// Referencer endpoints
+app.route('/api/referencer', referencerRouter); // Mount the referencer router
 
 // Other
 app.post("/api/generate-title", generateTitleHandler);
