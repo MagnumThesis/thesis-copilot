@@ -8,10 +8,14 @@ import { Button } from "./shadcn/button"
 import { Input } from "./shadcn/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./shadcn/select"
 import { Separator } from "./shadcn/separator"
-import { CitationStyle } from "../../lib/ai-types"
+import { CitationStyle, Reference, ReferenceType } from "../../lib/ai-types"
 import { BibliographyControls } from "./bibliography-controls"
 import { ExportOptionsComponent } from "./export-options"
-import { BookOpen, FileText, Quote, Settings, Search, Plus, Filter } from "lucide-react"
+import { ReferenceList } from "./reference-list"
+import { ReferenceForm } from "./reference-form"
+import { CitationFormatter } from "./citation-formatter"
+import { BibliographyGenerator } from "./bibliography-generator"
+import { BookOpen, FileText, Quote, Settings, Search, Plus, Filter, Keyboard } from "lucide-react"
 
 interface ReferencerProps {
   isOpen: boolean
@@ -25,7 +29,7 @@ interface ReferencerState {
   activeTab: ReferencerTab
   searchQuery: string
   selectedStyle: CitationStyle
-  filterType: 'all' | 'journal_article' | 'book' | 'website' | 'conference_paper' | 'thesis'
+  filterType: ReferenceType | 'all'
   showForm: boolean
   editingReference: string | null
 }
@@ -113,18 +117,24 @@ export const Referencer: React.FC<ReferencerProps> = ({ isOpen, onClose, current
       case 'references':
         return (
           <div className="space-y-4">
-            <div className="border rounded-lg p-4">
-              <h3 className="text-lg font-semibold mb-2">References</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Manage your academic references and sources
-              </p>
-              <div className="text-center py-8">
-                <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-sm text-muted-foreground">
-                  Reference management features will be implemented here
-                </p>
+            {state.showForm ? (
+              <div className="border rounded-lg p-4">
+                <ReferenceForm
+                  conversationId={currentConversation.id}
+                  referenceId={state.editingReference || undefined}
+                  onClose={handleFormClose}
+                  citationStyle={state.selectedStyle}
+                />
               </div>
-            </div>
+            ) : (
+              <ReferenceList
+                conversationId={currentConversation.id}
+                searchQuery={state.searchQuery}
+                filterType={state.filterType}
+                onEdit={handleEditReference}
+                citationStyle={state.selectedStyle}
+              />
+            )}
           </div>
         )
 

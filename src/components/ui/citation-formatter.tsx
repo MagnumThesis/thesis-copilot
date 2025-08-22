@@ -12,6 +12,7 @@ import { CitationValidationDisplay } from './citation-validation-display.js';
 import { Button } from './shadcn/button.js';
 import { Separator } from './shadcn/separator.js';
 import { Badge } from './shadcn/badge.js';
+import { Card, CardHeader, CardTitle, CardContent } from './shadcn/card.js';
 import { AlertTriangle, RotateCcw, CheckCircle, Settings } from 'lucide-react';
 
 export interface CitationFormatterProps {
@@ -62,7 +63,7 @@ export const CitationFormatter: React.FC<CitationFormatterProps> = ({
     if (reference !== selectedReference) {
       setSelectedReference(reference);
     }
-  }, [reference, setSelectedReference]);
+  }, [reference, selectedReference, setSelectedReference]);
 
 
 
@@ -170,7 +171,6 @@ export const CitationFormatter: React.FC<CitationFormatterProps> = ({
             selectedStyle={selectedStyle}
             onStyleChange={setSelectedStyle}
             showDescription={!compact}
-            compact={compact}
           />
         </CardContent>
       </Card>
@@ -249,7 +249,7 @@ export const CitationFormatter: React.FC<CitationFormatterProps> = ({
                   Recent citations: {citationHistory.length}
                 </p>
                 <div className="flex flex-wrap gap-1 justify-center">
-                  {citationHistory.slice(0, 3).map((item, index) => (
+                  {citationHistory.slice(0, 3).map((item) => (
                     <Badge key={item.id} variant="secondary" className="text-xs">
                       {item.citationStyle.toUpperCase()}
                     </Badge>

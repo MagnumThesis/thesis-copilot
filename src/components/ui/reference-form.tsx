@@ -2,30 +2,31 @@
 
 import React, { useState, useEffect } from "react"
 import { toast } from "sonner"
-import { Button } from "@/components/ui/shadcn/button"
-import { Input } from "@/components/ui/shadcn/input"
-import { Label } from "@/components/ui/shadcn/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/shadcn/select"
-import { Textarea } from "@/components/ui/shadcn/textarea"
-import { Badge } from "@/components/ui/shadcn/badge"
-import { Separator } from "@/components/ui/shadcn/separator"
-import { ScrollArea } from "@/components/ui/shadcn/scroll-area"
+import { Button } from "./shadcn/button"
+import { Input } from "./shadcn/input"
+import { Label } from "./shadcn/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./shadcn/select"
+import { Textarea } from "./shadcn/textarea"
+import { Badge } from "./shadcn/badge"
+import { Separator } from "./shadcn/separator"
+import { ScrollArea } from "./shadcn/scroll-area"
 import { AlertCircle, Plus, X, Link, FileText, Loader2 } from "lucide-react"
-import { 
-  Reference, 
-  ReferenceFormData, 
-  ReferenceType, 
-  Author, 
+import {
+  Reference,
+  ReferenceFormData,
+  ReferenceType,
+  Author,
   ValidationError,
   MetadataExtractionRequest,
-  MetadataExtractionResponse
-} from "@/lib/ai-types"
+  MetadataExtractionResponse,
+  CitationStyle
+} from "../../lib/ai-types"
 
 interface ReferenceFormProps {
-  reference?: Reference
-  onSave: (reference: ReferenceFormData) => Promise<void>
-  onCancel: () => void
-  isLoading?: boolean
+  conversationId: string
+  referenceId?: string
+  onClose: () => void
+  citationStyle: CitationStyle
 }
 
 interface ReferenceFormState {
@@ -34,6 +35,8 @@ interface ReferenceFormState {
   validationErrors: ValidationError[]
   isExtracting: boolean
   extractionSource: string
+  isLoading: boolean
+  isSubmitting: boolean
 }
 
 const REFERENCE_TYPE_LABELS: Record<ReferenceType, string> = {
@@ -61,10 +64,10 @@ const REQUIRED_FIELDS_BY_TYPE: Record<ReferenceType, string[]> = {
 }
 
 export const ReferenceForm: React.FC<ReferenceFormProps> = ({
-  reference,
-  onSave,
-  onCancel,
-  isLoading = false
+  conversationId,
+  referenceId,
+  onClose,
+  citationStyle
 }) => {
   const [state, setState] = useState<ReferenceFormState>({
     formData: {
@@ -90,37 +93,23 @@ export const ReferenceForm: React.FC<ReferenceFormProps> = ({
     importMode: 'manual',
     validationErrors: [],
     isExtracting: false,
-    extractionSource: ''
+    extractionSource: '',
+    isLoading: false,
+    isSubmitting: false
   })
 
-  // Initialize form data from reference prop
+  // Initialize form data from reference ID (for editing existing references)
   useEffect(() => {
-    if (reference) {
-      setState(prev => ({
-        ...prev,
-        formData: {
-          type: reference.type,
-          title: reference.title,
-          authors: reference.authors,
-          publicationDate: reference.publicationDate ? reference.publicationDate.toISOString().split('T')[0] : '',
-          url: reference.url || '',
-          doi: reference.doi || '',
-          journal: reference.journal || '',
-          volume: reference.volume || '',
-          issue: reference.issue || '',
-          pages: reference.pages || '',
-          publisher: reference.publisher || '',
-          isbn: reference.isbn || '',
-          edition: reference.edition || '',
-          chapter: reference.chapter || '',
-          editor: reference.editor || '',
-          accessDate: reference.accessDate ? reference.accessDate.toISOString().split('T')[0] : '',
-          notes: reference.notes || '',
-          tags: reference.tags
-        }
-      }))
+    if (referenceId) {
+      setState(prev => ({ ...prev, isLoading: true }))
+
+      // Load existing reference data (placeholder for now)
+      // In a real implementation, this would fetch the reference from the API
+      setTimeout(() => {
+        setState(prev => ({ ...prev, isLoading: false }))
+      }, 500)
     }
-  }, [reference])
+  }, [referenceId])
 
   const validateForm = (): ValidationError[] => {
     const errors: ValidationError[] = []
@@ -313,7 +302,7 @@ export const ReferenceForm: React.FC<ReferenceFormProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     const errors = validateForm()
     setState(prev => ({ ...prev, validationErrors: errors }))
 
@@ -322,10 +311,46 @@ export const ReferenceForm: React.FC<ReferenceFormProps> = ({
       return
     }
 
+    setState(prev => ({ ...prev, isSubmitting: true }))
+
     try {
-      await onSave(state.formData)
+      // Prepare the reference data for API
+      const referenceData = {
+        ...state.formData,
+        conversationId
+      }
+
+      const endpoint = referenceId
+        ? `/api/referencer/references/${referenceId}`
+        : '/api/referencer/references'
+
+      const method = referenceId ? 'PUT' : 'POST'
+
+      const response = await fetch(endpoint, {
+        method,
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(referenceData)
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to save reference: ${response.statusText}`)
+      }
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to save reference')
+      }
+
+      toast.success(referenceId ? 'Reference updated successfully' : 'Reference created successfully')
+      onClose()
+
     } catch (error: any) {
       toast.error(error.message || 'Failed to save reference')
+    } finally {
+      setState(prev => ({ ...prev, isSubmitting: false }))
     }
   }
 
@@ -820,17 +845,17 @@ export const ReferenceForm: React.FC<ReferenceFormProps> = ({
 
       {/* Form Actions */}
       <div className="flex justify-end gap-2 pt-4 border-t">
-        <Button type="button" variant="outline" onClick={onCancel}>
+        <Button type="button" variant="outline" onClick={onClose}>
           Cancel
         </Button>
-        <Button type="submit" disabled={isLoading}>
-          {isLoading ? (
+        <Button type="submit" disabled={state.isSubmitting || state.isLoading}>
+          {state.isSubmitting || state.isLoading ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
               Saving...
             </>
           ) : (
-            reference ? 'Update Reference' : 'Save Reference'
+            referenceId ? 'Update Reference' : 'Save Reference'
           )}
         </Button>
       </div>
