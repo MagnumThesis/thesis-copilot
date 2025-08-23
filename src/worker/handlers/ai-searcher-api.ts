@@ -57,6 +57,12 @@ interface ContentExtractionRequest {
   }>;
 }
 
+interface QueryRefinementRequest {
+  query: string;
+  originalContent?: ExtractedContent[];
+  conversationId: string;
+}
+
 interface SearchResult {
   title: string;
   authors: string[];
@@ -707,6 +713,49 @@ export class AISearcherAPIHandler {
   }
 
   /**
+   * POST /api/ai-searcher/refine-query
+   * Perform comprehensive query refinement analysis
+   */
+  async refineQuery(c: Context<AISearcherContext>) {
+    const startTime = Date.now();
+
+    try {
+      const body = await c.req.json() as QueryRefinementRequest;
+
+      if (!body.query || !body.conversationId) {
+        return c.json({
+          success: false,
+          error: 'Query and conversationId are required',
+          processingTime: Date.now() - startTime
+        }, 400);
+      }
+
+      // Use provided content or empty array if not provided
+      const originalContent = body.originalContent || [];
+
+      // Perform query refinement analysis
+      const refinement = this.queryEngine.refineQuery(body.query, originalContent);
+
+      return c.json({
+        success: true,
+        refinement,
+        originalQuery: body.query,
+        processingTime: Date.now() - startTime
+      });
+
+    } catch (error) {
+      console.error('Query refinement error:', error);
+
+      return c.json({
+        success: false,
+        error: 'Failed to refine query',
+        details: error instanceof Error ? error.message : 'Unknown error',
+        processingTime: Date.now() - startTime
+      }, 500);
+    }
+  }
+
+  /**
    * GET /api/ai-searcher/health
    * Health check endpoint
    */
@@ -750,6 +799,7 @@ app.post('/generate-query', (c) => aiSearcherAPIHandler.generateQuery(c));
 app.post('/extract-content', (c) => aiSearcherAPIHandler.extractContent(c));
 app.post('/validate-query', (c) => aiSearcherAPIHandler.validateQuery(c));
 app.post('/combine-queries', (c) => aiSearcherAPIHandler.combineQueries(c));
+app.post('/refine-query', (c) => aiSearcherAPIHandler.refineQuery(c));
 app.get('/history', (c) => aiSearcherAPIHandler.getHistory(c));
 app.delete('/history', (c) => aiSearcherAPIHandler.clearHistory(c));
 app.get('/analytics', (c) => aiSearcherAPIHandler.getAnalytics(c));

@@ -59,7 +59,6 @@
 
 - [x] 3.2 Implement intelligent query generation
 
-
   - Create QueryGenerationEngine for automatic search query creation
   - Generate search queries based on extracted content keywords and topics
   - Implement query optimization for academic search effectiveness
@@ -67,9 +66,7 @@
   - Write unit tests for query generation algorithms
   - _Requirements: 2.1, 2.2, 2.3_
 
-- [-] 3.3 Add query refinement and validation
-
-
+- [x] 3.3 Add query refinement and validation
 
   - Implement query breadth analysis (too broad/narrow detection)
   - Suggest alternative and related search terms
@@ -80,7 +77,7 @@
 
 - [ ] 4. Implement Search Result Ranking and Scoring
 
-- [ ] 4.1 Create result scoring engine
+- [x] 4.1 Create result scoring engine
 
   - Build ResultScoringEngine for relevance and quality scoring
   - Implement relevance scoring based on content similarity
@@ -89,7 +86,8 @@
   - Write unit tests for scoring algorithms
   - _Requirements: 4.1, 4.2, 4.3_
 
-- [ ] 4.2 Implement duplicate detection and merging
+- [x] 4.2 Implement duplicate detection and merging
+
 
   - Add duplicate result detection based on DOI, title, and author similarity
   - Implement result merging for duplicate entries

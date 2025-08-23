@@ -25,6 +25,71 @@ export interface QueryOptimization {
   alternativeQueries: string[];
 }
 
+export interface QueryRefinement {
+  breadthAnalysis: BreadthAnalysis;
+  alternativeTerms: AlternativeTerms;
+  validationResults: ValidationResult;
+  optimizationRecommendations: OptimizationRecommendation[];
+  refinedQueries: RefinedQuery[];
+}
+
+export interface BreadthAnalysis {
+  breadthScore: number; // 0-1, where 0.5 is optimal
+  classification: 'too_narrow' | 'optimal' | 'too_broad';
+  reasoning: string;
+  termCount: number;
+  specificityLevel: 'very_specific' | 'specific' | 'moderate' | 'broad' | 'very_broad';
+  suggestions: BreadthSuggestion[];
+}
+
+export interface BreadthSuggestion {
+  type: 'broaden' | 'narrow' | 'refocus';
+  suggestion: string;
+  reasoning: string;
+  impact: 'low' | 'medium' | 'high';
+}
+
+export interface AlternativeTerms {
+  synonyms: TermSuggestion[];
+  relatedTerms: TermSuggestion[];
+  broaderTerms: TermSuggestion[];
+  narrowerTerms: TermSuggestion[];
+  academicVariants: TermSuggestion[];
+}
+
+export interface TermSuggestion {
+  term: string;
+  confidence: number;
+  reasoning: string;
+  category: 'synonym' | 'related' | 'broader' | 'narrower' | 'academic';
+  originalTerm?: string;
+}
+
+export interface OptimizationRecommendation {
+  type: 'add_term' | 'remove_term' | 'replace_term' | 'add_operator' | 'restructure';
+  description: string;
+  impact: 'low' | 'medium' | 'high';
+  priority: number;
+  beforeQuery: string;
+  afterQuery: string;
+  reasoning: string;
+}
+
+export interface RefinedQuery {
+  query: string;
+  refinementType: 'broadened' | 'narrowed' | 'refocused' | 'academic_enhanced' | 'operator_optimized';
+  confidence: number;
+  expectedResults: 'fewer' | 'similar' | 'more';
+  description: string;
+  changes: QueryChange[];
+}
+
+export interface QueryChange {
+  type: 'added' | 'removed' | 'replaced' | 'reordered';
+  element: string;
+  reasoning: string;
+}
+
 export interface ValidationResult {
   isValid: boolean;
   issues: string[];
@@ -595,8 +660,582 @@ export class QueryGenerationEngine {
   }
 
   /**
-   * Generate unique query ID
+   * Perform comprehensive query refinement analysis
    */
+  refineQuery(query: string, originalContent: ExtractedContent[]): QueryRefinement {
+    const breadthAnalysis = this.analyzeBreadth(query, originalContent);
+    const alternativeTerms = this.generateAlternativeTerms(query, originalContent);
+    const validationResults = this.validateQuery(query);
+    const optimizationRecommendations = this.generateOptimizationRecommendations(query, breadthAnalysis);
+    const refinedQueries = this.generateRefinedQueries(query, breadthAnalysis, alternativeTerms);
+
+    return {
+      breadthAnalysis,
+      alternativeTerms,
+      validationResults,
+      optimizationRecommendations,
+      refinedQueries
+    };
+  }
+
+  /**
+   * Analyze query breadth to determine if it's too narrow, optimal, or too broad
+   */
+  private analyzeBreadth(query: string, originalContent: ExtractedContent[]): BreadthAnalysis {
+    const queryTerms = this.extractQueryTerms(query);
+    const termCount = queryTerms.length;
+    const hasQuotes = query.includes('"');
+    const hasAndOperators = (query.match(/AND/g) || []).length;
+    const hasOrOperators = (query.match(/OR/g) || []).length;
+    
+    // Calculate breadth score (0 = very narrow, 1 = very broad, 0.5 = optimal)
+    let breadthScore = 0.5;
+    
+    // Adjust based on term count
+    if (termCount <= 1) breadthScore -= 0.4;
+    else if (termCount <= 2) breadthScore -= 0.2;
+    else if (termCount >= 8) breadthScore += 0.3;
+    
+    // Adjust based on operators
+    if (hasAndOperators > hasOrOperators) breadthScore -= 0.1;
+    else if (hasOrOperators > hasAndOperators) breadthScore += 0.1;
+    
+    // Adjust based on quoted phrases (more specific)
+    if (hasQuotes) breadthScore -= 0.2;
+    
+    // Adjust based on academic specificity
+    const academicTerms = queryTerms.filter(term => this.academicTerms.has(term.toLowerCase()));
+    if (academicTerms.length / termCount > 0.5) breadthScore -= 0.1;
+    
+    breadthScore = Math.max(0, Math.min(1, breadthScore));
+    
+    // Classify breadth
+    let classification: 'too_narrow' | 'optimal' | 'too_broad';
+    if (breadthScore < 0.3) classification = 'too_narrow';
+    else if (breadthScore > 0.7) classification = 'too_broad';
+    else classification = 'optimal';
+    
+    // Determine specificity level
+    let specificityLevel: 'very_specific' | 'specific' | 'moderate' | 'broad' | 'very_broad';
+    if (breadthScore < 0.2) specificityLevel = 'very_specific';
+    else if (breadthScore < 0.4) specificityLevel = 'specific';
+    else if (breadthScore < 0.6) specificityLevel = 'moderate';
+    else if (breadthScore < 0.8) specificityLevel = 'broad';
+    else specificityLevel = 'very_broad';
+    
+    // Generate reasoning
+    let reasoning = `Query has ${termCount} terms with breadth score of ${breadthScore.toFixed(2)}. `;
+    if (classification === 'too_narrow') {
+      reasoning += 'This query may be too restrictive and could miss relevant results.';
+    } else if (classification === 'too_broad') {
+      reasoning += 'This query may return too many irrelevant results.';
+    } else {
+      reasoning += 'This query appears to have good balance between specificity and breadth.';
+    }
+    
+    // Generate suggestions
+    const suggestions = this.generateBreadthSuggestions(classification, termCount, hasQuotes, hasAndOperators, hasOrOperators);
+    
+    return {
+      breadthScore,
+      classification,
+      reasoning,
+      termCount,
+      specificityLevel,
+      suggestions
+    };
+  }
+
+  /**
+   * Generate suggestions for improving query breadth
+   */
+  private generateBreadthSuggestions(
+    classification: 'too_narrow' | 'optimal' | 'too_broad',
+    termCount: number,
+    hasQuotes: boolean,
+    hasAndOperators: number,
+    hasOrOperators: number
+  ): BreadthSuggestion[] {
+    const suggestions: BreadthSuggestion[] = [];
+    
+    if (classification === 'too_narrow') {
+      if (termCount <= 2) {
+        suggestions.push({
+          type: 'broaden',
+          suggestion: 'Add related terms or synonyms to capture more relevant results',
+          reasoning: 'Query has very few terms which may be overly restrictive',
+          impact: 'high'
+        });
+      }
+      
+      if (hasAndOperators > 2) {
+        suggestions.push({
+          type: 'broaden',
+          suggestion: 'Replace some AND operators with OR to include alternative terms',
+          reasoning: 'Multiple AND operators create very restrictive conditions',
+          impact: 'medium'
+        });
+      }
+      
+      if (hasQuotes) {
+        suggestions.push({
+          type: 'broaden',
+          suggestion: 'Remove quotes from some phrases to allow for variations',
+          reasoning: 'Quoted phrases require exact matches which may be too restrictive',
+          impact: 'medium'
+        });
+      }
+    } else if (classification === 'too_broad') {
+      if (termCount >= 8) {
+        suggestions.push({
+          type: 'narrow',
+          suggestion: 'Focus on the most important 3-5 terms to improve precision',
+          reasoning: 'Too many terms can dilute search focus',
+          impact: 'high'
+        });
+      }
+      
+      if (hasOrOperators > hasAndOperators) {
+        suggestions.push({
+          type: 'narrow',
+          suggestion: 'Use AND operators to require multiple concepts simultaneously',
+          reasoning: 'OR operators create broad conditions that may include irrelevant results',
+          impact: 'medium'
+        });
+      }
+      
+      suggestions.push({
+        type: 'narrow',
+        suggestion: 'Add specific academic terms or methodological keywords',
+        reasoning: 'More specific terminology will help filter results',
+        impact: 'medium'
+      });
+    } else {
+      suggestions.push({
+        type: 'refocus',
+        suggestion: 'Query appears well-balanced, consider minor adjustments based on initial results',
+        reasoning: 'Current breadth seems appropriate for academic search',
+        impact: 'low'
+      });
+    }
+    
+    return suggestions;
+  }
+
+  /**
+   * Generate alternative and related terms for query enhancement
+   */
+  private generateAlternativeTerms(query: string, originalContent: ExtractedContent[]): AlternativeTerms {
+    const queryTerms = this.extractQueryTerms(query);
+    const allContentTerms = originalContent.flatMap(c => [...(c.keywords || []), ...(c.topics || [])]);
+    
+    const synonyms: TermSuggestion[] = [];
+    const relatedTerms: TermSuggestion[] = [];
+    const broaderTerms: TermSuggestion[] = [];
+    const narrowerTerms: TermSuggestion[] = [];
+    const academicVariants: TermSuggestion[] = [];
+    
+    // Generate synonyms and alternatives for each query term
+    queryTerms.forEach(term => {
+      const termSynonyms = this.findSynonyms(term);
+      synonyms.push(...termSynonyms.map(syn => ({
+        term: syn,
+        confidence: 0.8,
+        reasoning: `Synonym for "${term}"`,
+        category: 'synonym' as const,
+        originalTerm: term
+      })));
+      
+      const termRelated = this.findRelatedTerms(term, allContentTerms);
+      relatedTerms.push(...termRelated.map(rel => ({
+        term: rel,
+        confidence: 0.7,
+        reasoning: `Related to "${term}" based on content context`,
+        category: 'related' as const,
+        originalTerm: term
+      })));
+      
+      const termBroader = this.findBroaderTerms(term);
+      broaderTerms.push(...termBroader.map(broader => ({
+        term: broader,
+        confidence: 0.6,
+        reasoning: `Broader concept encompassing "${term}"`,
+        category: 'broader' as const,
+        originalTerm: term
+      })));
+      
+      const termNarrower = this.findNarrowerTerms(term);
+      narrowerTerms.push(...termNarrower.map(narrower => ({
+        term: narrower,
+        confidence: 0.7,
+        reasoning: `More specific aspect of "${term}"`,
+        category: 'narrower' as const,
+        originalTerm: term
+      })));
+      
+      const termAcademic = this.findAcademicVariants(term);
+      academicVariants.push(...termAcademic.map(academic => ({
+        term: academic,
+        confidence: 0.9,
+        reasoning: `Academic terminology for "${term}"`,
+        category: 'academic' as const,
+        originalTerm: term
+      })));
+    });
+    
+    return {
+      synonyms: this.deduplicateTermSuggestions(synonyms).slice(0, 10),
+      relatedTerms: this.deduplicateTermSuggestions(relatedTerms).slice(0, 10),
+      broaderTerms: this.deduplicateTermSuggestions(broaderTerms).slice(0, 8),
+      narrowerTerms: this.deduplicateTermSuggestions(narrowerTerms).slice(0, 8),
+      academicVariants: this.deduplicateTermSuggestions(academicVariants).slice(0, 6)
+    };
+  }
+
+  /**
+   * Generate optimization recommendations for the query
+   */
+  private generateOptimizationRecommendations(query: string, breadthAnalysis: BreadthAnalysis): OptimizationRecommendation[] {
+    const recommendations: OptimizationRecommendation[] = [];
+    const queryTerms = this.extractQueryTerms(query);
+    
+    // Recommendations based on breadth analysis
+    if (breadthAnalysis.classification === 'too_narrow') {
+      recommendations.push({
+        type: 'add_term',
+        description: 'Add broader or alternative terms to increase result coverage',
+        impact: 'high',
+        priority: 1,
+        beforeQuery: query,
+        afterQuery: `${query} OR (related terms)`,
+        reasoning: 'Query is too restrictive and may miss relevant results'
+      });
+      
+      if (query.includes('AND')) {
+        recommendations.push({
+          type: 'replace_term',
+          description: 'Replace some AND operators with OR to broaden search',
+          impact: 'medium',
+          priority: 2,
+          beforeQuery: query,
+          afterQuery: query.replace(/AND/g, 'OR'),
+          reasoning: 'Multiple AND conditions create overly restrictive search'
+        });
+      }
+    }
+    
+    if (breadthAnalysis.classification === 'too_broad') {
+      recommendations.push({
+        type: 'add_term',
+        description: 'Add more specific academic or methodological terms',
+        impact: 'high',
+        priority: 1,
+        beforeQuery: query,
+        afterQuery: `${query} AND (methodology OR framework)`,
+        reasoning: 'Query needs more specificity to filter irrelevant results'
+      });
+      
+      if (queryTerms.length > 6) {
+        recommendations.push({
+          type: 'remove_term',
+          description: 'Remove less important terms to focus the search',
+          impact: 'medium',
+          priority: 2,
+          beforeQuery: query,
+          afterQuery: 'Simplified query with key terms only',
+          reasoning: 'Too many terms can dilute search effectiveness'
+        });
+      }
+    }
+    
+    // Academic enhancement recommendations
+    const hasAcademicTerms = queryTerms.some(term => this.academicTerms.has(term.toLowerCase()));
+    if (!hasAcademicTerms) {
+      recommendations.push({
+        type: 'add_term',
+        description: 'Add academic context terms for scholarly relevance',
+        impact: 'medium',
+        priority: 3,
+        beforeQuery: query,
+        afterQuery: `(${query}) AND (research OR study OR analysis)`,
+        reasoning: 'Academic terms improve relevance for scholarly search'
+      });
+    }
+    
+    // Operator optimization
+    if (!query.includes('AND') && !query.includes('OR') && queryTerms.length > 1) {
+      recommendations.push({
+        type: 'add_operator',
+        description: 'Add search operators to clarify term relationships',
+        impact: 'medium',
+        priority: 4,
+        beforeQuery: query,
+        afterQuery: queryTerms.map(t => `"${t}"`).join(' AND '),
+        reasoning: 'Search operators improve query precision and control'
+      });
+    }
+    
+    // Structure optimization
+    if (query.length > 150) {
+      recommendations.push({
+        type: 'restructure',
+        description: 'Simplify query structure for better search engine compatibility',
+        impact: 'low',
+        priority: 5,
+        beforeQuery: query,
+        afterQuery: 'Restructured shorter query',
+        reasoning: 'Very long queries may not be processed effectively by search engines'
+      });
+    }
+    
+    return recommendations.sort((a, b) => a.priority - b.priority);
+  }
+
+  /**
+   * Generate refined query variations
+   */
+  private generateRefinedQueries(query: string, breadthAnalysis: BreadthAnalysis, alternativeTerms: AlternativeTerms): RefinedQuery[] {
+    const refinedQueries: RefinedQuery[] = [];
+    const queryTerms = this.extractQueryTerms(query);
+    
+    // Broadened version
+    if (breadthAnalysis.classification === 'too_narrow' || breadthAnalysis.classification === 'optimal') {
+      const broaderQuery = this.createBroadenedQuery(query, alternativeTerms);
+      refinedQueries.push({
+        query: broaderQuery,
+        refinementType: 'broadened',
+        confidence: 0.8,
+        expectedResults: 'more',
+        description: 'Broadened version using synonyms and related terms',
+        changes: [{
+          type: 'added',
+          element: 'alternative terms',
+          reasoning: 'Added synonyms and related terms to capture more results'
+        }]
+      });
+    }
+    
+    // Narrowed version
+    if (breadthAnalysis.classification === 'too_broad' || breadthAnalysis.classification === 'optimal') {
+      const narrowerQuery = this.createNarrowedQuery(query, alternativeTerms);
+      refinedQueries.push({
+        query: narrowerQuery,
+        refinementType: 'narrowed',
+        confidence: 0.9,
+        expectedResults: 'fewer',
+        description: 'Narrowed version with more specific terms',
+        changes: [{
+          type: 'added',
+          element: 'specific terms',
+          reasoning: 'Added more specific academic terms for precision'
+        }]
+      });
+    }
+    
+    // Academic enhanced version
+    const academicQuery = this.createAcademicEnhancedQuery(query, alternativeTerms);
+    refinedQueries.push({
+      query: academicQuery,
+      refinementType: 'academic_enhanced',
+      confidence: 0.85,
+      expectedResults: 'similar',
+      description: 'Enhanced with academic terminology',
+      changes: [{
+        type: 'added',
+        element: 'academic terms',
+        reasoning: 'Added academic variants to improve scholarly relevance'
+      }]
+    });
+    
+    // Operator optimized version
+    const operatorQuery = this.createOperatorOptimizedQuery(query);
+    refinedQueries.push({
+      query: operatorQuery,
+      refinementType: 'operator_optimized',
+      confidence: 0.75,
+      expectedResults: 'similar',
+      description: 'Optimized search operators and structure',
+      changes: [{
+        type: 'replaced',
+        element: 'search operators',
+        reasoning: 'Optimized operator usage for better search control'
+      }]
+    });
+    
+    // Refocused version (balanced approach)
+    if (breadthAnalysis.classification !== 'optimal') {
+      const refocusedQuery = this.createRefocusedQuery(query, alternativeTerms, breadthAnalysis);
+      refinedQueries.push({
+        query: refocusedQuery,
+        refinementType: 'refocused',
+        confidence: 0.9,
+        expectedResults: 'similar',
+        description: 'Balanced refinement addressing breadth issues',
+        changes: [{
+          type: 'replaced',
+          element: 'query structure',
+          reasoning: 'Rebalanced query to achieve optimal breadth'
+        }]
+      });
+    }
+    
+    return refinedQueries;
+  }
+
+  // Helper methods for query refinement
+
+  private extractQueryTerms(query: string): string[] {
+    // Extract meaningful terms from query, excluding operators and quotes
+    return query
+      .replace(/[()]/g, ' ')
+      .replace(/\s+(AND|OR)\s+/gi, ' ')
+      .replace(/"/g, '')
+      .split(/\s+/)
+      .filter(term => term.length > 2 && !this.stopWords.has(term.toLowerCase()))
+      .map(term => term.toLowerCase())
+      .filter((term, index, array) => array.indexOf(term) === index); // Remove duplicates
+  }
+
+  private findSynonyms(term: string): string[] {
+    // Simple synonym mapping - in a real implementation, this would use a thesaurus API
+    const synonymMap: Record<string, string[]> = {
+      'research': ['study', 'investigation', 'inquiry', 'examination'],
+      'analysis': ['evaluation', 'assessment', 'review', 'examination'],
+      'method': ['approach', 'technique', 'procedure', 'methodology'],
+      'framework': ['model', 'structure', 'system', 'architecture'],
+      'development': ['creation', 'construction', 'building', 'formation'],
+      'implementation': ['execution', 'deployment', 'application', 'realization'],
+      'evaluation': ['assessment', 'analysis', 'appraisal', 'review'],
+      'system': ['framework', 'structure', 'platform', 'architecture']
+    };
+    
+    return synonymMap[term.toLowerCase()] || [];
+  }
+
+  private findRelatedTerms(term: string, contentTerms: string[]): string[] {
+    // Find terms that frequently appear with the given term in content
+    return contentTerms
+      .filter(contentTerm => 
+        contentTerm.toLowerCase() !== term.toLowerCase() &&
+        contentTerm.length > 2 &&
+        !this.stopWords.has(contentTerm.toLowerCase())
+      )
+      .slice(0, 5);
+  }
+
+  private findBroaderTerms(term: string): string[] {
+    // Map specific terms to broader concepts
+    const broaderMap: Record<string, string[]> = {
+      'algorithm': ['computation', 'method', 'approach'],
+      'database': ['system', 'technology', 'storage'],
+      'neural network': ['machine learning', 'artificial intelligence', 'computation'],
+      'regression': ['statistics', 'analysis', 'modeling'],
+      'optimization': ['improvement', 'enhancement', 'method']
+    };
+    
+    return broaderMap[term.toLowerCase()] || [];
+  }
+
+  private findNarrowerTerms(term: string): string[] {
+    // Map broad terms to more specific concepts
+    const narrowerMap: Record<string, string[]> = {
+      'machine learning': ['neural networks', 'deep learning', 'supervised learning'],
+      'analysis': ['statistical analysis', 'data analysis', 'regression analysis'],
+      'system': ['database system', 'operating system', 'information system'],
+      'method': ['algorithm', 'technique', 'procedure'],
+      'learning': ['supervised learning', 'unsupervised learning', 'reinforcement learning'],
+      'research': ['empirical research', 'experimental research', 'qualitative research'],
+      'study': ['case study', 'longitudinal study', 'cross-sectional study']
+    };
+    
+    return narrowerMap[term.toLowerCase()] || [];
+  }
+
+  private findAcademicVariants(term: string): string[] {
+    // Map common terms to academic equivalents
+    const academicMap: Record<string, string[]> = {
+      'study': ['research', 'investigation', 'empirical study'],
+      'method': ['methodology', 'approach', 'technique'],
+      'result': ['findings', 'outcomes', 'conclusions'],
+      'problem': ['challenge', 'issue', 'research question'],
+      'solution': ['approach', 'methodology', 'framework']
+    };
+    
+    return academicMap[term.toLowerCase()] || [];
+  }
+
+  private deduplicateTermSuggestions(suggestions: TermSuggestion[]): TermSuggestion[] {
+    const seen = new Set<string>();
+    return suggestions.filter(suggestion => {
+      const key = suggestion.term.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+
+  private createBroadenedQuery(originalQuery: string, alternativeTerms: AlternativeTerms): string {
+    const queryTerms = this.extractQueryTerms(originalQuery);
+    const synonyms = alternativeTerms.synonyms.slice(0, 3).map(s => s.term);
+    
+    if (synonyms.length > 0) {
+      return `(${originalQuery}) OR (${synonyms.map(s => `"${s}"`).join(' OR ')})`;
+    }
+    
+    return originalQuery;
+  }
+
+  private createNarrowedQuery(originalQuery: string, alternativeTerms: AlternativeTerms): string {
+    const academicTerms = alternativeTerms.academicVariants.slice(0, 2).map(a => a.term);
+    
+    if (academicTerms.length > 0) {
+      return `(${originalQuery}) AND (${academicTerms.map(t => `"${t}"`).join(' OR ')})`;
+    }
+    
+    return `(${originalQuery}) AND (methodology OR framework)`;
+  }
+
+  private createAcademicEnhancedQuery(originalQuery: string, alternativeTerms: AlternativeTerms): string {
+    const academicVariants = alternativeTerms.academicVariants.slice(0, 2).map(a => a.term);
+    
+    if (academicVariants.length > 0) {
+      return originalQuery.replace(/\b\w+\b/g, (match) => {
+        const academic = academicVariants.find(a => a.toLowerCase().includes(match.toLowerCase()));
+        return academic ? `"${academic}"` : match;
+      });
+    }
+    
+    return `(${originalQuery}) AND (research OR study)`;
+  }
+
+  private createOperatorOptimizedQuery(originalQuery: string): string {
+    const terms = this.extractQueryTerms(originalQuery);
+    
+    if (terms.length <= 1) return originalQuery;
+    
+    // Create a balanced structure with primary and secondary terms
+    const primaryTerms = terms.slice(0, 2);
+    const secondaryTerms = terms.slice(2, 4);
+    
+    let optimized = primaryTerms.map(t => `"${t}"`).join(' AND ');
+    
+    if (secondaryTerms.length > 0) {
+      optimized += ` AND (${secondaryTerms.map(t => `"${t}"`).join(' OR ')})`;
+    }
+    
+    return optimized;
+  }
+
+  private createRefocusedQuery(originalQuery: string, alternativeTerms: AlternativeTerms, breadthAnalysis: BreadthAnalysis): string {
+    if (breadthAnalysis.classification === 'too_narrow') {
+      return this.createBroadenedQuery(originalQuery, alternativeTerms);
+    } else if (breadthAnalysis.classification === 'too_broad') {
+      return this.createNarrowedQuery(originalQuery, alternativeTerms);
+    }
+    
+    return originalQuery;
+  }
+
   private generateQueryId(): string {
     return `query_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
