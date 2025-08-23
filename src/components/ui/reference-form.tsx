@@ -16,13 +16,15 @@ interface ReferenceFormProps {
   referenceId?: string
   onClose: () => void
   citationStyle: CitationStyle
+  prefilledData?: Partial<Reference>
 }
 
 export const ReferenceForm: React.FC<ReferenceFormProps> = ({
   conversationId,
   referenceId,
   onClose,
-  citationStyle
+  citationStyle,
+  prefilledData
 }) => {
   const [formData, setFormData] = useState<Partial<Reference>>({
     type: ReferenceType.JOURNAL_ARTICLE,
@@ -50,12 +52,17 @@ export const ReferenceForm: React.FC<ReferenceFormProps> = ({
   const [loading, setLoading] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
 
-  // Load existing reference if editing
+  // Load existing reference if editing or prefilled data if provided
   useEffect(() => {
     if (referenceId) {
       loadReference()
+    } else if (prefilledData) {
+      setFormData(prev => ({
+        ...prev,
+        ...prefilledData
+      }))
     }
-  }, [referenceId])
+  }, [referenceId, prefilledData])
 
   const loadReference = async () => {
     try {

@@ -33,11 +33,16 @@ export const AISearcher: React.FC<AISearcherProps> = ({
   const [searchResults, setSearchResults] = useState<SearchResult[]>([])
   const [loading, setLoading] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
+  const [searchError, setSearchError] = useState<string | null>(null)
+  const [addingReference, setAddingReference] = useState<string | null>(null)
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return
 
     setLoading(true)
+    setSearchError(null)
+    setSearchResults([])
+    
     try {
       const response = await fetch('/api/ai-searcher/search', {
         method: 'POST',
@@ -59,12 +64,15 @@ export const AISearcher: React.FC<AISearcherProps> = ({
       if (data.success) {
         setSearchResults(data.results || [])
         setHasSearched(true)
+        setSearchError(null)
       } else {
         throw new Error(data.error || 'Search failed')
       }
     } catch (error) {
       console.error('Error performing AI search:', error)
-      // Fallback to mock results if API fails
+      setSearchError(error.message || 'Search failed. Please try again.')
+      
+      // Fallback to mock results if API fails (for development/testing)
       const mockResults: SearchResult[] = [
         {
           title: "Machine Learning Approaches to Natural Language Processing",
@@ -104,8 +112,13 @@ export const AISearcher: React.FC<AISearcherProps> = ({
     }
   }
 
-  const handleAddReference = (result: SearchResult) => {
-    if (onAddReference) {
+  const handleAddReference = async (result: SearchResult) => {
+    if (!onAddReference) return
+
+    const resultId = `${result.title}-${result.authors[0]}`
+    setAddingReference(resultId)
+
+    try {
       const reference: Partial<Reference> = {
         type: ReferenceType.JOURNAL_ARTICLE,
         title: result.title,
@@ -120,7 +133,12 @@ export const AISearcher: React.FC<AISearcherProps> = ({
         ai_search_query: searchQuery
       }
 
-      onAddReference(reference)
+      await onAddReference(reference)
+    } catch (error) {
+      console.error('Error adding reference:', error)
+      // Error handling is done in the parent component
+    } finally {
+      setAddingReference(null)
     }
   }
 
@@ -182,6 +200,18 @@ export const AISearcher: React.FC<AISearcherProps> = ({
             </h4>
           </div>
 
+          {searchError && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="flex items-center gap-2 text-red-800">
+                <span className="font-medium">Search Error:</span>
+                <span>{searchError}</span>
+              </div>
+              <p className="text-sm text-red-600 mt-1">
+                Showing fallback results for demonstration. Please try your search again.
+              </p>
+            </div>
+          )}
+
           {searchResults.length > 0 ? (
             <div className="space-y-4">
               {searchResults.map((result, index) => (
@@ -230,10 +260,11 @@ export const AISearcher: React.FC<AISearcherProps> = ({
                           variant="outline"
                           size="sm"
                           onClick={() => handleAddReference(result)}
+                          disabled={addingReference === `${result.title}-${result.authors[0]}`}
                           className="flex items-center gap-2"
                         >
                           <Plus className="h-4 w-4" />
-                          Add to References
+                          {addingReference === `${result.title}-${result.authors[0]}` ? 'Adding...' : 'Add to References'}
                         </Button>
                       </div>
                     </div>

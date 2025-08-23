@@ -44,6 +44,9 @@ export const Referencer: React.FC<ReferencerProps> = ({ isOpen, onClose, current
     showForm: false,
     editingReference: null
   })
+  
+  const [prefilledReferenceData, setPrefilledReferenceData] = useState<Partial<Reference> | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   // Load saved citation style preference
   useEffect(() => {
@@ -83,6 +86,181 @@ export const Referencer: React.FC<ReferencerProps> = ({ isOpen, onClose, current
     }))
   }
 
+  const checkForDuplicateReference = async (reference: Partial<Reference>): Promise<Reference | null> => {
+    try {
+      // Get existing references for this conversation
+      const response = await fetch(`/api/referencer/references/${currentConversation.id}`)
+      
+      if (!response.ok) {
+        console.warn('Could not check for duplicates:', response.statusText)
+        return null
+      }
+
+      const data = await response.json()
+      
+      if (data.success && data.references) {
+        // Check for duplicates based on title, DOI, or URL
+        const existingReference = data.references.find((existing: Reference) => {
+          // Check DOI match (most reliable)
+          if (reference.doi && existing.doi && 
+              reference.doi.toLowerCase() === existing.doi.toLowerCase()) {
+            return true
+          }
+          
+          // Check URL match
+          if (reference.url && existing.url && 
+              reference.url.toLowerCase() === existing.url.toLowerCase()) {
+            return true
+          }
+          
+          // Check title similarity (exact match for now)
+          if (reference.title && existing.title && 
+              reference.title.toLowerCase().trim() === existing.title.toLowerCase().trim()) {
+            return true
+          }
+          
+          return false
+        })
+        
+        return existingReference || null
+      }
+    } catch (error) {
+      console.warn('Error checking for duplicates:', error)
+    }
+    
+    return null
+  }
+
+  const createReferenceWithRetry = async (referenceData: any, maxRetries: number = 2): Promise<any> => {
+    let lastError: Error | null = null
+    
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const response = await fetch('/api/referencer/references', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(referenceData)
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}))
+          throw new Error(errorData.error || `Failed to add reference: ${response.statusText}`)
+        }
+
+        const result = await response.json()
+        
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to add reference')
+        }
+        
+        return result
+      } catch (error) {
+        lastError = error as Error
+        
+        // Don't retry on validation errors or client errors (4xx)
+        if (error.message.includes('Validation failed') || 
+            error.message.includes('400') || 
+            error.message.includes('401') || 
+            error.message.includes('403') || 
+            error.message.includes('404')) {
+          break
+        }
+        
+        // Wait before retrying (exponential backoff)
+        if (attempt < maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000))
+        }
+      }
+    }
+    
+    throw lastError || new Error('Failed to create reference after retries')
+  }
+
+  const handleAddReferenceFromAI = async (reference: Partial<Reference>) => {
+    try {
+      // Validate required fields
+      if (!reference.title || !reference.authors || reference.authors.length === 0) {
+        throw new Error('Reference must have a title and at least one author')
+      }
+
+      // Check for duplicates first
+      const duplicateReference = await checkForDuplicateReference(reference)
+      
+      if (duplicateReference) {
+        const shouldProceed = confirm(
+          `A similar reference already exists in your library:\n\n"${duplicateReference.title}"\n\nDo you want to add this reference anyway?`
+        )
+        
+        if (!shouldProceed) {
+          return // User chose not to add duplicate
+        }
+      }
+
+      // Prepare reference data for API
+      const referenceData = {
+        conversationId: currentConversation.id,
+        type: reference.type || 'journal_article',
+        title: reference.title,
+        authors: reference.authors || [],
+        publication_date: reference.publication_date,
+        journal: reference.journal,
+        volume: reference.volume,
+        issue: reference.issue,
+        pages: reference.pages,
+        publisher: reference.publisher,
+        doi: reference.doi,
+        url: reference.url,
+        isbn: reference.isbn,
+        edition: reference.edition,
+        chapter: reference.chapter,
+        editor: reference.editor,
+        access_date: reference.access_date,
+        notes: reference.notes,
+        tags: reference.tags || [],
+        ai_search_source: 'ai-searcher',
+        ai_confidence: reference.ai_confidence || reference.metadata_confidence || 0.8,
+        ai_relevance_score: reference.ai_relevance_score || 0.8,
+        ai_search_query: reference.ai_search_query,
+        ai_search_timestamp: new Date().toISOString(),
+        extractMetadata: false // Don't extract metadata since we already have it from AI search
+      }
+
+      // Create the reference with retry logic
+      const result = await createReferenceWithRetry(referenceData)
+      
+      // Successfully added reference, switch to references tab to show it
+      setState(prev => ({
+        ...prev,
+        activeTab: 'references',
+        showForm: false,
+        editingReference: null
+      }))
+      
+      // Show success feedback
+      setSuccessMessage(`Reference "${reference.title}" added successfully!`)
+      setTimeout(() => setSuccessMessage(null), 5000) // Clear after 5 seconds
+      console.log('Reference added successfully:', result.reference)
+      
+    } catch (error) {
+      console.error('Error adding reference from AI searcher:', error)
+      
+      // Fallback: show the form with pre-filled data so user can manually save
+      setPrefilledReferenceData(reference)
+      setState(prev => ({
+        ...prev,
+        showForm: true,
+        editingReference: null,
+        activeTab: 'references'
+      }))
+      
+      // Show user-friendly error message
+      const errorMessage = error.message || 'Unknown error occurred'
+      alert(`Failed to add reference automatically: ${errorMessage}. Please review and save manually.`)
+    }
+  }
+
   const handleEditReference = (referenceId: string) => {
     setState(prev => ({
       ...prev,
@@ -98,6 +276,7 @@ export const Referencer: React.FC<ReferencerProps> = ({ isOpen, onClose, current
       showForm: false,
       editingReference: null
     }))
+    setPrefilledReferenceData(null)
   }
 
   const getTabIcon = (tab: ReferencerTab) => {
@@ -108,6 +287,8 @@ export const Referencer: React.FC<ReferencerProps> = ({ isOpen, onClose, current
         return <Quote className="h-4 w-4" />
       case 'bibliography':
         return <FileText className="h-4 w-4" />
+      case 'ai-searcher':
+        return <Sparkles className="h-4 w-4" />
       default:
         return <BookOpen className="h-4 w-4" />
     }
@@ -125,6 +306,7 @@ export const Referencer: React.FC<ReferencerProps> = ({ isOpen, onClose, current
                   referenceId={state.editingReference || undefined}
                   onClose={handleFormClose}
                   citationStyle={state.selectedStyle}
+                  prefilledData={prefilledReferenceData || undefined}
                 />
               </div>
             ) : (
@@ -177,6 +359,16 @@ export const Referencer: React.FC<ReferencerProps> = ({ isOpen, onClose, current
                 <ExportOptionsComponent />
               </div>
             </div>
+          </div>
+        )
+
+      case 'ai-searcher':
+        return (
+          <div className="space-y-4">
+            <AISearcher
+              conversationId={currentConversation.id}
+              onAddReference={handleAddReferenceFromAI}
+            />
           </div>
         )
 
@@ -253,9 +445,18 @@ export const Referencer: React.FC<ReferencerProps> = ({ isOpen, onClose, current
         </div>
 
         <ScrollArea className="h-[calc(100vh-200px)] pr-4">
+          {/* Success Message */}
+          {successMessage && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
+              <div className="flex items-center gap-2 text-green-800">
+                <span className="font-medium">✓ {successMessage}</span>
+              </div>
+            </div>
+          )}
+
           {/* Tab Navigation */}
           <div className="flex gap-1 mb-4 border-b">
-            {(['references', 'citations', 'bibliography'] as const).map((tab) => (
+            {(['references', 'citations', 'bibliography', 'ai-searcher'] as const).map((tab) => (
               <Button
                 key={tab}
                 variant={state.activeTab === tab ? "default" : "ghost"}
@@ -264,7 +465,7 @@ export const Referencer: React.FC<ReferencerProps> = ({ isOpen, onClose, current
                 className="flex items-center gap-2 capitalize"
               >
                 {getTabIcon(tab)}
-                {tab}
+                {tab === 'ai-searcher' ? 'AI Searcher' : tab}
               </Button>
             ))}
           </div>
