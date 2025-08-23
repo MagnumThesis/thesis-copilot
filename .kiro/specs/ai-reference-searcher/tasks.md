@@ -50,7 +50,6 @@
 
 - [x] 3.1 Create content source selection interface
 
-
   - Build UI component for selecting Ideas vs Builder content
   - Implement content preview functionality before search
   - Add content filtering and keyword extraction options
@@ -58,7 +57,8 @@
   - Write component tests for content selection
   - _Requirements: 1.1, 1.2, 1.4_
 
-- [ ] 3.2 Implement intelligent query generation
+- [x] 3.2 Implement intelligent query generation
+
 
   - Create QueryGenerationEngine for automatic search query creation
   - Generate search queries based on extracted content keywords and topics
@@ -67,7 +67,9 @@
   - Write unit tests for query generation algorithms
   - _Requirements: 2.1, 2.2, 2.3_
 
-- [ ] 3.3 Add query refinement and validation
+- [-] 3.3 Add query refinement and validation
+
+
 
   - Implement query breadth analysis (too broad/narrow detection)
   - Suggest alternative and related search terms

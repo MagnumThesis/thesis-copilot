@@ -1,6 +1,9 @@
 import { Hono } from 'hono';
 import { Context } from 'hono';
 import { Env } from '../types/env';
+import { QueryGenerationEngine, SearchQuery, QueryGenerationOptions } from '../lib/query-generation-engine';
+import { ContentExtractionEngine } from '../lib/content-extraction-engine';
+import { ExtractedContent } from '../../lib/ai-types';
 
 // Define SupabaseEnv type locally since it's not exported from supabase.ts
 export type SupabaseEnv = {
@@ -14,8 +17,13 @@ type AISearcherContext = {
 };
 
 interface SearchRequest {
-  query: string;
+  query?: string;
   conversationId: string;
+  contentSources?: Array<{
+    source: 'ideas' | 'builder';
+    id: string;
+  }>;
+  queryOptions?: QueryGenerationOptions;
   filters?: {
     publicationDate?: string;
     author?: string;
@@ -30,6 +38,23 @@ interface ExtractRequest {
   source: string;
   type: 'url' | 'doi';
   conversationId: string;
+}
+
+interface QueryGenerationRequest {
+  conversationId: string;
+  contentSources: Array<{
+    source: 'ideas' | 'builder';
+    id: string;
+  }>;
+  options?: QueryGenerationOptions;
+}
+
+interface ContentExtractionRequest {
+  conversationId: string;
+  sources: Array<{
+    source: 'ideas' | 'builder';
+    id: string;
+  }>;
 }
 
 interface SearchResult {
@@ -81,6 +106,13 @@ interface StatisticsData {
  * Provides AI-powered academic reference search functionality
  */
 export class AISearcherAPIHandler {
+  private queryEngine: QueryGenerationEngine;
+  private contentEngine: ContentExtractionEngine;
+
+  constructor() {
+    this.queryEngine = new QueryGenerationEngine();
+    this.contentEngine = new ContentExtractionEngine();
+  }
   /**
    * POST /api/ai-searcher/search
    * Perform AI-powered academic search
@@ -91,10 +123,45 @@ export class AISearcherAPIHandler {
     try {
       const body = await c.req.json() as SearchRequest;
 
-      if (!body.query || !body.conversationId) {
+      if (!body.conversationId) {
         return c.json({
           success: false,
-          error: 'Query and conversationId are required',
+          error: 'conversationId is required',
+          processingTime: Date.now() - startTime
+        }, 400);
+      }
+
+      let searchQuery = body.query;
+      let generatedQueries: SearchQuery[] = [];
+      let extractedContent: ExtractedContent[] = [];
+
+      // If no query provided but content sources are available, generate query
+      if (!searchQuery && body.contentSources && body.contentSources.length > 0) {
+        try {
+          // Extract content from sources
+          for (const source of body.contentSources) {
+            const extracted = await this.contentEngine.extractContent({
+              source: source.source,
+              id: source.id,
+              conversationId: body.conversationId
+            });
+            extractedContent.push(extracted);
+          }
+
+          // Generate queries
+          if (extractedContent.length > 0) {
+            generatedQueries = this.queryEngine.generateQueries(extractedContent, body.queryOptions);
+            searchQuery = generatedQueries[0]?.query;
+          }
+        } catch (error) {
+          console.warn('Failed to generate query from content sources:', error);
+        }
+      }
+
+      if (!searchQuery) {
+        return c.json({
+          success: false,
+          error: 'Query is required (either directly or via content sources)',
           processingTime: Date.now() - startTime
         }, 400);
       }
@@ -147,7 +214,10 @@ export class AISearcherAPIHandler {
         success: true,
         results: mockResults,
         total_results: mockResults.length,
-        query: body.query,
+        query: searchQuery,
+        originalQuery: body.query,
+        generatedQueries: generatedQueries.length > 0 ? generatedQueries : undefined,
+        extractedContent: extractedContent.length > 0 ? extractedContent : undefined,
         filters: body.filters,
         processingTime
       });
@@ -439,6 +509,204 @@ export class AISearcherAPIHandler {
   }
 
   /**
+   * POST /api/ai-searcher/generate-query
+   * Generate optimized search queries from content
+   */
+  async generateQuery(c: Context<AISearcherContext>) {
+    const startTime = Date.now();
+
+    try {
+      const body = await c.req.json() as QueryGenerationRequest;
+
+      if (!body.conversationId || !body.contentSources || body.contentSources.length === 0) {
+        return c.json({
+          success: false,
+          error: 'conversationId and contentSources are required',
+          processingTime: Date.now() - startTime
+        }, 400);
+      }
+
+      // Extract content from sources
+      const extractedContents: ExtractedContent[] = [];
+      
+      for (const source of body.contentSources) {
+        try {
+          const extracted = await this.contentEngine.extractContent({
+            source: source.source,
+            id: source.id,
+            conversationId: body.conversationId
+          });
+          extractedContents.push(extracted);
+        } catch (error) {
+          console.warn(`Failed to extract content from ${source.source}:${source.id}:`, error);
+          // Continue with other sources
+        }
+      }
+
+      if (extractedContents.length === 0) {
+        return c.json({
+          success: false,
+          error: 'No content could be extracted from the provided sources',
+          processingTime: Date.now() - startTime
+        }, 400);
+      }
+
+      // Generate queries
+      const queries = this.queryEngine.generateQueries(extractedContents, body.options);
+
+      return c.json({
+        success: true,
+        queries,
+        extractedContent: extractedContents,
+        processingTime: Date.now() - startTime
+      });
+
+    } catch (error) {
+      console.error('Query generation error:', error);
+
+      return c.json({
+        success: false,
+        error: 'Failed to generate queries',
+        details: error instanceof Error ? error.message : 'Unknown error',
+        processingTime: Date.now() - startTime
+      }, 500);
+    }
+  }
+
+  /**
+   * POST /api/ai-searcher/extract-content
+   * Extract content from Ideas and Builder sources
+   */
+  async extractContent(c: Context<AISearcherContext>) {
+    const startTime = Date.now();
+
+    try {
+      const body = await c.req.json() as ContentExtractionRequest;
+
+      if (!body.conversationId || !body.sources || body.sources.length === 0) {
+        return c.json({
+          success: false,
+          error: 'conversationId and sources are required',
+          processingTime: Date.now() - startTime
+        }, 400);
+      }
+
+      const extractedContents: ExtractedContent[] = [];
+      const errors: Array<{ source: string; id: string; error: string }> = [];
+
+      for (const source of body.sources) {
+        try {
+          const extracted = await this.contentEngine.extractContent({
+            source: source.source,
+            id: source.id,
+            conversationId: body.conversationId
+          });
+          extractedContents.push(extracted);
+        } catch (error) {
+          errors.push({
+            source: source.source,
+            id: source.id,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          });
+        }
+      }
+
+      return c.json({
+        success: true,
+        extractedContent: extractedContents,
+        errors: errors.length > 0 ? errors : undefined,
+        processingTime: Date.now() - startTime
+      });
+
+    } catch (error) {
+      console.error('Content extraction error:', error);
+
+      return c.json({
+        success: false,
+        error: 'Failed to extract content',
+        details: error instanceof Error ? error.message : 'Unknown error',
+        processingTime: Date.now() - startTime
+      }, 500);
+    }
+  }
+
+  /**
+   * POST /api/ai-searcher/validate-query
+   * Validate and optimize a search query
+   */
+  async validateQuery(c: Context<AISearcherContext>) {
+    const startTime = Date.now();
+
+    try {
+      const body = await c.req.json() as { query: string };
+
+      if (!body.query) {
+        return c.json({
+          success: false,
+          error: 'Query is required',
+          processingTime: Date.now() - startTime
+        }, 400);
+      }
+
+      const validation = this.queryEngine.validateQuery(body.query);
+
+      return c.json({
+        success: true,
+        validation,
+        processingTime: Date.now() - startTime
+      });
+
+    } catch (error) {
+      console.error('Query validation error:', error);
+
+      return c.json({
+        success: false,
+        error: 'Failed to validate query',
+        details: error instanceof Error ? error.message : 'Unknown error',
+        processingTime: Date.now() - startTime
+      }, 500);
+    }
+  }
+
+  /**
+   * POST /api/ai-searcher/combine-queries
+   * Combine multiple queries into one optimized query
+   */
+  async combineQueries(c: Context<AISearcherContext>) {
+    const startTime = Date.now();
+
+    try {
+      const body = await c.req.json() as { queries: SearchQuery[] };
+
+      if (!body.queries || body.queries.length === 0) {
+        return c.json({
+          success: false,
+          error: 'Queries array is required',
+          processingTime: Date.now() - startTime
+        }, 400);
+      }
+
+      const combinedQuery = this.queryEngine.combineQueries(body.queries);
+
+      return c.json({
+        success: true,
+        combinedQuery,
+        processingTime: Date.now() - startTime
+      });
+
+    } catch (error) {
+      console.error('Query combination error:', error);
+
+      return c.json({
+        success: false,
+        error: 'Failed to combine queries',
+        details: error instanceof Error ? error.message : 'Unknown error',
+        processingTime: Date.now() - startTime
+      }, 500);
+    }
+  }
+
+  /**
    * GET /api/ai-searcher/health
    * Health check endpoint
    */
@@ -478,6 +746,10 @@ const aiSearcherAPIHandler = new AISearcherAPIHandler();
 // Routes
 app.post('/search', (c) => aiSearcherAPIHandler.search(c));
 app.post('/extract', (c) => aiSearcherAPIHandler.extract(c));
+app.post('/generate-query', (c) => aiSearcherAPIHandler.generateQuery(c));
+app.post('/extract-content', (c) => aiSearcherAPIHandler.extractContent(c));
+app.post('/validate-query', (c) => aiSearcherAPIHandler.validateQuery(c));
+app.post('/combine-queries', (c) => aiSearcherAPIHandler.combineQueries(c));
 app.get('/history', (c) => aiSearcherAPIHandler.getHistory(c));
 app.delete('/history', (c) => aiSearcherAPIHandler.clearHistory(c));
 app.get('/analytics', (c) => aiSearcherAPIHandler.getAnalytics(c));
