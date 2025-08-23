@@ -5,6 +5,7 @@ import { QueryGenerationEngine, SearchQuery, QueryGenerationOptions } from '../l
 import { ContentExtractionEngine } from '../lib/content-extraction-engine';
 import { SearchAnalyticsManager } from '../lib/search-analytics-manager';
 import { ExtractedContent } from '../../lib/ai-types';
+import feedbackApi from './ai-searcher-feedback';
 
 // Define SupabaseEnv type locally since it's not exported from supabase.ts
 export type SupabaseEnv = {
@@ -1084,6 +1085,9 @@ app.post('/feedback', (c) => aiSearcherAPIHandler.recordFeedback(c));
 app.get('/trending', (c) => aiSearcherAPIHandler.getTrending(c));
 app.get('/statistics', (c) => aiSearcherAPIHandler.getStatistics(c));
 app.get('/health', (c) => aiSearcherAPIHandler.health(c));
+
+// Feedback API routes
+app.route('/feedback', feedbackApi);
 
 // Export Hono app as default
 export default app;

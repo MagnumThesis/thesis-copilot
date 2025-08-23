@@ -16,16 +16,18 @@ import {
   Calendar,
   Quote,
   TrendingUp,
-  Info
+  Info,
+  MessageSquare
 } from "lucide-react"
 import { ScholarSearchResult, ExtractedContent } from "../../lib/ai-types"
 import { ResultScoringEngine, RankedResult } from "../../worker/lib/result-scoring-engine"
+import { SearchResultFeedbackComponent, QuickFeedbackButtons, SearchResultFeedback } from "./search-result-feedback"
 
 export interface SearchResultsDisplayProps {
   results: ScholarSearchResult[]
   extractedContent: ExtractedContent
   onAddReference: (result: ScholarSearchResult) => void
-  onProvideFeedback?: (resultId: string, feedback: { isRelevant: boolean; rating: number }) => void
+  onProvideFeedback?: (resultId: string, feedback: SearchResultFeedback) => Promise<void>
   loading?: boolean
   error?: string | null
   className?: string
@@ -58,6 +60,8 @@ export const SearchResultsDisplay: React.FC<SearchResultsDisplayProps> = ({
   })
   const [addingReference, setAddingReference] = useState<string | null>(null)
   const [showConfidenceDetails, setShowConfidenceDetails] = useState<string | null>(null)
+  const [showFeedbackForm, setShowFeedbackForm] = useState<string | null>(null)
+  const [submittedFeedback, setSubmittedFeedback] = useState<Set<string>>(new Set())
 
   // Initialize scoring engine
   const scoringEngine = useMemo(() => new ResultScoringEngine(), [])
@@ -155,6 +159,44 @@ export const SearchResultsDisplay: React.FC<SearchResultsDisplayProps> = ({
     } finally {
       setAddingReference(null)
     }
+  }
+
+  const handleProvideFeedback = async (resultId: string, feedback: SearchResultFeedback) => {
+    if (!onProvideFeedback) return
+
+    try {
+      await onProvideFeedback(resultId, feedback)
+      setSubmittedFeedback(prev => new Set([...prev, resultId]))
+      setShowFeedbackForm(null)
+    } catch (error) {
+      console.error('Error submitting feedback:', error)
+      throw error // Re-throw to let the feedback component handle the error
+    }
+  }
+
+  const handleQuickFeedback = async (resultId: string, feedback: { isRelevant: boolean; rating: number }) => {
+    if (!onProvideFeedback) return
+
+    const fullFeedback: SearchResultFeedback = {
+      resultId,
+      isRelevant: feedback.isRelevant,
+      qualityRating: feedback.rating,
+      timestamp: new Date()
+    }
+
+    try {
+      await handleProvideFeedback(resultId, fullFeedback)
+    } catch (error) {
+      console.error('Error submitting quick feedback:', error)
+    }
+  }
+
+  const handleShowFeedbackForm = (resultId: string) => {
+    setShowFeedbackForm(resultId)
+  }
+
+  const handleCancelFeedback = () => {
+    setShowFeedbackForm(null)
   }
 
   const getConfidenceColor = (confidence: number): string => {
@@ -414,6 +456,35 @@ export const SearchResultsDisplay: React.FC<SearchResultsDisplayProps> = ({
                       <Plus className="h-4 w-4" />
                       {addingReference === resultId ? 'Adding...' : 'Add Reference'}
                     </Button>
+                    
+                    {/* Feedback Button */}
+                    {onProvideFeedback && !submittedFeedback.has(resultId) && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleShowFeedbackForm(resultId)}
+                        className="flex items-center gap-2"
+                      >
+                        <MessageSquare className="h-4 w-4" />
+                        Feedback
+                      </Button>
+                    )}
+                    
+                    {/* Quick Feedback Buttons */}
+                    {onProvideFeedback && !submittedFeedback.has(resultId) && showFeedbackForm !== resultId && (
+                      <QuickFeedbackButtons
+                        resultId={resultId}
+                        onFeedback={(feedback) => handleQuickFeedback(resultId, feedback)}
+                        disabled={addingReference === resultId}
+                      />
+                    )}
+                    
+                    {/* Feedback Submitted Indicator */}
+                    {submittedFeedback.has(resultId) && (
+                      <Badge variant="outline" className="text-green-600 border-green-200">
+                        Feedback Submitted
+                      </Badge>
+                    )}
                   </div>
                 </div>
               </CardHeader>
@@ -426,6 +497,18 @@ export const SearchResultsDisplay: React.FC<SearchResultsDisplayProps> = ({
                       : result.abstract
                     }
                   </div>
+                </CardContent>
+              )}
+              
+              {/* Feedback Form */}
+              {showFeedbackForm === resultId && onProvideFeedback && (
+                <CardContent className="pt-0 border-t">
+                  <SearchResultFeedbackComponent
+                    resultId={resultId}
+                    resultTitle={result.title}
+                    onSubmitFeedback={(feedback) => handleProvideFeedback(resultId, feedback)}
+                    onCancel={handleCancelFeedback}
+                  />
                 </CardContent>
               )}
             </Card>

@@ -13,6 +13,8 @@ import { QueryRefinementPanel } from "./query-refinement-panel"
 import { DuplicateConflictResolver } from "./duplicate-conflict-resolver"
 import { DeduplicationSettings } from "./deduplication-settings"
 import { SearchResultsDisplay } from "./search-results-display"
+import { SearchSessionFeedbackComponent, SearchSessionFeedback } from "./search-session-feedback"
+import { SearchResultFeedback } from "./search-result-feedback"
 import { QueryRefinement, RefinedQuery } from "../../worker/lib/query-generation-engine"
 import { DuplicateDetectionEngine, DuplicateDetectionOptions, DuplicateGroup } from "../../worker/lib/duplicate-detection-engine"
 import { ScholarSearchResult } from "../../lib/ai-types"
@@ -74,6 +76,10 @@ export const AISearcher: React.FC<AISearcherProps> = ({
   const [duplicateDetectionEngine] = useState(() => new DuplicateDetectionEngine(deduplicationOptions))
   const [originalResults, setOriginalResults] = useState<SearchResult[]>([])
   const [duplicatesDetected, setDuplicatesDetected] = useState(false)
+  
+  // Feedback state
+  const [showSessionFeedback, setShowSessionFeedback] = useState(false)
+  const [sessionFeedbackSubmitted, setSessionFeedbackSubmitted] = useState(false)
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return
@@ -519,6 +525,100 @@ export const AISearcher: React.FC<AISearcherProps> = ({
     setShowDuplicateResolver(false)
   }
 
+  const handleResultFeedback = async (resultId: string, feedback: SearchResultFeedback) => {
+    if (!currentSessionId) {
+      throw new Error('No active search session')
+    }
+
+    try {
+      const response = await fetch('/api/ai-searcher/feedback/result', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          searchSessionId: currentSessionId,
+          resultId,
+          feedback: {
+            isRelevant: feedback.isRelevant,
+            qualityRating: feedback.qualityRating,
+            comments: feedback.comments,
+            timestamp: feedback.timestamp.toISOString()
+          }
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to submit feedback: ${response.statusText}`)
+      }
+
+      const data = await response.json()
+      
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to submit feedback')
+      }
+
+      console.log('Result feedback submitted successfully')
+    } catch (error) {
+      console.error('Error submitting result feedback:', error)
+      throw error
+    }
+  }
+
+  const handleSessionFeedback = async (feedback: SearchSessionFeedback) => {
+    if (!currentSessionId) {
+      throw new Error('No active search session')
+    }
+
+    try {
+      const response = await fetch('/api/ai-searcher/feedback/session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          searchSessionId: currentSessionId,
+          conversationId,
+          feedback: {
+            overallSatisfaction: feedback.overallSatisfaction,
+            relevanceRating: feedback.relevanceRating,
+            qualityRating: feedback.qualityRating,
+            easeOfUseRating: feedback.easeOfUseRating,
+            feedbackComments: feedback.feedbackComments,
+            wouldRecommend: feedback.wouldRecommend,
+            improvementSuggestions: feedback.improvementSuggestions,
+            timestamp: feedback.timestamp.toISOString()
+          }
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to submit session feedback: ${response.statusText}`)
+      }
+
+      const data = await response.json()
+      
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to submit session feedback')
+      }
+
+      setSessionFeedbackSubmitted(true)
+      setShowSessionFeedback(false)
+      console.log('Session feedback submitted successfully')
+    } catch (error) {
+      console.error('Error submitting session feedback:', error)
+      throw error
+    }
+  }
+
+  const handleShowSessionFeedback = () => {
+    setShowSessionFeedback(true)
+  }
+
+  const handleCancelSessionFeedback = () => {
+    setShowSessionFeedback(false)
+  }
+
   const getConfidenceColor = (confidence: number): string => {
     if (confidence >= 0.9) return 'bg-green-100 text-green-800'
     if (confidence >= 0.8) return 'bg-yellow-100 text-yellow-800'
@@ -690,6 +790,11 @@ export const AISearcher: React.FC<AISearcherProps> = ({
                   {duplicateGroups.length} duplicate group{duplicateGroups.length > 1 ? 's' : ''} detected
                 </Badge>
               )}
+              {sessionFeedbackSubmitted && (
+                <Badge variant="outline" className="text-green-600 border-green-200">
+                  Feedback Submitted
+                </Badge>
+              )}
             </div>
             <div className="flex items-center gap-2">
               <Button
@@ -710,6 +815,17 @@ export const AISearcher: React.FC<AISearcherProps> = ({
                 >
                   <Merge className="h-4 w-4" />
                   Resolve Duplicates
+                </Button>
+              )}
+              {currentSessionId && !sessionFeedbackSubmitted && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleShowSessionFeedback}
+                  className="flex items-center gap-2"
+                >
+                  <MessageSquare className="h-4 w-4" />
+                  Rate Search
                 </Button>
               )}
             </div>
@@ -774,9 +890,23 @@ export const AISearcher: React.FC<AISearcherProps> = ({
                 0.5
             }}
             onAddReference={handleAddReference}
+            onProvideFeedback={handleResultFeedback}
             loading={loading}
             error={searchError}
           />
+          
+          {/* Session Feedback Form */}
+          {showSessionFeedback && currentSessionId && (
+            <div className="mt-6">
+              <SearchSessionFeedbackComponent
+                searchSessionId={currentSessionId}
+                searchQuery={searchQuery}
+                resultsCount={searchResults.length}
+                onSubmitFeedback={handleSessionFeedback}
+                onCancel={handleCancelSessionFeedback}
+              />
+            </div>
+          )}
         </div>
       )}
 
