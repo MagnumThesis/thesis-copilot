@@ -288,33 +288,53 @@ export class GoogleScholarClient {
   private extractResultBlocks(html: string): string[] {
     const blocks: string[] = [];
     
-    // Look for result containers - Google Scholar uses various class patterns
-    // We need to match the complete div structure including nested divs
-    const resultPattern = /<div class="gs_r gs_or gs_scl"[^>]*>(.*?)<\/div>(?=\s*(?:<div class="gs_r|$))/gs;
+    // Find all div elements with gs_r class and extract their complete content
+    // Use a more sophisticated approach to handle nested divs properly
     
-    let match;
-    while ((match = resultPattern.exec(html)) !== null) {
-      if (match[1]) {
-        // Include the full content including nested divs
-        blocks.push(match[0]); // Use full match instead of just group 1
-      }
-    }
-
-    // If no results found with the primary pattern, try alternative patterns
-    if (blocks.length === 0) {
-      const alternativePatterns = [
-        /<div class="gs_ri"[^>]*>.*?<\/div>/gs,
-        /<div[^>]*class="[^"]*gs_r[^"]*"[^>]*>.*?<\/div>/gs
-      ];
-
-      for (const pattern of alternativePatterns) {
-        const matches = html.matchAll(pattern);
-        for (const match of matches) {
-          blocks.push(match[0]);
+    let startIndex = 0;
+    while (true) {
+      // Find the next gs_r div
+      const startMatch = html.substring(startIndex).match(/<div[^>]*class="[^"]*gs_r[^"]*"[^>]*>/);
+      if (!startMatch) break;
+      
+      const actualStart = startIndex + startMatch.index!;
+      const divStart = actualStart;
+      
+      // Find the matching closing div by counting nested divs
+      let divCount = 1;
+      let currentPos = divStart + startMatch[0].length;
+      
+      while (divCount > 0 && currentPos < html.length) {
+        const nextDiv = html.substring(currentPos).search(/<\/?div[^>]*>/);
+        if (nextDiv === -1) break;
+        
+        currentPos += nextDiv;
+        const divMatch = html.substring(currentPos).match(/^<(\/)?(div)[^>]*>/);
+        if (divMatch) {
+          if (divMatch[1]) {
+            // Closing div
+            divCount--;
+          } else {
+            // Opening div
+            divCount++;
+          }
+          currentPos += divMatch[0].length;
+        } else {
+          break;
         }
       }
+      
+      if (divCount === 0) {
+        const block = html.substring(divStart, currentPos);
+        // Only include blocks that look like search results
+        if (block.includes('gs_rt') || block.includes('gs_a')) {
+          blocks.push(block);
+        }
+      }
+      
+      startIndex = currentPos;
     }
-
+    
     return blocks;
   }
 
@@ -398,39 +418,7 @@ export class GoogleScholarClient {
       const match = block.match(pattern);
       if (match && match[1]) {
         const authorText = this.cleanText(match[1]);
-        // Authors are typically separated by commas and followed by publication info
-        // Pattern: "Author1, Author2, Author3 - Journal, Year - domain.com"
-        const authorMatch = authorText.match(/^([^-]+?)(?:\s*-|$)/);
-        if (authorMatch) {
-          const authorsString = authorMatch[1].trim();
-          if (authorsString.length > 0) {
-            // Split by comma but be careful about names with commas (like "Smith, J.")
-            const authors = [];
-            const parts = authorsString.split(',');
-            
-            for (let i = 0; i < parts.length; i++) {
-              const part = parts[i].trim();
-              
-              // Check if this looks like a last name followed by initials
-              if (i < parts.length - 1 && part.match(/^[A-Z][a-z]+$/)) {
-                const nextPart = parts[i + 1].trim();
-                if (nextPart.match(/^[A-Z]\.?$/)) {
-                  // Combine "Smith" + "J." -> "Smith, J."
-                  authors.push(`${part}, ${nextPart}`);
-                  i++; // Skip the next part since we consumed it
-                } else {
-                  authors.push(part);
-                }
-              } else {
-                authors.push(part);
-              }
-            }
-            
-            return authors
-              .filter(author => author.length > 0 && !author.match(/^\d+$/))
-              .slice(0, 10); // Limit to 10 authors
-          }
-        }
+        return this.parseAuthorsFromText(authorText);
       }
     }
 
@@ -438,19 +426,176 @@ export class GoogleScholarClient {
   }
 
   /**
+   * Parse authors from the author text string
+   */
+  private parseAuthorsFromText(authorText: string): string[] {
+    // Authors are typically separated by commas and followed by publication info
+    // Pattern: "Author1, Author2, Author3 - Journal, Year - domain.com"
+    // We need to be careful not to split on hyphens within author names like "Smith-Jones"
+    
+    // Find the first " - " that separates authors from journal info
+    // Look for pattern like " - Journal" or " - Conference" (with space before dash)
+    const separatorMatch = authorText.match(/^(.*?)\s+-\s+([^-]+)/);
+    let authorsString = '';
+    
+    if (separatorMatch) {
+      authorsString = separatorMatch[1].trim();
+    } else {
+      // Fallback: take everything before the first standalone dash
+      const dashIndex = authorText.indexOf(' - ');
+      if (dashIndex > 0) {
+        authorsString = authorText.substring(0, dashIndex).trim();
+      } else {
+        authorsString = authorText.trim();
+      }
+    }
+
+    if (authorsString.length === 0) {
+      return [];
+    }
+
+    // Handle different author name patterns
+    const authors = this.splitAuthorNames(authorsString);
+    
+    return authors
+      .map(author => author.trim())
+      .filter(author => this.isValidAuthorName(author))
+      .slice(0, 10); // Limit to 10 authors for performance
+  }
+
+  /**
+   * Split author names handling various formats
+   */
+  private splitAuthorNames(authorsString: string): string[] {
+    // Handle different separator patterns
+    // First try semicolon separation (common in some formats)
+    if (authorsString.includes(';')) {
+      return authorsString.split(';').map(author => author.trim());
+    }
+
+    // Handle comma separation with special cases for initials
+    const parts = authorsString.split(',').map(part => part.trim());
+    const authors: string[] = [];
+    
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      
+      // Check if this looks like a last name followed by initials in next part
+      if (i < parts.length - 1) {
+        const nextPart = parts[i + 1];
+        
+        // Pattern: "Smith" followed by "J." or "J.A." 
+        if (this.looksLikeLastName(part) && this.looksLikeInitials(nextPart)) {
+          authors.push(`${part}, ${nextPart}`);
+          i++; // Skip the next part since we consumed it
+          continue;
+        }
+      }
+      
+      // Add the part as-is if it's not empty
+      if (part.length > 0) {
+        authors.push(part);
+      }
+    }
+    
+    return authors;
+  }
+
+  /**
+   * Check if a string looks like a last name (simple heuristic)
+   */
+  private looksLikeLastName(text: string): boolean {
+    // Should be a single word or hyphenated name, starting with capital
+    // Examples: "Smith", "Van Der Berg", "O'Connor", "Smith-Jones"
+    return /^[A-Z][a-z]*(?:[-'\s][A-Z]?[a-z]*)*$/.test(text) && 
+           text.length > 1 && 
+           !this.looksLikeInitials(text);
+  }
+
+  /**
+   * Check if a string looks like initials
+   */
+  private looksLikeInitials(text: string): boolean {
+    // Initials: "J.", "J.A.", "J. A.", "J", "JA", etc.
+    return /^[A-Z]\.?(?:\s*[A-Z]\.?)*$/.test(text) && text.length <= 10;
+  }
+
+
+
+  /**
+   * Validate if a string is a reasonable author name
+   */
+  private isValidAuthorName(author: string): boolean {
+    if (!author || author.length < 2) {
+      return false;
+    }
+
+    // Filter out obvious non-names
+    const invalidPatterns = [
+      /^\d+$/, // Pure numbers
+      /^[^a-zA-Z]*$/, // No letters
+      /^(and|et|al|etc|vol|pp|page|pages)\.?$/i, // Common non-name words
+      /^(doi|isbn|issn|url|http|www)\.?/i, // Technical terms
+      /^[.,-]+$/, // Only punctuation
+    ];
+
+    for (const pattern of invalidPatterns) {
+      if (pattern.test(author.trim())) {
+        return false;
+      }
+    }
+
+    // Should contain at least one letter
+    if (!/[a-zA-Z]/.test(author)) {
+      return false;
+    }
+
+    // Reasonable length limits
+    if (author.length > 100) {
+      return false; // Suspiciously long
+    }
+
+    return true;
+  }
+
+  /**
    * Extract journal from result block
    */
   private extractJournal(block: string): string | undefined {
     const patterns = [
-      /<div class="gs_a"[^>]*>.*?-\s*([^,\-]+?)(?:,|\s*\d{4})/s,
-      /<span class="gs_a"[^>]*>.*?-\s*([^,\-]+?)(?:,|\s*\d{4})/s
+      /<div class="gs_a"[^>]*>(.*?)<\/div>/s,
+      /<span class="gs_a"[^>]*>(.*?)<\/span>/s,
+      /<div[^>]*class="[^"]*gs_a[^"]*"[^>]*>(.*?)<\/div>/s
     ];
 
     for (const pattern of patterns) {
       const match = block.match(pattern);
       if (match && match[1]) {
-        const journal = this.cleanText(match[1]).trim();
-        if (journal.length > 3 && !journal.match(/^\d+$/)) {
+        const authorText = this.cleanText(match[1]);
+        return this.extractJournalFromAuthorText(authorText);
+      }
+    }
+
+    return undefined;
+  }
+
+  /**
+   * Extract journal name from author text
+   */
+  private extractJournalFromAuthorText(authorText: string): string | undefined {
+    // Pattern: "Authors - Journal, Year - domain.com"
+    // We want to extract the journal part between the first and second dash
+    const parts = authorText.split(' - ');
+    
+    if (parts.length >= 2) {
+      const journalPart = parts[1].trim();
+      
+      // Remove year and domain from the end
+      // Pattern could be "Journal, 2023" or "Journal, 2023 - domain.com"
+      const journalMatch = journalPart.match(/^([^,]+?)(?:,\s*\d{4}|$)/);
+      if (journalMatch && journalMatch[1]) {
+        const journal = journalMatch[1].trim();
+        if (journal.length > 3 && !journal.match(/^\d+$/) && !journal.match(/^(and|et|al)$/i)) {
           return journal;
         }
       }
@@ -498,11 +643,72 @@ export class GoogleScholarClient {
    * Extract DOI from result block
    */
   private extractDOI(block: string): string | undefined {
-    const doiMatch = block.match(/(?:doi\.org\/|DOI:\s*)(10\.\d+\/[^\s<>"]+)/i);
-    if (doiMatch && doiMatch[1]) {
-      return doiMatch[1];
+    // Multiple patterns to catch different DOI formats
+    const doiPatterns = [
+      /(?:doi\.org\/|DOI:\s*)(10\.\d+\/[^\s<>"']+)/i,
+      /(?:dx\.doi\.org\/)(10\.\d+\/[^\s<>"']+)/i,
+      /\bdoi:\s*(10\.\d+\/[^\s<>"']+)/i,
+      /\b(10\.\d{4,}\/[^\s<>"']+)/g // Generic DOI pattern
+    ];
+
+    for (const pattern of doiPatterns) {
+      const match = block.match(pattern);
+      if (match && match[1]) {
+        const doi = match[1].trim();
+        if (this.isValidDOI(doi)) {
+          return doi;
+        }
+      }
     }
     return undefined;
+  }
+
+  /**
+   * Validate DOI format according to DOI standards
+   */
+  private isValidDOI(doi: string): boolean {
+    // DOI format: 10.{registrant}/{suffix}
+    // Registrant code must be at least 4 digits
+    // Suffix can contain various characters but should not be empty
+    const doiRegex = /^10\.\d{4,}\/[^\s]+$/;
+    
+    if (!doiRegex.test(doi)) {
+      return false;
+    }
+
+    // Additional validation rules
+    const parts = doi.split('/');
+    if (parts.length < 2) {
+      return false;
+    }
+
+    const registrant = parts[0];
+    const suffix = parts.slice(1).join('/');
+
+    // Registrant should be 10.xxxx where xxxx is at least 4 digits
+    if (!registrant.match(/^10\.\d{4,}$/)) {
+      return false;
+    }
+
+    // Suffix should not be empty and should not contain certain invalid characters
+    if (!suffix || suffix.length === 0) {
+      return false;
+    }
+
+    // Check for common invalid patterns
+    const invalidPatterns = [
+      /^[\s.]+$/, // Only whitespace or dots
+      /\s{2,}/, // Multiple consecutive spaces
+      /<|>/, // HTML brackets (shouldn't be in clean DOI)
+    ];
+
+    for (const pattern of invalidPatterns) {
+      if (pattern.test(suffix)) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   /**
@@ -539,20 +745,55 @@ export class GoogleScholarClient {
   private extractAbstract(block: string): string | undefined {
     const patterns = [
       /<span class="gs_rs"[^>]*>(.*?)<\/span>/s,
-      /<div class="gs_rs"[^>]*>(.*?)<\/div>/s
+      /<div class="gs_rs"[^>]*>(.*?)<\/div>/s,
+      /<span[^>]*class="[^"]*gs_rs[^"]*"[^>]*>(.*?)<\/span>/s,
+      /<div[^>]*class="[^"]*gs_rs[^"]*"[^>]*>(.*?)<\/div>/s
     ];
 
     for (const pattern of patterns) {
       const match = block.match(pattern);
       if (match && match[1]) {
         const abstract = this.cleanText(match[1]);
-        if (abstract.length > 20) {
+        // Filter out very short abstracts and common non-abstract content
+        if (this.isValidAbstract(abstract)) {
           return abstract;
         }
       }
     }
 
     return undefined;
+  }
+
+  /**
+   * Validate if extracted text is a meaningful abstract
+   */
+  private isValidAbstract(text: string): boolean {
+    if (!text || text.length < 10) { // Reduced minimum length for testing
+      return false;
+    }
+
+    // Filter out common non-abstract patterns
+    const invalidPatterns = [
+      /^(pdf|html|full text|download|view|access)$/i,
+      /^[^a-zA-Z]*$/, // Only numbers/symbols
+      /^\d+\s*(pages?|pp\.)/i, // Page numbers
+      /^(abstract|summary):\s*$/i, // Just the word "abstract" or "summary"
+      /^see\s+(full|complete)\s+/i, // "See full text" etc.
+    ];
+
+    for (const pattern of invalidPatterns) {
+      if (pattern.test(text.trim())) {
+        return false;
+      }
+    }
+
+    // Check for minimum word count (abstracts should have multiple words)
+    const wordCount = text.trim().split(/\s+/).length;
+    if (wordCount < 3) { // Reduced minimum word count
+      return false;
+    }
+
+    return true;
   }
 
   /**

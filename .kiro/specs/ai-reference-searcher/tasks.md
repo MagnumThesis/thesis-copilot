@@ -21,7 +21,6 @@
 
 - [x] 2.1 Create Google Scholar search client
 
-
   - Create GoogleScholarClient class for web scraping
   - Implement search query execution with proper headers and user agents
   - Add rate limiting and request throttling mechanisms
@@ -29,7 +28,8 @@
   - Write unit tests for search client functionality
   - _Requirements: 3.1, 3.2, 3.6_
 
-- [ ] 2.2 Implement search result parsing
+- [x] 2.2 Implement search result parsing
+
 
   - Parse Google Scholar HTML to extract paper metadata
   - Extract titles, authors, journals, publication years, and citation counts
