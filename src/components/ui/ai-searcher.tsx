@@ -12,6 +12,7 @@ import { ContentSourceSelector } from "./content-source-selector"
 import { QueryRefinementPanel } from "./query-refinement-panel"
 import { DuplicateConflictResolver } from "./duplicate-conflict-resolver"
 import { DeduplicationSettings } from "./deduplication-settings"
+import { SearchResultsDisplay } from "./search-results-display"
 import { QueryRefinement, RefinedQuery } from "../../worker/lib/query-generation-engine"
 import { DuplicateDetectionEngine, DuplicateDetectionOptions, DuplicateGroup } from "../../worker/lib/duplicate-detection-engine"
 import { ScholarSearchResult } from "../../lib/ai-types"
@@ -220,24 +221,58 @@ export const AISearcher: React.FC<AISearcherProps> = ({
     setAddingReference(resultId)
 
     try {
-      const reference: Partial<Reference> = {
-        type: ReferenceType.JOURNAL_ARTICLE,
+      // Convert SearchResult to ScholarSearchResult format for the API
+      const searchResult: ScholarSearchResult = {
         title: result.title,
         authors: result.authors,
         journal: result.journal,
-        publication_date: result.publication_date,
+        year: result.publication_date ? parseInt(result.publication_date) : undefined,
         doi: result.doi,
         url: result.url,
-        metadata_confidence: result.confidence,
-        ai_confidence: result.confidence,
-        ai_relevance_score: result.relevance_score,
-        ai_search_query: searchQuery
+        confidence: result.confidence,
+        relevance_score: result.relevance_score,
+        citation_count: result.citations,
+        keywords: [],
+        publisher: undefined
       }
 
-      await onAddReference(reference)
+      // Call the new AI search reference addition API
+      const response = await fetch('/api/referencer/add-from-search', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          searchResult,
+          conversationId,
+          options: {
+            checkDuplicates: true,
+            duplicateHandling: 'prompt_user',
+            minConfidence: 0.5,
+            autoPopulateMetadata: true
+          }
+        })
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        // Successfully added reference
+        if (onAddReference) {
+          await onAddReference(data.reference)
+        }
+      } else if (data.isDuplicate && data.mergeOptions) {
+        // Handle duplicate reference - for now, show error
+        // In a full implementation, this would show a merge dialog
+        console.warn('Duplicate reference detected:', data.duplicateReference)
+        throw new Error(`Reference already exists: "${data.duplicateReference?.title}"`)
+      } else {
+        throw new Error(data.error || 'Failed to add reference')
+      }
     } catch (error) {
       console.error('Error adding reference:', error)
       // Error handling is done in the parent component
+      throw error
     } finally {
       setAddingReference(null)
     }
@@ -668,78 +703,31 @@ export const AISearcher: React.FC<AISearcherProps> = ({
             </div>
           )}
 
-          {searchResults.length > 0 ? (
-            <div className="space-y-4">
-              {searchResults.map((result, index) => (
-                <Card key={index} className="hover:shadow-md transition-shadow">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <CardTitle className="text-base font-medium leading-tight mb-2">
-                          {result.title}
-                        </CardTitle>
-                        <div className="flex items-center gap-2 mb-2">
-                          <Badge className={getConfidenceColor(result.confidence)}>
-                            AI Confidence: {Math.round(result.confidence * 100)}%
-                          </Badge>
-                          <Badge variant="outline">
-                            Relevance: {Math.round(result.relevance_score * 100)}%
-                          </Badge>
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          <strong>Authors:</strong> {result.authors.join(', ')}
-                        </div>
-                        {result.journal && (
-                          <div className="text-sm text-muted-foreground">
-                            <strong>Journal:</strong> {result.journal}
-                          </div>
-                        )}
-                        {result.publication_date && (
-                          <div className="text-sm text-muted-foreground">
-                            <strong>Published:</strong> {result.publication_date}
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1 ml-4">
-                        {result.doi && (
-                          <a
-                            href={`https://doi.org/${result.doi}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-800 p-1"
-                            title="View on DOI"
-                          >
-                            <ExternalLink className="h-4 w-4" />
-                          </a>
-                        )}
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleAddReference(result)}
-                          disabled={addingReference === `${result.title}-${result.authors[0]}`}
-                          className="flex items-center gap-2"
-                        >
-                          <Plus className="h-4 w-4" />
-                          {addingReference === `${result.title}-${result.authors[0]}` ? 'Adding...' : 'Add to References'}
-                        </Button>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <div className="text-sm text-muted-foreground">
-                      This reference was found using AI-powered search and has been analyzed for relevance to your query.
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No results found for "{searchQuery}"</p>
-              <p className="text-sm">Try adjusting your search terms or try a different query.</p>
-            </div>
-          )}
+          <SearchResultsDisplay
+            results={searchResults.map(result => ({
+              title: result.title,
+              authors: result.authors,
+              journal: result.journal,
+              year: result.publication_date ? parseInt(result.publication_date) : undefined,
+              citations: result.citations,
+              doi: result.doi,
+              url: result.url,
+              confidence: result.confidence,
+              relevance_score: result.relevance_score,
+              keywords: []
+            }))}
+            extractedContent={{
+              content: selectedContent.map(c => c.content).join(' ') || searchQuery,
+              keywords: selectedContent.flatMap(c => c.keywords || []),
+              topics: selectedContent.flatMap(c => c.topics || []),
+              confidence: selectedContent.length > 0 ? 
+                selectedContent.reduce((sum, c) => sum + c.confidence, 0) / selectedContent.length : 
+                0.5
+            }}
+            onAddReference={handleAddReference}
+            loading={loading}
+            error={searchError}
+          />
         </div>
       )}
 

@@ -88,7 +88,6 @@
 
 - [x] 4.2 Implement duplicate detection and merging
 
-
   - Add duplicate result detection based on DOI, title, and author similarity
   - Implement result merging for duplicate entries
   - Create user interface for handling duplicate conflicts
@@ -96,7 +95,7 @@
   - Write tests for duplicate detection logic
   - _Requirements: 4.5_
 
-- [ ] 4.3 Add result ranking and display
+- [x] 4.3 Add result ranking and display
 
   - Implement result ranking based on combined relevance and quality scores
   - Create search results display component with confidence indicators
@@ -107,7 +106,8 @@
 
 - [ ] 5. Integrate with Reference Management System
 
-- [ ] 5.1 Implement reference addition from search results
+- [x] 5.1 Implement reference addition from search results
+
 
   - Connect search results to existing reference creation workflow
   - Auto-populate reference metadata from search result data

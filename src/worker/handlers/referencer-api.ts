@@ -2,13 +2,16 @@ import { Hono, Context } from "hono";
 import { SupabaseEnv } from "../lib/supabase";
 import { Env } from "../types/env";
 import { ReferenceManagementEngine } from "../lib/reference-management-engine";
+import { AISearchReferenceManager, AddReferenceFromSearchOptions } from "../lib/ai-search-reference-manager";
 import {
   MetadataExtractionRequest,
   CitationRequest,
   BibliographyRequest,
   ReferenceSearchOptions,
   ReferenceType,
-  CitationStyle
+  CitationStyle,
+  ScholarSearchResult,
+  ReferenceMetadata
 } from "../../lib/ai-types";
 
 // Type for the Hono context
@@ -85,9 +88,11 @@ function validateRequiredFields(data: Record<string, unknown>, requiredFields: s
  */
 export class ReferencerAPIHandler {
   private engine: ReferenceManagementEngine;
+  private aiSearchManager: AISearchReferenceManager;
 
   constructor() {
     this.engine = new ReferenceManagementEngine();
+    this.aiSearchManager = new AISearchReferenceManager();
   }
 
   /**
@@ -592,6 +597,201 @@ export class ReferencerAPIHandler {
       return c.json(errorResponse, 500);
     }
   }
+
+  /**
+   * POST /api/referencer/add-from-search
+   * Add a reference from AI search results
+   */
+  async addReferenceFromSearch(c: Context<ReferencerContext>) {
+    const startTime = Date.now();
+    const requestId = crypto.randomUUID();
+
+    try {
+      const body = await c.req.json();
+      const { searchResult, conversationId, options } = body;
+
+      if (!searchResult || !conversationId) {
+        return c.json({
+          success: false,
+          error: 'Missing required fields: searchResult and conversationId',
+          processingTime: Date.now() - startTime
+        }, 400);
+      }
+
+      const result = await this.aiSearchManager.addReferenceFromSearchResult(
+        searchResult,
+        conversationId,
+        options || {}
+      );
+
+      if (result.success) {
+        return c.json({
+          success: true,
+          reference: result.reference,
+          isDuplicate: result.isDuplicate,
+          duplicateReference: result.duplicateReference,
+          processingTime: Date.now() - startTime
+        });
+      } else {
+        return c.json({
+          success: false,
+          error: result.error,
+          isDuplicate: result.isDuplicate,
+          duplicateReference: result.duplicateReference,
+          mergeOptions: result.mergeOptions,
+          processingTime: Date.now() - startTime
+        }, result.isDuplicate ? 409 : 400);
+      }
+
+    } catch (error) {
+      const errorResponse = createReferencerErrorResponse(
+        error,
+        {
+          operation: 'addReferenceFromSearch',
+          conversationId: (await c.req.json().catch(() => ({})))?.conversationId,
+          timestamp: Date.now(),
+          requestId
+        },
+        Date.now() - startTime
+      );
+
+      return c.json(errorResponse, 500);
+    }
+  }
+
+  /**
+   * POST /api/referencer/add-multiple-from-search
+   * Add multiple references from AI search results
+   */
+  async addMultipleReferencesFromSearch(c: Context<ReferencerContext>) {
+    const startTime = Date.now();
+    const requestId = crypto.randomUUID();
+
+    try {
+      const body = await c.req.json();
+      const { searchResults, conversationId, options } = body;
+
+      if (!searchResults || !Array.isArray(searchResults) || !conversationId) {
+        return c.json({
+          success: false,
+          error: 'Missing required fields: searchResults (array) and conversationId',
+          processingTime: Date.now() - startTime
+        }, 400);
+      }
+
+      const results = await this.aiSearchManager.addMultipleReferencesFromSearchResults(
+        searchResults,
+        conversationId,
+        options || {}
+      );
+
+      const successCount = results.filter(r => r.success).length;
+      const duplicateCount = results.filter(r => r.isDuplicate).length;
+      const errorCount = results.filter(r => !r.success).length;
+
+      return c.json({
+        success: true,
+        results,
+        summary: {
+          total: results.length,
+          successful: successCount,
+          duplicates: duplicateCount,
+          errors: errorCount
+        },
+        processingTime: Date.now() - startTime
+      });
+
+    } catch (error) {
+      const errorResponse = createReferencerErrorResponse(
+        error,
+        {
+          operation: 'addMultipleReferencesFromSearch',
+          conversationId: (await c.req.json().catch(() => ({})))?.conversationId,
+          timestamp: Date.now(),
+          requestId
+        },
+        Date.now() - startTime
+      );
+
+      return c.json(errorResponse, 500);
+    }
+  }
+
+  /**
+   * POST /api/referencer/merge-duplicate
+   * Merge a duplicate reference with an existing one
+   */
+  async mergeDuplicateReference(c: Context<ReferencerContext>) {
+    const startTime = Date.now();
+    const requestId = crypto.randomUUID();
+
+    try {
+      const body = await c.req.json();
+      const { existingReferenceId, newReferenceData, mergeOptions } = body;
+
+      if (!existingReferenceId || !newReferenceData) {
+        return c.json({
+          success: false,
+          error: 'Missing required fields: existingReferenceId and newReferenceData',
+          processingTime: Date.now() - startTime
+        }, 400);
+      }
+
+      // Get the existing reference
+      const existingReference = await this.engine.getReferenceById(existingReferenceId);
+      if (!existingReference) {
+        return c.json({
+          success: false,
+          error: 'Existing reference not found',
+          processingTime: Date.now() - startTime
+        }, 404);
+      }
+
+      // Apply merge options if provided
+      const updateData: any = {};
+      if (mergeOptions && mergeOptions.conflicts) {
+        for (const conflict of mergeOptions.conflicts) {
+          if (conflict.recommendation === 'use_new') {
+            updateData[conflict.field] = conflict.newValue;
+          } else if (conflict.recommendation === 'merge' && conflict.field === 'authors') {
+            // Merge author arrays
+            const existingAuthors = Array.isArray(conflict.existingValue) ? conflict.existingValue : [];
+            const newAuthors = Array.isArray(conflict.newValue) ? conflict.newValue : [];
+            updateData[conflict.field] = [...new Set([...existingAuthors, ...newAuthors])];
+          }
+        }
+      } else {
+        // Auto-merge: prefer new values for empty fields
+        Object.keys(newReferenceData).forEach(key => {
+          if (newReferenceData[key] && !existingReference[key]) {
+            updateData[key] = newReferenceData[key];
+          }
+        });
+      }
+
+      const updatedReference = await this.engine.updateReference(existingReferenceId, updateData);
+
+      return c.json({
+        success: true,
+        reference: updatedReference,
+        processingTime: Date.now() - startTime
+      });
+
+    } catch (error) {
+      const errorResponse = createReferencerErrorResponse(
+        error,
+        {
+          operation: 'mergeDuplicateReference',
+          referenceId: (await c.req.json().catch(() => ({})))?.existingReferenceId,
+          timestamp: Date.now(),
+          requestId
+        },
+        Date.now() - startTime
+      );
+
+      return c.json(errorResponse, 500);
+    }
+  }
 }
 
 // Create Hono app instance
@@ -609,6 +809,9 @@ app.delete('/references/:referenceId', (c) => referencerAPIHandler.deleteReferen
 app.post('/extract-metadata', (c) => referencerAPIHandler.extractMetadata(c));
 app.post('/format-citation', (c) => referencerAPIHandler.formatCitation(c));
 app.post('/generate-bibliography', (c) => referencerAPIHandler.generateBibliography(c));
+app.post('/add-from-search', (c) => referencerAPIHandler.addReferenceFromSearch(c));
+app.post('/add-multiple-from-search', (c) => referencerAPIHandler.addMultipleReferencesFromSearch(c));
+app.post('/merge-duplicate', (c) => referencerAPIHandler.mergeDuplicateReference(c));
 
 // Export Hono app as default
 export default app;
