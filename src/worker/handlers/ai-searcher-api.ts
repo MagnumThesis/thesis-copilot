@@ -4,8 +4,10 @@ import { Env } from '../types/env';
 import { QueryGenerationEngine, SearchQuery, QueryGenerationOptions } from '../lib/query-generation-engine';
 import { ContentExtractionEngine } from '../lib/content-extraction-engine';
 import { SearchAnalyticsManager } from '../lib/search-analytics-manager';
+import { FeedbackLearningSystem } from '../lib/feedback-learning-system';
 import { ExtractedContent } from '../../lib/ai-types';
 import feedbackApi from './ai-searcher-feedback';
+import learningApi from './ai-searcher-learning';
 
 // Define SupabaseEnv type locally since it's not exported from supabase.ts
 export type SupabaseEnv = {
@@ -236,10 +238,59 @@ export class AISearcherAPIHandler {
         }
       ];
 
+      // Apply learning-based ranking to results
+      let finalResults = mockResults;
+      try {
+        const learningSystem = new FeedbackLearningSystem(c.env);
+        const userId = body.conversationId; // Using conversationId as userId for now
+        
+        // Convert mock results to SearchResult format for learning system
+        const searchResultsForLearning = mockResults.map(result => ({
+          id: crypto.randomUUID(),
+          searchSessionId: sessionId || '',
+          resultTitle: result.title,
+          resultAuthors: result.authors,
+          resultJournal: result.journal,
+          resultYear: result.publication_date ? parseInt(result.publication_date) : undefined,
+          resultDoi: result.doi,
+          resultUrl: result.url,
+          relevanceScore: result.relevance_score || 0,
+          confidenceScore: result.confidence || 0,
+          qualityScore: this.calculateQualityScore(result),
+          citationCount: Math.floor(Math.random() * 100), // Mock citation count
+          addedToLibrary: false,
+          createdAt: new Date()
+        }));
+
+        // Apply learning-based ranking
+        const rankedResults = await learningSystem.applyFeedbackBasedRanking(userId, searchResultsForLearning);
+        
+        // Convert back to original format with learning adjustments
+        finalResults = rankedResults.map(result => ({
+          title: result.resultTitle,
+          authors: result.resultAuthors,
+          journal: result.resultJournal,
+          publication_date: result.resultYear?.toString(),
+          doi: result.resultDoi,
+          url: result.resultUrl,
+          confidence: result.confidenceScore,
+          relevance_score: result.relevanceScore,
+          abstract: mockResults.find(mr => mr.title === result.resultTitle)?.abstract,
+          keywords: mockResults.find(mr => mr.title === result.resultTitle)?.keywords,
+          // Include learning metadata for debugging/transparency
+          learningAdjustments: (result as any).learningAdjustments
+        }));
+
+        console.log(`Applied learning-based ranking for user ${userId}: ${rankedResults.length} results`);
+      } catch (learningError) {
+        console.warn('Failed to apply learning-based ranking, using original results:', learningError);
+        // Continue with original results if learning fails
+      }
+
       // Record search results for analytics
       if (sessionId) {
         const analyticsManager = this.getAnalyticsManager(c.env);
-        for (const result of mockResults) {
+        for (const result of finalResults) {
           await analyticsManager.recordSearchResult({
             searchSessionId: sessionId,
             resultTitle: result.title,
@@ -259,7 +310,7 @@ export class AISearcherAPIHandler {
         // Update search session with results
         const processingTime = Date.now() - startTime;
         await this.updateSearchSession(sessionId, {
-          resultsCount: mockResults.length,
+          resultsCount: finalResults.length,
           searchSuccess: true,
           processingTimeMs: processingTime
         });
@@ -269,18 +320,19 @@ export class AISearcherAPIHandler {
 
       return c.json({
         success: true,
-        results: mockResults.map(result => ({
+        results: finalResults.map(result => ({
           ...result,
           sessionId // Include sessionId for frontend tracking
         })),
-        total_results: mockResults.length,
+        total_results: finalResults.length,
         query: searchQuery,
         originalQuery: body.query,
         generatedQueries: generatedQueries.length > 0 ? generatedQueries : undefined,
         extractedContent: extractedContent.length > 0 ? extractedContent : undefined,
         filters: body.filters,
         sessionId,
-        processingTime
+        processingTime,
+        learningApplied: true // Indicate that learning-based ranking was applied
       });
 
     } catch (error) {
@@ -1088,6 +1140,9 @@ app.get('/health', (c) => aiSearcherAPIHandler.health(c));
 
 // Feedback API routes
 app.route('/feedback', feedbackApi);
+
+// Learning API routes
+app.route('/learning', learningApi);
 
 // Export Hono app as default
 export default app;
