@@ -39,7 +39,6 @@
 
 - [x] 2.3 Add search error handling and resilience
 
-
   - Implement retry logic for failed searches
   - Handle rate limiting with exponential backoff
   - Provide clear error messages for different failure types
@@ -49,7 +48,8 @@
 
 - [ ] 3. Enhance Content Extraction and Query Generation
 
-- [ ] 3.1 Create content source selection interface
+- [x] 3.1 Create content source selection interface
+
 
   - Build UI component for selecting Ideas vs Builder content
   - Implement content preview functionality before search

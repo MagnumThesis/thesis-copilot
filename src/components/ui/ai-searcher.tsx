@@ -6,8 +6,9 @@ import { Input } from "./shadcn/input"
 import { Label } from "./shadcn/label"
 import { Card, CardContent, CardHeader, CardTitle } from "./shadcn/card"
 import { Badge } from "./shadcn/badge"
-import { Reference, ReferenceType } from "../../lib/ai-types"
-import { Search, Sparkles, ExternalLink, Plus } from "lucide-react"
+import { Reference, ReferenceType, ExtractedContent } from "../../lib/ai-types"
+import { Search, Sparkles, ExternalLink, Plus, Settings } from "lucide-react"
+import { ContentSourceSelector } from "./content-source-selector"
 
 interface AISearcherProps {
   conversationId: string
@@ -35,6 +36,11 @@ export const AISearcher: React.FC<AISearcherProps> = ({
   const [hasSearched, setHasSearched] = useState(false)
   const [searchError, setSearchError] = useState<string | null>(null)
   const [addingReference, setAddingReference] = useState<string | null>(null)
+  
+  // Content source selection state
+  const [showContentSelector, setShowContentSelector] = useState(false)
+  const [selectedContent, setSelectedContent] = useState<ExtractedContent[]>([])
+  const [contentPreview, setContentPreview] = useState<ExtractedContent | null>(null)
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return
@@ -142,6 +148,19 @@ export const AISearcher: React.FC<AISearcherProps> = ({
     }
   }
 
+  const handleContentSelected = (content: ExtractedContent[]) => {
+    setSelectedContent(content)
+    setShowContentSelector(false)
+  }
+
+  const handleContentPreview = (content: ExtractedContent) => {
+    setContentPreview(content)
+  }
+
+  const handleSearchQueryGenerated = (query: string) => {
+    setSearchQuery(query)
+  }
+
   const getConfidenceColor = (confidence: number): string => {
     if (confidence >= 0.9) return 'bg-green-100 text-green-800'
     if (confidence >= 0.8) return 'bg-yellow-100 text-yellow-800'
@@ -155,12 +174,39 @@ export const AISearcher: React.FC<AISearcherProps> = ({
         <h3 className="text-lg font-semibold">AI-Powered Reference Search</h3>
       </div>
 
+      {/* Content Source Selection Toggle */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Search for Academic References</CardTitle>
+          <CardTitle className="text-base flex items-center justify-between">
+            AI-Powered Search Options
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowContentSelector(!showContentSelector)}
+              className="flex items-center gap-2"
+            >
+              <Settings className="h-4 w-4" />
+              {showContentSelector ? 'Hide' : 'Show'} Content Selection
+            </Button>
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
+            {/* Selected Content Summary */}
+            {selectedContent.length > 0 && (
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <Sparkles className="h-4 w-4 text-blue-600" />
+                  <span className="font-medium text-blue-800">
+                    Using content from {selectedContent.length} source{selectedContent.length > 1 ? 's' : ''}
+                  </span>
+                </div>
+                <div className="text-sm text-blue-700">
+                  Search query will be generated from your selected Ideas and Builder content
+                </div>
+              </div>
+            )}
+
             <div>
               <Label htmlFor="search-query">Search Query</Label>
               <div className="flex gap-2">
@@ -168,7 +214,10 @@ export const AISearcher: React.FC<AISearcherProps> = ({
                   id="search-query"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Enter your search query (e.g., 'machine learning in education')"
+                  placeholder={selectedContent.length > 0 
+                    ? "Query generated from selected content (you can modify it)" 
+                    : "Enter your search query (e.g., 'machine learning in education')"
+                  }
                   onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                 />
                 <Button
@@ -184,13 +233,24 @@ export const AISearcher: React.FC<AISearcherProps> = ({
 
             <div className="text-sm text-muted-foreground">
               <p>
-                <strong>Tip:</strong> Be specific with your search terms for better results.
-                Include keywords like author names, publication years, or specific topics.
+                <strong>Tip:</strong> Use the content selection above to automatically generate search queries from your Ideas and Builder content, 
+                or enter a custom query for manual search.
               </p>
             </div>
           </div>
         </CardContent>
       </Card>
+
+      {/* Content Source Selector */}
+      {showContentSelector && (
+        <ContentSourceSelector
+          conversationId={conversationId}
+          onContentSelected={handleContentSelected}
+          onContentPreview={handleContentPreview}
+          onSearchQueryGenerated={handleSearchQueryGenerated}
+          isVisible={showContentSelector}
+        />
+      )}
 
       {hasSearched && (
         <div className="space-y-4">
