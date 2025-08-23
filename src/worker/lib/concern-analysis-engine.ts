@@ -78,6 +78,11 @@ class ConcernAnalysisEngineImpl implements ConcernAnalysisEngine {
     ]);
 
     return {
+      clarity: style?.clarityScore || 0.5,
+      coherence: structure?.sectionFlow?.coherenceScore || 0.5,
+      academicTone: style?.academicTone || 0.5,
+      readability: style?.clarityScore || 0.5,
+      issues: [],
       structure,
       style,
       consistency,
@@ -103,6 +108,11 @@ class ConcernAnalysisEngineImpl implements ConcernAnalysisEngine {
     const sectionFlow = this.analyzeSectionFlow(content);
     
     return {
+      headingStructure: [], // Simple implementation
+      paragraphFlow: [], // Simple implementation
+      sectionBalance: 0.5, // Simple implementation
+      logicalProgression: 0.5, // Simple implementation
+      issues: [],
       hasIntroduction,
       hasConclusion,
       headingHierarchy,
@@ -143,7 +153,7 @@ class ConcernAnalysisEngineImpl implements ConcernAnalysisEngine {
   /**
    * Analyze heading hierarchy
    */
-  private analyzeHeadingHierarchy(headings: string[]): HeadingAnalysis {
+  private analyzeHeadingHierarchy(headings: string[]): { properHierarchy: boolean } {
     const levels = headings.map(heading => {
       const match = heading.match(/^(#{1,6})/);
       return match ? match[1].length : 1;
@@ -164,26 +174,20 @@ class ConcernAnalysisEngineImpl implements ConcernAnalysisEngine {
     const consistentFormatting = this.checkHeadingFormatConsistency(headingTexts);
     
     return {
-      properHierarchy,
-      consistentFormatting,
-      descriptiveHeadings: true, // Simple implementation
-      hierarchyIssues: properHierarchy ? [] : ['Heading hierarchy issues detected']
+      properHierarchy
     };
   }
 
   /**
    * Analyze section flow
    */
-  private analyzeSectionFlow(content: string): FlowAnalysis {
+  private analyzeSectionFlow(content: string): { coherenceScore: number } {
     const sections = this.extractSections(content);
     const logicalProgression = this.checkLogicalProgression(sections);
     const coherenceScore = this.analyzeCoherencePatterns(content).score;
     
     return {
-      logicalProgression,
-      transitionQuality: coherenceScore,
-      coherenceScore,
-      flowIssues: logicalProgression ? [] : ['Section flow issues detected']
+      coherenceScore
     };
   }
 
@@ -198,9 +202,12 @@ class ConcernAnalysisEngineImpl implements ConcernAnalysisEngine {
     
     return {
       academicTone,
-      formalityLevel,
+      consistency: 0.5, // Simple implementation
+      formality: formalityLevel,
+      styleIssues,
+      suggestions: [],
       clarityScore,
-      styleIssues
+      formalityLevel
     };
   }
 
@@ -273,7 +280,8 @@ class ConcernAnalysisEngineImpl implements ConcernAnalysisEngine {
     return {
       terminologyConsistency,
       citationConsistency,
-      formattingConsistency
+      formattingConsistency,
+      overallScore: 0.5 // Simple implementation
     };
   }
 
@@ -301,7 +309,8 @@ class ConcernAnalysisEngineImpl implements ConcernAnalysisEngine {
           term: `${variant1}/${variant2}`,
           inconsistentUsage: [variant1, variant2],
           suggestedStandardization: variant2, // Prefer the more modern form
-          locations: [] // Simple implementation
+          locations: [], // Simple implementation
+          severity: ConcernSeverity.MEDIUM
         });
       }
     });
@@ -521,9 +530,11 @@ class ConcernAnalysisEngineImpl implements ConcernAnalysisEngine {
     });
 
     return {
+      missingElements: missingSections,
+      completenessScore,
+      suggestions: [],
       missingSections,
-      insufficientDetail,
-      completenessScore
+      insufficientDetail
     };
   }
 
@@ -589,16 +600,24 @@ class ConcernAnalysisEngineImpl implements ConcernAnalysisEngine {
     const concerns: ProofreadingConcern[] = [];
     
     // Generate structure concerns
-    concerns.push(...this.generateStructureConcerns(analysis.structure, conversationId));
+    if (analysis.structure) {
+      concerns.push(...this.generateStructureConcerns(analysis.structure, conversationId));
+    }
     
     // Generate style concerns
-    concerns.push(...this.generateStyleConcerns(analysis.style, conversationId));
+    if (analysis.style) {
+      concerns.push(...this.generateStyleConcerns(analysis.style, conversationId));
+    }
     
     // Generate consistency concerns
-    concerns.push(...this.generateConsistencyConcerns(analysis.consistency, conversationId));
+    if (analysis.consistency) {
+      concerns.push(...this.generateConsistencyConcerns(analysis.consistency, conversationId));
+    }
     
     // Generate completeness concerns
-    concerns.push(...this.generateCompletenessConcerns(analysis.completeness, conversationId));
+    if (analysis.completeness) {
+      concerns.push(...this.generateCompletenessConcerns(analysis.completeness, conversationId));
+    }
     
     return concerns;
   }
@@ -631,7 +650,7 @@ class ConcernAnalysisEngineImpl implements ConcernAnalysisEngine {
       }));
     }
 
-    if (!structure.headingHierarchy.properHierarchy) {
+    if (structure.headingHierarchy && !structure.headingHierarchy.properHierarchy) {
       concerns.push(this.createConcern({
         conversationId,
         category: ConcernCategory.STRUCTURE,
@@ -642,7 +661,7 @@ class ConcernAnalysisEngineImpl implements ConcernAnalysisEngine {
       }));
     }
 
-    if (structure.sectionFlow.coherenceScore < 0.5) {
+    if (structure.sectionFlow && structure.sectionFlow.coherenceScore < 0.5) {
       concerns.push(this.createConcern({
         conversationId,
         category: ConcernCategory.COHERENCE,
@@ -665,7 +684,7 @@ class ConcernAnalysisEngineImpl implements ConcernAnalysisEngine {
     if (style.academicTone < 0.3) {
       concerns.push(this.createConcern({
         conversationId,
-        category: ConcernCategory.ACADEMIC_STYLE,
+        category: ConcernCategory.ACADEMIC_TONE,
         severity: ConcernSeverity.HIGH,
         title: 'Insufficient Academic Tone',
         description: 'The writing style may not be sufficiently academic for a thesis proposal.',
@@ -673,10 +692,10 @@ class ConcernAnalysisEngineImpl implements ConcernAnalysisEngine {
       }));
     }
 
-    if (style.formalityLevel < 0.4) {
+    if (style.formalityLevel && style.formalityLevel < 0.4) {
       concerns.push(this.createConcern({
         conversationId,
-        category: ConcernCategory.ACADEMIC_STYLE,
+        category: ConcernCategory.ACADEMIC_TONE,
         severity: ConcernSeverity.MEDIUM,
         title: 'Informal Language Usage',
         description: 'The document contains informal language that may not be appropriate for academic writing.',
@@ -684,7 +703,7 @@ class ConcernAnalysisEngineImpl implements ConcernAnalysisEngine {
       }));
     }
 
-    if (style.clarityScore < 0.6) {
+    if (style.clarityScore && style.clarityScore < 0.6) {
       concerns.push(this.createConcern({
         conversationId,
         category: ConcernCategory.CLARITY,
@@ -732,7 +751,7 @@ class ConcernAnalysisEngineImpl implements ConcernAnalysisEngine {
       const severity = issue.type === 'missing' ? ConcernSeverity.HIGH : ConcernSeverity.MEDIUM;
       concerns.push(this.createConcern({
         conversationId,
-        category: ConcernCategory.CITATIONS,
+        category: ConcernCategory.CITATION,
         severity,
         title: this.formatCitationIssueTitle(issue.type),
         description: issue.description,
@@ -760,24 +779,24 @@ class ConcernAnalysisEngineImpl implements ConcernAnalysisEngine {
   private generateCompletenessConcerns(completeness: CompletenessAnalysis, conversationId: string): ProofreadingConcern[] {
     const concerns: ProofreadingConcern[] = [];
 
-    if (completeness.missingSections.length > 0) {
+    if (completeness.missingSections && completeness.missingSections.length > 0) {
       concerns.push(this.createConcern({
         conversationId,
         category: ConcernCategory.COMPLETENESS,
         severity: ConcernSeverity.HIGH,
         title: 'Missing Required Sections',
-        description: `The following required sections are missing: ${completeness.missingSections.join(', ')}`,
+        description: `The following required sections are missing: ${completeness.missingSections?.join(', ')}`,
         suggestions: ['Add the missing sections to complete the thesis structure', 'Ensure all required components are addressed']
       }));
     }
 
-    if (completeness.insufficientDetail.length > 0) {
+    if (completeness.insufficientDetail && completeness.insufficientDetail.length > 0) {
       concerns.push(this.createConcern({
         conversationId,
         category: ConcernCategory.COMPLETENESS,
         severity: ConcernSeverity.MEDIUM,
         title: 'Insufficient Detail in Sections',
-        description: `The following sections need more development: ${completeness.insufficientDetail.join(', ')}`,
+        description: `The following sections need more development: ${completeness.insufficientDetail?.join(', ')}`,
         suggestions: ['Expand these sections with more detailed content', 'Provide more examples and explanations']
       }));
     }
@@ -810,17 +829,22 @@ class ConcernAnalysisEngineImpl implements ConcernAnalysisEngine {
   }): ProofreadingConcern {
     return {
       id: crypto.randomUUID(),
-      conversationId: params.conversationId,
+      text: params.description,
       category: params.category,
       severity: params.severity,
+      status: ConcernStatus.TO_BE_DONE,
+      suggestions: params.suggestions || [],
+      relatedIdeas: [],
+      position: { start: 0, end: 0 }, // Simple implementation
+      explanation: params.description,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
       title: params.title,
       description: params.description,
       location: params.location,
-      suggestions: params.suggestions || [],
-      relatedIdeas: [],
-      status: ConcernStatus.TO_BE_DONE,
-      createdAt: new Date(),
-      updatedAt: new Date()
+      conversationId: params.conversationId
     };
   }
 
@@ -904,7 +928,7 @@ class ConcernAnalysisEngineImpl implements ConcernAnalysisEngine {
     switch (issueType) {
       case 'tone':
       case 'formality':
-        return ConcernCategory.ACADEMIC_STYLE;
+        return ConcernCategory.ACADEMIC_TONE;
       case 'clarity':
         return ConcernCategory.CLARITY;
       case 'wordChoice':
@@ -981,7 +1005,7 @@ class ConcernAnalysisEngineImpl implements ConcernAnalysisEngine {
   private areConcernsSimilar(concern1: ProofreadingConcern, concern2: ProofreadingConcern): boolean {
     // Simple similarity check based on title and category
     return concern1.category === concern2.category &&
-           this.calculateStringSimilarity(concern1.title, concern2.title) > 0.7;
+           this.calculateStringSimilarity(concern1.title || '', concern2.title || '') > 0.7;
   }
 
   private calculateStringSimilarity(str1: string, str2: string): number {

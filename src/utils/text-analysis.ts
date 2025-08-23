@@ -129,11 +129,11 @@ export function generateSearchQuery(extractedContent: ExtractedContent): string 
   const { keywords, topics, keyPhrases } = extractedContent;
 
   // Combine keywords and topics, removing duplicates
-  const searchTerms = [...new Set([...keywords.slice(0, 5), ...topics.slice(0, 3)])];
+  const searchTerms = [...new Set([...(keywords || []).slice(0, 5), ...(topics || []).slice(0, 3)])];
 
   // Add key phrases if they contain important terms
-  const importantPhrases = keyPhrases.filter(phrase =>
-    phrase.split(' ').some(word => keywords.includes(word.toLowerCase()))
+  const importantPhrases = (keyPhrases || []).filter(phrase =>
+    phrase.split(' ').some(word => (keywords || []).includes(word.toLowerCase()))
   ).slice(0, 2);
 
   const allTerms = [...searchTerms, ...importantPhrases];

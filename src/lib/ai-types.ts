@@ -569,6 +569,64 @@ export const safeNumber = (value: unknown): number => {
   return isNaN(num) ? 0 : num;
 };
 
+// Author type conversion utilities
+export const normalizeAuthor = (author: string | Author): Author => {
+  if (typeof author === 'string') {
+    const parts = author.trim().split(/\s+/);
+    if (parts.length === 1) {
+      return {
+        firstName: '',
+        lastName: parts[0]
+      };
+    } else if (parts.length === 2) {
+      return {
+        firstName: parts[0],
+        lastName: parts[1]
+      };
+    } else {
+      return {
+        firstName: parts[0],
+        lastName: parts[parts.length - 1],
+        middleName: parts.slice(1, -1).join(' ')
+      };
+    }
+  }
+  return author;
+};
+
+export const normalizeAuthors = (authors: (string | Author)[]): Author[] => {
+  return authors.map(normalizeAuthor);
+};
+
+export const authorToString = (author: string | Author): string => {
+  if (typeof author === 'string') {
+    return author;
+  }
+  const parts = [author.firstName, author.middleName, author.lastName].filter(Boolean);
+  return parts.join(' ');
+};
+
+export const authorsToStrings = (authors: (string | Author)[]): string[] => {
+  return authors.map(authorToString);
+};
+
+// Date conversion utilities
+export const dateToISOString = (date: string | Date | undefined | null): string => {
+  if (!date) return new Date().toISOString();
+  if (typeof date === 'string') return date;
+  return date.toISOString();
+};
+
+export const stringToDate = (dateString: string | undefined | null): Date => {
+  if (!dateString) return new Date();
+  return new Date(dateString);
+};
+
+// Safe array filtering
+export const filterUndefined = <T>(array: (T | undefined)[]): T[] => {
+  return array.filter((item): item is T => item !== undefined);
+};
+
 // AI Request and Response Types
 export interface AIPromptRequest {
   prompt: string;
@@ -703,6 +761,7 @@ export interface TerminologyIssue {
   inconsistentUsage: (ContentLocation | string)[];
   suggestedStandardization: string;
   severity: ConcernSeverity;
+  locations?: any[];
 }
 
 export interface CitationIssue {
@@ -727,6 +786,7 @@ export interface FlowAnalysis {
   transitionQuality: number;
   coherenceIssues: string[];
   logicalProgression?: boolean;
+  coherenceScore?: number;
 }
 
 export interface HeadingAnalysis {
@@ -736,6 +796,7 @@ export interface HeadingAnalysis {
   structureIssues: string[];
   suggestions: string[];
   properHierarchy?: boolean;
+  consistentFormatting?: boolean;
 }
 
 // Missing types for reference management
@@ -837,6 +898,8 @@ export interface ConcernStatistics {
   toBeDone?: number;
   addressed?: number;
   rejected?: number;
+  byCategory?: Record<string, any>;
+  bySeverity?: Record<string, any>;
 }
 
 export interface ConcernStatusBreakdown {

@@ -3,7 +3,7 @@
  * Handles formatting of citations and bibliographies according to academic styles
  */
 
-import { Reference, Author, CitationStyle, ReferenceType, ValidationResult, ValidationError } from '../../lib/ai-types.js';
+import { Reference, Author, CitationStyle, ReferenceType, ValidationResult, ValidationError, normalizeAuthors } from '../../lib/ai-types.js';
 
 /**
  * Author name formatting utilities
@@ -408,7 +408,7 @@ export class CitationStyleEngine {
    * @returns Formatted inline citation
    */
   static formatInlineCitationMLA(reference: Reference): string {
-    const authors = AuthorFormatter.formatMultipleMLA(reference.authors, true);
+    const authors = AuthorFormatter.formatMultipleMLA(normalizeAuthors(reference.authors), true);
     
     if (!authors) {
       // No author - use title
@@ -433,7 +433,7 @@ export class CitationStyleEngine {
    * @returns Formatted inline citation
    */
   static formatInlineCitationChicago(reference: Reference): string {
-    const authors = AuthorFormatter.formatMultipleChicago(reference.authors, true);
+    const authors = AuthorFormatter.formatMultipleChicago(normalizeAuthors(reference.authors), true);
     const year = DateFormatter.formatChicago(reference.publicationDate);
     
     if (!authors) {
@@ -459,7 +459,7 @@ export class CitationStyleEngine {
    * @returns Formatted inline citation
    */
   static formatInlineCitationHarvard(reference: Reference): string {
-    const authors = AuthorFormatter.formatMultipleHarvard(reference.authors, true);
+    const authors = AuthorFormatter.formatMultipleHarvard(normalizeAuthors(reference.authors), true);
     const year = DateFormatter.formatHarvard(reference.publicationDate);
     
     if (!authors) {
@@ -479,7 +479,7 @@ export class CitationStyleEngine {
    * @returns Formatted inline citation
    */
   static formatInlineCitationAPA(reference: Reference): string {
-    const authors = AuthorFormatter.formatMultipleAPA(reference.authors, true);
+    const authors = AuthorFormatter.formatMultipleAPA(normalizeAuthors(reference.authors), true);
     const year = DateFormatter.formatAPA(reference.publicationDate);
     
     if (!authors) {
@@ -499,7 +499,7 @@ export class CitationStyleEngine {
    * @returns Formatted bibliography entry
    */
   static formatBibliographyEntryMLA(reference: Reference): string {
-    const authors = AuthorFormatter.formatMultipleMLA(reference.authors, false);
+    const authors = AuthorFormatter.formatMultipleMLA(normalizeAuthors(reference.authors), false);
     const title = reference.title;
     
     let entry = '';
@@ -533,7 +533,7 @@ export class CitationStyleEngine {
    * @returns Formatted bibliography entry
    */
   static formatBibliographyEntryChicago(reference: Reference): string {
-    const authors = AuthorFormatter.formatMultipleChicago(reference.authors, false);
+    const authors = AuthorFormatter.formatMultipleChicago(normalizeAuthors(reference.authors), false);
     const title = reference.title;
     
     let entry = '';
@@ -567,7 +567,7 @@ export class CitationStyleEngine {
    * @returns Formatted bibliography entry
    */
   static formatBibliographyEntryHarvard(reference: Reference): string {
-    const authors = AuthorFormatter.formatMultipleHarvard(reference.authors, false);
+    const authors = AuthorFormatter.formatMultipleHarvard(normalizeAuthors(reference.authors), false);
     const year = DateFormatter.formatHarvard(reference.publicationDate);
     const title = reference.title;
     
@@ -604,7 +604,7 @@ export class CitationStyleEngine {
    * @returns Formatted bibliography entry
    */
   static formatBibliographyEntryAPA(reference: Reference): string {
-    const authors = AuthorFormatter.formatMultipleAPA(reference.authors, false);
+    const authors = AuthorFormatter.formatMultipleAPA(normalizeAuthors(reference.authors), false);
     const year = DateFormatter.formatAPA(reference.publicationDate);
     const title = reference.title;
     
@@ -1265,8 +1265,9 @@ export class CitationStyleEngine {
       if (ref.doi) {
         key = `doi:${ref.doi.toLowerCase()}`;
       } else {
-        const firstAuthor = ref.authors.length > 0 
-          ? `${ref.authors[0].lastName.toLowerCase()}_${ref.authors[0].firstName.toLowerCase()}`
+        const normalizedAuthors = normalizeAuthors(ref.authors);
+        const firstAuthor = normalizedAuthors.length > 0 
+          ? `${normalizedAuthors[0].lastName.toLowerCase()}_${normalizedAuthors[0].firstName.toLowerCase()}`
           : 'no_author';
         key = `title:${ref.title.toLowerCase().replace(/\s+/g, '_')}_${firstAuthor}`;
       }
@@ -1296,8 +1297,10 @@ export class CitationStyleEngine {
       case 'alphabetical':
         return sortedRefs.sort((a, b) => {
           // Sort by first author's last name, then first name, then title
-          const aAuthor = a.authors.length > 0 ? a.authors[0] : null;
-          const bAuthor = b.authors.length > 0 ? b.authors[0] : null;
+          const aNormalizedAuthors = normalizeAuthors(a.authors);
+          const bNormalizedAuthors = normalizeAuthors(b.authors);
+          const aAuthor = aNormalizedAuthors.length > 0 ? aNormalizedAuthors[0] : null;
+          const bAuthor = bNormalizedAuthors.length > 0 ? bNormalizedAuthors[0] : null;
 
           if (!aAuthor && !bAuthor) {
             return a.title.localeCompare(b.title);
@@ -1325,8 +1328,10 @@ export class CitationStyleEngine {
           }
 
           // If dates are the same, sort alphabetically by author
-          const aAuthor = a.authors.length > 0 ? a.authors[0].lastName : a.title;
-          const bAuthor = b.authors.length > 0 ? b.authors[0].lastName : b.title;
+          const aNormalizedAuthors = normalizeAuthors(a.authors);
+          const bNormalizedAuthors = normalizeAuthors(b.authors);
+          const aAuthor = aNormalizedAuthors.length > 0 ? aNormalizedAuthors[0].lastName : a.title;
+          const bAuthor = bNormalizedAuthors.length > 0 ? bNormalizedAuthors[0].lastName : b.title;
           return aAuthor.localeCompare(bAuthor);
         });
 
@@ -1408,9 +1413,11 @@ export class CitationStyleEngine {
     
     if (title1 === title2) {
       // If titles are identical, check if authors are similar
-      if (ref1.authors.length > 0 && ref2.authors.length > 0) {
-        const author1 = ref1.authors[0];
-        const author2 = ref2.authors[0];
+      const normalized1 = normalizeAuthors(ref1.authors);
+      const normalized2 = normalizeAuthors(ref2.authors);
+      if (normalized1.length > 0 && normalized2.length > 0) {
+        const author1 = normalized1[0];
+        const author2 = normalized2[0];
         
         return author1.lastName.toLowerCase() === author2.lastName.toLowerCase() &&
                author1.firstName.toLowerCase() === author2.firstName.toLowerCase();

@@ -128,6 +128,10 @@ export function validateReferenceFields(data: ReferenceFormData): ValidationErro
     });
   } else {
     data.authors.forEach((author, index) => {
+      if (typeof author === 'string') {
+        // Skip validation for string authors
+        return;
+      }
       const authorErrors = validateAuthor(author);
       authorErrors.forEach(error => {
         errors.push({

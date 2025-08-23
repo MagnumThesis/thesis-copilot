@@ -292,12 +292,13 @@ export class ProofreaderRecoveryService {
             [ConcernCategory.CLARITY]: 0,
             [ConcernCategory.COHERENCE]: 0,
             [ConcernCategory.STRUCTURE]: 0,
-            [ConcernCategory.ACADEMIC_STYLE]: 0,
-            [ConcernCategory.CITATIONS]: 0,
+            [ConcernCategory.ACADEMIC_TONE]: 0,
+            [ConcernCategory.CITATION]: 0,
             [ConcernCategory.TERMINOLOGY]: 0,
             [ConcernCategory.COMPLETENESS]: 0,
             [ConcernCategory.GRAMMAR]: 0,
-            [ConcernCategory.CONSISTENCY]: 0
+            [ConcernCategory.CONSISTENCY]: 0,
+            [ConcernCategory.STYLE]: 0
           },
           concernsBySeverity: cachedResult.analysisMetadata?.concernsBySeverity || {
             [ConcernSeverity.LOW]: 0,
@@ -329,12 +330,13 @@ export class ProofreaderRecoveryService {
             [ConcernCategory.CLARITY]: 0,
             [ConcernCategory.COHERENCE]: 0,
             [ConcernCategory.STRUCTURE]: 0,
-            [ConcernCategory.ACADEMIC_STYLE]: 0,
-            [ConcernCategory.CITATIONS]: 0,
+            [ConcernCategory.ACADEMIC_TONE]: 0,
+            [ConcernCategory.CITATION]: 0,
             [ConcernCategory.TERMINOLOGY]: 0,
             [ConcernCategory.COMPLETENESS]: 0,
             [ConcernCategory.GRAMMAR]: 0,
-            [ConcernCategory.CONSISTENCY]: 0
+            [ConcernCategory.CONSISTENCY]: 0,
+            [ConcernCategory.STYLE]: 0
           },
           concernsBySeverity: {
             [ConcernSeverity.LOW]: 0,
@@ -385,6 +387,21 @@ export class ProofreaderRecoveryService {
     return {
       success: true,
       concerns,
+      analysis: {
+        totalConcerns: concerns.length,
+        concernsByCategory: this.generateCategoryBreakdown(concerns),
+        concernsBySeverity: this.generateSeverityBreakdown(concerns),
+        overallQualityScore: 0.8,
+        readabilityScore: 0.7,
+        academicToneScore: 0.9
+      },
+      metadata: {
+        processingTime,
+        modelUsed: 'offline-analysis',
+        analysisTimestamp: new Date().toISOString(),
+        version: '1.0.0',
+        confidence: 0.8
+      },
       analysisMetadata: {
         totalConcerns: concerns.length,
         concernsByCategory: this.generateCategoryBreakdown(concerns),
@@ -410,6 +427,7 @@ export class ProofreaderRecoveryService {
       concerns.push({
         id: crypto.randomUUID(),
         conversationId,
+        text: 'Document lacks clear structure',
         category: 'structure' as any,
         severity: 'medium' as any,
         title: 'Document lacks clear structure',
@@ -419,9 +437,14 @@ export class ProofreaderRecoveryService {
           'Organize content into logical sections',
           'Use consistent heading hierarchy'
         ],
+        relatedIdeas: [],
+        position: { start: 0, end: content.length },
+        explanation: 'No headings found in the document. Consider adding section headings to improve organization.',
         status: 'to_be_done' as any,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       });
     }
 
@@ -434,6 +457,7 @@ export class ProofreaderRecoveryService {
       concerns.push({
         id: crypto.randomUUID(),
         conversationId,
+        text: 'Missing introduction section',
         category: 'structure' as any,
         severity: 'medium' as any,
         title: 'Missing introduction section',
@@ -442,9 +466,14 @@ export class ProofreaderRecoveryService {
           'Add an introduction section to orient readers',
           'Clearly state the purpose and scope of your work'
         ],
+        relatedIdeas: [],
+        position: { start: 0, end: 100 },
+        explanation: 'The document appears to lack a clear introduction.',
         status: 'to_be_done' as any,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       });
     }
 
@@ -452,6 +481,7 @@ export class ProofreaderRecoveryService {
       concerns.push({
         id: crypto.randomUUID(),
         conversationId,
+        text: 'Missing conclusion section',
         category: 'structure' as any,
         severity: 'low' as any,
         title: 'Missing conclusion section',
@@ -460,9 +490,14 @@ export class ProofreaderRecoveryService {
           'Add a conclusion section to summarize key points',
           'Highlight the significance of your work'
         ],
+        relatedIdeas: [],
+        position: { start: 0, end: content.length },
+        explanation: 'The document appears to lack a clear conclusion.',
         status: 'to_be_done' as any,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       });
     }
 
@@ -486,6 +521,7 @@ export class ProofreaderRecoveryService {
       concerns.push({
         id: crypto.randomUUID(),
         conversationId,
+        text: 'Many sentences are too long',
         category: 'clarity' as any,
         severity: 'medium' as any,
         title: 'Many sentences are too long',
@@ -495,9 +531,14 @@ export class ProofreaderRecoveryService {
           'Use punctuation to improve flow',
           'Consider using bullet points for complex lists'
         ],
+        relatedIdeas: [],
+        position: { start: 0, end: content.length },
+        explanation: `${longSentences.length} sentences contain more than 25 words, which may impact readability.`,
         status: 'to_be_done' as any,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       });
     }
 
@@ -508,6 +549,7 @@ export class ProofreaderRecoveryService {
       concerns.push({
         id: crypto.randomUUID(),
         conversationId,
+        text: 'Some paragraphs are very long',
         category: 'structure' as any,
         severity: 'low' as any,
         title: 'Some paragraphs are very long',
@@ -517,9 +559,14 @@ export class ProofreaderRecoveryService {
           'Focus each paragraph on a single main idea',
           'Use transitional phrases to connect ideas'
         ],
+        relatedIdeas: [],
+        position: { start: 0, end: content.length },
+        explanation: `${longParagraphs.length} paragraphs contain more than 150 words.`,
         status: 'to_be_done' as any,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       });
     }
 
@@ -537,6 +584,7 @@ export class ProofreaderRecoveryService {
       concerns.push({
         id: crypto.randomUUID(),
         conversationId,
+        text: 'Document appears to be very short',
         category: 'completeness' as any,
         severity: 'high' as any,
         title: 'Document appears to be very short',
@@ -546,9 +594,14 @@ export class ProofreaderRecoveryService {
           'Add more detailed explanations',
           'Include relevant examples or evidence'
         ],
+        relatedIdeas: [],
+        position: { start: 0, end: content.length },
+        explanation: 'The document is quite brief and may need more detailed content.',
         status: 'to_be_done' as any,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       });
     }
 
@@ -564,6 +617,7 @@ export class ProofreaderRecoveryService {
       concerns.push({
         id: crypto.randomUUID(),
         conversationId,
+        text: 'No citations found',
         category: 'citations' as any,
         severity: 'medium' as any,
         title: 'No citations found',
@@ -573,9 +627,14 @@ export class ProofreaderRecoveryService {
           'Include a reference list or bibliography',
           'Use proper citation format for your field'
         ],
+        relatedIdeas: [],
+        position: { start: 0, end: content.length },
+        explanation: 'The document does not appear to contain any citations or references.',
         status: 'to_be_done' as any,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       });
     }
 
@@ -603,6 +662,7 @@ export class ProofreaderRecoveryService {
       concerns.push({
         id: crypto.randomUUID(),
         conversationId,
+        text: 'Some defined ideas are not mentioned',
         category: 'consistency' as any,
         severity: 'low' as any,
         title: 'Some defined ideas are not mentioned',
@@ -613,9 +673,13 @@ export class ProofreaderRecoveryService {
           'Ensure consistency between your ideas and content'
         ],
         relatedIdeas: unusedIdeas.map(idea => idea.title),
+        position: { start: 0, end: content.length },
+        explanation: `${unusedIdeas.length} idea definitions are not referenced in the document.`,
         status: 'to_be_done' as any,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       });
     }
 
@@ -683,7 +747,7 @@ export class ProofreaderRecoveryService {
       const concern = concerns.find(c => c.id === concernId);
       if (concern) {
         concern.status = status;
-        concern.updatedAt = new Date();
+        concern.updatedAt = new Date().toISOString();
         this.saveCachedData();
         break;
       }

@@ -175,13 +175,20 @@ export function createDefaultProofreadingConcern(
   return {
     id,
     conversationId,
+    text: title,
     category,
     severity,
     title,
     description,
+    suggestions: [],
+    relatedIdeas: [],
+    position: { start: 0, end: 0 },
+    explanation: description,
     status: ConcernStatus.TO_BE_DONE,
-    createdAt: new Date(),
-    updatedAt: new Date()
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
   };
 }
 
@@ -226,11 +233,12 @@ export function getConcernCategoryLabel(category: ConcernCategory): string {
     [ConcernCategory.CLARITY]: 'Clarity',
     [ConcernCategory.COHERENCE]: 'Coherence',
     [ConcernCategory.STRUCTURE]: 'Structure',
-    [ConcernCategory.ACADEMIC_STYLE]: 'Academic Style',
+    [ConcernCategory.ACADEMIC_TONE]: 'Academic Tone',
     [ConcernCategory.CONSISTENCY]: 'Consistency',
     [ConcernCategory.COMPLETENESS]: 'Completeness',
-    [ConcernCategory.CITATIONS]: 'Citations',
+    [ConcernCategory.CITATION]: 'Citations',
     [ConcernCategory.GRAMMAR]: 'Grammar',
+    [ConcernCategory.STYLE]: 'Style',
     [ConcernCategory.TERMINOLOGY]: 'Terminology'
   };
   return labels[category];
@@ -256,7 +264,10 @@ export function getConcernStatusLabel(status: ConcernStatus): string {
   const labels: Record<ConcernStatus, string> = {
     [ConcernStatus.TO_BE_DONE]: 'To Be Done',
     [ConcernStatus.ADDRESSED]: 'Addressed',
-    [ConcernStatus.REJECTED]: 'Rejected'
+    [ConcernStatus.REJECTED]: 'Rejected',
+    [ConcernStatus.OPEN]: 'Open',
+    [ConcernStatus.RESOLVED]: 'Resolved',
+    [ConcernStatus.DISMISSED]: 'Dismissed'
   };
   return labels[status];
 }
