@@ -126,11 +126,15 @@ export const MilkdownEditor: FC<MilkdownEditorProps> = ({
   const setContent = useCallback(
     (newContent: string) => {
       const editor = get();
-
-      if (editor) {
-        console.log("Setting content...")
-        editor.action(replaceAll(newContent));
+      try {
+        if (editor) {
+          console.log("Setting content...")
+          editor.action(replaceAll(newContent));
+        }
+      } catch (e) {
+        console.log("editor not set")
       }
+      
     },
     [get]
   );

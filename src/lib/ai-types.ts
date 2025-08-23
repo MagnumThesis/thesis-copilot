@@ -63,7 +63,7 @@ export interface Reference {
   conversation_id: string;
   type: ReferenceType;
   title: string;
-  authors: string[];
+  authors: (string | Author)[];
   publication_date?: string;
   url?: string;
   doi?: string;
@@ -87,6 +87,12 @@ export interface Reference {
   ai_search_timestamp?: string;
   created_at: string;
   updated_at: string;
+  // Legacy properties for backward compatibility
+  conversationId?: string;
+  publicationDate?: Date;
+  accessDate?: Date;
+  createdAt?: Date;
+  referenceId?: string;
 }
 
 // Citation instance interface
@@ -99,6 +105,8 @@ export interface CitationInstance {
   document_position?: number;
   context?: string;
   created_at: string;
+  // Legacy properties for backward compatibility
+  referenceId?: string;
 }
 
 // Chat/Conversation interface
@@ -141,8 +149,9 @@ export interface AIPerformanceMetrics {
 // Validation result interface
 export interface ValidationResult {
   isValid: boolean;
-  errors: string[];
-  warnings: string[];
+  errors: (string | ValidationError)[];
+  warnings: (string | ValidationError)[];
+  missingFields?: string[];
 }
 
 // Export configuration
@@ -263,6 +272,7 @@ export interface ProofreadingConcern {
     paragraph?: number;
     context?: string;
   };
+  conversationId?: string;
 }
 
 // AI search and reference types
@@ -284,7 +294,7 @@ export interface ScholarSearchResult {
 
 export interface ReferenceMetadata {
   title: string;
-  authors: string[];
+  authors: (string | Author)[];
   journal?: string;
   volume?: string;
   issue?: string;
@@ -298,6 +308,8 @@ export interface ReferenceMetadata {
   keywords: string[];
   citations?: number;
   confidence: number;
+  publisher?: string;
+  type?: ReferenceType;
 }
 
 export interface ReferenceSuggestion {
@@ -328,9 +340,11 @@ export interface BibliographyRequest {
 
 export interface BibliographyResponse {
   success: boolean;
-  bibliography: string;
-  format: string;
-  citation_count: number;
+  bibliography?: string;
+  format?: string;
+  citation_count?: number;
+  referenceCount?: number;
+  style?: CitationStyle;
   error?: string;
 }
 
@@ -374,6 +388,7 @@ export interface ExtractedContent {
   authors?: string[];
   abstract?: string;
   keywords?: string[];
+  keyPhrases?: string[];
   topics?: string[];
   content?: string;
   publication_date?: string;
@@ -383,6 +398,7 @@ export interface ExtractedContent {
   issue?: string;
   pages?: string;
   confidence: number;
+  id?: string | number;
 }
 
 // Author interface
@@ -390,13 +406,14 @@ export interface Author {
   firstName: string;
   lastName: string;
   middleName?: string;
+  suffix?: string;
   affiliation?: string;
 }
 
 // Reference search options
 export interface ReferenceSearchOptions {
   query?: string;
-  type?: ReferenceType;
+  type?: ReferenceType | 'all';
   author?: string;
   year?: number;
   tags?: string[];
@@ -425,7 +442,7 @@ export interface CitationRequest {
 
 // Idea definition interface
 export interface IdeaDefinition {
-  id: string;
+  id: string | number;
   title: string;
   content: string;
   description: string;
@@ -434,6 +451,7 @@ export interface IdeaDefinition {
   confidence: number;
   created_at: string;
   updated_at: string;
+  conversationid?: string;
 }
 
 // Document context interface
@@ -462,6 +480,7 @@ export interface AIProcessingState {
   startTime?: Date;
   estimatedCompletionTime?: Date;
   currentMode?: AIMode;
+  statusMessage?: string;
 }
 
 // Proofreader analysis types
@@ -480,6 +499,7 @@ export interface ProofreaderAnalysisRequest {
     categories?: ConcernCategory[];
     minSeverity?: ConcernSeverity;
     includeGrammar?: boolean;
+    academicLevel?: string;
   };
 }
 
@@ -505,6 +525,7 @@ export interface ProofreaderAnalysisResponse {
     fallbackUsed?: boolean;
     cacheUsed?: boolean;
     cacheTimestamp?: number;
+    offlineMode?: boolean;
   };
   error?: string;
 }
@@ -604,4 +625,237 @@ export interface AIErrorResponse {
     tokensUsed: number;
     processingTime: number;
   };
+}
+
+// Missing types for concern analysis engine
+export interface ContentLocation {
+  section?: string;
+  paragraph?: number;
+  sentence?: number;
+  start: number;
+  end: number;
+  context?: string;
+}
+
+export interface ContentAnalysis {
+  clarity: number;
+  coherence: number;
+  academicTone: number;
+  readability: number;
+  issues: string[];
+  structure?: StructureAnalysis;
+  style?: StyleAnalysis;
+  consistency?: ConsistencyAnalysis;
+  completeness?: CompletenessAnalysis;
+}
+
+export interface StructureAnalysis {
+  headingStructure: HeadingAnalysis[];
+  paragraphFlow: FlowAnalysis[];
+  sectionBalance: number;
+  logicalProgression: number;
+  issues: string[];
+  hasIntroduction?: boolean;
+  hasConclusion?: boolean;
+  headingHierarchy?: {
+    properHierarchy: boolean;
+  };
+  sectionFlow?: {
+    coherenceScore: number;
+  };
+}
+
+export interface StyleAnalysis {
+  academicTone: number;
+  consistency: number;
+  formality: number;
+  styleIssues: StyleIssue[];
+  suggestions: string[];
+  clarityScore?: number;
+  formalityLevel?: number;
+}
+
+export interface ConsistencyAnalysis {
+  terminologyConsistency: TerminologyIssue[];
+  citationConsistency: CitationIssue[];
+  formattingConsistency: FormattingIssue[];
+  overallScore: number;
+}
+
+export interface CompletenessAnalysis {
+  missingElements: string[];
+  completenessScore: number;
+  suggestions: string[];
+  missingSections?: string[];
+  insufficientDetail?: string[];
+}
+
+export interface StyleIssue {
+  type: 'tone' | 'formality' | 'voice' | 'tense' | 'clarity';
+  location?: ContentLocation;
+  description: string;
+  suggestion: string;
+  severity?: ConcernSeverity;
+}
+
+export interface TerminologyIssue {
+  term: string;
+  inconsistentUsage: (ContentLocation | string)[];
+  suggestedStandardization: string;
+  severity: ConcernSeverity;
+}
+
+export interface CitationIssue {
+  type: 'format' | 'missing' | 'incomplete' | 'style' | 'style_inconsistency';
+  location?: ContentLocation;
+  description: string;
+  suggestion: string;
+  severity?: ConcernSeverity;
+}
+
+export interface FormattingIssue {
+  type: 'spacing' | 'punctuation' | 'capitalization' | 'numbering';
+  location?: ContentLocation;
+  description: string;
+  suggestion: string;
+  severity?: ConcernSeverity;
+}
+
+export interface FlowAnalysis {
+  paragraphIndex: number;
+  flowScore: number;
+  transitionQuality: number;
+  coherenceIssues: string[];
+  logicalProgression?: boolean;
+}
+
+export interface HeadingAnalysis {
+  level: number;
+  text: string;
+  location: ContentLocation;
+  structureIssues: string[];
+  suggestions: string[];
+  properHierarchy?: boolean;
+}
+
+// Missing types for reference management
+export interface ReferenceFormData {
+  type: ReferenceType;
+  title: string;
+  authors: (string | Author)[];
+  publication_date?: string;
+  journal?: string;
+  volume?: string;
+  issue?: string;
+  pages?: string;
+  publisher?: string;
+  doi?: string;
+  url?: string;
+  isbn?: string;
+  edition?: string;
+  chapter?: string;
+  editor?: string;
+  access_date?: string;
+  notes?: string;
+  tags: string[];
+  // Legacy properties for backward compatibility
+  publicationDate?: string;
+  accessDate?: string;
+}
+
+export interface ReferenceListResponse {
+  success: boolean;
+  references?: Reference[];
+  total?: number;
+  page?: number;
+  limit?: number;
+  error?: string;
+  statistics?: ReferenceStatistics;
+}
+
+export interface ReferenceStatistics {
+  totalReferences: number;
+  referencesByType: Record<ReferenceType, number>;
+  recentlyAdded: number;
+  averageConfidence: number;
+  topTags: string[];
+  total?: number;
+  byType?: Record<ReferenceType, number>;
+  byYear?: Record<number, number>;
+  withDoi?: number;
+  withUrl?: number;
+}
+
+export interface MetadataExtractionResponse {
+  success: boolean;
+  metadata?: ReferenceMetadata;
+  confidence?: number;
+  source: string;
+  error?: string;
+  extractionTime?: number;
+}
+
+export interface ValidationError {
+  field: string;
+  message: string;
+  code?: string;
+  severity?: string;
+}
+
+export interface CitationResponse {
+  success: boolean;
+  citation?: string;
+  style: CitationStyle;
+  type: 'inline' | 'bibliography';
+  error?: string;
+}
+
+export interface ContentExtractionRequest {
+  source: 'ideas' | 'builder';
+  conversationId: string;
+  includeMetadata?: boolean;
+  extractionDepth?: 'basic' | 'detailed';
+  id?: string;
+}
+
+// Missing types for concern status management
+export interface ConcernStatusUpdate {
+  concernId: string;
+  status: ConcernStatus;
+  notes?: string;
+  timestamp: string;
+}
+
+export interface ConcernStatistics {
+  totalConcerns: number;
+  concernsByStatus: Record<ConcernStatus, number>;
+  concernsByCategory: Record<ConcernCategory, number>;
+  concernsBySeverity: Record<ConcernSeverity, number>;
+  resolutionRate: number;
+  averageResolutionTime: number;
+  total?: number;
+  toBeDone?: number;
+  addressed?: number;
+  rejected?: number;
+}
+
+export interface ConcernStatusBreakdown {
+  status: ConcernStatus;
+  count: number;
+  percentage: number;
+  total?: number;
+  toBeDone?: number;
+  addressed?: number;
+  rejected?: number;
+}
+
+// Analysis options type
+export interface AnalysisOptions {
+  timeout?: number;
+  maxRetries?: number;
+  model?: string;
+  categories?: ConcernCategory[];
+  minSeverity?: ConcernSeverity;
+  includeGrammar?: boolean;
+  academicLevel?: string;
 }

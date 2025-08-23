@@ -106,9 +106,6 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
     aiModeManager.updateSelection(currentSelection);
   }, [currentSelection, aiModeManager]);
 
-  React.useEffect(() => {
-    console.log("Document Content: ", documentContent)
-  }, [documentContent]);
 
   // Load saved content when component mounts or conversation changes
   React.useEffect(() => {
@@ -123,9 +120,6 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
           if (editorMethodsRef.current?.setContent) {
             editorMethodsRef.current.setContent(savedContent);
           } else {
-            // Fallback if editor methods aren't ready yet
-            // You might need a more robust solution for this edge case
-            console.log("fallback");
             setDocumentContent(savedContent);
           }
 
@@ -141,6 +135,7 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
 
   // Handle content changes from editor
   const handleContentChange = useCallback(async (content: string) => {
+    
     setDocumentContent(content);
     // Store content in retrieval service for other tools to access
     try {
@@ -349,24 +344,23 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
     insertContent: (content: string, options: ContentInsertionOptions) => void;
     setContent?: (newContent: string) => void;
   }) => {
-    if (hasRun.current) {
-      return; // Do nothing if the function has already run
-    }
-  
+
+
     editorMethodsRef.current = methods;
-  
+    if (!isOpen) {
+      hasRun.current = false;
+      return
+    };
+    if (hasRun.current) return;
     if (editorMethodsRef?.current?.setContent) {
-      console.log("Setting content in 2 seconds...");
       // Use setTimeout to delay the content setting
       setTimeout(() => {
         editorMethodsRef.current?.setContent?.(documentContent);
-        console.log("Content has been set!");
-      }, 1); // 2000 milliseconds = 2 seconds
-  
-      // Set the flag to true immediately to prevent subsequent calls
+      }, 500); // 2000 milliseconds = 2 seconds
       hasRun.current = true;
     }
-  }, [documentContent]);
+  }, [documentContent, isOpen]);
+
 
 
 
