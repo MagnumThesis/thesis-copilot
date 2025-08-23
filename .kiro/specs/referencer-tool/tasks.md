@@ -235,7 +235,9 @@
   - ✅ Write performance tests and benchmarks
   - _Requirements: 6.5, 3.1, 3.2_
 
-- [ ] 12. AI-Powered Reference Searcher
+- [-] 12. AI-Powered Reference Searcher
+
+
 
 - [ ] 12.1 Create content extraction engine
 
@@ -246,6 +248,7 @@
   - Write unit tests for content extraction
   - _Requirements: 7.1, 7.2_
 
+
 - [ ] 12.2 Implement Google Scholar search integration
 
   - Create Google Scholar search API client
@@ -253,6 +256,7 @@
   - Add rate limiting and request throttling
   - Handle search result parsing and filtering
   - Write unit tests for search integration
+
   - _Requirements: 7.3, 7.4_
 
 - [ ] 12.3 Build reference suggestion engine
@@ -261,6 +265,7 @@
   - Implement relevance ranking based on content similarity
   - Add duplicate detection for existing references
   - Create confidence scoring for suggestions
+
   - Write unit tests for suggestion engine
   - _Requirements: 7.5, 7.6_
 
@@ -269,11 +274,13 @@
   - Implement AI Searcher tab in referencer tool
   - Create content selection interface (Ideas/Builder)
   - Add search progress indicators and results display
+
+
   - Implement reference suggestion acceptance/rejection
   - Write component unit tests
   - _Requirements: 7.1, 7.2, 7.7_
 
-- [ ] 12.5 Add search history and analytics
+- [x] 12.5 Add search history and analytics
 
   - Implement search query history storage
   - Create search analytics and usage tracking
@@ -281,3 +288,87 @@
   - Implement privacy controls for search data
   - Write integration tests for search features
   - _Requirements: 7.8, 7.9_
+
+- [ ] 13. Complete Google Scholar Integration
+
+- [ ] 13.1 Implement Google Scholar search client
+
+  - Create GoogleScholarClient class for web scraping
+  - Implement search query generation and execution
+  - Add rate limiting and request throttling
+  - Handle search result parsing and error handling
+  - Write unit tests for search client
+  - _Requirements: 7.3, 7.4_
+
+- [ ] 13.2 Integrate content extraction with AI searcher
+
+  - Connect content extraction engine to AI searcher component
+  - Implement content source selection (Ideas/Builder)
+  - Add automatic search query generation from extracted content
+  - Create content preview and selection interface
+  - Write integration tests for content-to-search flow
+  - _Requirements: 7.1, 7.2_
+
+- [ ] 13.3 Complete AI searcher backend integration
+
+  - Connect AI searcher API to Google Scholar client
+  - Implement real search functionality (replace mock data)
+  - Add search result ranking and relevance scoring
+  - Integrate with reference suggestion engine
+  - Write end-to-end tests for AI search functionality
+  - _Requirements: 7.3, 7.4, 7.5_
+
+- [ ] 13.4 Add advanced search features
+
+  - Implement search filters (date range, author, journal)
+  - Add search result export functionality
+  - Create search result comparison and deduplication
+  - Implement search result bookmarking
+  - Write tests for advanced search features
+  - _Requirements: 7.6, 7.7_
+
+- [ ] 13.5 Implement feedback and learning system
+
+  - Add user feedback collection for search results
+  - Implement learning from accepted/rejected suggestions
+  - Create search quality metrics and monitoring
+  - Add search result confidence scoring improvements
+  - Write tests for feedback system
+  - _Requirements: 7.8_
+
+- [ ] 14. Fix AI Searcher Integration Issues
+
+- [ ] 14.1 Fix AI searcher tab navigation
+
+  - Add 'ai-searcher' tab to the tab navigation array in referencer.tsx
+  - Implement AI searcher case in renderTabContent() method
+  - Add proper AI searcher tab icon (Sparkles) in getTabIcon() method
+  - Test AI searcher tab switching functionality
+  - _Requirements: 7.1_
+
+- [ ] 14.2 Complete AI searcher component integration
+
+  - Connect AISearcher component to reference management
+  - Implement onAddReference callback to add suggestions to reference library
+  - Add proper error handling for failed searches
+  - Integrate with content extraction for Ideas and Builder sources
+  - Test end-to-end AI search to reference addition flow
+  - _Requirements: 7.7_
+
+- [ ] 14.3 Implement real Google Scholar search
+
+  - Replace mock search results with actual Google Scholar API calls
+  - Implement proper metadata extraction from search results
+  - Add search result validation and quality scoring
+  - Handle rate limiting and search quotas
+  - Test with various search queries and edge cases
+  - _Requirements: 7.3, 7.4_
+
+- [ ] 14.4 Add content source selection interface
+
+  - Create content source selection UI (Ideas vs Builder)
+  - Implement content preview before search
+  - Add content filtering and keyword extraction options
+  - Create search query customization interface
+  - Test content extraction and search query generation
+  - _Requirements: 7.1, 7.2_

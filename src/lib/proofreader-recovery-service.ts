@@ -347,8 +347,7 @@ export class ProofreaderRecoveryService {
           analysisTime: 0,
           contentLength: request.documentContent.length,
           ideaDefinitionsUsed: request.ideaDefinitions?.length || 0,
-          fallbackUsed: true,
-          errorType: classifiedError.type
+          fallbackUsed: true
         }
       };
     }
