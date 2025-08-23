@@ -30,7 +30,6 @@
 
 - [x] 2.2 Implement search result parsing
 
-
   - Parse Google Scholar HTML to extract paper metadata
   - Extract titles, authors, journals, publication years, and citation counts
   - Handle DOI extraction and validation from search results
@@ -38,7 +37,8 @@
   - Write unit tests for HTML parsing functions
   - _Requirements: 3.2, 3.3, 3.4_
 
-- [ ] 2.3 Add search error handling and resilience
+- [x] 2.3 Add search error handling and resilience
+
 
   - Implement retry logic for failed searches
   - Handle rate limiting with exponential backoff

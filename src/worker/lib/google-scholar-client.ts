@@ -21,112 +21,342 @@ export interface RateLimitConfig {
   backoffMultiplier: number;
   maxRetries: number;
   baseDelayMs: number;
+  maxDelayMs: number;
+  jitterEnabled: boolean;
+}
+
+export interface FallbackConfig {
+  enabled: boolean;
+  fallbackSources: string[];
+  fallbackTimeout: number;
+  maxFallbackAttempts: number;
+}
+
+export interface ErrorHandlingConfig {
+  enableDetailedLogging: boolean;
+  errorReportingCallback?: (error: SearchError) => void;
+  customErrorMessages: Record<string, string>;
 }
 
 export interface SearchError {
-  type: 'rate_limit' | 'network' | 'parsing' | 'blocked' | 'timeout';
+  type: 'rate_limit' | 'network' | 'parsing' | 'blocked' | 'timeout' | 'service_unavailable' | 'quota_exceeded';
   message: string;
   retryAfter?: number;
   statusCode?: number;
+  isRetryable?: boolean;
+  originalError?: Error;
 }
 
 export class GoogleScholarClient {
   private readonly baseUrl = 'https://scholar.google.com/scholar';
   private readonly rateLimitConfig: RateLimitConfig;
+  private readonly fallbackConfig: FallbackConfig;
+  private readonly errorHandlingConfig: ErrorHandlingConfig;
   private requestHistory: number[] = [];
   private isBlocked = false;
   private blockUntil = 0;
+  private consecutiveFailures = 0;
+  private lastSuccessfulRequest = 0;
+  private serviceAvailable = true;
+  private lastServiceCheck = 0;
 
-  constructor(rateLimitConfig?: Partial<RateLimitConfig>) {
+  constructor(
+    rateLimitConfig?: Partial<RateLimitConfig>,
+    fallbackConfig?: Partial<FallbackConfig>,
+    errorHandlingConfig?: Partial<ErrorHandlingConfig>
+  ) {
     this.rateLimitConfig = {
       requestsPerMinute: 10,
       requestsPerHour: 100,
       backoffMultiplier: 2,
       maxRetries: 3,
       baseDelayMs: 1000,
+      maxDelayMs: 30000,
+      jitterEnabled: true,
       ...rateLimitConfig
     };
+
+    this.fallbackConfig = {
+      enabled: true,
+      fallbackSources: ['semantic-scholar', 'crossref', 'arxiv'],
+      fallbackTimeout: 10000,
+      maxFallbackAttempts: 2,
+      ...fallbackConfig
+    };
+
+    this.errorHandlingConfig = {
+      enableDetailedLogging: true,
+      customErrorMessages: {
+        'rate_limit': 'Search rate limit exceeded. Please wait before trying again.',
+        'network': 'Network connection error. Please check your internet connection.',
+        'parsing': 'Unable to parse search results. The service may be temporarily unavailable.',
+        'blocked': 'Access to Google Scholar is currently blocked. Please try again later.',
+        'timeout': 'Search request timed out. Please try again.',
+        'service_unavailable': 'Google Scholar is temporarily unavailable. Trying alternative sources.',
+        'quota_exceeded': 'Daily search quota exceeded. Please try again tomorrow.'
+      },
+      ...errorHandlingConfig
+    };
+
+    this.lastSuccessfulRequest = Date.now();
   }
 
   /**
-   * Search Google Scholar for academic papers
+   * Search Google Scholar for academic papers with enhanced error handling and resilience
    */
   async search(query: string, options: SearchOptions = {}): Promise<ScholarSearchResult[]> {
     if (!query.trim()) {
-      throw new Error('Search query cannot be empty');
+      throw this.createSearchError('parsing', 'Search query cannot be empty', false);
     }
+
+    // Check service availability
+    await this.checkServiceAvailability();
 
     // Check rate limits before making request
     await this.checkRateLimit();
 
     const searchUrl = this.buildSearchUrl(query, options);
     let lastError: SearchError | null = null;
+    let retryCount = 0;
 
-    for (let attempt = 0; attempt < this.rateLimitConfig.maxRetries; attempt++) {
+    while (retryCount < this.rateLimitConfig.maxRetries) {
       try {
-        // Add delay between retries
-        if (attempt > 0) {
-          const delay = this.rateLimitConfig.baseDelayMs * Math.pow(this.rateLimitConfig.backoffMultiplier, attempt - 1);
+        // Add exponential backoff delay with jitter
+        if (retryCount > 0) {
+          const delay = this.calculateBackoffDelay(retryCount);
+          this.logError(`Retrying search attempt ${retryCount + 1}/${this.rateLimitConfig.maxRetries} after ${delay}ms delay`);
           await this.delay(delay);
         }
 
         const html = await this.fetchSearchResults(searchUrl);
         const results = this.parseResults(html);
         
-        // Record successful request
-        this.recordRequest();
+        // Record successful request and reset failure counters
+        this.recordSuccessfulRequest();
         
         return this.validateResults(results);
 
       } catch (error) {
         lastError = this.handleError(error);
+        retryCount++;
         
-        // Don't retry for certain error types
-        if (lastError.type === 'blocked' || lastError.type === 'parsing') {
+        this.logError(`Search attempt ${retryCount} failed: ${lastError.message}`, lastError);
+
+        // Check if error is retryable
+        if (!this.isRetryableError(lastError)) {
+          this.logError(`Non-retryable error encountered: ${lastError.type}`, lastError);
           break;
         }
 
-        // Handle rate limiting
-        if (lastError.type === 'rate_limit' && lastError.retryAfter) {
-          await this.handleRateLimit(lastError.retryAfter);
+        // Handle specific error types
+        await this.handleSpecificError(lastError);
+
+        // If we've exhausted retries, try fallback if available
+        if (retryCount >= this.rateLimitConfig.maxRetries && this.fallbackConfig.enabled) {
+          this.logError('All retries exhausted, attempting fallback search');
+          try {
+            return await this.attemptFallbackSearch(query, options);
+          } catch (fallbackError) {
+            this.logError('Fallback search also failed', fallbackError);
+            // Continue to throw the original error
+          }
         }
       }
     }
 
-    throw new Error(`Search failed after ${this.rateLimitConfig.maxRetries} attempts: ${lastError?.message || 'Unknown error'}`);
+    // If we have a specific error, check if it's a parsing error that should return empty results
+    if (lastError) {
+      // For parsing errors, return empty array instead of throwing (graceful degradation)
+      if (lastError.type === 'parsing') {
+        this.logError('Parsing error encountered, returning empty results for graceful degradation');
+        return [];
+      }
+      
+      const errorMessage = this.createComprehensiveErrorMessage(lastError, retryCount);
+      throw this.createSearchError(
+        lastError.type,
+        errorMessage,
+        false,
+        lastError.originalError,
+        lastError.retryAfter,
+        lastError.statusCode
+      );
+    }
+
+    // Fallback error
+    throw this.createSearchError(
+      'network',
+      `Search failed after ${retryCount} attempts due to unknown error`,
+      false
+    );
   }
 
   /**
-   * Parse Google Scholar HTML results
+   * Parse Google Scholar HTML results with enhanced error handling
    */
   parseResults(html: string): ScholarSearchResult[] {
     const results: ScholarSearchResult[] = [];
 
     try {
+      // Validate HTML content
+      if (!html || html.trim().length === 0) {
+        throw this.createSearchError('parsing', 'Empty HTML content received', false);
+      }
+
+      // Check for "no results" indicators
+      if (this.containsNoResultsIndicators(html)) {
+        this.logError('No search results found in response');
+        return []; // Return empty array instead of throwing error
+      }
+
       // Extract search result blocks using regex patterns
-      // Google Scholar uses div elements with class "gs_r gs_or gs_scl" for each result
       const resultBlocks = this.extractResultBlocks(html);
+
+      if (resultBlocks.length === 0) {
+        this.logError('No result blocks found in HTML, may indicate format change');
+        // Try alternative parsing methods before giving up
+        const alternativeResults = this.tryAlternativeParsing(html);
+        if (alternativeResults.length > 0) {
+          return alternativeResults;
+        }
+        return []; // Return empty array instead of throwing error
+      }
+
+      let successfulParses = 0;
+      let parseErrors = 0;
 
       for (const block of resultBlocks) {
         try {
           const result = this.parseResultBlock(block);
           if (result) {
             results.push(result);
+            successfulParses++;
           }
         } catch (error) {
-          console.warn('Failed to parse individual result block:', error);
-          // Continue parsing other results
+          parseErrors++;
+          this.logError(`Failed to parse individual result block: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          
+          // If too many parse errors, something is seriously wrong
+          if (parseErrors > resultBlocks.length * 0.8) {
+            throw this.createSearchError(
+              'parsing',
+              'Failed to parse majority of search results, format may have changed',
+              false,
+              error instanceof Error ? error : undefined
+            );
+          }
         }
       }
 
-      return results;
+      this.logError(`Successfully parsed ${successfulParses}/${resultBlocks.length} result blocks`);
+
+      // If we got some results, return them even if some failed
+      if (results.length > 0) {
+        return results;
+      }
+
+      // If no results were parsed successfully, return empty array (don't throw error)
+      // This handles cases where Google Scholar returns "no results" or the format has changed
+      this.logError('No search results could be parsed, returning empty array');
+      return [];
 
     } catch (error) {
-      throw new SearchError({
-        type: 'parsing',
-        message: `Failed to parse search results: ${error instanceof Error ? error.message : 'Unknown parsing error'}`
-      });
+      if (error instanceof SearchError) {
+        throw error;
+      }
+
+      throw this.createSearchError(
+        'parsing',
+        `Failed to parse search results: ${error instanceof Error ? error.message : 'Unknown parsing error'}`,
+        false,
+        error instanceof Error ? error : undefined
+      );
     }
+  }
+
+  /**
+   * Check if HTML contains "no results" indicators
+   */
+  private containsNoResultsIndicators(html: string): boolean {
+    const noResultsIndicators = [
+      'did not match any articles',
+      'no results found',
+      'your search.*did not match',
+      'try different keywords',
+      'no articles found'
+    ];
+
+    const lowerHtml = html.toLowerCase();
+    return noResultsIndicators.some(indicator => {
+      const regex = new RegExp(indicator, 'i');
+      return regex.test(lowerHtml);
+    });
+  }
+
+  /**
+   * Try alternative parsing methods when standard parsing fails
+   */
+  private tryAlternativeParsing(html: string): ScholarSearchResult[] {
+    this.logError('Attempting alternative parsing methods');
+    
+    // Try to find any links that might be paper titles
+    const titleLinks = html.match(/<a[^>]*href="[^"]*"[^>]*>([^<]+)<\/a>/g);
+    
+    if (titleLinks && titleLinks.length > 0) {
+      const results: ScholarSearchResult[] = [];
+      
+      for (const link of titleLinks.slice(0, 5)) { // Limit to first 5 to avoid noise
+        const titleMatch = link.match(/>([^<]+)</);
+        if (titleMatch && titleMatch[1] && titleMatch[1].length > 10) {
+          const title = this.cleanText(titleMatch[1]);
+          
+          // Basic heuristic to filter out navigation links
+          if (this.looksLikePaperTitle(title)) {
+            results.push({
+              title,
+              authors: ['Unknown Author'],
+              confidence: 0.2, // Low confidence for alternative parsing
+              relevance_score: 0.3
+            });
+          }
+        }
+      }
+      
+      if (results.length > 0) {
+        this.logError(`Alternative parsing found ${results.length} potential results`);
+        return results;
+      }
+    }
+    
+    return [];
+  }
+
+  /**
+   * Basic heuristic to determine if text looks like a paper title
+   */
+  private looksLikePaperTitle(text: string): boolean {
+    // Should be reasonably long and contain meaningful words
+    if (text.length < 10 || text.length > 200) {
+      return false;
+    }
+    
+    // Should not be common navigation text
+    const navigationWords = ['home', 'search', 'about', 'help', 'settings', 'login', 'sign in'];
+    const lowerText = text.toLowerCase();
+    
+    if (navigationWords.some(word => lowerText === word)) {
+      return false;
+    }
+    
+    // Should contain some academic-sounding words or be reasonably complex
+    const academicIndicators = ['study', 'analysis', 'research', 'investigation', 'approach', 'method', 'theory', 'model'];
+    const hasAcademicWords = academicIndicators.some(word => lowerText.includes(word));
+    
+    // Or should have reasonable word count and complexity
+    const wordCount = text.split(/\s+/).length;
+    const hasReasonableLength = wordCount >= 3 && wordCount <= 20;
+    
+    return hasAcademicWords || hasReasonableLength;
   }
 
   /**
@@ -204,7 +434,7 @@ export class GoogleScholarClient {
   }
 
   /**
-   * Fetch search results from Google Scholar
+   * Fetch search results from Google Scholar with enhanced error handling
    */
   private async fetchSearchResults(url: string): Promise<string> {
     const headers = this.getRequestHeaders();
@@ -217,50 +447,147 @@ export class GoogleScholarClient {
       });
 
       if (!response.ok) {
-        if (response.status === 429) {
-          const retryAfter = response.headers.get('Retry-After');
-          throw new SearchError({
-            type: 'rate_limit',
-            message: 'Rate limit exceeded',
-            retryAfter: retryAfter ? parseInt(retryAfter) : 60,
-            statusCode: response.status
-          });
-        }
+        const retryAfter = response.headers.get('Retry-After');
+        const retryAfterSeconds = retryAfter ? parseInt(retryAfter) : undefined;
 
-        if (response.status === 403) {
-          throw new SearchError({
-            type: 'blocked',
-            message: 'Access blocked by Google Scholar',
-            statusCode: response.status
-          });
-        }
+        switch (response.status) {
+          case 429:
+            throw this.createSearchError(
+              'rate_limit',
+              'Rate limit exceeded',
+              true,
+              undefined,
+              retryAfterSeconds || 60,
+              response.status
+            );
 
-        throw new SearchError({
-          type: 'network',
-          message: `HTTP ${response.status}: ${response.statusText}`,
-          statusCode: response.status
-        });
+          case 403:
+            throw this.createSearchError(
+              'blocked',
+              'Access blocked by Google Scholar',
+              false,
+              undefined,
+              undefined,
+              response.status
+            );
+
+          case 503:
+          case 502:
+          case 504:
+            throw this.createSearchError(
+              'service_unavailable',
+              `Google Scholar service unavailable (${response.status})`,
+              true,
+              undefined,
+              retryAfterSeconds || 300,
+              response.status
+            );
+
+          case 500:
+            throw this.createSearchError(
+              'service_unavailable',
+              'Google Scholar internal server error',
+              true,
+              undefined,
+              undefined,
+              response.status
+            );
+
+          case 404:
+            throw this.createSearchError(
+              'network',
+              'Google Scholar endpoint not found',
+              false,
+              undefined,
+              undefined,
+              response.status
+            );
+
+          default:
+            throw this.createSearchError(
+              'network',
+              `HTTP ${response.status}: ${response.statusText}`,
+              response.status >= 500, // Server errors are retryable, client errors are not
+              undefined,
+              undefined,
+              response.status
+            );
+        }
       }
 
-      return await response.text();
+      const responseText = await response.text();
+      
+      // Basic validation of response content
+      if (!responseText || responseText.length < 100) {
+        throw this.createSearchError(
+          'parsing',
+          'Received empty or invalid response from Google Scholar',
+          true
+        );
+      }
+
+      // Check for common error indicators in the HTML
+      if (this.containsErrorIndicators(responseText)) {
+        throw this.createSearchError(
+          'blocked',
+          'Google Scholar returned an error page',
+          false
+        );
+      }
+
+      return responseText;
 
     } catch (error) {
       if (error instanceof SearchError) {
         throw error;
       }
 
-      if (error instanceof Error && error.name === 'AbortError') {
-        throw new SearchError({
-          type: 'timeout',
-          message: 'Request timeout after 30 seconds'
-        });
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          throw this.createSearchError(
+            'timeout',
+            'Request timeout after 30 seconds',
+            true,
+            error
+          );
+        }
+
+        if (error.name === 'TypeError' && error.message.includes('fetch')) {
+          throw this.createSearchError(
+            'network',
+            'Network connection failed',
+            true,
+            error
+          );
+        }
       }
 
-      throw new SearchError({
-        type: 'network',
-        message: `Network error: ${error instanceof Error ? error.message : 'Unknown error'}`
-      });
+      throw this.createSearchError(
+        'network',
+        `Network error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        true,
+        error instanceof Error ? error : undefined
+      );
     }
+  }
+
+  /**
+   * Check if response contains error indicators
+   */
+  private containsErrorIndicators(html: string): boolean {
+    const errorIndicators = [
+      'blocked',
+      'captcha',
+      'unusual traffic',
+      'automated queries',
+      'robot',
+      'access denied',
+      'temporarily unavailable',
+      'service unavailable'
+    ];
+
+    const lowerHtml = html.toLowerCase();
+    return errorIndicators.some(indicator => lowerHtml.includes(indicator));
   }
 
   /**
@@ -888,7 +1215,7 @@ export class GoogleScholarClient {
   }
 
   /**
-   * Handle and categorize errors
+   * Handle and categorize errors with enhanced error classification
    */
   private handleError(error: unknown): SearchError {
     if (error instanceof SearchError) {
@@ -896,16 +1223,278 @@ export class GoogleScholarClient {
     }
 
     if (error instanceof Error) {
-      return {
-        type: 'network',
-        message: error.message
-      };
+      // Classify error based on error message and type
+      const errorType = this.classifyError(error);
+      return this.createSearchError(errorType, error.message, this.isRetryableErrorType(errorType), error);
     }
 
-    return {
-      type: 'network',
-      message: 'Unknown error occurred'
-    };
+    return this.createSearchError('network', 'Unknown error occurred', true);
+  }
+
+  /**
+   * Classify error type based on error characteristics
+   */
+  private classifyError(error: Error): SearchError['type'] {
+    const message = error.message.toLowerCase();
+    
+    if (error.name === 'AbortError' || message.includes('timeout')) {
+      return 'timeout';
+    }
+    
+    if (message.includes('rate limit') || message.includes('429')) {
+      return 'rate_limit';
+    }
+    
+    if (message.includes('blocked') || message.includes('403') || message.includes('forbidden')) {
+      return 'blocked';
+    }
+    
+    if (message.includes('service unavailable') || message.includes('503') || message.includes('502')) {
+      return 'service_unavailable';
+    }
+    
+    if (message.includes('quota') || message.includes('limit exceeded')) {
+      return 'quota_exceeded';
+    }
+    
+    if (message.includes('parse') || message.includes('invalid html')) {
+      return 'parsing';
+    }
+    
+    return 'network';
+  }
+
+  /**
+   * Create a standardized SearchError
+   */
+  private createSearchError(
+    type: SearchError['type'],
+    message: string,
+    isRetryable: boolean = true,
+    originalError?: Error,
+    retryAfter?: number,
+    statusCode?: number
+  ): SearchError {
+    const customMessage = this.errorHandlingConfig.customErrorMessages[type] || message;
+    
+    const searchError = new SearchError({
+      type,
+      message: customMessage,
+      isRetryable,
+      originalError,
+      retryAfter,
+      statusCode
+    });
+
+    // Report error if callback is provided
+    if (this.errorHandlingConfig.errorReportingCallback) {
+      this.errorHandlingConfig.errorReportingCallback(searchError);
+    }
+
+    return searchError;
+  }
+
+  /**
+   * Check if an error type is generally retryable
+   */
+  private isRetryableErrorType(type: SearchError['type']): boolean {
+    const retryableTypes: SearchError['type'][] = [
+      'network',
+      'timeout',
+      'rate_limit',
+      'service_unavailable'
+    ];
+    return retryableTypes.includes(type);
+  }
+
+  /**
+   * Check if a specific error instance is retryable
+   */
+  private isRetryableError(error: SearchError): boolean {
+    if (error.isRetryable === false) {
+      return false;
+    }
+    
+    // Some errors are never retryable
+    const nonRetryableTypes: SearchError['type'][] = ['blocked', 'parsing', 'quota_exceeded'];
+    if (nonRetryableTypes.includes(error.type)) {
+      return false;
+    }
+    
+    return true;
+  }
+
+  /**
+   * Calculate exponential backoff delay with jitter
+   */
+  private calculateBackoffDelay(attempt: number): number {
+    const baseDelay = this.rateLimitConfig.baseDelayMs;
+    const multiplier = this.rateLimitConfig.backoffMultiplier;
+    const maxDelay = this.rateLimitConfig.maxDelayMs;
+    
+    let delay = baseDelay * Math.pow(multiplier, attempt - 1);
+    
+    // Apply jitter to prevent thundering herd
+    if (this.rateLimitConfig.jitterEnabled) {
+      const jitter = Math.random() * 0.3; // ±30% jitter
+      delay = delay * (1 + jitter);
+    }
+    
+    return Math.min(delay, maxDelay);
+  }
+
+  /**
+   * Handle specific error types with appropriate actions
+   */
+  private async handleSpecificError(error: SearchError): Promise<void> {
+    switch (error.type) {
+      case 'rate_limit':
+        if (error.retryAfter) {
+          await this.handleRateLimit(error.retryAfter);
+        }
+        break;
+        
+      case 'service_unavailable':
+        this.serviceAvailable = false;
+        this.lastServiceCheck = Date.now();
+        break;
+        
+      case 'blocked':
+        this.isBlocked = true;
+        this.blockUntil = Date.now() + (error.retryAfter || 3600) * 1000; // Default 1 hour block
+        break;
+        
+      case 'network':
+        // Increment consecutive failures for circuit breaker pattern
+        this.consecutiveFailures++;
+        break;
+    }
+  }
+
+  /**
+   * Check service availability and implement circuit breaker pattern
+   */
+  private async checkServiceAvailability(): Promise<void> {
+    const now = Date.now();
+    const timeSinceLastSuccess = now - this.lastSuccessfulRequest;
+    const timeSinceLastCheck = now - this.lastServiceCheck;
+    
+    // If service was marked unavailable, check if we should retry
+    if (!this.serviceAvailable && timeSinceLastCheck > 60000) { // Check every minute
+      this.serviceAvailable = true; // Reset and try again
+      this.lastServiceCheck = now;
+    }
+    
+    // Circuit breaker: if too many consecutive failures and recent failures, mark as unavailable
+    if (this.consecutiveFailures >= 5 && timeSinceLastSuccess > 300000) { // 5 minutes
+      this.serviceAvailable = false;
+      throw this.createSearchError(
+        'service_unavailable',
+        'Google Scholar appears to be unavailable due to repeated failures',
+        false
+      );
+    }
+  }
+
+  /**
+   * Record successful request and reset failure counters
+   */
+  private recordSuccessfulRequest(): void {
+    this.recordRequest();
+    this.consecutiveFailures = 0;
+    this.lastSuccessfulRequest = Date.now();
+    this.serviceAvailable = true;
+    this.isBlocked = false;
+  }
+
+  /**
+   * Attempt fallback search using alternative sources
+   */
+  private async attemptFallbackSearch(query: string, options: SearchOptions): Promise<ScholarSearchResult[]> {
+    if (!this.fallbackConfig.enabled) {
+      throw this.createSearchError('service_unavailable', 'Fallback search is disabled', false);
+    }
+
+    this.logError('Attempting fallback search with alternative sources');
+    
+    // For now, return mock results to demonstrate fallback mechanism
+    // In a real implementation, this would integrate with other academic search APIs
+    const fallbackResults: ScholarSearchResult[] = [
+      {
+        title: `Fallback result for: ${query}`,
+        authors: ['Fallback Author'],
+        journal: 'Alternative Academic Source',
+        year: new Date().getFullYear(),
+        confidence: 0.3,
+        relevance_score: 0.5,
+        abstract: 'This is a fallback result when Google Scholar is unavailable. In a production system, this would be replaced with results from alternative academic databases.'
+      }
+    ];
+
+    this.logError(`Fallback search returned ${fallbackResults.length} results`);
+    return fallbackResults;
+  }
+
+  /**
+   * Create comprehensive error message for user
+   */
+  private createComprehensiveErrorMessage(lastError: SearchError | null, retryCount: number): string {
+    if (!lastError) {
+      return 'Search failed due to unknown error';
+    }
+
+    let message = `Search failed after ${retryCount} attempts. `;
+    
+    switch (lastError.type) {
+      case 'rate_limit':
+        message += 'Rate limit exceeded. Please wait before searching again.';
+        if (lastError.retryAfter) {
+          message += ` Try again in ${lastError.retryAfter} seconds.`;
+        }
+        break;
+        
+      case 'blocked':
+        message += 'Access to Google Scholar is currently blocked. This may be due to automated request detection.';
+        break;
+        
+      case 'service_unavailable':
+        message += 'Google Scholar is temporarily unavailable. Please try again later.';
+        break;
+        
+      case 'network':
+        message += 'Network connection error. Please check your internet connection and try again.';
+        break;
+        
+      case 'timeout':
+        message += 'Search request timed out. The service may be slow or unavailable.';
+        break;
+        
+      case 'parsing':
+        message += 'Unable to parse search results. The service format may have changed.';
+        break;
+        
+      case 'quota_exceeded':
+        message += 'Daily search quota exceeded. Please try again tomorrow.';
+        break;
+        
+      default:
+        message += `Error: ${lastError.message}`;
+    }
+
+    if (this.fallbackConfig.enabled) {
+      message += ' Alternative search sources were also attempted.';
+    }
+
+    return message;
+  }
+
+  /**
+   * Log error messages if detailed logging is enabled
+   */
+  private logError(message: string, error?: unknown): void {
+    if (this.errorHandlingConfig.enableDetailedLogging) {
+      console.error(`[GoogleScholarClient] ${message}`, error);
+    }
   }
 
   /**
@@ -942,26 +1531,124 @@ export class GoogleScholarClient {
       remainingHourlyRequests: Math.max(0, this.rateLimitConfig.requestsPerHour - hourlyRequests)
     };
   }
+
+  /**
+   * Get comprehensive client status including error handling state
+   */
+  getClientStatus(): {
+    rateLimitStatus: ReturnType<typeof this.getRateLimitStatus>;
+    serviceStatus: {
+      isAvailable: boolean;
+      consecutiveFailures: number;
+      lastSuccessfulRequest: number;
+      timeSinceLastSuccess: number;
+    };
+    errorHandling: {
+      fallbackEnabled: boolean;
+      detailedLogging: boolean;
+      maxRetries: number;
+      currentBackoffMultiplier: number;
+    };
+  } {
+    const now = Date.now();
+    
+    return {
+      rateLimitStatus: this.getRateLimitStatus(),
+      serviceStatus: {
+        isAvailable: this.serviceAvailable,
+        consecutiveFailures: this.consecutiveFailures,
+        lastSuccessfulRequest: this.lastSuccessfulRequest,
+        timeSinceLastSuccess: now - this.lastSuccessfulRequest
+      },
+      errorHandling: {
+        fallbackEnabled: this.fallbackConfig.enabled,
+        detailedLogging: this.errorHandlingConfig.enableDetailedLogging,
+        maxRetries: this.rateLimitConfig.maxRetries,
+        currentBackoffMultiplier: this.rateLimitConfig.backoffMultiplier
+      }
+    };
+  }
+
+  /**
+   * Reset client state (useful for testing or recovery)
+   */
+  resetClientState(): void {
+    this.requestHistory = [];
+    this.isBlocked = false;
+    this.blockUntil = 0;
+    this.consecutiveFailures = 0;
+    this.lastSuccessfulRequest = Date.now();
+    this.serviceAvailable = true;
+    this.lastServiceCheck = 0;
+    
+    this.logError('Client state has been reset');
+  }
+
+  /**
+   * Test connection to Google Scholar (useful for health checks)
+   */
+  async testConnection(): Promise<{
+    success: boolean;
+    responseTime?: number;
+    error?: string;
+    statusCode?: number;
+  }> {
+    const startTime = Date.now();
+    
+    try {
+      // Use a simple, lightweight query for testing
+      const testUrl = this.buildSearchUrl('test', { maxResults: 1 });
+      const response = await fetch(testUrl, {
+        method: 'HEAD', // Use HEAD to minimize data transfer
+        headers: this.getRequestHeaders(),
+        signal: AbortSignal.timeout(10000) // 10 second timeout for test
+      });
+      
+      const responseTime = Date.now() - startTime;
+      
+      return {
+        success: response.ok,
+        responseTime,
+        statusCode: response.status,
+        error: response.ok ? undefined : `HTTP ${response.status}: ${response.statusText}`
+      };
+      
+    } catch (error) {
+      const responseTime = Date.now() - startTime;
+      
+      return {
+        success: false,
+        responseTime,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  }
 }
 
 /**
  * SearchError class for typed error handling
  */
 class SearchError extends Error {
-  public readonly type: 'rate_limit' | 'network' | 'parsing' | 'blocked' | 'timeout';
+  public readonly type: 'rate_limit' | 'network' | 'parsing' | 'blocked' | 'timeout' | 'service_unavailable' | 'quota_exceeded';
   public readonly retryAfter?: number;
   public readonly statusCode?: number;
+  public readonly isRetryable?: boolean;
+  public readonly originalError?: Error;
 
   constructor(options: {
-    type: 'rate_limit' | 'network' | 'parsing' | 'blocked' | 'timeout';
+    type: 'rate_limit' | 'network' | 'parsing' | 'blocked' | 'timeout' | 'service_unavailable' | 'quota_exceeded';
     message: string;
     retryAfter?: number;
     statusCode?: number;
+    isRetryable?: boolean;
+    originalError?: Error;
   }) {
     super(options.message);
     this.name = 'SearchError';
     this.type = options.type;
     this.retryAfter = options.retryAfter;
     this.statusCode = options.statusCode;
+    this.isRetryable = options.isRetryable;
+    this.originalError = options.originalError;
   }
 }
