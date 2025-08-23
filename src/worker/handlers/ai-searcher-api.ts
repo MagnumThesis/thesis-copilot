@@ -3,6 +3,7 @@ import { Context } from 'hono';
 import { Env } from '../types/env';
 import { QueryGenerationEngine, SearchQuery, QueryGenerationOptions } from '../lib/query-generation-engine';
 import { ContentExtractionEngine } from '../lib/content-extraction-engine';
+import { SearchAnalyticsManager } from '../lib/search-analytics-manager';
 import { ExtractedContent } from '../../lib/ai-types';
 
 // Define SupabaseEnv type locally since it's not exported from supabase.ts
@@ -119,12 +120,17 @@ export class AISearcherAPIHandler {
     this.queryEngine = new QueryGenerationEngine();
     this.contentEngine = new ContentExtractionEngine();
   }
+
+  private getAnalyticsManager(env: any): SearchAnalyticsManager {
+    return new SearchAnalyticsManager(env);
+  }
   /**
    * POST /api/ai-searcher/search
    * Perform AI-powered academic search
    */
   async search(c: Context<AISearcherContext>) {
     const startTime = Date.now();
+    let sessionId: string | null = null;
 
     try {
       const body = await c.req.json() as SearchRequest;
@@ -172,6 +178,22 @@ export class AISearcherAPIHandler {
         }, 400);
       }
 
+      // Record search session start
+      const analyticsManager = this.getAnalyticsManager(c.env);
+      const contentSources = body.contentSources?.map(cs => cs.source) || [];
+      sessionId = await analyticsManager.recordSearchSession({
+        conversationId: body.conversationId,
+        userId: body.conversationId, // Using conversationId as userId for now
+        searchQuery,
+        contentSources,
+        searchFilters: body.filters || {},
+        resultsCount: 0, // Will be updated after search
+        resultsAccepted: 0,
+        resultsRejected: 0,
+        searchSuccess: false, // Will be updated after search
+        processingTimeMs: 0 // Will be updated after search
+      });
+
       // Simulate AI search - in a real implementation, this would call an AI service
       // For now, we'll return mock results that match the expected format
       const mockResults: SearchResult[] = [
@@ -213,23 +235,69 @@ export class AISearcherAPIHandler {
         }
       ];
 
-      // Simulate processing time
+      // Record search results for analytics
+      if (sessionId) {
+        const analyticsManager = this.getAnalyticsManager(c.env);
+        for (const result of mockResults) {
+          await analyticsManager.recordSearchResult({
+            searchSessionId: sessionId,
+            resultTitle: result.title,
+            resultAuthors: result.authors,
+            resultJournal: result.journal,
+            resultYear: result.publication_date ? parseInt(result.publication_date) : undefined,
+            resultDoi: result.doi,
+            resultUrl: result.url,
+            relevanceScore: result.relevance_score || 0,
+            confidenceScore: result.confidence || 0,
+            qualityScore: this.calculateQualityScore(result),
+            citationCount: Math.floor(Math.random() * 100), // Mock citation count
+            addedToLibrary: false
+          });
+        }
+
+        // Update search session with results
+        const processingTime = Date.now() - startTime;
+        await this.updateSearchSession(sessionId, {
+          resultsCount: mockResults.length,
+          searchSuccess: true,
+          processingTimeMs: processingTime
+        });
+      }
+
       const processingTime = Date.now() - startTime;
 
       return c.json({
         success: true,
-        results: mockResults,
+        results: mockResults.map(result => ({
+          ...result,
+          sessionId // Include sessionId for frontend tracking
+        })),
         total_results: mockResults.length,
         query: searchQuery,
         originalQuery: body.query,
         generatedQueries: generatedQueries.length > 0 ? generatedQueries : undefined,
         extractedContent: extractedContent.length > 0 ? extractedContent : undefined,
         filters: body.filters,
+        sessionId,
         processingTime
       });
 
     } catch (error) {
       console.error('AI Search error:', error);
+
+      // Record failed search session if we have a sessionId
+      if (sessionId) {
+        try {
+          await this.updateSearchSession(sessionId, {
+            resultsCount: 0,
+            searchSuccess: false,
+            processingTimeMs: Date.now() - startTime,
+            errorMessage: error instanceof Error ? error.message : 'Unknown error'
+          });
+        } catch (analyticsError) {
+          console.error('Failed to record search failure:', analyticsError);
+        }
+      }
 
       return c.json({
         success: false,
@@ -386,6 +454,7 @@ export class AISearcherAPIHandler {
 
     try {
       const conversationId = c.req.query('conversationId');
+      const days = parseInt(c.req.query('days') || '30');
 
       if (!conversationId) {
         return c.json({
@@ -395,26 +464,35 @@ export class AISearcherAPIHandler {
         }, 400);
       }
 
-      // Mock analytics data
-      const mockAnalytics: AnalyticsData = {
-        total_searches: 47,
-        unique_queries: 32,
-        average_results: 22.5,
-        top_queries: [
-          { query: "machine learning", count: 8 },
-          { query: "artificial intelligence", count: 6 },
-          { query: "natural language processing", count: 5 }
-        ],
-        searches_by_date: [
-          { date: "2024-01-01", count: 15 },
-          { date: "2024-01-02", count: 12 },
-          { date: "2024-01-03", count: 20 }
-        ]
-      };
+      // Get comprehensive analytics report
+      const analyticsManager = this.getAnalyticsManager(c.env);
+      const analyticsReport = await analyticsManager.generateAnalyticsReport(
+        conversationId, // Using conversationId as userId
+        conversationId,
+        days
+      );
+
+      // Get additional usage metrics
+      const usageMetrics = await analyticsManager.getSearchResultUsage(
+        conversationId,
+        conversationId,
+        days
+      );
 
       return c.json({
         success: true,
-        analytics: mockAnalytics,
+        analytics: {
+          searchAnalytics: analyticsReport.searchAnalytics,
+          conversionMetrics: analyticsReport.conversionMetrics,
+          satisfactionMetrics: analyticsReport.satisfactionMetrics,
+          usageMetrics: analyticsReport.usageMetrics,
+          trends: analyticsReport.trends,
+          period: {
+            days,
+            start: new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString(),
+            end: new Date().toISOString()
+          }
+        },
         processingTime: Date.now() - startTime
       });
 
@@ -424,6 +502,7 @@ export class AISearcherAPIHandler {
       return c.json({
         success: false,
         error: 'Failed to retrieve analytics',
+        details: error instanceof Error ? error.message : 'Unknown error',
         processingTime: Date.now() - startTime
       }, 500);
     }
@@ -784,6 +863,203 @@ export class AISearcherAPIHandler {
       }, 500);
     }
   }
+
+  /**
+   * Calculate quality score for a search result
+   */
+  private calculateQualityScore(result: SearchResult): number {
+    let score = 0.5; // Base score
+
+    // Boost score for recent publications
+    if (result.publication_date) {
+      const year = parseInt(result.publication_date);
+      const currentYear = new Date().getFullYear();
+      const yearDiff = currentYear - year;
+      if (yearDiff <= 2) score += 0.3;
+      else if (yearDiff <= 5) score += 0.2;
+      else if (yearDiff <= 10) score += 0.1;
+    }
+
+    // Boost score for DOI presence (indicates peer review)
+    if (result.doi) score += 0.2;
+
+    // Boost score for journal publications
+    if (result.journal) score += 0.1;
+
+    // Boost score for multiple authors (collaboration indicator)
+    if (result.authors && result.authors.length > 1) score += 0.1;
+
+    return Math.min(score, 1.0);
+  }
+
+  /**
+   * Update search session with results
+   */
+  private async updateSearchSession(sessionId: string, updates: {
+    resultsCount?: number;
+    resultsAccepted?: number;
+    resultsRejected?: number;
+    searchSuccess?: boolean;
+    processingTimeMs?: number;
+    errorMessage?: string;
+  }): Promise<void> {
+    try {
+      // This would typically update the database record
+      // For now, we'll just log the update
+      console.log(`Updating search session ${sessionId}:`, updates);
+      
+      // In a real implementation, this would call the analytics manager
+      // to update the search session record in the database
+    } catch (error) {
+      console.error('Failed to update search session:', error);
+    }
+  }
+
+  /**
+   * POST /api/ai-searcher/track-result-action
+   * Track user actions on search results (viewed, added, rejected, etc.)
+   */
+  async trackResultAction(c: Context<AISearcherContext>) {
+    const startTime = Date.now();
+
+    try {
+      const body = await c.req.json() as {
+        resultId?: string;
+        sessionId: string;
+        resultTitle: string;
+        action: 'viewed' | 'added' | 'rejected' | 'bookmarked' | 'ignored';
+        referenceId?: string;
+        feedback?: {
+          rating?: number;
+          comments?: string;
+        };
+      };
+
+      if (!body.sessionId || !body.action || !body.resultTitle) {
+        return c.json({
+          success: false,
+          error: 'sessionId, action, and resultTitle are required',
+          processingTime: Date.now() - startTime
+        }, 400);
+      }
+
+      // Update search result action
+      if (body.resultId) {
+        const analyticsManager = this.getAnalyticsManager(c.env);
+        await analyticsManager.updateSearchResultAction(
+          body.resultId,
+          body.action,
+          body.referenceId
+        );
+      }
+
+      // Track conversion metrics
+      if (body.action === 'added' || body.action === 'rejected') {
+        console.log(`Search result ${body.action}: ${body.resultTitle}`);
+        
+        // Update session statistics
+        const updates: any = {};
+        if (body.action === 'added') {
+          updates.resultsAccepted = 1;
+        } else if (body.action === 'rejected') {
+          updates.resultsRejected = 1;
+        }
+        
+        await this.updateSearchSession(body.sessionId, updates);
+      }
+
+      return c.json({
+        success: true,
+        message: `Result action '${body.action}' tracked successfully`,
+        processingTime: Date.now() - startTime
+      });
+
+    } catch (error) {
+      console.error('Track result action error:', error);
+
+      return c.json({
+        success: false,
+        error: 'Failed to track result action',
+        processingTime: Date.now() - startTime
+      }, 500);
+    }
+  }
+
+  /**
+   * POST /api/ai-searcher/feedback
+   * Record user feedback for search quality
+   */
+  async recordFeedback(c: Context<AISearcherContext>) {
+    const startTime = Date.now();
+
+    try {
+      const body = await c.req.json() as {
+        sessionId: string;
+        conversationId: string;
+        overallSatisfaction: number;
+        relevanceRating: number;
+        qualityRating: number;
+        easeOfUseRating: number;
+        feedbackComments?: string;
+        wouldRecommend: boolean;
+        improvementSuggestions?: string;
+      };
+
+      if (!body.sessionId || !body.conversationId) {
+        return c.json({
+          success: false,
+          error: 'sessionId and conversationId are required',
+          processingTime: Date.now() - startTime
+        }, 400);
+      }
+
+      // Validate ratings (1-5 scale)
+      const ratings = [
+        body.overallSatisfaction,
+        body.relevanceRating,
+        body.qualityRating,
+        body.easeOfUseRating
+      ];
+
+      if (ratings.some(rating => rating < 1 || rating > 5)) {
+        return c.json({
+          success: false,
+          error: 'All ratings must be between 1 and 5',
+          processingTime: Date.now() - startTime
+        }, 400);
+      }
+
+      // Record feedback
+      const analyticsManager = this.getAnalyticsManager(c.env);
+      const feedbackId = await analyticsManager.recordSearchFeedback({
+        searchSessionId: body.sessionId,
+        userId: body.conversationId, // Using conversationId as userId
+        overallSatisfaction: body.overallSatisfaction,
+        relevanceRating: body.relevanceRating,
+        qualityRating: body.qualityRating,
+        easeOfUseRating: body.easeOfUseRating,
+        feedbackComments: body.feedbackComments,
+        wouldRecommend: body.wouldRecommend,
+        improvementSuggestions: body.improvementSuggestions
+      });
+
+      return c.json({
+        success: true,
+        feedbackId,
+        message: 'Feedback recorded successfully',
+        processingTime: Date.now() - startTime
+      });
+
+    } catch (error) {
+      console.error('Record feedback error:', error);
+
+      return c.json({
+        success: false,
+        error: 'Failed to record feedback',
+        processingTime: Date.now() - startTime
+      }, 500);
+    }
+  }
 }
 
 // Create Hono app instance
@@ -803,6 +1079,8 @@ app.post('/refine-query', (c) => aiSearcherAPIHandler.refineQuery(c));
 app.get('/history', (c) => aiSearcherAPIHandler.getHistory(c));
 app.delete('/history', (c) => aiSearcherAPIHandler.clearHistory(c));
 app.get('/analytics', (c) => aiSearcherAPIHandler.getAnalytics(c));
+app.post('/track-result-action', (c) => aiSearcherAPIHandler.trackResultAction(c));
+app.post('/feedback', (c) => aiSearcherAPIHandler.recordFeedback(c));
 app.get('/trending', (c) => aiSearcherAPIHandler.getTrending(c));
 app.get('/statistics', (c) => aiSearcherAPIHandler.getStatistics(c));
 app.get('/health', (c) => aiSearcherAPIHandler.health(c));

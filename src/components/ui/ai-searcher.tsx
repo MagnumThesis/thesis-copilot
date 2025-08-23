@@ -16,6 +16,7 @@ import { SearchResultsDisplay } from "./search-results-display"
 import { QueryRefinement, RefinedQuery } from "../../worker/lib/query-generation-engine"
 import { DuplicateDetectionEngine, DuplicateDetectionOptions, DuplicateGroup } from "../../worker/lib/duplicate-detection-engine"
 import { ScholarSearchResult } from "../../lib/ai-types"
+import { useSearchResultTracking } from "../../hooks/useSearchAnalytics"
 
 interface AISearcherProps {
   conversationId: string
@@ -31,6 +32,7 @@ interface SearchResult {
   url?: string
   confidence: number
   relevance_score: number
+  sessionId?: string
 }
 
 export const AISearcher: React.FC<AISearcherProps> = ({
@@ -43,6 +45,10 @@ export const AISearcher: React.FC<AISearcherProps> = ({
   const [hasSearched, setHasSearched] = useState(false)
   const [searchError, setSearchError] = useState<string | null>(null)
   const [addingReference, setAddingReference] = useState<string | null>(null)
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
+  
+  // Analytics tracking
+  const searchTracking = useSearchResultTracking(currentSessionId || '')
   
   // Content source selection state
   const [showContentSelector, setShowContentSelector] = useState(false)
@@ -97,6 +103,11 @@ export const AISearcher: React.FC<AISearcherProps> = ({
       if (data.success) {
         const results = data.results || []
         setOriginalResults(results)
+        
+        // Capture sessionId for analytics tracking
+        if (data.sessionId) {
+          setCurrentSessionId(data.sessionId)
+        }
         
         // Convert to ScholarSearchResult format for duplicate detection
         const scholarResults: ScholarSearchResult[] = results.map(result => ({
@@ -261,6 +272,19 @@ export const AISearcher: React.FC<AISearcherProps> = ({
         if (onAddReference) {
           await onAddReference(data.reference)
         }
+        
+        // Track reference addition for analytics
+        if (currentSessionId) {
+          try {
+            await searchTracking.trackReferenceAdded(
+              result.title,
+              data.reference.id,
+              resultId
+            )
+          } catch (trackingError) {
+            console.warn('Failed to track reference addition:', trackingError)
+          }
+        }
       } else if (data.isDuplicate && data.mergeOptions) {
         // Handle duplicate reference - for now, show error
         // In a full implementation, this would show a merge dialog
@@ -271,10 +295,35 @@ export const AISearcher: React.FC<AISearcherProps> = ({
       }
     } catch (error) {
       console.error('Error adding reference:', error)
+      
+      // Track reference rejection for analytics
+      if (currentSessionId) {
+        try {
+          await searchTracking.trackReferenceRejected(
+            result.title,
+            resultId,
+            { comments: error instanceof Error ? error.message : 'Unknown error' }
+          )
+        } catch (trackingError) {
+          console.warn('Failed to track reference rejection:', trackingError)
+        }
+      }
+      
       // Error handling is done in the parent component
       throw error
     } finally {
       setAddingReference(null)
+    }
+  }
+
+  const handleResultView = async (result: SearchResult) => {
+    // Track when user views a search result
+    if (currentSessionId) {
+      try {
+        await searchTracking.trackReferenceViewed(result.title)
+      } catch (trackingError) {
+        console.warn('Failed to track result view:', trackingError)
+      }
     }
   }
 
