@@ -4,18 +4,18 @@ This document breaks down the implementation of the comprehensive codebase docum
 
 ### 1. Setup and Configuration
 
-- [ ] **1.1. Install and configure Vocs**
+- [X] **1.1. Install and configure Vocs**
     - Install Vocs as a dev dependency.
-    - Create a `docs` directory for the Vocs project.
+    - Create a `doc-site` directory for the Vocs project.
     - Configure the Vocs project with a title, sidebar navigation, and other basic settings.
     - *Requirement: 1.1, 1.2*
 
-- [ ] **1.2. Install and configure TypeDoc**
+- [X] **1.2. Install and configure TypeDoc**
     - Install `typedoc` and `typedoc-plugin-markdown` as dev dependencies.
     - Create a `typedoc.json` configuration file to define the entry points for the documentation generation and the output directory.
     - *Requirement: 2.1, 2.2, 3.1, 3.2, 3.3*
 
-- [ ] **1.3. Set up ESLint for TSDoc**
+- [X] **1.3. Set up ESLint for TSDoc**
     - Install `eslint-plugin-jsdoc` as a dev dependency.
     - Configure ESLint to enforce TSDoc standards for all TypeScript files.
     - *Requirement: 4.1, 4.2*

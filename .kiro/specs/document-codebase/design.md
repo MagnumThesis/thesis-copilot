@@ -9,14 +9,14 @@ This document outlines the design for creating and maintaining a comprehensive d
 The documentation system will be composed of two main parts:
 
 1.  **In-Code Documentation:** We will use the TSDoc standard for documenting all TypeScript code, including components, hooks, functions, and classes. This will provide immediate documentation within the IDE and serve as the source of truth for the generated documentation.
-2.  **Documentation Site:** We will use [Vocs](https://vocs.dev/), a minimal and modern documentation generator built for React and Vite, to create a static documentation website. This site will be generated from the existing Markdown files in the `docs` directory and from the TSDoc comments in the source code.
+2.  **Documentation Site:** We will use [Vocs](https://vocs.dev/), a minimal and modern documentation generator built for React and Vite, to create a static documentation website. This site will be generated from the existing Markdown files in the `doc-site` directory and from the TSDoc comments in the source code.
 
 The overall architecture will look like this:
 
 ```mermaid
 graph TD
     A[Source Code with TSDoc Comments] --> B{Vocs};
-    C[Markdown Files in /docs] --> B;
+    C[Markdown Files in /doc-site] --> B;
     B --> D[Static Documentation Website];
 ```
 
