@@ -29,6 +29,16 @@ interface SearchRequest {
   }>;
   queryOptions?: QueryGenerationOptions;
   filters?: {
+    dateRange?: {
+      start: number;
+      end: number;
+    };
+    authors?: string[];
+    journals?: string[];
+    minCitations?: number;
+    maxResults?: number;
+    sortBy?: 'relevance' | 'date' | 'citations' | 'quality';
+    // Legacy filters for backward compatibility
     publicationDate?: string;
     author?: string;
     journal?: string;
@@ -199,7 +209,7 @@ export class AISearcherAPIHandler {
 
       // Simulate AI search - in a real implementation, this would call an AI service
       // For now, we'll return mock results that match the expected format
-      const mockResults: SearchResult[] = [
+      let mockResults: SearchResult[] = [
         {
           title: "Machine Learning Approaches to Natural Language Processing",
           authors: ["Smith, J.", "Johnson, A.", "Williams, B."],
@@ -237,6 +247,11 @@ export class AISearcherAPIHandler {
           keywords: ["reference management", "AI", "academic tools"]
         }
       ];
+
+      // Apply filters to mock results
+      if (body.filters) {
+        mockResults = this.applyFilters(mockResults, body.filters);
+      }
 
       // Apply learning-based ranking to results
       let finalResults = mockResults;
@@ -915,6 +930,131 @@ export class AISearcherAPIHandler {
         processingTime: Date.now() - startTime
       }, 500);
     }
+  }
+
+  /**
+   * Apply search filters to results
+   */
+  private applyFilters(results: SearchResult[], filters: any): SearchResult[] {
+    let filteredResults = [...results];
+
+    // Apply date range filter
+    if (filters.dateRange) {
+      filteredResults = filteredResults.filter(result => {
+        if (!result.publication_date) return false;
+        const year = parseInt(result.publication_date);
+        const startYear = filters.dateRange.start || 1900;
+        const endYear = filters.dateRange.end || new Date().getFullYear();
+        return year >= startYear && year <= endYear;
+      });
+    }
+
+    // Apply authors filter
+    if (filters.authors && filters.authors.length > 0) {
+      filteredResults = filteredResults.filter(result => {
+        return filters.authors.some((filterAuthor: string) =>
+          result.authors.some(author => 
+            author.toLowerCase().includes(filterAuthor.toLowerCase())
+          )
+        );
+      });
+    }
+
+    // Apply journals filter
+    if (filters.journals && filters.journals.length > 0) {
+      filteredResults = filteredResults.filter(result => {
+        if (!result.journal) return false;
+        return filters.journals.some((filterJournal: string) =>
+          result.journal!.toLowerCase().includes(filterJournal.toLowerCase())
+        );
+      });
+    }
+
+    // Apply minimum citations filter (mock implementation)
+    if (filters.minCitations && filters.minCitations > 0) {
+      filteredResults = filteredResults.filter(result => {
+        // Since we don't have real citation data, we'll use a mock calculation
+        // based on publication year and journal quality
+        const mockCitations = this.calculateMockCitations(result);
+        return mockCitations >= filters.minCitations;
+      });
+    }
+
+    // Apply sorting
+    if (filters.sortBy) {
+      filteredResults = this.sortResults(filteredResults, filters.sortBy);
+    }
+
+    // Apply max results limit
+    if (filters.maxResults && filters.maxResults > 0) {
+      filteredResults = filteredResults.slice(0, filters.maxResults);
+    }
+
+    return filteredResults;
+  }
+
+  /**
+   * Sort search results based on criteria
+   */
+  private sortResults(results: SearchResult[], sortBy: string): SearchResult[] {
+    const sortedResults = [...results];
+
+    switch (sortBy) {
+      case 'date':
+        return sortedResults.sort((a, b) => {
+          const yearA = a.publication_date ? parseInt(a.publication_date) : 0;
+          const yearB = b.publication_date ? parseInt(b.publication_date) : 0;
+          return yearB - yearA; // Newest first
+        });
+
+      case 'citations':
+        return sortedResults.sort((a, b) => {
+          const citationsA = this.calculateMockCitations(a);
+          const citationsB = this.calculateMockCitations(b);
+          return citationsB - citationsA; // Highest first
+        });
+
+      case 'quality':
+        return sortedResults.sort((a, b) => {
+          const qualityA = this.calculateQualityScore(a);
+          const qualityB = this.calculateQualityScore(b);
+          return qualityB - qualityA; // Highest first
+        });
+
+      case 'relevance':
+      default:
+        return sortedResults.sort((a, b) => {
+          return (b.relevance_score || 0) - (a.relevance_score || 0); // Highest first
+        });
+    }
+  }
+
+  /**
+   * Calculate mock citation count for demonstration
+   */
+  private calculateMockCitations(result: SearchResult): number {
+    let citations = 0;
+
+    // Base citations on publication year (older papers tend to have more citations)
+    if (result.publication_date) {
+      const year = parseInt(result.publication_date);
+      const currentYear = new Date().getFullYear();
+      const yearsSincePublication = currentYear - year;
+      citations += Math.max(0, yearsSincePublication * 5);
+    }
+
+    // Boost for high-quality journals
+    if (result.journal) {
+      const highQualityJournals = ['Nature', 'Science', 'Cell', 'Journal of Artificial Intelligence Research'];
+      if (highQualityJournals.some(journal => result.journal!.includes(journal))) {
+        citations += 50;
+      }
+    }
+
+    // Add some randomness for variety
+    citations += Math.floor(Math.random() * 30);
+
+    return citations;
   }
 
   /**

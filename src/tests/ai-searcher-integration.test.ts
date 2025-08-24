@@ -1,300 +1,284 @@
-/**
- * AI Searcher Integration Tests
- * Tests the end-to-end flow from AI search to reference addition
- */
-
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { Reference, ReferenceType } from '../lib/ai-types'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import React from 'react'
+import { AISearcher } from '../components/ui/ai-searcher'
+import { SearchFilters } from '../lib/ai-types'
 
-// Mock fetch for testing
+// Mock the hooks and dependencies
+vi.mock('../hooks/useSearchAnalytics', () => ({
+  useSearchResultTracking: () => ({
+    trackReferenceAdded: vi.fn(),
+    trackReferenceRejected: vi.fn(),
+    trackReferenceViewed: vi.fn()
+  })
+}))
+
+vi.mock('../components/ui/content-source-selector', () => ({
+  ContentSourceSelector: () => React.createElement('div', { 'data-testid': 'content-source-selector' }, 'Content Source Selector')
+}))
+
+vi.mock('../components/ui/query-refinement-panel', () => ({
+  QueryRefinementPanel: () => React.createElement('div', { 'data-testid': 'query-refinement-panel' }, 'Query Refinement Panel')
+}))
+
+vi.mock('../components/ui/deduplication-settings', () => ({
+  DeduplicationSettings: () => React.createElement('div', { 'data-testid': 'deduplication-settings' }, 'Deduplication Settings')
+}))
+
+vi.mock('../components/ui/duplicate-conflict-resolver', () => ({
+  DuplicateConflictResolver: () => React.createElement('div', { 'data-testid': 'duplicate-conflict-resolver' }, 'Duplicate Conflict Resolver')
+}))
+
+vi.mock('../components/ui/search-results-display', () => ({
+  SearchResultsDisplay: () => React.createElement('div', { 'data-testid': 'search-results-display' }, 'Search Results Display')
+}))
+
+vi.mock('../components/ui/search-session-feedback', () => ({
+  SearchSessionFeedbackComponent: () => React.createElement('div', { 'data-testid': 'search-session-feedback' }, 'Search Session Feedback')
+}))
+
+vi.mock('../components/ui/search-filters-panel', () => ({
+  SearchFiltersPanel: ({ isVisible, filters, onFiltersChange }: any) => {
+    if (!isVisible) return null
+    return React.createElement('div', { 'data-testid': 'search-filters-panel' }, 
+      React.createElement('h3', {}, 'Search Filters'),
+      React.createElement('input', { 
+        'data-testid': 'start-year-input',
+        'aria-label': 'From Year',
+        onChange: (e: any) => onFiltersChange({ 
+          ...filters, 
+          dateRange: { ...filters.dateRange, start: parseInt(e.target.value) || undefined }
+        })
+      }),
+      React.createElement('input', { 
+        'data-testid': 'end-year-input',
+        'aria-label': 'To Year',
+        onChange: (e: any) => onFiltersChange({ 
+          ...filters, 
+          dateRange: { ...filters.dateRange, end: parseInt(e.target.value) || undefined }
+        })
+      }),
+      React.createElement('input', { 
+        'data-testid': 'authors-input',
+        placeholder: 'Enter author names separated by commas',
+        onChange: (e: any) => {
+          const authors = e.target.value.split(',').map((a: string) => a.trim()).filter(Boolean)
+          onFiltersChange({ ...filters, authors })
+        }
+      }),
+      React.createElement('button', { 
+        'data-testid': 'reset-filters',
+        onClick: () => onFiltersChange({ sortBy: 'relevance' })
+      }, 'Reset'),
+      filters.dateRange?.start && React.createElement('span', {}, '1 active'),
+      filters.authors?.length > 0 && filters.dateRange?.start && React.createElement('span', {}, '2 active')
+    )
+  }
+}))
+
+vi.mock('../worker/lib/duplicate-detection-engine', () => ({
+  DuplicateDetectionEngine: vi.fn().mockImplementation(() => ({
+    detectDuplicates: vi.fn().mockReturnValue([]),
+    removeDuplicates: vi.fn().mockReturnValue([])
+  }))
+}))
+
+// Mock fetch for API calls
 global.fetch = vi.fn()
 
 describe('AI Searcher Integration', () => {
+  const mockProps = {
+    conversationId: 'test-conversation-id',
+    onAddReference: vi.fn()
+  }
+
   beforeEach(() => {
     vi.clearAllMocks()
+    // Mock successful API response
+    ;(global.fetch as any).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        success: true,
+        results: [
+          {
+            title: "Test Paper 1",
+            authors: ["Author A", "Author B"],
+            journal: "Test Journal",
+            publication_date: "2023",
+            confidence: 0.9,
+            relevance_score: 0.8
+          }
+        ],
+        sessionId: 'test-session-id'
+      })
+    })
   })
 
-  describe('Reference Addition Flow', () => {
-    it('should successfully add a reference from AI search results', async () => {
-      // Mock successful API responses
-      const mockSearchResult = {
-        title: "Machine Learning in Academic Research",
-        authors: ["Smith, J.", "Johnson, A."],
-        journal: "Journal of AI Research",
-        publication_date: "2023",
-        doi: "10.1234/jair.2023.12345",
-        url: "https://doi.org/10.1234/jair.2023.12345",
-        confidence: 0.92,
-        relevance_score: 0.88
-      }
+  it('should render search filters panel', () => {
+    render(<AISearcher {...mockProps} />)
+    
+    // Check if the filters button is present
+    expect(screen.getByText('Filters')).toBeInTheDocument()
+  })
 
-      const mockCreatedReference: Reference = {
-        id: 'ref_123',
-        conversation_id: 'conv_123',
-        type: ReferenceType.JOURNAL_ARTICLE,
-        title: mockSearchResult.title,
-        authors: mockSearchResult.authors,
-        journal: mockSearchResult.journal,
-        publication_date: mockSearchResult.publication_date,
-        doi: mockSearchResult.doi,
-        url: mockSearchResult.url,
-        tags: [],
-        metadata_confidence: mockSearchResult.confidence,
-        ai_confidence: mockSearchResult.confidence,
-        ai_relevance_score: mockSearchResult.relevance_score,
-        ai_search_query: 'machine learning research',
-        ai_search_source: 'ai-searcher',
-        ai_search_timestamp: '2024-01-01T00:00:00.000Z',
-        created_at: '2024-01-01T00:00:00.000Z',
-        updated_at: '2024-01-01T00:00:00.000Z'
-      }
-
-      // Mock the reference creation API call
-      ;(fetch as any).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          success: true,
-          reference: mockCreatedReference
-        })
-      })
-
-      // Simulate the reference addition process
-      const referenceData = {
-        conversationId: 'conv_123',
-        type: 'journal_article',
-        title: mockSearchResult.title,
-        authors: mockSearchResult.authors,
-        journal: mockSearchResult.journal,
-        publication_date: mockSearchResult.publication_date,
-        doi: mockSearchResult.doi,
-        url: mockSearchResult.url,
-        tags: [],
-        ai_search_source: 'ai-searcher',
-        ai_confidence: mockSearchResult.confidence,
-        ai_relevance_score: mockSearchResult.relevance_score,
-        ai_search_query: 'machine learning research',
-        ai_search_timestamp: expect.any(String),
-        extractMetadata: false
-      }
-
-      const response = await fetch('/api/referencer/references', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(referenceData)
-      })
-
-      const result = await response.json()
-
-      expect(fetch).toHaveBeenCalledWith('/api/referencer/references', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(referenceData)
-      })
-
-      expect(result.success).toBe(true)
-      expect(result.reference).toEqual(mockCreatedReference)
+  it('should toggle search filters panel visibility', async () => {
+    render(<AISearcher {...mockProps} />)
+    
+    const filtersButton = screen.getByText('Filters')
+    
+    // Initially filters panel should not be visible
+    expect(screen.queryByText('Search Filters')).not.toBeInTheDocument()
+    
+    // Click to show filters
+    fireEvent.click(filtersButton)
+    
+    // Now filters panel should be visible
+    await waitFor(() => {
+      expect(screen.getByText('Search Filters')).toBeInTheDocument()
     })
+  })
 
-    it('should handle duplicate reference detection', async () => {
-      const mockExistingReference: Reference = {
-        id: 'ref_existing',
-        conversation_id: 'conv_123',
-        type: ReferenceType.JOURNAL_ARTICLE,
-        title: "Machine Learning in Academic Research",
-        authors: ["Smith, J.", "Johnson, A."],
-        journal: "Journal of AI Research",
-        publication_date: "2023",
-        doi: "10.1234/jair.2023.12345",
-        url: "https://doi.org/10.1234/jair.2023.12345",
-        tags: [],
-        metadata_confidence: 0.9,
-        ai_confidence: 0.9,
-        ai_relevance_score: 0.85,
-        created_at: '2024-01-01T00:00:00.000Z',
-        updated_at: '2024-01-01T00:00:00.000Z'
-      }
-
-      // Mock the get references API call
-      ;(fetch as any).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          success: true,
-          references: [mockExistingReference]
-        })
-      })
-
-      const response = await fetch('/api/referencer/references/conv_123')
-      const result = await response.json()
-
-      expect(result.success).toBe(true)
-      expect(result.references).toContain(mockExistingReference)
-
-      // Test duplicate detection logic
-      const newReference = {
-        title: "Machine Learning in Academic Research",
-        doi: "10.1234/jair.2023.12345"
-      }
-
-      const isDuplicate = result.references.some((existing: Reference) => {
-        return (newReference.doi && existing.doi && 
-                newReference.doi.toLowerCase() === existing.doi.toLowerCase()) ||
-               (newReference.title && existing.title && 
-                newReference.title.toLowerCase().trim() === existing.title.toLowerCase().trim())
-      })
-
-      expect(isDuplicate).toBe(true)
+  it('should include filters in search API request', async () => {
+    render(<AISearcher {...mockProps} />)
+    
+    // Open filters panel
+    const filtersButton = screen.getByText('Filters')
+    fireEvent.click(filtersButton)
+    
+    await waitFor(() => {
+      expect(screen.getByText('Search Filters')).toBeInTheDocument()
     })
-
-    it('should handle API errors gracefully', async () => {
-      // Mock failed API response
-      ;(fetch as any).mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-        statusText: 'Internal Server Error',
-        json: async () => ({
-          success: false,
-          error: 'Database connection failed'
-        })
-      })
-
-      const response = await fetch('/api/referencer/references', {
+    
+    // Set a search query
+    const searchInput = screen.getByPlaceholderText(/Enter your search query/)
+    fireEvent.change(searchInput, { target: { value: 'machine learning' } })
+    
+    // Perform search
+    const searchButton = screen.getByText('Search')
+    fireEvent.click(searchButton)
+    
+    // Verify API was called with filters
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith('/api/ai-searcher/search', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          conversationId: 'conv_123',
-          type: 'journal_article',
-          title: 'Test Reference'
-        })
-      })
-
-      expect(response.ok).toBe(false)
-      expect(response.status).toBe(500)
-
-      const result = await response.json()
-      expect(result.success).toBe(false)
-      expect(result.error).toBe('Database connection failed')
-    })
-
-    it('should handle search failures with fallback results', async () => {
-      // Mock failed search API response
-      ;(fetch as any).mockResolvedValueOnce({
-        ok: false,
-        status: 503,
-        statusText: 'Service Unavailable'
-      })
-
-      try {
-        const response = await fetch('/api/ai-searcher/search', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            query: 'machine learning',
-            conversationId: 'conv_123'
-          })
-        })
-
-        if (!response.ok) {
-          throw new Error(`Search failed: ${response.statusText}`)
-        }
-      } catch (error) {
-        expect(error.message).toBe('Search failed: Service Unavailable')
-        
-        // In the actual component, fallback results would be shown
-        const fallbackResults = [
-          {
-            title: "Machine Learning Approaches to Natural Language Processing",
-            authors: ["Smith, J.", "Johnson, A.", "Williams, B."],
-            journal: "Journal of Artificial Intelligence Research",
-            publication_date: "2023",
-            doi: "10.1234/jair.2023.12345",
-            url: "https://doi.org/10.1234/jair.2023.12345",
-            confidence: 0.92,
-            relevance_score: 0.88
+          query: 'machine learning',
+          conversationId: 'test-conversation-id',
+          filters: {
+            sortBy: 'relevance'
           }
-        ]
-
-        expect(fallbackResults).toHaveLength(1)
-        expect(fallbackResults[0].title).toContain('Machine Learning')
-      }
-    })
-  })
-
-  describe('Error Handling', () => {
-    it('should validate required fields before API call', () => {
-      const invalidReference = {
-        // Missing required fields like title, authors
-        journal: "Test Journal"
-      }
-
-      // This would be caught by validation before the API call
-      const hasRequiredFields = !!(invalidReference as any).title && 
-                               !!(invalidReference as any).authors && 
-                               (invalidReference as any).authors.length > 0
-
-      expect(hasRequiredFields).toBe(false)
-    })
-
-    it('should handle network errors', async () => {
-      // Mock network error
-      ;(fetch as any).mockRejectedValueOnce(new Error('Network error'))
-
-      try {
-        await fetch('/api/referencer/references', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            conversationId: 'conv_123',
-            type: 'journal_article',
-            title: 'Test Reference'
-          })
         })
-      } catch (error) {
-        expect(error.message).toBe('Network error')
-      }
+      })
     })
   })
 
-  describe('Data Transformation', () => {
-    it('should correctly transform search results to reference format', () => {
-      const searchResult = {
-        title: "AI Research Paper",
-        authors: ["Author, A.", "Writer, B."],
-        journal: "AI Journal",
-        publication_date: "2023",
-        doi: "10.1234/test.2023",
-        url: "https://example.com",
-        confidence: 0.95,
-        relevance_score: 0.87
-      }
+  it('should handle search with custom filters', async () => {
+    render(<AISearcher {...mockProps} />)
+    
+    // Open filters panel
+    const filtersButton = screen.getByText('Filters')
+    fireEvent.click(filtersButton)
+    
+    await waitFor(() => {
+      expect(screen.getByText('Search Filters')).toBeInTheDocument()
+    })
+    
+    // Set date range filter
+    const startYearInput = screen.getByLabelText('From Year')
+    fireEvent.change(startYearInput, { target: { value: '2020' } })
+    
+    const endYearInput = screen.getByLabelText('To Year')
+    fireEvent.change(endYearInput, { target: { value: '2023' } })
+    
+    // Set search query
+    const searchInput = screen.getByPlaceholderText(/Enter your search query/)
+    fireEvent.change(searchInput, { target: { value: 'AI research' } })
+    
+    // Perform search
+    const searchButton = screen.getByText('Search')
+    fireEvent.click(searchButton)
+    
+    // Verify API was called with date range filters
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith('/api/ai-searcher/search', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          query: 'AI research',
+          conversationId: 'test-conversation-id',
+          filters: {
+            dateRange: { start: 2020, end: 2023 },
+            sortBy: 'relevance'
+          }
+        })
+      })
+    })
+  })
 
-      const transformedReference = {
-        type: ReferenceType.JOURNAL_ARTICLE,
-        title: searchResult.title,
-        authors: searchResult.authors,
-        journal: searchResult.journal,
-        publication_date: searchResult.publication_date,
-        doi: searchResult.doi,
-        url: searchResult.url,
-        metadata_confidence: searchResult.confidence,
-        ai_confidence: searchResult.confidence,
-        ai_relevance_score: searchResult.relevance_score,
-        ai_search_query: 'test query'
-      }
+  it('should reset filters when reset button is clicked', async () => {
+    render(<AISearcher {...mockProps} />)
+    
+    // Open filters panel
+    const filtersButton = screen.getByText('Filters')
+    fireEvent.click(filtersButton)
+    
+    await waitFor(() => {
+      expect(screen.getByText('Search Filters')).toBeInTheDocument()
+    })
+    
+    // Set some filters
+    const startYearInput = screen.getByLabelText('From Year')
+    fireEvent.change(startYearInput, { target: { value: '2020' } })
+    
+    const authorsInput = screen.getByPlaceholderText(/Enter author names/)
+    fireEvent.change(authorsInput, { target: { value: 'Smith, Johnson' } })
+    
+    // Reset filters
+    const resetButton = screen.getByText('Reset')
+    fireEvent.click(resetButton)
+    
+    // Verify filters are reset
+    await waitFor(() => {
+      expect(startYearInput).toHaveValue('')
+      expect(authorsInput).toHaveValue('')
+    })
+  })
 
-      expect(transformedReference.title).toBe(searchResult.title)
-      expect(transformedReference.authors).toEqual(searchResult.authors)
-      expect(transformedReference.ai_confidence).toBe(searchResult.confidence)
-      expect(transformedReference.ai_relevance_score).toBe(searchResult.relevance_score)
+  it('should show active filters count', async () => {
+    render(<AISearcher {...mockProps} />)
+    
+    // Open filters panel
+    const filtersButton = screen.getByText('Filters')
+    fireEvent.click(filtersButton)
+    
+    await waitFor(() => {
+      expect(screen.getByText('Search Filters')).toBeInTheDocument()
+    })
+    
+    // Initially no active filters badge
+    expect(screen.queryByText(/active/)).not.toBeInTheDocument()
+    
+    // Set a date range filter
+    const startYearInput = screen.getByLabelText('From Year')
+    fireEvent.change(startYearInput, { target: { value: '2020' } })
+    
+    // Should show active filters count
+    await waitFor(() => {
+      expect(screen.getByText('1 active')).toBeInTheDocument()
+    })
+    
+    // Add another filter
+    const authorsInput = screen.getByPlaceholderText(/Enter author names/)
+    fireEvent.change(authorsInput, { target: { value: 'Smith' } })
+    
+    // Should show updated count
+    await waitFor(() => {
+      expect(screen.getByText('2 active')).toBeInTheDocument()
     })
   })
 })

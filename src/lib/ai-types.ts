@@ -879,6 +879,19 @@ export interface ContentExtractionRequest {
   id?: string;
 }
 
+// Search filters interface
+export interface SearchFilters {
+  dateRange?: {
+    start: number;
+    end: number;
+  };
+  authors?: string[];
+  journals?: string[];
+  minCitations?: number;
+  maxResults?: number;
+  sortBy: 'relevance' | 'date' | 'citations' | 'quality';
+}
+
 // Missing types for concern status management
 export interface ConcernStatusUpdate {
   concernId: string;

@@ -7,7 +7,7 @@ import { Label } from "./shadcn/label"
 import { Card, CardContent, CardHeader, CardTitle } from "./shadcn/card"
 import { Badge } from "./shadcn/badge"
 import { Reference, ReferenceType, ExtractedContent } from "../../lib/ai-types"
-import { Search, Sparkles, ExternalLink, Plus, Settings, Zap, Merge, AlertTriangle } from "lucide-react"
+import { Search, Sparkles, ExternalLink, Plus, Settings, Zap, Merge, AlertTriangle, MessageSquare, Filter } from "lucide-react"
 import { ContentSourceSelector } from "./content-source-selector"
 import { QueryRefinementPanel } from "./query-refinement-panel"
 import { DuplicateConflictResolver } from "./duplicate-conflict-resolver"
@@ -15,9 +15,10 @@ import { DeduplicationSettings } from "./deduplication-settings"
 import { SearchResultsDisplay } from "./search-results-display"
 import { SearchSessionFeedbackComponent, SearchSessionFeedback } from "./search-session-feedback"
 import { SearchResultFeedback } from "./search-result-feedback"
+import { SearchFiltersPanel } from "./search-filters-panel"
 import { QueryRefinement, RefinedQuery } from "../../worker/lib/query-generation-engine"
 import { DuplicateDetectionEngine, DuplicateDetectionOptions, DuplicateGroup } from "../../worker/lib/duplicate-detection-engine"
-import { ScholarSearchResult } from "../../lib/ai-types"
+import { ScholarSearchResult, SearchFilters } from "../../lib/ai-types"
 import { useSearchResultTracking } from "../../hooks/useSearchAnalytics"
 
 interface AISearcherProps {
@@ -34,6 +35,8 @@ interface SearchResult {
   url?: string
   confidence: number
   relevance_score: number
+  citations?: number
+  keywords?: string[]
   sessionId?: string
 }
 
@@ -80,6 +83,12 @@ export const AISearcher: React.FC<AISearcherProps> = ({
   // Feedback state
   const [showSessionFeedback, setShowSessionFeedback] = useState(false)
   const [sessionFeedbackSubmitted, setSessionFeedbackSubmitted] = useState(false)
+  
+  // Search filters state
+  const [searchFilters, setSearchFilters] = useState<SearchFilters>({
+    sortBy: 'relevance'
+  })
+  const [showFilters, setShowFilters] = useState(false)
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return
@@ -96,7 +105,8 @@ export const AISearcher: React.FC<AISearcherProps> = ({
         },
         body: JSON.stringify({
           query: searchQuery,
-          conversationId: conversationId
+          conversationId: conversationId,
+          filters: searchFilters
         })
       })
 
@@ -116,7 +126,7 @@ export const AISearcher: React.FC<AISearcherProps> = ({
         }
         
         // Convert to ScholarSearchResult format for duplicate detection
-        const scholarResults: ScholarSearchResult[] = results.map(result => ({
+        const scholarResults: ScholarSearchResult[] = results.map((result: SearchResult) => ({
           ...result,
           authors: result.authors || [],
           year: result.publication_date ? parseInt(result.publication_date) : undefined,
@@ -155,7 +165,7 @@ export const AISearcher: React.FC<AISearcherProps> = ({
       }
     } catch (error) {
       console.error('Error performing AI search:', error)
-      setSearchError(error.message || 'Search failed. Please try again.')
+      setSearchError(error instanceof Error ? error.message : 'Search failed. Please try again.')
       
       // Fallback to mock results if API fails (for development/testing)
       const mockResults: SearchResult[] = [
@@ -250,7 +260,7 @@ export const AISearcher: React.FC<AISearcherProps> = ({
         relevance_score: result.relevance_score,
         citation_count: result.citations,
         keywords: [],
-        publisher: undefined
+
       }
 
       // Call the new AI search reference addition API
@@ -619,6 +629,18 @@ export const AISearcher: React.FC<AISearcherProps> = ({
     setShowSessionFeedback(false)
   }
 
+  const handleFiltersChange = (filters: SearchFilters) => {
+    setSearchFilters(filters)
+  }
+
+  const handleResetFilters = () => {
+    setSearchFilters({ sortBy: 'relevance' })
+  }
+
+  const handleToggleFilters = () => {
+    setShowFilters(!showFilters)
+  }
+
   const getConfidenceColor = (confidence: number): string => {
     if (confidence >= 0.9) return 'bg-green-100 text-green-800'
     if (confidence >= 0.8) return 'bg-yellow-100 text-yellow-800'
@@ -680,6 +702,14 @@ export const AISearcher: React.FC<AISearcherProps> = ({
                 />
                 <Button
                   variant="outline"
+                  onClick={handleToggleFilters}
+                  className="flex items-center gap-2"
+                >
+                  <Filter className="h-4 w-4" />
+                  Filters
+                </Button>
+                <Button
+                  variant="outline"
                   onClick={handleRefineQuery}
                   disabled={refinementLoading || !searchQuery.trim()}
                   className="flex items-center gap-2"
@@ -718,6 +748,15 @@ export const AISearcher: React.FC<AISearcherProps> = ({
           isVisible={showContentSelector}
         />
       )}
+
+      {/* Search Filters Panel */}
+      <SearchFiltersPanel
+        filters={searchFilters}
+        onFiltersChange={handleFiltersChange}
+        onReset={handleResetFilters}
+        isVisible={showFilters}
+        onToggleVisibility={handleToggleFilters}
+      />
 
       {/* Query Refinement Panel */}
       {showQueryRefinement && queryRefinement && (
