@@ -29,6 +29,21 @@ export interface KeyboardNavigationResult {
 /**
  * Hook for managing keyboard navigation in lists and grids
  */
+/**
+ * @function useKeyboardNavigation
+ * @description Hook for managing keyboard navigation in lists and grids.
+ * @param {KeyboardNavigationOptions} options - Options for keyboard navigation.
+ * @returns {KeyboardNavigationResult}
+ * - `focusedIndex`: The index of the currently focused item.
+ * - `setFocusedIndex`: Function to set the focused index.
+ * - `focusNext`: Function to move focus to the next item.
+ * - `focusPrevious`: Function to move focus to the previous item.
+ * - `focusFirst`: Function to move focus to the first item.
+ * - `focusLast`: Function to move focus to the last item.
+ * - `handleKeyDown`: Event handler for keyboard events.
+ * - `registerItem`: Function to register an item with its element.
+ * - `unregisterItem`: Function to unregister an item.
+ */
 export function useKeyboardNavigation(
   options: KeyboardNavigationOptions
 ): KeyboardNavigationResult {
@@ -210,6 +225,18 @@ export function useKeyboardNavigation(
 
 /**
  * Hook for roving tabindex pattern
+ */
+/**
+ * @function useRovingTabIndex
+ * @description Hook for roving tabindex pattern.
+ * @param {Array<{ id: string; disabled?: boolean }>} items - The list of items.
+ * @param {number} [defaultFocusedIndex=0] - The default focused index.
+ * @returns {{focusedIndex: number, setFocusedIndex: (index: number) => void, getTabIndex: (index: number) => number, getAriaSelected: (index: number) => boolean, moveFocus: (direction: 'next' | 'previous' | 'first' | 'last') => void}}
+ * - `focusedIndex`: The index of the currently focused item.
+ * - `setFocusedIndex`: Function to set the focused index.
+ * - `getTabIndex`: Function to get the tabindex for an item.
+ * - `getAriaSelected`: Function to get the aria-selected attribute for an item.
+ * - `moveFocus`: Function to move focus in a given direction.
  */
 export function useRovingTabIndex(
   items: Array<{ id: string; disabled?: boolean }>,

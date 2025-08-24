@@ -5,6 +5,18 @@ const ACTIVATION_THRESHOLD = 50
 // Minimum pixels of scroll-up movement required to disable auto-scroll
 const MIN_SCROLL_UP_THRESHOLD = 10
 
+/**
+ * @function useAutoScroll
+ * @description A hook that provides auto-scrolling functionality for a scrollable container.
+ * It automatically scrolls to the bottom when new content is added, unless the user has scrolled up.
+ * @param {React.DependencyList} dependencies - Dependencies that, when changed, will trigger a scroll to bottom if auto-scroll is enabled.
+ * @returns {{containerRef: React.RefObject<HTMLDivElement>, scrollToBottom: () => void, handleScroll: () => void, shouldAutoScroll: boolean, handleTouchStart: () => void}}
+ * - `containerRef`: A ref to be attached to the scrollable container (e.g., a `div`).
+ * - `scrollToBottom`: A function to manually scroll the container to the bottom.
+ * - `handleScroll`: An event handler to be attached to the container's `onScroll` event.
+ * - `shouldAutoScroll`: A boolean indicating whether auto-scrolling is currently active.
+ * - `handleTouchStart`: An event handler to be attached to the container's `onTouchStart` event to disable auto-scroll on touch.
+ */
 export function useAutoScroll(dependencies: React.DependencyList) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const previousScrollTop = useRef<number | null>(null)

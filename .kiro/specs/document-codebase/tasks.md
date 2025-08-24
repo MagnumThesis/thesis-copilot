@@ -27,7 +27,7 @@ This document breaks down the implementation of the comprehensive codebase docum
     - Ensure that all exported members have a clear description, parameter and return value documentation, and examples where applicable.
     - *Requirement: 4.1, 4.2*
 
-- [ ] **2.2. Document `src/hooks` directory**
+- [X] **2.2. Document `src/hooks` directory**
     - Add TSDoc comments to all custom hooks in the `src/hooks` directory.
     - *Requirement: 2.2, 4.1, 4.2*
 

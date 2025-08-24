@@ -56,6 +56,20 @@ export interface SearchResultTracking {
   timestamp: Date;
 }
 
+/**
+ * @function useSearchAnalytics
+ * @description Hook for managing search analytics and tracking.
+ * @param {string} conversationId - The ID of the current conversation.
+ * @param {string} userId - The ID of the current user.
+ * @returns {{analytics: SearchAnalyticsData | null, contentUsage: ContentSourceUsage[], successTracking: SuccessRateTracking[], loading: boolean, error: string | null, fetchAnalytics: (days?: number) => Promise<void>, refreshAnalytics: (days?: number) => Promise<void>}}
+ * - `analytics`: The main search analytics data.
+ * - `contentUsage`: Data on how different content sources are used.
+ * - `successTracking`: Data on search success rates over time.
+ * - `loading`: A boolean indicating if analytics data is currently being loaded.
+ * - `error`: Any error message from the last analytics fetch operation.
+ * - `fetchAnalytics`: Function to fetch analytics data for a specified number of days.
+ * - `refreshAnalytics`: Function to refresh the analytics data.
+ */
 export const useSearchAnalytics = (conversationId: string, userId: string) => {
   const [analytics, setAnalytics] = useState<SearchAnalyticsData | null>(null);
   const [contentUsage, setContentUsage] = useState<ContentSourceUsage[]>([]);
@@ -136,6 +150,18 @@ export const useSearchAnalytics = (conversationId: string, userId: string) => {
 
 /**
  * Hook for tracking search result interactions
+ */
+/**
+ * @function useSearchResultTracking
+ * @description Hook for tracking search result interactions.
+ * @param {string} sessionId - The ID of the current search session.
+ * @returns {{tracking: SearchResultTracking[], trackReferenceViewed: (resultTitle: string) => Promise<void>, trackReferenceAdded: (resultTitle: string, referenceId: string, resultId: string) => Promise<void>, trackReferenceRejected: (resultTitle: string, resultId: string, feedback?: {comments?: string}) => Promise<void>, trackReferenceBookmarked: (resultTitle: string, resultId: string) => Promise<void>, getTrackingStats: () => {totalViews: number, totalAdded: number, totalRejected: number, totalBookmarked: number, conversionRate: number}}}
+ * - `tracking`: An array of tracked search result interactions.
+ * - `trackReferenceViewed`: Function to track when a search result is viewed.
+ * - `trackReferenceAdded`: Function to track when a search result is added (e.g., to a bibliography).
+ * - `trackReferenceRejected`: Function to track when a search result is rejected.
+ * - `trackReferenceBookmarked`: Function to track when a search result is bookmarked.
+ * - `getTrackingStats`: Function to get statistics about tracked interactions.
  */
 export const useSearchResultTracking = (sessionId: string) => {
   const [tracking, setTracking] = useState<SearchResultTracking[]>([]);
@@ -306,6 +332,21 @@ export const useSearchResultTracking = (sessionId: string) => {
 
 /**
  * Hook for managing search history with enhanced filtering
+ */
+/**
+ * @function useSearchHistory
+ * @description Hook for managing search history with enhanced filtering.
+ * @param {string} conversationId - The ID of the current conversation.
+ * @param {string} userId - The ID of the current user.
+ * @returns {{entries: any[], total: number, hasMore: boolean, loading: boolean, error: string | null, fetchHistory: (filter?: any, limit?: number, offset?: number, resetEntries?: boolean) => Promise<void>, deleteEntries: (entryIds: string[]) => Promise<void>, exportHistory: (format?: 'json' | 'csv') => Promise<void>}}
+ * - `entries`: The list of search history entries.
+ * - `total`: The total number of search history entries.
+ * - `hasMore`: A boolean indicating if there are more entries to load.
+ * - `loading`: A boolean indicating if search history is currently being loaded.
+ * - `error`: Any error message from the last search history operation.
+ * - `fetchHistory`: Function to fetch search history entries with optional filters, limit, and offset.
+ * - `deleteEntries`: Function to delete specific search history entries.
+ * - `exportHistory`: Function to export search history in a specified format.
  */
 export const useSearchHistory = (conversationId: string, userId: string) => {
   const [entries, setEntries] = useState<any[]>([]);

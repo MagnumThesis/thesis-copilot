@@ -33,6 +33,20 @@ export interface VirtualScrollResult<T> {
 /**
  * Virtual scrolling hook for performance optimization of large lists
  */
+/**
+ * @function useVirtualScroll
+ * @description Provides virtual scrolling functionality for large lists with fixed item heights.
+ * @template T - The type of items in the list.
+ * @param {T[]} items - The array of items to be virtually scrolled.
+ * @param {VirtualScrollOptions} options - Configuration options for virtual scrolling.
+ * @returns {VirtualScrollResult<T>}
+ * - `virtualItems`: An array of objects representing the currently visible items, including their index, item data, and calculated `offsetTop`.
+ * - `totalHeight`: The total height of all items in the list, used to set the scrollable area.
+ * - `scrollElementProps`: Props to be spread onto the scrollable container element (e.g., a `div`). Includes `style` and `onScroll`.
+ * - `containerProps`: Props to be spread onto the inner container element that holds the `virtualItems`. Includes `style`.
+ * - `isScrolling`: A boolean indicating whether the user is currently scrolling.
+ * - `scrollTop`: The current scroll position of the container.
+ */
 export function useVirtualScroll<T>(
   items: T[],
   options: VirtualScrollOptions
@@ -151,6 +165,18 @@ export function useVirtualScroll<T>(
 
 /**
  * Hook for virtual scrolling with dynamic item heights
+ */
+/**
+ * @function useVirtualScrollDynamic
+ * @description Provides virtual scrolling functionality for large lists with dynamic item heights.
+ * @template T - The type of items in the list.
+ * @param {T[]} items - The array of items to be virtually scrolled.
+ * @param {(index: number, item: T) => number} getItemHeight - A function that returns the estimated height of an item at a given index.
+ * @param {number} containerHeight - The fixed height of the scrollable container.
+ * @param {number} [overscan=5] - The number of items to render outside the visible viewport (above and below) to prevent flickering during fast scrolling.
+ * @returns {VirtualScrollResult<T> & {measureElement: (index: number, element: HTMLElement) => void}}
+ * - Inherits all properties from `VirtualScrollResult<T>`.
+ * - `measureElement`: A function to be called with the index and actual DOM element of a rendered item to measure its precise height. This updates the internal height map for accurate scrolling.
  */
 export function useVirtualScrollDynamic<T>(
   items: T[],
@@ -291,6 +317,17 @@ export function useVirtualScrollDynamic<T>(
 
 /**
  * Hook for infinite scrolling with virtual scrolling
+ */
+/**
+ * @function useInfiniteVirtualScroll
+ * @description Combines virtual scrolling with infinite loading capabilities.
+ * It automatically triggers a `loadMore` function when the user scrolls near the bottom of the list.
+ * @template T - The type of items in the list.
+ * @param {T[]} items - The array of items currently loaded.
+ * @param {VirtualScrollOptions & {hasNextPage: boolean; loadMore: () => Promise<void>; loadingThreshold?: number;}} options - Configuration options for infinite virtual scrolling.
+ * @returns {VirtualScrollResult<T> & {isLoadingMore: boolean}}
+ * - Inherits all properties from `VirtualScrollResult<T>`.
+ * - `isLoadingMore`: A boolean indicating whether more items are currently being loaded.
  */
 export function useInfiniteVirtualScroll<T>(
   items: T[],

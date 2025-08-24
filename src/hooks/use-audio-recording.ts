@@ -7,6 +7,19 @@ interface UseAudioRecordingOptions {
   onTranscriptionComplete?: (text: string) => void
 }
 
+/**
+ * @function useAudioRecording
+ * @description Hook for managing audio recording and transcription.
+ * @param {UseAudioRecordingOptions} options - Options for the audio recording hook.
+ * @returns {{isListening: boolean, isSpeechSupported: boolean, isRecording: boolean, isTranscribing: boolean, audioStream: MediaStream | null, toggleListening: () => Promise<void>, stopRecording: () => Promise<void>}}
+ * - `isListening`: Whether the microphone is currently listening.
+ * - `isSpeechSupported`: Whether speech recording is supported by the browser.
+ * - `isRecording`: Whether audio is currently being recorded.
+ * - `isTranscribing`: Whether the recorded audio is currently being transcribed.
+ * - `audioStream`: The MediaStream object for the audio input.
+ * - `toggleListening`: Function to start or stop listening and recording.
+ * - `stopRecording`: Function to stop recording and trigger transcription.
+ */
 export function useAudioRecording({
   transcribeAudio,
   onTranscriptionComplete,

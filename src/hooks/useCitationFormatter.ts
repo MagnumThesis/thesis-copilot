@@ -38,6 +38,12 @@ export interface UseCitationFormatterOptions {
   maxHistoryItems?: number;
 }
 
+/**
+ * @function useCitationFormatter
+ * @description Custom hook for managing citation formatting logic.
+ * @param {UseCitationFormatterOptions} [options={}] - Options for the citation formatter hook.
+ * @returns {UseCitationFormatterReturn} An object containing the citation formatter state and actions.
+ */
 export function useCitationFormatter(
   options: UseCitationFormatterOptions = {}
 ): UseCitationFormatterReturn {
@@ -87,6 +93,10 @@ export function useCitationFormatter(
   }, [selectedReference, selectedStyle, autoFormat]);
 
   // Main citation formatting function
+  /**
+   * @function formatCitation
+   * @description Main citation formatting function.
+   */
   const formatCitation = useCallback(async () => {
     if (!selectedReference) {
       setError('No reference selected');
@@ -132,6 +142,12 @@ export function useCitationFormatter(
   }, [selectedReference, selectedStyle]);
 
   // Copy to clipboard functionality
+  /**
+   * @function copyToClipboard
+   * @description Copy to clipboard functionality.
+   * @param {string} text - The text to copy.
+   * @returns {Promise<boolean>} A promise that resolves to true if successful, false otherwise.
+   */
   const copyToClipboard = useCallback(async (text: string): Promise<boolean> => {
     try {
       await navigator.clipboard.writeText(text);
@@ -144,6 +160,12 @@ export function useCitationFormatter(
   }, []);
 
   // Insert citation into document
+  /**
+   * @function insertIntoDocument
+   * @description Insert citation into document.
+   * @param {string} citation - The citation to insert.
+   * @returns {Promise<boolean>} A promise that resolves to true if successful, false otherwise.
+   */
   const insertIntoDocument = useCallback(async (citation: string): Promise<boolean> => {
     try {
       // This would integrate with the document editor
@@ -162,6 +184,10 @@ export function useCitationFormatter(
   }, [copyToClipboard]);
 
   // Validate current reference
+  /**
+   * @function validateReference
+   * @description Validate current reference.
+   */
   const validateReference = useCallback(() => {
     if (!selectedReference) {
       setValidationResult(null);
@@ -178,11 +204,20 @@ export function useCitationFormatter(
   }, [selectedReference, selectedStyle]);
 
   // Clear error state
+  /**
+   * @function clearError
+   * @description Clear error state.
+   */
   const clearError = useCallback(() => {
     setError(null);
   }, []);
 
   // Add citation to history
+  /**
+   * @function addToHistory
+   * @description Add citation to history.
+   * @param {CitationInstance} citation - The citation instance to add.
+   */
   const addToHistory = useCallback((citation: CitationInstance) => {
     setCitationHistory(prev => {
       const newHistory = [citation, ...prev];
@@ -192,11 +227,20 @@ export function useCitationFormatter(
   }, [maxHistoryItems]);
 
   // Clear citation history
+  /**
+   * @function clearHistory
+   * @description Clear citation history.
+   */
   const clearHistory = useCallback(() => {
     setCitationHistory([]);
   }, []);
 
   // Style change handler with validation
+  /**
+   * @function handleStyleChange
+   * @description Style change handler with validation.
+   * @param {CitationStyle} style - The new citation style.
+   */
   const handleStyleChange = useCallback((style: CitationStyle) => {
     setSelectedStyle(style);
     if (selectedReference) {
@@ -206,6 +250,11 @@ export function useCitationFormatter(
   }, [selectedReference, validateReference]);
 
   // Reference change handler with validation
+  /**
+   * @function handleReferenceChange
+   * @description Reference change handler with validation.
+   * @param {Reference | null} reference - The new reference.
+   */
   const handleReferenceChange = useCallback((reference: Reference | null) => {
     setSelectedReference(reference);
     if (reference) {

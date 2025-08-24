@@ -22,6 +22,18 @@ export interface AccessibilityOptions {
 /**
  * Hook for managing accessibility preferences and utilities
  */
+/**
+ * @function useAccessibility
+ * @description Hook for managing accessibility preferences and utilities.
+ * @param {AccessibilityOptions} [options={}] - Options for accessibility features.
+ * @returns {{preferences: AccessibilityPreferences, announce: (message: string, priority?: 'polite' | 'assertive') => void, trapFocus: (container: HTMLElement) => () => void, getAccessibilityClasses: () => string, generateId: (prefix?: string) => string, announcements: string[]}}
+ * - `preferences`: Current accessibility preferences.
+ * - `announce`: Function to announce messages to screen readers.
+ * - `trapFocus`: Function to trap focus within a given container.
+ * - `getAccessibilityClasses`: Function to get CSS classes based on preferences.
+ * - `generateId`: Function to generate unique IDs for ARIA relationships.
+ * - `announcements`: List of announcements made.
+ */
 export function useAccessibility(options: AccessibilityOptions = {}) {
   const {
     announceChanges = true,
@@ -168,6 +180,13 @@ export function useAccessibility(options: AccessibilityOptions = {}) {
 /**
  * Hook for managing focus restoration
  */
+/**
+ * @function useFocusRestore
+ * @description Hook for managing focus restoration.
+ * @returns {{saveFocus: () => void, restoreFocus: () => void}}
+ * - `saveFocus`: Function to save the currently focused element.
+ * - `restoreFocus`: Function to restore focus to the previously saved element.
+ */
 export function useFocusRestore() {
   const [previousFocus, setPreviousFocus] = useState<HTMLElement | null>(null);
 
@@ -187,6 +206,12 @@ export function useFocusRestore() {
 
 /**
  * Hook for managing live regions
+ */
+/**
+ * @function useLiveRegion
+ * @description Hook for managing live regions.
+ * @returns {{announce: (message: string, priority?: 'polite' | 'assertive') => void}}
+ * - `announce`: Function to announce messages in the live region.
  */
 export function useLiveRegion() {
   const [liveRegion, setLiveRegion] = useState<HTMLElement | null>(null);
@@ -232,6 +257,15 @@ export function useLiveRegion() {
 
 /**
  * Hook for skip links functionality
+ */
+/**
+ * @function useSkipLinks
+ * @description Hook for skip links functionality.
+ * @param {Array<{ id: string; label: string }>} targets - An array of target elements for skip links.
+ * @returns {{isVisible: boolean, skipTo: (targetId: string) => void, targets: Array<{ id: string; label: string }>}}
+ * - `isVisible`: Whether the skip links are visible.
+ * - `skipTo`: Function to skip to a target element.
+ * - `targets`: The target elements for skip links.
  */
 export function useSkipLinks(targets: Array<{ id: string; label: string }>) {
   const [isVisible, setIsVisible] = useState(false);

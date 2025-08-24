@@ -22,6 +22,18 @@ export interface StatusUpdateEntry {
 /**
  * Hook for debounced status updates with batching and retry logic
  */
+/**
+ * @function useDebouncedStatusUpdate
+ * @description Hook for debounced status updates with batching and retry logic.
+ * @param {(concernId: string, status: ConcernStatus) => Promise<void>} updateFn - The function to call for updating the status.
+ * @param {DebouncedStatusUpdateOptions} [options={}] - Options for debouncing and batching.
+ * @returns {{debouncedUpdate: (concernId: string, status: ConcernStatus) => void, immediateUpdate: (concernId: string, status: ConcernStatus) => Promise<void>, flushUpdates: () => Promise<void>, cancelUpdates: () => void, getPendingInfo: () => {pendingCount: number, isProcessing: boolean, pendingConcerns: string[]}}}
+ * - `debouncedUpdate`: A debounced function to update the status of a concern.
+ * - `immediateUpdate`: A function to immediately update the status of a concern, bypassing debouncing.
+ * - `flushUpdates`: A function to immediately process all pending updates in the queue.
+ * - `cancelUpdates`: A function to cancel all pending updates and clear the queue.
+ * - `getPendingInfo`: A function to get information about pending updates.
+ */
 export function useDebouncedStatusUpdate(
   updateFn: (concernId: string, status: ConcernStatus) => Promise<void>,
   options: DebouncedStatusUpdateOptions = {}
@@ -246,6 +258,20 @@ export function useDebouncedStatusUpdate(
 
 /**
  * Hook for optimistic status updates with rollback capability
+ */
+/**
+ * @function useOptimisticStatusUpdate
+ * @description Hook for optimistic status updates with rollback capability.
+ * @param {(concernId: string, status: ConcernStatus) => Promise<void>} updateFn - The function to call for updating the status.
+ * @param {(concernId: string, status: ConcernStatus) => void} [onOptimisticUpdate] - Callback function to be called immediately when an optimistic update is applied.
+ * @param {(concernId: string, previousStatus: ConcernStatus) => void} [onRollback] - Callback function to be called when an optimistic update needs to be rolled back.
+ * @returns {{optimisticUpdate: (concernId: string, newStatus: ConcernStatus, previousStatus: ConcernStatus) => Promise<void>, optimisticImmediateUpdate: (concernId: string, newStatus: ConcernStatus, previousStatus: ConcernStatus) => Promise<void>, flushUpdates: () => Promise<void>, cancelUpdates: () => void, getPendingInfo: () => {pendingCount: number, isProcessing: boolean, pendingConcerns: string[]}, getPendingOptimisticUpdates: () => string[]}}
+ * - `optimisticUpdate`: A function to perform an optimistic status update with debouncing.
+ * - `optimisticImmediateUpdate`: A function to perform an optimistic status update immediately.
+ * - `flushUpdates`: A function to immediately process all pending updates in the queue.
+ * - `cancelUpdates`: A function to cancel all pending updates and clear the queue.
+ * - `getPendingInfo`: A function to get information about pending updates.
+ * - `getPendingOptimisticUpdates`: A function to get a list of concern IDs that have pending optimistic updates.
  */
 export function useOptimisticStatusUpdate(
   updateFn: (concernId: string, status: ConcernStatus) => Promise<void>,
