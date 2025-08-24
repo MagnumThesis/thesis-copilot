@@ -178,7 +178,6 @@
 
 - [x] 8.2 Integrate content extraction with search API
 
-
   - Connect content extraction engine to AI searcher API endpoints
   - Implement automatic search query generation from extracted content
   - Add content source selection in API requests
@@ -188,7 +187,8 @@
 
 - [ ] 9. Implement Search History and Analytics
 
-- [ ] 9.1 Enhance search history management
+- [x] 9.1 Enhance search history management
+
 
   - Extend existing search history manager for AI search features
   - Add search query storage with content source tracking

@@ -630,13 +630,21 @@ export class AISearcherAPIHandler {
 
   /**
    * GET /api/ai-searcher/history
-   * Get search history for a conversation
+   * Get search history for a conversation with enhanced filtering and pagination
    */
   async getHistory(c: Context<AISearcherContext>) {
     const startTime = Date.now();
 
     try {
       const conversationId = c.req.query('conversationId');
+      const limit = parseInt(c.req.query('limit') || '50');
+      const offset = parseInt(c.req.query('offset') || '0');
+      const searchQuery = c.req.query('searchQuery');
+      const successOnly = c.req.query('successOnly') === 'true';
+      const minResultsCount = c.req.query('minResultsCount') ? parseInt(c.req.query('minResultsCount')) : undefined;
+      const contentSources = c.req.query('contentSources')?.split(',').filter(s => s === 'ideas' || s === 'builder');
+      const startDate = c.req.query('startDate');
+      const endDate = c.req.query('endDate');
 
       if (!conversationId) {
         return c.json({
@@ -646,27 +654,36 @@ export class AISearcherAPIHandler {
         }, 400);
       }
 
-      // Mock search history
-      const mockHistory: SearchHistoryEntry[] = [
-        {
-          id: "search_1",
-          query: "machine learning",
-          timestamp: Date.now() - 86400000, // 1 day ago
-          results_count: 25,
-          conversationId
-        },
-        {
-          id: "search_2",
-          query: "natural language processing",
-          timestamp: Date.now() - 3600000, // 1 hour ago
-          results_count: 18,
-          conversationId
-        }
-      ];
+      // Import the enhanced search history manager
+      const { EnhancedSearchHistoryManager } = await import('../lib/enhanced-search-history-manager');
+      const historyManager = new EnhancedSearchHistoryManager(c.env);
+
+      // Build filter object
+      const filter: any = {};
+      if (searchQuery) filter.searchQuery = searchQuery;
+      if (successOnly) filter.successOnly = true;
+      if (minResultsCount) filter.minResultsCount = minResultsCount;
+      if (contentSources && contentSources.length > 0) filter.contentSources = contentSources;
+      if (startDate && endDate) {
+        filter.dateRange = {
+          start: new Date(startDate),
+          end: new Date(endDate)
+        };
+      }
+
+      const result = await historyManager.getSearchHistory(
+        conversationId, // Using conversationId as userId for now
+        conversationId,
+        Object.keys(filter).length > 0 ? filter : undefined,
+        limit,
+        offset
+      );
 
       return c.json({
         success: true,
-        history: mockHistory,
+        entries: result.entries,
+        total: result.total,
+        hasMore: result.hasMore,
         processingTime: Date.now() - startTime
       });
 
@@ -682,8 +699,387 @@ export class AISearcherAPIHandler {
   }
 
   /**
+   * GET /api/ai-searcher/history/stats
+   * Get search history statistics
+   */
+  async getHistoryStats(c: Context<AISearcherContext>) {
+    const startTime = Date.now();
+
+    try {
+      const conversationId = c.req.query('conversationId');
+      const days = parseInt(c.req.query('days') || '30');
+
+      if (!conversationId) {
+        return c.json({
+          success: false,
+          error: 'conversationId query parameter is required',
+          processingTime: Date.now() - startTime
+        }, 400);
+      }
+
+      const { EnhancedSearchHistoryManager } = await import('../lib/enhanced-search-history-manager');
+      const historyManager = new EnhancedSearchHistoryManager(c.env);
+
+      const stats = await historyManager.getSearchHistoryStats(
+        conversationId, // Using conversationId as userId for now
+        conversationId,
+        days
+      );
+
+      return c.json({
+        success: true,
+        stats,
+        processingTime: Date.now() - startTime
+      });
+
+    } catch (error) {
+      console.error('Get history stats error:', error);
+
+      return c.json({
+        success: false,
+        error: 'Failed to retrieve search history statistics',
+        processingTime: Date.now() - startTime
+      }, 500);
+    }
+  }
+
+  /**
+   * GET /api/ai-searcher/history/content-usage
+   * Get content source usage analytics
+   */
+  async getContentUsage(c: Context<AISearcherContext>) {
+    const startTime = Date.now();
+
+    try {
+      const conversationId = c.req.query('conversationId');
+      const days = parseInt(c.req.query('days') || '30');
+
+      if (!conversationId) {
+        return c.json({
+          success: false,
+          error: 'conversationId query parameter is required',
+          processingTime: Date.now() - startTime
+        }, 400);
+      }
+
+      const { EnhancedSearchHistoryManager } = await import('../lib/enhanced-search-history-manager');
+      const historyManager = new EnhancedSearchHistoryManager(c.env);
+
+      const usage = await historyManager.getContentSourceUsage(
+        conversationId, // Using conversationId as userId for now
+        conversationId,
+        days
+      );
+
+      return c.json({
+        success: true,
+        usage,
+        processingTime: Date.now() - startTime
+      });
+
+    } catch (error) {
+      console.error('Get content usage error:', error);
+
+      return c.json({
+        success: false,
+        error: 'Failed to retrieve content usage analytics',
+        processingTime: Date.now() - startTime
+      }, 500);
+    }
+  }
+
+  /**
+   * POST /api/ai-searcher/analytics/success-tracking
+   * Get search success rate tracking over time
+   */
+  async getSuccessTracking(c: Context<AISearcherContext>) {
+    const startTime = Date.now();
+
+    try {
+      const body = await c.req.json();
+      const { userId, conversationId, days = 30 } = body;
+
+      if (!userId) {
+        return c.json({
+          success: false,
+          error: 'userId is required',
+          processingTime: Date.now() - startTime
+        }, 400);
+      }
+
+      const { EnhancedSearchHistoryManager } = await import('../lib/enhanced-search-history-manager');
+      const historyManager = new EnhancedSearchHistoryManager(c.env);
+
+      const tracking = await historyManager.getSearchSuccessRateTracking(
+        userId,
+        conversationId,
+        days
+      );
+
+      return c.json({
+        success: true,
+        tracking,
+        processingTime: Date.now() - startTime
+      });
+
+    } catch (error) {
+      console.error('Get success tracking error:', error);
+
+      return c.json({
+        success: false,
+        error: 'Failed to retrieve success tracking data',
+        processingTime: Date.now() - startTime
+      }, 500);
+    }
+  }
+
+  /**
+   * GET /api/ai-searcher/history/export
+   * Export search history data
+   */
+  async exportHistory(c: Context<AISearcherContext>) {
+    const startTime = Date.now();
+
+    try {
+      const conversationId = c.req.query('conversationId');
+      const format = c.req.query('format') || 'json';
+
+      if (!conversationId) {
+        return c.json({
+          success: false,
+          error: 'conversationId query parameter is required',
+          processingTime: Date.now() - startTime
+        }, 400);
+      }
+
+      if (format !== 'json' && format !== 'csv') {
+        return c.json({
+          success: false,
+          error: 'Format must be either "json" or "csv"',
+          processingTime: Date.now() - startTime
+        }, 400);
+      }
+
+      const { EnhancedSearchHistoryManager } = await import('../lib/enhanced-search-history-manager');
+      const historyManager = new EnhancedSearchHistoryManager(c.env);
+
+      const exportData = await historyManager.exportSearchHistory(
+        conversationId, // Using conversationId as userId for now
+        conversationId,
+        format as 'json' | 'csv'
+      );
+
+      const contentType = format === 'csv' ? 'text/csv' : 'application/json';
+      const filename = `search-history-${new Date().toISOString().split('T')[0]}.${format}`;
+
+      return new Response(exportData, {
+        headers: {
+          'Content-Type': contentType,
+          'Content-Disposition': `attachment; filename="${filename}"`
+        }
+      });
+
+    } catch (error) {
+      console.error('Export history error:', error);
+
+      return c.json({
+        success: false,
+        error: 'Failed to export search history',
+        processingTime: Date.now() - startTime
+      }, 500);
+    }
+  }
+
+  /**
+   * GET /api/ai-searcher/analytics/query-performance
+   * Get query performance analytics
+   */
+  async getQueryPerformance(c: Context<AISearcherContext>) {
+    const startTime = Date.now();
+
+    try {
+      const conversationId = c.req.query('conversationId');
+      const days = parseInt(c.req.query('days') || '30');
+
+      if (!conversationId) {
+        return c.json({
+          success: false,
+          error: 'conversationId query parameter is required',
+          processingTime: Date.now() - startTime
+        }, 400);
+      }
+
+      const { EnhancedSearchHistoryManager } = await import('../lib/enhanced-search-history-manager');
+      const historyManager = new EnhancedSearchHistoryManager(c.env);
+
+      const analytics = await historyManager.getQueryPerformanceAnalytics(
+        conversationId, // Using conversationId as userId for now
+        conversationId,
+        days
+      );
+
+      return c.json({
+        success: true,
+        analytics,
+        processingTime: Date.now() - startTime
+      });
+
+    } catch (error) {
+      console.error('Get query performance error:', error);
+
+      return c.json({
+        success: false,
+        error: 'Failed to retrieve query performance analytics',
+        processingTime: Date.now() - startTime
+      }, 500);
+    }
+  }
+
+  /**
+   * GET /api/ai-searcher/analytics/success-rate-tracking
+   * Get search success rate tracking over time
+   */
+  async getSuccessRateTracking(c: Context<AISearcherContext>) {
+    const startTime = Date.now();
+
+    try {
+      const conversationId = c.req.query('conversationId');
+      const days = parseInt(c.req.query('days') || '30');
+
+      if (!conversationId) {
+        return c.json({
+          success: false,
+          error: 'conversationId query parameter is required',
+          processingTime: Date.now() - startTime
+        }, 400);
+      }
+
+      const { EnhancedSearchHistoryManager } = await import('../lib/enhanced-search-history-manager');
+      const historyManager = new EnhancedSearchHistoryManager(c.env);
+
+      const tracking = await historyManager.getSearchSuccessRateTracking(
+        conversationId, // Using conversationId as userId for now
+        conversationId,
+        days
+      );
+
+      return c.json({
+        success: true,
+        tracking,
+        processingTime: Date.now() - startTime
+      });
+
+    } catch (error) {
+      console.error('Get success rate tracking error:', error);
+
+      return c.json({
+        success: false,
+        error: 'Failed to retrieve success rate tracking',
+        processingTime: Date.now() - startTime
+      }, 500);
+    }
+  }
+
+  /**
+   * GET /api/ai-searcher/analytics/content-source-effectiveness
+   * Get content source effectiveness metrics
+   */
+  async getContentSourceEffectiveness(c: Context<AISearcherContext>) {
+    const startTime = Date.now();
+
+    try {
+      const conversationId = c.req.query('conversationId');
+      const days = parseInt(c.req.query('days') || '30');
+
+      if (!conversationId) {
+        return c.json({
+          success: false,
+          error: 'conversationId query parameter is required',
+          processingTime: Date.now() - startTime
+        }, 400);
+      }
+
+      const { EnhancedSearchHistoryManager } = await import('../lib/enhanced-search-history-manager');
+      const historyManager = new EnhancedSearchHistoryManager(c.env);
+
+      const effectiveness = await historyManager.getContentSourceEffectiveness(
+        conversationId, // Using conversationId as userId for now
+        conversationId,
+        days
+      );
+
+      return c.json({
+        success: true,
+        effectiveness,
+        processingTime: Date.now() - startTime
+      });
+
+    } catch (error) {
+      console.error('Get content source effectiveness error:', error);
+
+      return c.json({
+        success: false,
+        error: 'Failed to retrieve content source effectiveness',
+        processingTime: Date.now() - startTime
+      }, 500);
+    }
+  }
+
+  /**
+   * GET /api/ai-searcher/session/:sessionId
+   * Get detailed search session information
+   */
+  async getSearchSessionDetails(c: Context<AISearcherContext>) {
+    const startTime = Date.now();
+
+    try {
+      const sessionId = c.req.param('sessionId');
+
+      if (!sessionId) {
+        return c.json({
+          success: false,
+          error: 'sessionId parameter is required',
+          processingTime: Date.now() - startTime
+        }, 400);
+      }
+
+      const { EnhancedSearchHistoryManager } = await import('../lib/enhanced-search-history-manager');
+      const historyManager = new EnhancedSearchHistoryManager(c.env);
+
+      const sessionDetails = await historyManager.getSearchSessionDetails(sessionId);
+
+      if (!sessionDetails) {
+        return c.json({
+          success: false,
+          error: 'Search session not found',
+          processingTime: Date.now() - startTime
+        }, 404);
+      }
+
+      return c.json({
+        success: true,
+        session: sessionDetails,
+        processingTime: Date.now() - startTime
+      });
+
+    } catch (error) {
+      console.error('Get search session details error:', error);
+
+      return c.json({
+        success: false,
+        error: 'Failed to retrieve search session details',
+        processingTime: Date.now() - startTime
+      }, 500);
+    }
+  }ailed to export search history',
+        processingTime: Date.now() - startTime
+      }, 500);
+    }
+  }
+
+  /**
    * DELETE /api/ai-searcher/history
-   * Clear search history
+   * Clear search history or delete specific entries
    */
   async clearHistory(c: Context<AISearcherContext>) {
     const startTime = Date.now();
@@ -699,10 +1095,32 @@ export class AISearcherAPIHandler {
         }, 400);
       }
 
-      // Simulate clearing history
+      let entryIds: string[] | undefined;
+      
+      // Check if this is a POST request with specific entry IDs to delete
+      if (c.req.method === 'DELETE' && c.req.header('content-type')?.includes('application/json')) {
+        try {
+          const body = await c.req.json();
+          entryIds = body.entryIds;
+        } catch (e) {
+          // Ignore JSON parsing errors for simple DELETE requests
+        }
+      }
+
+      const { EnhancedSearchHistoryManager } = await import('../lib/enhanced-search-history-manager');
+      const historyManager = new EnhancedSearchHistoryManager(c.env);
+
+      await historyManager.deleteSearchHistory(
+        conversationId, // Using conversationId as userId for now
+        conversationId,
+        entryIds
+      );
+
       return c.json({
         success: true,
-        message: 'Search history cleared successfully',
+        message: entryIds 
+          ? `${entryIds.length} search history entries deleted successfully`
+          : 'Search history cleared successfully',
         processingTime: Date.now() - startTime
       });
 
@@ -1388,14 +1806,21 @@ export class AISearcherAPIHandler {
     errorMessage?: string;
   }): Promise<void> {
     try {
-      // This would typically update the database record
-      // For now, we'll just log the update
-      console.log(`Updating search session ${sessionId}:`, updates);
+      const { EnhancedSearchHistoryManager } = await import('../lib/enhanced-search-history-manager');
+      const historyManager = new EnhancedSearchHistoryManager(this.env);
       
-      // In a real implementation, this would call the analytics manager
-      // to update the search session record in the database
+      if (updates.resultsCount !== undefined) {
+        await historyManager.updateSearchSessionResults(
+          sessionId,
+          updates.resultsCount,
+          updates.resultsAccepted || 0,
+          updates.resultsRejected || 0
+        );
+      }
+      
+      console.log(`Updated search session ${sessionId} with:`, updates);
     } catch (error) {
-      console.error('Failed to update search session:', error);
+      console.error('Error updating search session:', error);
     }
   }
 
@@ -1562,8 +1987,16 @@ app.post('/validate-query', (c) => aiSearcherAPIHandler.validateQuery(c));
 app.post('/combine-queries', (c) => aiSearcherAPIHandler.combineQueries(c));
 app.post('/refine-query', (c) => aiSearcherAPIHandler.refineQuery(c));
 app.get('/history', (c) => aiSearcherAPIHandler.getHistory(c));
+app.get('/history/stats', (c) => aiSearcherAPIHandler.getHistoryStats(c));
+app.get('/history/content-usage', (c) => aiSearcherAPIHandler.getContentUsage(c));
+app.get('/history/export', (c) => aiSearcherAPIHandler.exportHistory(c));
 app.delete('/history', (c) => aiSearcherAPIHandler.clearHistory(c));
 app.get('/analytics', (c) => aiSearcherAPIHandler.getAnalytics(c));
+app.get('/analytics/query-performance', (c) => aiSearcherAPIHandler.getQueryPerformance(c));
+app.get('/analytics/success-rate-tracking', (c) => aiSearcherAPIHandler.getSuccessRateTracking(c));
+app.post('/analytics/success-tracking', (c) => aiSearcherAPIHandler.getSuccessTracking(c));
+app.get('/analytics/content-source-effectiveness', (c) => aiSearcherAPIHandler.getContentSourceEffectiveness(c));
+app.get('/session/:sessionId', (c) => aiSearcherAPIHandler.getSearchSessionDetails(c));
 app.post('/track-result-action', (c) => aiSearcherAPIHandler.trackResultAction(c));
 app.post('/feedback', (c) => aiSearcherAPIHandler.recordFeedback(c));
 app.get('/trending', (c) => aiSearcherAPIHandler.getTrending(c));
