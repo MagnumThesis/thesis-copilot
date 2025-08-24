@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import referencerApi from './handlers/referencer-api';
 import aiSearcherApi from './handlers/ai-searcher-api';
+import searchResultManagementApi from './handlers/search-result-management';
 import { getChatsHandler, createChatHandler, deleteChatHandler, updateChatHandler } from './handlers/chats';
 import { getMessagesHandler } from './handlers/messages';
 import { generateTitleHandler } from './handlers/generate-title';
@@ -89,6 +90,7 @@ builderApi.post('/ai/modify', builderAIModifyHandler);
 // API routes
 app.route('/api/referencer', referencerApi);
 app.route('/api/ai-searcher', aiSearcherApi);
+app.route('/api/search-result-management', searchResultManagementApi);
 app.route('/api/ideas', ideasApi);
 app.route('/api/builder', builderApi);
 app.route('/api/builder-content', builderContentApi);
@@ -131,6 +133,27 @@ app.get('/', (c) => {
         trending: 'GET /api/ai-searcher/trending',
         statistics: 'GET /api/ai-searcher/statistics',
         health: 'GET /api/ai-searcher/health'
+      },
+      // Search Result Management endpoints
+      searchResultManagement: {
+        bookmarks: {
+          create: 'POST /api/search-result-management/bookmarks',
+          remove: 'DELETE /api/search-result-management/bookmarks',
+          list: 'GET /api/search-result-management/bookmarks/:userId',
+          check: 'POST /api/search-result-management/bookmarks/check'
+        },
+        comparison: {
+          add: 'POST /api/search-result-management/comparison',
+          remove: 'DELETE /api/search-result-management/comparison',
+          list: 'GET /api/search-result-management/comparison/:userId',
+          clear: 'DELETE /api/search-result-management/comparison/:userId'
+        },
+        export: 'POST /api/search-result-management/export',
+        sharing: {
+          create: 'POST /api/search-result-management/share',
+          get: 'GET /api/search-result-management/share/:shareId'
+        },
+        health: 'GET /api/search-result-management/health'
       },
       // Ideas endpoints
       ideas: {

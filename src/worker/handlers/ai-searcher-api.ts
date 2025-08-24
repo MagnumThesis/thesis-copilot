@@ -5,7 +5,8 @@ import { QueryGenerationEngine, SearchQuery, QueryGenerationOptions } from '../l
 import { ContentExtractionEngine } from '../lib/content-extraction-engine';
 import { SearchAnalyticsManager } from '../lib/search-analytics-manager';
 import { FeedbackLearningSystem } from '../lib/feedback-learning-system';
-import { ExtractedContent } from '../../lib/ai-types';
+import { GoogleScholarClient, SearchOptions } from '../lib/google-scholar-client';
+import { ExtractedContent, ScholarSearchResult } from '../../lib/ai-types';
 import feedbackApi from './ai-searcher-feedback';
 import learningApi from './ai-searcher-learning';
 
@@ -88,6 +89,7 @@ interface SearchResult {
   relevance_score: number;
   abstract?: string;
   keywords?: string[];
+  citation_count?: number;
 }
 
 interface SearchHistoryEntry {
@@ -128,14 +130,92 @@ interface StatisticsData {
 export class AISearcherAPIHandler {
   private queryEngine: QueryGenerationEngine;
   private contentEngine: ContentExtractionEngine;
+  private scholarClient: GoogleScholarClient;
 
   constructor() {
     this.queryEngine = new QueryGenerationEngine();
     this.contentEngine = new ContentExtractionEngine();
+    this.scholarClient = new GoogleScholarClient(
+      {
+        requestsPerMinute: 8, // Conservative rate limiting
+        requestsPerHour: 80,
+        maxRetries: 3,
+        baseDelayMs: 2000,
+        maxDelayMs: 30000
+      },
+      {
+        enabled: true,
+        fallbackSources: ['semantic-scholar', 'crossref'],
+        maxFallbackAttempts: 2
+      },
+      {
+        enableDetailedLogging: true,
+        customErrorMessages: {
+          'rate_limit': 'Search rate limit exceeded. Please wait before trying again.',
+          'blocked': 'Access to Google Scholar is temporarily blocked. Please try again later.',
+          'service_unavailable': 'Google Scholar is temporarily unavailable. Please try again later.'
+        }
+      }
+    );
   }
 
   private getAnalyticsManager(env: any): SearchAnalyticsManager {
     return new SearchAnalyticsManager(env);
+  }
+
+  /**
+   * Handle search errors and provide appropriate fallback responses
+   */
+  private handleSearchError(error: unknown, query: string): {
+    shouldRetry: boolean;
+    fallbackResults: SearchResult[];
+    errorMessage: string;
+  } {
+    let shouldRetry = false;
+    let finalErrorMessage = 'Search failed due to unknown error';
+    const fallbackResults: SearchResult[] = [];
+
+    if (error instanceof Error) {
+      const errorMessage = error.message.toLowerCase();
+      
+      if (errorMessage.includes('rate limit') || errorMessage.includes('429')) {
+        shouldRetry = true;
+        finalErrorMessage = 'Search rate limit exceeded. Please wait before trying again.';
+      } else if (errorMessage.includes('blocked') || errorMessage.includes('403')) {
+        shouldRetry = false;
+        finalErrorMessage = 'Access to Google Scholar is temporarily blocked. Please try again later.';
+      } else if (errorMessage.includes('timeout') || errorMessage.includes('network')) {
+        shouldRetry = true;
+        finalErrorMessage = 'Network timeout occurred. Please check your connection and try again.';
+      } else if (errorMessage.includes('service unavailable') || errorMessage.includes('503')) {
+        shouldRetry = true;
+        finalErrorMessage = 'Google Scholar is temporarily unavailable. Please try again later.';
+      } else {
+        shouldRetry = false;
+        finalErrorMessage = `Search error: ${error.message}`;
+      }
+    }
+
+    // Provide a helpful fallback result that explains the situation
+    if (!shouldRetry) {
+      fallbackResults.push({
+        title: `Search temporarily unavailable for: "${query}"`,
+        authors: ['System Message'],
+        journal: 'Thesis Copilot',
+        publication_date: new Date().getFullYear().toString(),
+        confidence: 0.1,
+        relevance_score: 0.1,
+        abstract: `We're currently unable to search Google Scholar. ${finalErrorMessage} You can try again later or search manually using your query: "${query}"`,
+        keywords: ['search', 'unavailable', 'retry'],
+        url: `https://scholar.google.com/scholar?q=${encodeURIComponent(query)}`
+      });
+    }
+
+    return {
+      shouldRetry,
+      fallbackResults,
+      errorMessage: finalErrorMessage
+    };
   }
   /**
    * POST /api/ai-searcher/search
@@ -191,76 +271,112 @@ export class AISearcherAPIHandler {
         }, 400);
       }
 
-      // Record search session start
-      const analyticsManager = this.getAnalyticsManager(c.env);
-      const contentSources = body.contentSources?.map(cs => cs.source) || [];
-      sessionId = await analyticsManager.recordSearchSession({
-        conversationId: body.conversationId,
-        userId: body.conversationId, // Using conversationId as userId for now
-        searchQuery,
-        contentSources,
-        searchFilters: body.filters || {},
-        resultsCount: 0, // Will be updated after search
-        resultsAccepted: 0,
-        resultsRejected: 0,
-        searchSuccess: false, // Will be updated after search
-        processingTimeMs: 0 // Will be updated after search
-      });
+      // Record search session start (skip in test environment)
+      try {
+        const analyticsManager = this.getAnalyticsManager(c.env);
+        const contentSources = body.contentSources?.map(cs => cs.source) || [];
+        sessionId = await analyticsManager.recordSearchSession({
+          conversationId: body.conversationId,
+          userId: body.conversationId, // Using conversationId as userId for now
+          searchQuery,
+          contentSources,
+          searchFilters: body.filters || {},
+          resultsCount: 0, // Will be updated after search
+          resultsAccepted: 0,
+          resultsRejected: 0,
+          searchSuccess: false, // Will be updated after search
+          processingTimeMs: 0 // Will be updated after search
+        });
+      } catch (analyticsError) {
+        console.error('Error recording search session:', analyticsError);
+        // Continue without analytics in case of error (e.g., in tests)
+        sessionId = crypto.randomUUID();
+      }
 
-      // Simulate AI search - in a real implementation, this would call an AI service
-      // For now, we'll return mock results that match the expected format
-      let mockResults: SearchResult[] = [
-        {
-          title: "Machine Learning Approaches to Natural Language Processing",
-          authors: ["Smith, J.", "Johnson, A.", "Williams, B."],
-          journal: "Journal of Artificial Intelligence Research",
-          publication_date: "2023",
-          doi: "10.1234/jair.2023.12345",
-          url: "https://doi.org/10.1234/jair.2023.12345",
-          confidence: 0.92,
-          relevance_score: 0.88,
-          abstract: "This paper explores various machine learning approaches for natural language processing tasks...",
-          keywords: ["machine learning", "NLP", "artificial intelligence"]
-        },
-        {
-          title: "Deep Learning for Academic Writing Enhancement",
-          authors: ["Brown, C.", "Davis, E."],
-          journal: "International Journal of Computational Linguistics",
-          publication_date: "2022",
-          doi: "10.5678/ijcl.2022.67890",
-          url: "https://doi.org/10.5678/ijcl.2022.67890",
-          confidence: 0.87,
-          relevance_score: 0.76,
-          abstract: "A comprehensive study on using deep learning models to enhance academic writing quality...",
-          keywords: ["deep learning", "academic writing", "writing enhancement"]
-        },
-        {
-          title: "AI-Powered Reference Management Systems",
-          authors: ["Wilson, M.", "Taylor, R.", "Anderson, S."],
-          journal: "ACM Transactions on Information Systems",
-          publication_date: "2024",
-          doi: "10.9012/acm.2024.90123",
-          url: "https://doi.org/10.9012/acm.2024.90123",
-          confidence: 0.95,
-          relevance_score: 0.91,
-          abstract: "This research examines the design and implementation of AI-powered reference management systems...",
-          keywords: ["reference management", "AI", "academic tools"]
+      // Perform real Google Scholar search
+      let scholarResults: ScholarSearchResult[] = [];
+      
+      try {
+        // Configure search options based on filters
+        const searchOptions: SearchOptions = {
+          maxResults: body.filters?.maxResults || 20,
+          sortBy: body.filters?.sortBy === 'date' ? 'date' : 'relevance',
+          includePatents: false,
+          includeCitations: true
+        };
+
+        // Apply date range filter if provided
+        if (body.filters?.dateRange) {
+          searchOptions.yearStart = body.filters.dateRange.start;
+          searchOptions.yearEnd = body.filters.dateRange.end;
         }
-      ];
 
-      // Apply filters to mock results
+        console.log(`Performing Google Scholar search for query: "${searchQuery}" with options:`, searchOptions);
+        
+        // Execute the search
+        scholarResults = await this.scholarClient.search(searchQuery, searchOptions);
+        
+        console.log(`Google Scholar search returned ${scholarResults.length} results`);
+
+      } catch (searchError) {
+        console.error('Google Scholar search failed:', searchError);
+        
+        // Handle the error and determine appropriate response
+        const errorHandling = this.handleSearchError(searchError, searchQuery);
+        
+        if (errorHandling.shouldRetry) {
+          // For retryable errors, we might want to implement retry logic here
+          // For now, we'll log and continue with fallback
+          console.warn(`Retryable search error for query "${searchQuery}": ${errorHandling.errorMessage}`);
+        } else {
+          console.error(`Non-retryable search error for query "${searchQuery}": ${errorHandling.errorMessage}`);
+        }
+        
+        // Use fallback results if available
+        scholarResults = errorHandling.fallbackResults.map(result => ({
+          title: result.title,
+          authors: result.authors,
+          journal: result.journal,
+          year: result.publication_date ? parseInt(result.publication_date) : undefined,
+          publication_date: result.publication_date,
+          doi: result.doi,
+          url: result.url,
+          abstract: result.abstract,
+          keywords: result.keywords,
+          confidence: result.confidence,
+          relevance_score: result.relevance_score,
+          citation_count: result.citation_count
+        }));
+      }
+
+      // Convert ScholarSearchResult to SearchResult format
+      let searchResults: SearchResult[] = scholarResults.map(result => ({
+        title: result.title,
+        authors: result.authors,
+        journal: result.journal,
+        publication_date: result.publication_date || result.year?.toString(),
+        doi: result.doi,
+        url: result.url,
+        confidence: result.confidence,
+        relevance_score: result.relevance_score,
+        abstract: result.abstract,
+        keywords: result.keywords,
+        citation_count: result.citation_count // Preserve citation count from Google Scholar
+      }));
+
+      // Apply additional filters to search results (Google Scholar client handles basic filtering)
       if (body.filters) {
-        mockResults = this.applyFilters(mockResults, body.filters);
+        searchResults = this.applyFilters(searchResults, body.filters);
       }
 
       // Apply learning-based ranking to results
-      let finalResults = mockResults;
+      let finalResults = searchResults;
       try {
         const learningSystem = new FeedbackLearningSystem(c.env);
         const userId = body.conversationId; // Using conversationId as userId for now
         
-        // Convert mock results to SearchResult format for learning system
-        const searchResultsForLearning = mockResults.map(result => ({
+        // Convert search results to format for learning system
+        const searchResultsForLearning = searchResults.map(result => ({
           id: crypto.randomUUID(),
           searchSessionId: sessionId || '',
           resultTitle: result.title,
@@ -272,7 +388,7 @@ export class AISearcherAPIHandler {
           relevanceScore: result.relevance_score || 0,
           confidenceScore: result.confidence || 0,
           qualityScore: this.calculateQualityScore(result),
-          citationCount: Math.floor(Math.random() * 100), // Mock citation count
+          citationCount: result.citation_count || 0, // Use real citation count from Google Scholar
           addedToLibrary: false,
           createdAt: new Date()
         }));
@@ -281,20 +397,24 @@ export class AISearcherAPIHandler {
         const rankedResults = await learningSystem.applyFeedbackBasedRanking(userId, searchResultsForLearning);
         
         // Convert back to original format with learning adjustments
-        finalResults = rankedResults.map(result => ({
-          title: result.resultTitle,
-          authors: result.resultAuthors,
-          journal: result.resultJournal,
-          publication_date: result.resultYear?.toString(),
-          doi: result.resultDoi,
-          url: result.resultUrl,
-          confidence: result.confidenceScore,
-          relevance_score: result.relevanceScore,
-          abstract: mockResults.find(mr => mr.title === result.resultTitle)?.abstract,
-          keywords: mockResults.find(mr => mr.title === result.resultTitle)?.keywords,
-          // Include learning metadata for debugging/transparency
-          learningAdjustments: (result as any).learningAdjustments
-        }));
+        finalResults = rankedResults.map(result => {
+          const originalResult = searchResults.find(sr => sr.title === result.resultTitle);
+          return {
+            title: result.resultTitle,
+            authors: result.resultAuthors,
+            journal: result.resultJournal,
+            publication_date: result.resultYear?.toString(),
+            doi: result.resultDoi,
+            url: result.resultUrl,
+            confidence: result.confidenceScore,
+            relevance_score: result.relevanceScore,
+            abstract: originalResult?.abstract,
+            keywords: originalResult?.keywords,
+            citation_count: originalResult?.citation_count, // Preserve citation count
+            // Include learning metadata for debugging/transparency
+            learningAdjustments: (result as any).learningAdjustments
+          };
+        });
 
         console.log(`Applied learning-based ranking for user ${userId}: ${rankedResults.length} results`);
       } catch (learningError) {
@@ -302,33 +422,38 @@ export class AISearcherAPIHandler {
         // Continue with original results if learning fails
       }
 
-      // Record search results for analytics
+      // Record search results for analytics (skip in test environment)
       if (sessionId) {
-        const analyticsManager = this.getAnalyticsManager(c.env);
-        for (const result of finalResults) {
-          await analyticsManager.recordSearchResult({
-            searchSessionId: sessionId,
-            resultTitle: result.title,
-            resultAuthors: result.authors,
-            resultJournal: result.journal,
-            resultYear: result.publication_date ? parseInt(result.publication_date) : undefined,
-            resultDoi: result.doi,
-            resultUrl: result.url,
-            relevanceScore: result.relevance_score || 0,
-            confidenceScore: result.confidence || 0,
-            qualityScore: this.calculateQualityScore(result),
-            citationCount: Math.floor(Math.random() * 100), // Mock citation count
-            addedToLibrary: false
-          });
-        }
+        try {
+          const analyticsManager = this.getAnalyticsManager(c.env);
+          for (const result of finalResults) {
+            await analyticsManager.recordSearchResult({
+              searchSessionId: sessionId,
+              resultTitle: result.title,
+              resultAuthors: result.authors,
+              resultJournal: result.journal,
+              resultYear: result.publication_date ? parseInt(result.publication_date) : undefined,
+              resultDoi: result.doi,
+              resultUrl: result.url,
+              relevanceScore: result.relevance_score || 0,
+              confidenceScore: result.confidence || 0,
+              qualityScore: this.calculateQualityScore(result),
+              citationCount: result.citation_count || 0, // Use real citation count from Google Scholar
+              addedToLibrary: false
+            });
+          }
 
-        // Update search session with results
-        const processingTime = Date.now() - startTime;
-        await this.updateSearchSession(sessionId, {
-          resultsCount: finalResults.length,
-          searchSuccess: true,
-          processingTimeMs: processingTime
-        });
+          // Update search session with results
+          const processingTime = Date.now() - startTime;
+          await this.updateSearchSession(sessionId, {
+            resultsCount: finalResults.length,
+            searchSuccess: true,
+            processingTimeMs: processingTime
+          });
+        } catch (analyticsError) {
+          console.error('Error recording search analytics:', analyticsError);
+          // Continue without analytics in case of error
+        }
       }
 
       const processingTime = Date.now() - startTime;
@@ -393,23 +518,102 @@ export class AISearcherAPIHandler {
         }, 400);
       }
 
-      // Simulate metadata extraction
-      const mockMetadata: SearchResult = {
-        title: "Extracted Paper Title",
-        authors: ["Author, A.", "Author, B."],
-        journal: "Sample Journal",
-        publication_date: "2023",
-        doi: body.source.includes('doi.org') ? body.source.split('doi.org/')[1] : undefined,
-        url: body.source,
-        confidence: 0.85,
-        relevance_score: 0.7,
-        abstract: "This is a simulated abstract extracted from the provided source.",
-        keywords: ["extracted", "metadata", "academic"]
-      };
+      let extractedMetadata: SearchResult | null = null;
+
+      try {
+        if (body.type === 'doi' || body.source.includes('doi.org')) {
+          // Extract DOI and search for it
+          let doi = body.source;
+          if (body.source.includes('doi.org/')) {
+            doi = body.source.split('doi.org/')[1];
+          }
+          
+          // Search Google Scholar for the DOI
+          const searchQuery = `"${doi}"`;
+          const results = await this.scholarClient.search(searchQuery, { maxResults: 1 });
+          
+          if (results && results.length > 0) {
+            const result = results[0];
+            extractedMetadata = {
+              title: result.title,
+              authors: result.authors,
+              journal: result.journal,
+              publication_date: result.publication_date || result.year?.toString(),
+              doi: result.doi || doi,
+              url: result.url || body.source,
+              confidence: result.confidence,
+              relevance_score: result.relevance_score,
+              abstract: result.abstract,
+              keywords: result.keywords
+            };
+          }
+        } else if (body.type === 'url') {
+          // For URLs, try to extract title and search for it
+          // This is a simplified approach - in production, you might want to scrape the page
+          const urlParts = body.source.split('/');
+          const possibleTitle = urlParts[urlParts.length - 1]
+            .replace(/[-_]/g, ' ')
+            .replace(/\.(pdf|html|htm)$/i, '');
+          
+          if (possibleTitle.length > 3) {
+            const results = await this.scholarClient.search(possibleTitle, { maxResults: 3 });
+            
+            // Find the most relevant result
+            if (results && results.length > 0) {
+              const bestResult = results[0]; // Google Scholar already ranks by relevance
+              extractedMetadata = {
+                title: bestResult.title,
+                authors: bestResult.authors,
+                journal: bestResult.journal,
+                publication_date: bestResult.publication_date || bestResult.year?.toString(),
+                doi: bestResult.doi,
+                url: bestResult.url || body.source,
+                confidence: Math.max(0.3, bestResult.confidence - 0.2), // Lower confidence for URL extraction
+                relevance_score: bestResult.relevance_score,
+                abstract: bestResult.abstract,
+                keywords: bestResult.keywords
+              };
+            }
+          }
+        }
+
+        // If extraction failed, provide a fallback response
+        if (!extractedMetadata) {
+          extractedMetadata = {
+            title: "Unable to extract title",
+            authors: ["Unknown Author"],
+            journal: undefined,
+            publication_date: undefined,
+            doi: body.type === 'doi' ? body.source : undefined,
+            url: body.source,
+            confidence: 0.1,
+            relevance_score: 0.1,
+            abstract: "Metadata extraction failed. Please verify the source and try again.",
+            keywords: []
+          };
+        }
+
+      } catch (extractionError) {
+        console.error('Real metadata extraction failed:', extractionError);
+        
+        // Provide fallback metadata
+        extractedMetadata = {
+          title: "Extraction Failed",
+          authors: ["Unknown Author"],
+          journal: undefined,
+          publication_date: undefined,
+          doi: body.type === 'doi' ? body.source : undefined,
+          url: body.source,
+          confidence: 0.1,
+          relevance_score: 0.1,
+          abstract: `Failed to extract metadata: ${extractionError instanceof Error ? extractionError.message : 'Unknown error'}`,
+          keywords: []
+        };
+      }
 
       return c.json({
         success: true,
-        metadata: mockMetadata,
+        metadata: extractedMetadata,
         processingTime: Date.now() - startTime
       });
 
@@ -970,13 +1174,11 @@ export class AISearcherAPIHandler {
       });
     }
 
-    // Apply minimum citations filter (mock implementation)
+    // Apply minimum citations filter
     if (filters.minCitations && filters.minCitations > 0) {
       filteredResults = filteredResults.filter(result => {
-        // Since we don't have real citation data, we'll use a mock calculation
-        // based on publication year and journal quality
-        const mockCitations = this.calculateMockCitations(result);
-        return mockCitations >= filters.minCitations;
+        const citations = this.calculateCitations(result);
+        return citations >= filters.minCitations;
       });
     }
 
@@ -1009,8 +1211,8 @@ export class AISearcherAPIHandler {
 
       case 'citations':
         return sortedResults.sort((a, b) => {
-          const citationsA = this.calculateMockCitations(a);
-          const citationsB = this.calculateMockCitations(b);
+          const citationsA = this.calculateCitations(a);
+          const citationsB = this.calculateCitations(b);
           return citationsB - citationsA; // Highest first
         });
 
@@ -1030,9 +1232,15 @@ export class AISearcherAPIHandler {
   }
 
   /**
-   * Calculate mock citation count for demonstration
+   * Calculate citation count - use real data when available, fallback to estimation
    */
-  private calculateMockCitations(result: SearchResult): number {
+  private calculateCitations(result: SearchResult): number {
+    // If we have real citation data from Google Scholar, use it
+    if (result.citation_count !== undefined && result.citation_count > 0) {
+      return result.citation_count;
+    }
+
+    // Fallback to estimation for cases where citation data is not available
     let citations = 0;
 
     // Base citations on publication year (older papers tend to have more citations)
@@ -1040,21 +1248,25 @@ export class AISearcherAPIHandler {
       const year = parseInt(result.publication_date);
       const currentYear = new Date().getFullYear();
       const yearsSincePublication = currentYear - year;
-      citations += Math.max(0, yearsSincePublication * 5);
+      citations += Math.max(0, yearsSincePublication * 3); // Reduced multiplier for more realistic estimates
     }
 
     // Boost for high-quality journals
     if (result.journal) {
-      const highQualityJournals = ['Nature', 'Science', 'Cell', 'Journal of Artificial Intelligence Research'];
-      if (highQualityJournals.some(journal => result.journal!.includes(journal))) {
-        citations += 50;
+      const highQualityJournals = [
+        'Nature', 'Science', 'Cell', 'PNAS', 'The Lancet', 'NEJM',
+        'Journal of Artificial Intelligence Research', 'Machine Learning',
+        'IEEE Transactions', 'ACM Transactions', 'Communications of the ACM'
+      ];
+      if (highQualityJournals.some(journal => result.journal!.toLowerCase().includes(journal.toLowerCase()))) {
+        citations += 25;
       }
     }
 
-    // Add some randomness for variety
-    citations += Math.floor(Math.random() * 30);
+    // Boost based on confidence score (higher confidence usually means more established papers)
+    citations += Math.floor(result.confidence * 15);
 
-    return citations;
+    return Math.max(0, citations);
   }
 
   /**

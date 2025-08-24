@@ -158,7 +158,6 @@
 
 - [x] 7.2 Add search result management features
 
-
   - Implement search result bookmarking functionality
   - Add result comparison features for side-by-side analysis
   - Create search result export options
@@ -168,7 +167,8 @@
 
 - [ ] 8. Complete Backend API Integration
 
-- [ ] 8.1 Replace mock data with real search functionality
+- [x] 8.1 Replace mock data with real search functionality
+
 
   - Connect AI searcher API to Google Scholar client
   - Replace mock search results with actual Google Scholar data
