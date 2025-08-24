@@ -14,35 +14,50 @@ import {
 } from './ai-types';
 
 /**
- * Validate if a string is a valid ConcernCategory
+ * @function isValidConcernCategory
+ * @description Validate if a string is a valid ConcernCategory.
+ * @param {any} value - The value to validate.
+ * @returns {boolean} Whether the value is a valid ConcernCategory.
  */
 export function isValidConcernCategory(value: any): value is ConcernCategory {
   return typeof value === 'string' && Object.values(ConcernCategory).includes(value as ConcernCategory);
 }
 
 /**
- * Validate if a string is a valid ConcernSeverity
+ * @function isValidConcernSeverity
+ * @description Validate if a string is a valid ConcernSeverity.
+ * @param {any} value - The value to validate.
+ * @returns {boolean} Whether the value is a valid ConcernSeverity.
  */
 export function isValidConcernSeverity(value: any): value is ConcernSeverity {
   return typeof value === 'string' && Object.values(ConcernSeverity).includes(value as ConcernSeverity);
 }
 
 /**
- * Validate if a string is a valid ConcernStatus
+ * @function isValidConcernStatus
+ * @description Validate if a string is a valid ConcernStatus.
+ * @param {any} value - The value to validate.
+ * @returns {boolean} Whether the value is a valid ConcernStatus.
  */
 export function isValidConcernStatus(value: any): value is ConcernStatus {
   return typeof value === 'string' && Object.values(ConcernStatus).includes(value as ConcernStatus);
 }
 
 /**
- * Validate if a string is a valid academic level
+ * @function isValidAcademicLevel
+ * @description Validate if a string is a valid academic level.
+ * @param {any} value - The value to validate.
+ * @returns {boolean} Whether the value is a valid academic level.
  */
 export function isValidAcademicLevel(value: any): value is 'undergraduate' | 'graduate' | 'doctoral' {
   return typeof value === 'string' && ['undergraduate', 'graduate', 'doctoral'].includes(value);
 }
 
 /**
- * Validate if an object is a valid ContentLocation
+ * @function isValidContentLocation
+ * @description Validate if an object is a valid ContentLocation.
+ * @param {any} value - The value to validate.
+ * @returns {boolean} Whether the value is a valid ContentLocation.
  */
 export function isValidContentLocation(value: any): value is ContentLocation {
   if (!value || typeof value !== 'object') {
@@ -75,7 +90,10 @@ export function isValidContentLocation(value: any): value is ContentLocation {
 }
 
 /**
- * Validate if an object is a valid ProofreadingConcern
+ * @function isValidProofreadingConcern
+ * @description Validate if an object is a valid ProofreadingConcern.
+ * @param {any} value - The value to validate.
+ * @returns {boolean} Whether the value is a valid ProofreadingConcern.
  */
 export function isValidProofreadingConcern(value: any): value is ProofreadingConcern {
   if (!value || typeof value !== 'object') {
@@ -110,7 +128,10 @@ export function isValidProofreadingConcern(value: any): value is ProofreadingCon
 }
 
 /**
- * Validate if an object is valid AnalysisOptions
+ * @function isValidAnalysisOptions
+ * @description Validate if an object is valid AnalysisOptions.
+ * @param {any} value - The value to validate.
+ * @returns {boolean} Whether the value is valid AnalysisOptions.
  */
 export function isValidAnalysisOptions(value: any): value is AnalysisOptions {
   if (!value || typeof value !== 'object') {
@@ -138,7 +159,10 @@ export function isValidAnalysisOptions(value: any): value is AnalysisOptions {
 }
 
 /**
- * Validate if an object is a valid ConcernStatusUpdate
+ * @function isValidConcernStatusUpdate
+ * @description Validate if an object is a valid ConcernStatusUpdate.
+ * @param {any} value - The value to validate.
+ * @returns {boolean} Whether the value is a valid ConcernStatusUpdate.
  */
 export function isValidConcernStatusUpdate(value: any): value is ConcernStatusUpdate {
   if (!value || typeof value !== 'object') {
@@ -162,7 +186,15 @@ export function isValidConcernStatusUpdate(value: any): value is ConcernStatusUp
 }
 
 /**
- * Create a default ProofreadingConcern with required fields
+ * @function createDefaultProofreadingConcern
+ * @description Create a default ProofreadingConcern with required fields.
+ * @param {string} id - The unique ID of the concern.
+ * @param {string} conversationId - The ID of the conversation.
+ * @param {ConcernCategory} category - The category of the concern.
+ * @param {ConcernSeverity} severity - The severity of the concern.
+ * @param {string} title - The title of the concern.
+ * @param {string} description - The description of the concern.
+ * @returns {ProofreadingConcern} The default ProofreadingConcern.
  */
 export function createDefaultProofreadingConcern(
   id: string,
@@ -193,7 +225,9 @@ export function createDefaultProofreadingConcern(
 }
 
 /**
- * Create default AnalysisOptions
+ * @function createDefaultAnalysisOptions
+ * @description Create default AnalysisOptions.
+ * @returns {AnalysisOptions} The default AnalysisOptions.
  */
 export function createDefaultAnalysisOptions(): AnalysisOptions {
   return {
@@ -205,28 +239,37 @@ export function createDefaultAnalysisOptions(): AnalysisOptions {
 }
 
 /**
- * Get all concern categories
+ * @function getAllConcernCategories
+ * @description Get all concern categories.
+ * @returns {ConcernCategory[]} An array of all concern categories.
  */
 export function getAllConcernCategories(): ConcernCategory[] {
   return Object.values(ConcernCategory);
 }
 
 /**
- * Get all concern severities
+ * @function getAllConcernSeverities
+ * @description Get all concern severities.
+ * @returns {ConcernSeverity[]} An array of all concern severities.
  */
 export function getAllConcernSeverities(): ConcernSeverity[] {
   return Object.values(ConcernSeverity);
 }
 
 /**
- * Get all concern statuses
+ * @function getAllConcernStatuses
+ * @description Get all concern statuses.
+ * @returns {ConcernStatus[]} An array of all concern statuses.
  */
 export function getAllConcernStatuses(): ConcernStatus[] {
   return Object.values(ConcernStatus);
 }
 
 /**
- * Get human-readable label for concern category
+ * @function getConcernCategoryLabel
+ * @description Get human-readable label for concern category.
+ * @param {ConcernCategory} category - The concern category.
+ * @returns {string} The human-readable label.
  */
 export function getConcernCategoryLabel(category: ConcernCategory): string {
   const labels: Record<ConcernCategory, string> = {
@@ -245,7 +288,10 @@ export function getConcernCategoryLabel(category: ConcernCategory): string {
 }
 
 /**
- * Get human-readable label for concern severity
+ * @function getConcernSeverityLabel
+ * @description Get human-readable label for concern severity.
+ * @param {ConcernSeverity} severity - The concern severity.
+ * @returns {string} The human-readable label.
  */
 export function getConcernSeverityLabel(severity: ConcernSeverity): string {
   const labels: Record<ConcernSeverity, string> = {
@@ -258,7 +304,10 @@ export function getConcernSeverityLabel(severity: ConcernSeverity): string {
 }
 
 /**
- * Get human-readable label for concern status
+ * @function getConcernStatusLabel
+ * @description Get human-readable label for concern status.
+ * @param {ConcernStatus} status - The concern status.
+ * @returns {string} The human-readable label.
  */
 export function getConcernStatusLabel(status: ConcernStatus): string {
   const labels: Record<ConcernStatus, string> = {

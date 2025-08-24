@@ -23,12 +23,25 @@ export enum AIErrorType {
 }
 
 // AI Error class for structured error handling
+/**
+ * @class AIError
+ * @extends Error
+ * @description Custom error class for structured error handling in AI operations.
+ */
 export class AIError extends Error {
   public readonly type: AIErrorType;
   public readonly code?: string;
   public readonly retryable: boolean;
   public readonly originalError?: Error;
 
+  /**
+   * @constructor
+   * @param {string} message - The error message.
+   * @param {AIErrorType} type - The type of the AI error.
+   * @param {string} [code] - An optional error code.
+   * @param {boolean} [retryable=false] - Whether the error is retryable.
+   * @param {Error} [originalError] - The original error, if any.
+   */
   constructor(
     message: string,
     type: AIErrorType,
@@ -76,6 +89,10 @@ export interface ErrorContext {
 }
 
 // AI Error Handler class
+/**
+ * @class AIErrorHandler
+ * @description Handles AI operation errors with appropriate recovery strategies.
+ */
 export class AIErrorHandler {
   private static readonly DEFAULT_RETRY_ATTEMPTS = 3;
   private static readonly RETRY_DELAYS = [1000, 2000, 4000]; // Exponential backoff
@@ -84,6 +101,15 @@ export class AIErrorHandler {
 
   /**
    * Handle AI operation errors with appropriate recovery strategies
+   */
+  /**
+   * @static
+   * @method handleError
+   * @description Handle AI operation errors with appropriate recovery strategies.
+   * @param {unknown} error - The error to handle.
+   * @param {string} context - The context in which the error occurred.
+   * @param {ErrorContext} [errorContext] - Optional error context for better tracking.
+   * @returns {AIErrorResponse} The error response.
    */
   static handleError(error: unknown, context: string, errorContext?: ErrorContext): AIErrorResponse {
     const aiError = this.normalizeError(error);
@@ -103,6 +129,12 @@ export class AIErrorHandler {
 
   /**
    * Check network connectivity
+   */
+  /**
+   * @static
+   * @method checkNetworkConnectivity
+   * @description Check network connectivity.
+   * @returns {Promise<NetworkStatus>} The network status.
    */
   static async checkNetworkConnectivity(): Promise<NetworkStatus> {
     const status: NetworkStatus = {
@@ -142,6 +174,15 @@ export class AIErrorHandler {
 
   /**
    * Handle network-specific errors with intelligent retry
+   */
+    /**
+   * @static
+   * @method handleNetworkError
+   * @description Handle network-specific errors with intelligent retry.
+   * @param {() => Promise<any>} operation - The operation to retry.
+   * @param {ErrorContext} context - The error context.
+   * @param {number} [maxRetries=AIErrorHandler.DEFAULT_RETRY_ATTEMPTS] - The maximum number of retries.
+   * @returns {Promise<any>} The result of the operation.
    */
   static async handleNetworkError(
     operation: () => Promise<any>,
@@ -197,6 +238,13 @@ export class AIErrorHandler {
 
   /**
    * Normalize various error types into AIError
+   */
+  /**
+   * @static
+   * @method normalizeError
+   * @description Normalize various error types into AIError.
+   * @param {unknown} error - The error to normalize.
+   * @returns {AIError} The normalized AIError.
    */
   static normalizeError(error: unknown): AIError {
     if (error instanceof AIError) {
@@ -355,6 +403,15 @@ export class AIErrorHandler {
   /**
    * Log errors with appropriate level and context
    */
+  /**
+   * @private
+   * @static
+   * @method logError
+   * @description Log errors with appropriate level and context.
+   * @param {AIError} error - The error to log.
+   * @param {string} context - The context in which the error occurred.
+   * @param {ErrorContext} [errorContext] - Optional error context.
+   */
   private static logError(error: AIError, context: string, errorContext?: ErrorContext): void {
     const logMessage = `AI Error in ${context}: ${error.message}`;
     const logData = { 
@@ -397,6 +454,13 @@ export class AIErrorHandler {
 
   /**
    * Get retry strategy for different error types
+   */
+  /**
+   * @static
+   * @method getRetryStrategy
+   * @description Get retry strategy for different error types.
+   * @param {AIError} error - The AIError.
+   * @returns {ErrorRecoveryStrategy} The retry strategy.
    */
   static getRetryStrategy(error: AIError): ErrorRecoveryStrategy {
     switch (error.type) {
@@ -512,6 +576,16 @@ export class AIErrorHandler {
   /**
    * Execute operation with retry logic
    */
+    /**
+   * @static
+   * @method withRetry
+   * @description Execute operation with retry logic.
+   * @template T
+   * @param {() => Promise<T>} operation - The operation to execute.
+   * @param {string} context - The context of the operation.
+   * @param {number} [maxRetries=AIErrorHandler.DEFAULT_RETRY_ATTEMPTS] - The maximum number of retries.
+   * @returns {Promise<T>} The result of the operation.
+   */
   static async withRetry<T>(
     operation: () => Promise<T>,
     context: string,
@@ -544,6 +618,13 @@ export class AIErrorHandler {
 
   /**
    * Validate AI request before processing
+   */
+  /**
+   * @static
+   * @method validateRequest
+   * @description Validate AI request before processing.
+   * @param {any} request - The request to validate.
+   * @param {string[]} requiredFields - The required fields.
    */
   static validateRequest(request: any, requiredFields: string[]): void {
     for (const field of requiredFields) {
@@ -581,12 +662,26 @@ export class AIErrorHandler {
   /**
    * Check if response is successful
    */
+  /**
+   * @static
+   * @method isSuccessResponse
+   * @description Check if response is successful.
+   * @param {AIResponse} response - The AI response.
+   * @returns {boolean} Whether the response is successful.
+   */
   static isSuccessResponse(response: AIResponse): response is import('./ai-interfaces').AISuccessResponse {
     return response.success === true;
   }
 
   /**
    * Get user-friendly error message with actionable guidance
+   */
+  /**
+   * @static
+   * @method getUserFriendlyMessage
+   * @description Get user-friendly error message with actionable guidance.
+   * @param {AIError} error - The AIError.
+   * @returns {string} The user-friendly message.
    */
   static getUserFriendlyMessage(error: AIError): string {
     switch (error.type) {
@@ -620,6 +715,15 @@ export class AIErrorHandler {
   /**
    * Create error context for better error tracking
    */
+  /**
+   * @static
+   * @method createErrorContext
+   * @description Create error context for better error tracking.
+   * @param {string} operation - The operation being performed.
+   * @param {AIMode} mode - The AI mode.
+   * @param {number} [retryCount=0] - The retry count.
+   * @returns {ErrorContext} The error context.
+   */
   static createErrorContext(operation: string, mode: AIMode, retryCount: number = 0): ErrorContext {
     return {
       operation,
@@ -633,6 +737,13 @@ export class AIErrorHandler {
   /**
    * Check if error should trigger graceful degradation
    */
+  /**
+   * @static
+   * @method shouldGracefullyDegrade
+   * @description Check if error should trigger graceful degradation.
+   * @param {AIError} error - The AIError.
+   * @returns {boolean} Whether to gracefully degrade.
+   */
   static shouldGracefullyDegrade(error: AIError): boolean {
     const strategy = this.getRetryStrategy(error);
     return strategy.gracefulDegradation === true;
@@ -640,6 +751,14 @@ export class AIErrorHandler {
 
   /**
    * Get fallback mode for graceful degradation
+   */
+  /**
+   * @static
+   * @method getFallbackMode
+   * @description Get fallback mode for graceful degradation.
+   * @param {AIError} error - The AIError.
+   * @param {AIMode} currentMode - The current AI mode.
+   * @returns {AIMode} The fallback AI mode.
    */
   static getFallbackMode(error: AIError, currentMode: AIMode): AIMode {
     const strategy = this.getRetryStrategy(error);

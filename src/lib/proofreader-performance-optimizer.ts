@@ -51,8 +51,8 @@ interface StatusUpdateEntry {
 }
 
 /**
- * Proofreader Performance Optimizer
- * Handles caching, debouncing, and performance optimizations specific to proofreader operations
+ * @class ProofreaderPerformanceOptimizer
+ * @description Handles caching, debouncing, and performance optimizations specific to proofreader operations.
  */
 export class ProofreaderPerformanceOptimizer {
   private analysisCache = new Map<string, AnalysisCacheEntry>();

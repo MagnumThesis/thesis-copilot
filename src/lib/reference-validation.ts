@@ -26,7 +26,10 @@ const ISBN_REGEX = /^(?:ISBN(?:-1[03])?:? )?(?=[0-9X]{10}$|(?=(?:[0-9]+[- ]){3})
 const YEAR_REGEX = /^(1[0-9]{3}|20[0-9]{2})$/;
 
 /**
- * Validates a DOI format
+ * @function validateDOI
+ * @description Validates a DOI format.
+ * @param {string} doi - The DOI to validate.
+ * @returns {boolean} True if the DOI is valid, false otherwise.
  */
 export function validateDOI(doi: string): boolean {
   if (!doi || typeof doi !== 'string') return false;
@@ -34,7 +37,10 @@ export function validateDOI(doi: string): boolean {
 }
 
 /**
- * Validates a URL format
+ * @function validateURL
+ * @description Validates a URL format.
+ * @param {string} url - The URL to validate.
+ * @returns {boolean} True if the URL is valid, false otherwise.
  */
 export function validateURL(url: string): boolean {
   if (!url || typeof url !== 'string') return false;
@@ -42,7 +48,10 @@ export function validateURL(url: string): boolean {
 }
 
 /**
- * Validates an ISBN format
+ * @function validateISBN
+ * @description Validates an ISBN format.
+ * @param {string} isbn - The ISBN to validate.
+ * @returns {boolean} True if the ISBN is valid, false otherwise.
  */
 export function validateISBN(isbn: string): boolean {
   if (!isbn || typeof isbn !== 'string') return false;
@@ -50,7 +59,10 @@ export function validateISBN(isbn: string): boolean {
 }
 
 /**
- * Validates a publication year
+ * @function validateYear
+ * @description Validates a publication year.
+ * @param {string} year - The year to validate.
+ * @returns {boolean} True if the year is valid, false otherwise.
  */
 export function validateYear(year: string): boolean {
   if (!year || typeof year !== 'string') return false;
@@ -58,7 +70,10 @@ export function validateYear(year: string): boolean {
 }
 
 /**
- * Validates author information
+ * @function validateAuthor
+ * @description Validates author information.
+ * @param {Author} author - The author object to validate.
+ * @returns {ValidationError[]} An array of validation errors.
  */
 export function validateAuthor(author: Author): ValidationError[] {
   const errors: ValidationError[] = [];
@@ -99,7 +114,10 @@ export function validateAuthor(author: Author): ValidationError[] {
 }
 
 /**
- * Validates basic reference fields
+ * @function validateReferenceFields
+ * @description Validates basic reference fields.
+ * @param {ReferenceFormData} data - The reference form data to validate.
+ * @returns {ValidationError[]} An array of validation errors.
  */
 export function validateReferenceFields(data: ReferenceFormData): ValidationError[] {
   const errors: ValidationError[] = [];
@@ -289,7 +307,11 @@ const STYLE_REQUIREMENTS: Record<CitationStyle, Record<ReferenceType, string[]>>
 };
 
 /**
- * Validates reference against citation style requirements
+ * @function validateReferenceForStyle
+ * @description Validates reference against citation style requirements.
+ * @param {ReferenceFormData} data - The reference form data to validate.
+ * @param {CitationStyle} style - The citation style to validate against.
+ * @returns {ValidationError[]} An array of validation errors.
  */
 export function validateReferenceForStyle(
   data: ReferenceFormData,
@@ -345,7 +367,11 @@ export function validateReferenceForStyle(
 }
 
 /**
- * Comprehensive reference validation
+ * @function validateReference
+ * @description Comprehensive reference validation.
+ * @param {ReferenceFormData} data - The reference form data to validate.
+ * @param {CitationStyle} [style] - The citation style to validate against.
+ * @returns {ValidationResult} The validation result.
  */
 export function validateReference(
   data: ReferenceFormData,
@@ -395,7 +421,11 @@ export function validateReference(
 }
 
 /**
- * Validates a complete reference object (for existing references)
+ * @function validateExistingReference
+ * @description Validates a complete reference object (for existing references).
+ * @param {Reference} reference - The reference object to validate.
+ * @param {CitationStyle} [style] - The citation style to validate against.
+ * @returns {ValidationResult} The validation result.
  */
 export function validateExistingReference(
   reference: Reference,
@@ -427,14 +457,22 @@ export function validateExistingReference(
 }
 
 /**
- * Gets required fields for a specific reference type and citation style
+ * @function getRequiredFields
+ * @description Gets required fields for a specific reference type and citation style.
+ * @param {ReferenceType} type - The type of the reference.
+ * @param {CitationStyle} style - The citation style.
+ * @returns {string[]} An array of required fields.
  */
 export function getRequiredFields(type: ReferenceType, style: CitationStyle): string[] {
   return STYLE_REQUIREMENTS[style][type] || [];
 }
 
 /**
- * Checks if a reference has all required fields for a citation style
+ * @function hasRequiredFields
+ * @description Checks if a reference has all required fields for a citation style.
+ * @param {ReferenceFormData} data - The reference form data.
+ * @param {CitationStyle} style - The citation style.
+ * @returns {boolean} True if all required fields are present, false otherwise.
  */
 export function hasRequiredFields(
   data: ReferenceFormData,

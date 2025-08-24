@@ -22,7 +22,7 @@ This document breaks down the implementation of the comprehensive codebase docum
 
 ### 2. TSDoc Implementation
 
-- [ ] **2.1. Document `src/lib` directory**
+- [X] **2.1. Document `src/lib` directory**
     - Add TSDoc comments to all functions and classes in the `src/lib` directory.
     - Ensure that all exported members have a clear description, parameter and return value documentation, and examples where applicable.
     - *Requirement: 4.1, 4.2*

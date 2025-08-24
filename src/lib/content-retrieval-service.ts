@@ -22,9 +22,8 @@ export interface ContentRetrievalResult {
 }
 
 /**
- * Content Retrieval Service Class
- * 
- * Provides methods to retrieve content from Builder tool and idea definitions
+ * @class ContentRetrievalService
+ * @description Provides methods to retrieve content from Builder tool and idea definitions
  * from Idealist tool for use in proofreading analysis.
  */
 export class ContentRetrievalService {

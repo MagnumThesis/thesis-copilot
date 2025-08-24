@@ -24,7 +24,8 @@ export interface ConnectionTest {
 export type NetworkStatusCallback = (status: NetworkStatus) => void;
 
 /**
- * Network Status Service for monitoring connection quality and managing offline state
+ * @class NetworkStatusService
+ * @description Service for monitoring connection quality and managing offline state.
  */
 export class NetworkStatusService {
   private static instance: NetworkStatusService;

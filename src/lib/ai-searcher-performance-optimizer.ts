@@ -100,6 +100,10 @@ interface CacheConfig {
  * AI Searcher Performance Optimizer
  * Handles caching, background processing, and progressive loading for search operations
  */
+/**
+ * @class AISearcherPerformanceOptimizer
+ * @description Handles caching, background processing, and progressive loading for search operations.
+ */
 export class AISearcherPerformanceOptimizer {
   private searchResultsCache = new Map<string, SearchResultCacheEntry>();
   private contentExtractionCache = new Map<string, ContentExtractionCacheEntry>();
@@ -246,6 +250,13 @@ export class AISearcherPerformanceOptimizer {
   /**
    * Get cached search results
    */
+  /**
+   * @method getCachedSearchResults
+   * @description Get cached search results.
+   * @param {string} query - The search query.
+   * @param {SearchFilters} filters - The search filters.
+   * @returns {ScholarSearchResult[] | null} The cached search results or null.
+   */
   public getCachedSearchResults(query: string, filters: SearchFilters): ScholarSearchResult[] | null {
     const cacheKey = this.getSearchResultsCacheKey(query, filters);
     const entry = this.searchResultsCache.get(cacheKey);
@@ -269,6 +280,14 @@ export class AISearcherPerformanceOptimizer {
 
   /**
    * Cache search results
+   */
+  /**
+   * @method cacheSearchResults
+   * @description Cache search results.
+   * @param {string} query - The search query.
+   * @param {SearchFilters} filters - The search filters.
+   * @param {ScholarSearchResult[]} results - The search results to cache.
+   * @param {number} processingTimeMs - The processing time in milliseconds.
    */
   public cacheSearchResults(
     query: string, 
@@ -300,6 +319,14 @@ export class AISearcherPerformanceOptimizer {
   /**
    * Get cached content extraction
    */
+  /**
+   * @method getCachedContentExtraction
+   * @description Get cached content extraction.
+   * @param {string} conversationId - The ID of the conversation.
+   * @param {'ideas' | 'builder'} sourceType - The type of the source.
+   * @param {string} sourceId - The ID of the source.
+   * @returns {ExtractedContent | null} The cached content extraction or null.
+   */
   public getCachedContentExtraction(
     conversationId: string, 
     sourceType: 'ideas' | 'builder', 
@@ -324,6 +351,14 @@ export class AISearcherPerformanceOptimizer {
 
   /**
    * Cache content extraction
+   */
+  /**
+   * @method cacheContentExtraction
+   * @description Cache content extraction.
+   * @param {string} conversationId - The ID of the conversation.
+   * @param {'ideas' | 'builder'} sourceType - The type of the source.
+   * @param {string} sourceId - The ID of the source.
+   * @param {ExtractedContent} extractedContent - The extracted content to cache.
    */
   public cacheContentExtraction(
     conversationId: string, 
@@ -352,6 +387,13 @@ export class AISearcherPerformanceOptimizer {
   /**
    * Get cached query generation
    */
+  /**
+   * @method getCachedQueryGeneration
+   * @description Get cached query generation.
+   * @param {ExtractedContent[]} content - The content to generate queries from.
+   * @param {QueryGenerationOptions} options - The options for query generation.
+   * @returns {SearchQuery[] | null} The cached queries or null.
+   */
   public getCachedQueryGeneration(
     content: ExtractedContent[], 
     options: QueryGenerationOptions
@@ -377,6 +419,13 @@ export class AISearcherPerformanceOptimizer {
   /**
    * Cache query generation
    */
+  /**
+   * @method cacheQueryGeneration
+   * @description Cache query generation.
+   * @param {ExtractedContent[]} content - The content the queries were generated from.
+   * @param {QueryGenerationOptions} options - The options used for query generation.
+   * @param {SearchQuery[]} queries - The generated queries to cache.
+   */
   public cacheQueryGeneration(
     content: ExtractedContent[], 
     options: QueryGenerationOptions,
@@ -400,6 +449,12 @@ export class AISearcherPerformanceOptimizer {
 
   /**
    * Add background task to queue
+   */
+  /**
+   * @method addBackgroundTask
+   * @description Add background task to queue.
+   * @param {Omit<BackgroundTask, 'id' | 'timestamp' | 'retryCount' | 'status'>} task - The task to add.
+   * @returns {string} The ID of the added task.
    */
   public addBackgroundTask(task: Omit<BackgroundTask, 'id' | 'timestamp' | 'retryCount' | 'status'>): string {
     const taskId = crypto.randomUUID();
@@ -452,6 +507,10 @@ export class AISearcherPerformanceOptimizer {
 
   /**
    * Stop background worker
+   */
+  /**
+   * @method stopBackgroundWorker
+   * @description Stop background worker.
    */
   public stopBackgroundWorker(): void {
     if (this.backgroundWorkerInterval) {
@@ -595,6 +654,14 @@ export class AISearcherPerformanceOptimizer {
   /**
    * Initialize progressive loading session
    */
+  /**
+   * @method initializeProgressiveLoading
+   * @description Initialize progressive loading session.
+   * @param {string} sessionId - The ID of the session.
+   * @param {number} totalResults - The total number of results.
+   * @param {number} [batchSize=10] - The size of each batch.
+   * @returns {ProgressiveLoadingState} The initial state of the progressive loading session.
+   */
   public initializeProgressiveLoading(
     sessionId: string,
     totalResults: number,
@@ -618,6 +685,14 @@ export class AISearcherPerformanceOptimizer {
 
   /**
    * Get next batch for progressive loading
+   */
+  /**
+   * @method getNextBatch
+   * @description Get next batch for progressive loading.
+   * @template T
+   * @param {string} sessionId - The ID of the session.
+   * @param {T[]} allResults - All the results.
+   * @returns {{batch: T[], state: ProgressiveLoadingState, isComplete: boolean}} The next batch, the updated state, and whether the loading is complete.
    */
   public getNextBatch<T>(sessionId: string, allResults: T[]): {
     batch: T[];
@@ -657,6 +732,11 @@ export class AISearcherPerformanceOptimizer {
 
   /**
    * Clean up progressive loading session
+   */
+  /**
+   * @method cleanupProgressiveLoading
+   * @description Clean up progressive loading session.
+   * @param {string} sessionId - The ID of the session to clean up.
    */
   public cleanupProgressiveLoading(sessionId: string): void {
     this.progressiveLoadingStates.delete(sessionId);
@@ -720,6 +800,11 @@ export class AISearcherPerformanceOptimizer {
   /**
    * Get performance metrics
    */
+  /**
+   * @method getMetrics
+   * @description Get performance metrics.
+   * @returns {SearchPerformanceMetrics} The performance metrics.
+   */
   public getMetrics(): SearchPerformanceMetrics {
     // Calculate memory usage estimate
     const searchCacheSize = this.searchResultsCache.size * 50; // Rough estimate in KB
@@ -734,6 +819,10 @@ export class AISearcherPerformanceOptimizer {
 
   /**
    * Reset performance metrics
+   */
+  /**
+   * @method resetMetrics
+   * @description Reset performance metrics.
    */
   public resetMetrics(): void {
     this.metrics = {
@@ -752,6 +841,10 @@ export class AISearcherPerformanceOptimizer {
   /**
    * Clear all caches
    */
+  /**
+   * @method clearAllCaches
+   * @description Clear all caches.
+   */
   public clearAllCaches(): void {
     this.searchResultsCache.clear();
     this.contentExtractionCache.clear();
@@ -760,6 +853,11 @@ export class AISearcherPerformanceOptimizer {
 
   /**
    * Get cache statistics
+   */
+  /**
+   * @method getCacheStats
+   * @description Get cache statistics.
+   * @returns {{searchResults: { size: number; maxSize: number; hitRate: number }; contentExtraction: { size: number; maxSize: number }; queryGeneration: { size: number; maxSize: number }; backgroundTasks: { pending: number; processing: number }; progressiveLoading: { activeSessions: number };}} The cache statistics.
    */
   public getCacheStats(): {
     searchResults: { size: number; maxSize: number; hitRate: number };
@@ -797,6 +895,10 @@ export class AISearcherPerformanceOptimizer {
 
   /**
    * Cleanup resources
+   */
+  /**
+   * @method cleanup
+   * @description Cleanup resources.
    */
   public cleanup(): void {
     this.stopBackgroundWorker();

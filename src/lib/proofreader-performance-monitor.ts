@@ -22,7 +22,8 @@ export interface PerformanceBenchmark {
 }
 
 /**
- * Performance monitoring class for proofreader operations
+ * @class ProofreaderPerformanceMonitor
+ * @description Performance monitoring class for proofreader operations.
  */
 export class ProofreaderPerformanceMonitor {
   private metrics: Map<string, PerformanceMetric> = new Map();

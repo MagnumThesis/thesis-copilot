@@ -1,7 +1,6 @@
 /**
- * Proofreader Recovery Service
- * 
- * This service provides comprehensive recovery mechanisms for the proofreader tool,
+ * @class ProofreaderRecoveryService
+ * @description This service provides comprehensive recovery mechanisms for the proofreader tool,
  * including offline operation, data synchronization, and graceful degradation.
  */
 

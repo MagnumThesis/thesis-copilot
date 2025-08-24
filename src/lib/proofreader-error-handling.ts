@@ -98,7 +98,8 @@ export const AI_SERVICE_RETRY_CONFIG: RetryConfig = {
 };
 
 /**
- * Enhanced error classification and handling
+ * @class ProofreaderErrorHandler
+ * @description Enhanced error classification and handling for the proofreader tool.
  */
 export class ProofreaderErrorHandler {
   private static instance: ProofreaderErrorHandler;
