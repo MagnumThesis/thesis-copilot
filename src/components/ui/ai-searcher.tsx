@@ -7,7 +7,7 @@ import { Label } from "./shadcn/label"
 import { Card, CardContent, CardHeader, CardTitle } from "./shadcn/card"
 import { Badge } from "./shadcn/badge"
 import { Reference, ReferenceType, ExtractedContent } from "../../lib/ai-types"
-import { Search, Sparkles, ExternalLink, Plus, Settings, Zap, Merge, AlertTriangle, MessageSquare, Filter } from "lucide-react"
+import { Search, Sparkles, ExternalLink, Plus, Settings, Zap, Merge, AlertTriangle, MessageSquare, Filter, Shield } from "lucide-react"
 import { ContentSourceSelector } from "./content-source-selector"
 import { QueryRefinementPanel } from "./query-refinement-panel"
 import { DuplicateConflictResolver } from "./duplicate-conflict-resolver"
@@ -20,6 +20,9 @@ import { QueryRefinement, RefinedQuery } from "../../worker/lib/query-generation
 import { DuplicateDetectionEngine, DuplicateDetectionOptions, DuplicateGroup } from "../../worker/lib/duplicate-detection-engine"
 import { ScholarSearchResult, SearchFilters } from "../../lib/ai-types"
 import { useSearchResultTracking } from "../../hooks/useSearchAnalytics"
+import { usePrivacyManager } from "../../hooks/usePrivacyManager"
+import { ConsentBanner } from "./consent-banner"
+import { PrivacyControls } from "./privacy-controls"
 
 interface AISearcherProps {
   conversationId: string
@@ -51,6 +54,10 @@ export const AISearcher: React.FC<AISearcherProps> = ({
   const [searchError, setSearchError] = useState<string | null>(null)
   const [addingReference, setAddingReference] = useState<string | null>(null)
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
+  
+  // Privacy management
+  const privacyManager = usePrivacyManager(conversationId)
+  const [showPrivacyControls, setShowPrivacyControls] = useState(false)
   
   // Analytics tracking
   const searchTracking = useSearchResultTracking(currentSessionId || '')
@@ -92,6 +99,12 @@ export const AISearcher: React.FC<AISearcherProps> = ({
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return
+
+    // Check if user has given consent for AI features
+    if (!privacyManager.hasConsent) {
+      setSearchError('Please provide consent for AI features to use the search functionality.')
+      return
+    }
 
     setLoading(true)
     setSearchError(null)
@@ -649,10 +662,47 @@ export const AISearcher: React.FC<AISearcherProps> = ({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2">
-        <Sparkles className="h-5 w-5 text-blue-600" />
-        <h3 className="text-lg font-semibold">AI-Powered Reference Search</h3>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-5 w-5 text-blue-600" />
+          <h3 className="text-lg font-semibold">AI-Powered Reference Search</h3>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setShowPrivacyControls(!showPrivacyControls)}
+          className="flex items-center gap-2"
+        >
+          <Shield className="h-4 w-4" />
+          Privacy
+        </Button>
       </div>
+
+      {/* Consent Banner */}
+      <ConsentBanner 
+        conversationId={conversationId}
+        onConsentChange={(granted) => {
+          if (granted) {
+            privacyManager.loadSettings()
+          }
+        }}
+      />
+
+      {/* Privacy Controls */}
+      {showPrivacyControls && (
+        <PrivacyControls
+          conversationId={conversationId}
+          onSettingsChange={(settings) => {
+            privacyManager.loadSettings()
+          }}
+          onDataCleared={() => {
+            privacyManager.loadDataSummary()
+          }}
+          onDataExported={(data) => {
+            console.log('Data exported:', data)
+          }}
+        />
+      )}
 
       {/* Content Source Selection Toggle */}
       <Card>

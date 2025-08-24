@@ -3,6 +3,7 @@ import { cors } from 'hono/cors';
 import referencerApi from './handlers/referencer-api';
 import aiSearcherApi from './handlers/ai-searcher-api';
 import searchResultManagementApi from './handlers/search-result-management';
+import privacyManagementApi from './handlers/privacy-management';
 import { getChatsHandler, createChatHandler, deleteChatHandler, updateChatHandler } from './handlers/chats';
 import { getMessagesHandler } from './handlers/messages';
 import { generateTitleHandler } from './handlers/generate-title';
@@ -90,6 +91,7 @@ builderApi.post('/ai/modify', builderAIModifyHandler);
 // API routes
 app.route('/api/referencer', referencerApi);
 app.route('/api/ai-searcher', aiSearcherApi);
+app.route('/api/ai-searcher/privacy', privacyManagementApi);
 app.route('/api/search-result-management', searchResultManagementApi);
 app.route('/api/ideas', ideasApi);
 app.route('/api/builder', builderApi);
