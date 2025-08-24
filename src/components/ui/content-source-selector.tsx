@@ -220,34 +220,64 @@ export const ContentSourceSelector: React.FC<ContentSourceSelectorProps> = ({
   }
 
   const extractContentFromSource = async (source: ContentSource): Promise<ExtractedContent> => {
-    // Mock content extraction - in real implementation this would call the content extraction engine
-    await new Promise(resolve => setTimeout(resolve, 500)) // Simulate API delay
-    
-    if (source.type === 'ideas') {
-      const idea = ideasSources.find(s => s.id === source.id)
-      if (!idea) throw new Error('Idea not found')
-      
-      return {
-        source: 'ideas',
-        title: idea.title,
-        content: `${idea.title}\n\n${idea.preview}`,
-        keywords: extractKeywords(idea.title + ' ' + idea.preview),
-        keyPhrases: extractKeyPhrases(idea.title + ' ' + idea.preview),
-        topics: extractTopics(idea.title + ' ' + idea.preview),
-        confidence: 0.85
+    try {
+      // Call the real content preview API
+      const response = await fetch('/api/ai-searcher/content-preview', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          conversationId,
+          source: source.type,
+          id: source.id
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to extract content: ${response.statusText}`)
       }
-    } else {
-      const builder = builderSources.find(s => s.id === source.id)
-      if (!builder) throw new Error('Builder content not found')
+
+      const data = await response.json()
+
+      if (data.success && data.extractedContent) {
+        return data.extractedContent
+      } else {
+        throw new Error(data.error || 'Failed to extract content')
+      }
+
+    } catch (error) {
+      console.error('Error extracting content from API:', error)
       
-      return {
-        source: 'builder',
-        title: builder.title,
-        content: builder.preview,
-        keywords: extractKeywords(builder.preview),
-        keyPhrases: extractKeyPhrases(builder.preview),
-        topics: extractTopics(builder.preview),
-        confidence: 0.90
+      // Fallback to mock extraction for development
+      console.log('Falling back to mock content extraction')
+      
+      if (source.type === 'ideas') {
+        const idea = ideasSources.find(s => s.id === source.id)
+        if (!idea) throw new Error('Idea not found')
+        
+        return {
+          source: 'ideas',
+          title: idea.title,
+          content: `${idea.title}\n\n${idea.preview}`,
+          keywords: extractKeywords(idea.title + ' ' + idea.preview),
+          keyPhrases: extractKeyPhrases(idea.title + ' ' + idea.preview),
+          topics: extractTopics(idea.title + ' ' + idea.preview),
+          confidence: 0.85
+        }
+      } else {
+        const builder = builderSources.find(s => s.id === source.id)
+        if (!builder) throw new Error('Builder content not found')
+        
+        return {
+          source: 'builder',
+          title: builder.title,
+          content: builder.preview,
+          keywords: extractKeywords(builder.preview),
+          keyPhrases: extractKeyPhrases(builder.preview),
+          topics: extractTopics(builder.preview),
+          confidence: 0.90
+        }
       }
     }
   }
@@ -298,28 +328,76 @@ export const ContentSourceSelector: React.FC<ContentSourceSelectorProps> = ({
     }
     
     try {
-      // Extract content from all selected sources
-      const extractedContents: ExtractedContent[] = []
-      
-      for (const source of selectedSources) {
-        const extracted = await extractContentFromSource(source)
-        extractedContents.push(extracted)
+      // Use the real API to generate query from content sources
+      const response = await fetch('/api/ai-searcher/generate-query', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          conversationId,
+          contentSources: selectedSources.map(source => ({
+            source: source.type,
+            id: source.id
+          })),
+          options: {
+            maxQueries: 1,
+            includeKeywords: true,
+            includeTopics: true,
+            optimizeForAcademic: true
+          }
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to generate query: ${response.statusText}`)
+      }
+
+      const data = await response.json()
+
+      if (data.success && data.queries && data.queries.length > 0) {
+        const query = data.queries[0].query
+        setGeneratedQuery(query)
+        onSearchQueryGenerated(query)
+        
+        // Also pass the extracted content if available
+        if (data.extractedContent) {
+          onContentSelected(data.extractedContent)
+        }
+      } else {
+        throw new Error(data.error || 'Failed to generate search query')
       }
       
-      // Generate search query from extracted content
-      const allKeywords = [...new Set(extractedContents.flatMap(ec => ec.keywords))]
-      const allTopics = [...new Set(extractedContents.flatMap(ec => ec.topics))]
-      
-      // Create intelligent search query
-      const query = [...allTopics.slice(0, 3), ...allKeywords.slice(0, 5)].join(' ')
-      
-      setGeneratedQuery(query)
-      onSearchQueryGenerated(query)
-      onContentSelected(extractedContents)
-      
     } catch (err) {
-      console.error('Error generating search query:', err)
-      setError(err instanceof Error ? err.message : 'Failed to generate search query')
+      console.error('Error generating search query from API:', err)
+      
+      // Fallback to local generation
+      console.log('Falling back to local query generation')
+      
+      try {
+        // Extract content from all selected sources
+        const extractedContents: ExtractedContent[] = []
+        
+        for (const source of selectedSources) {
+          const extracted = await extractContentFromSource(source)
+          extractedContents.push(extracted)
+        }
+        
+        // Generate search query from extracted content
+        const allKeywords = [...new Set(extractedContents.flatMap(ec => ec.keywords || []))]
+        const allTopics = [...new Set(extractedContents.flatMap(ec => ec.topics || []))]
+        
+        // Create intelligent search query
+        const query = [...allTopics.slice(0, 3), ...allKeywords.slice(0, 5)].join(' ')
+        
+        setGeneratedQuery(query)
+        onSearchQueryGenerated(query)
+        onContentSelected(extractedContents)
+        
+      } catch (fallbackErr) {
+        console.error('Fallback query generation also failed:', fallbackErr)
+        setError(fallbackErr instanceof Error ? fallbackErr.message : 'Failed to generate search query')
+      }
     }
   }
 

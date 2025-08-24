@@ -958,8 +958,19 @@ export class AISearcherAPIHandler {
             id: source.id,
             conversationId: body.conversationId
           });
-          extractedContents.push(extracted);
+          
+          // Enhance extracted content with additional metadata
+          const enhancedContent: ExtractedContent = {
+            ...extracted,
+            id: source.id,
+            source: source.source,
+            title: extracted.title || `${source.source} content ${source.id}`,
+            confidence: extracted.confidence || 0.8
+          };
+          
+          extractedContents.push(enhancedContent);
         } catch (error) {
+          console.error(`Error extracting content from ${source.source}:${source.id}:`, error);
           errors.push({
             source: source.source,
             id: source.id,
@@ -971,6 +982,7 @@ export class AISearcherAPIHandler {
       return c.json({
         success: true,
         extractedContent: extractedContents,
+        totalExtracted: extractedContents.length,
         errors: errors.length > 0 ? errors : undefined,
         processingTime: Date.now() - startTime
       });
@@ -981,6 +993,73 @@ export class AISearcherAPIHandler {
       return c.json({
         success: false,
         error: 'Failed to extract content',
+        details: error instanceof Error ? error.message : 'Unknown error',
+        processingTime: Date.now() - startTime
+      }, 500);
+    }
+  }
+
+  /**
+   * POST /api/ai-searcher/content-preview
+   * Preview extracted content from a single source
+   */
+  async contentPreview(c: Context<AISearcherContext>) {
+    const startTime = Date.now();
+
+    try {
+      const body = await c.req.json() as {
+        conversationId: string;
+        source: 'ideas' | 'builder';
+        id: string;
+      };
+
+      if (!body.conversationId || !body.source || !body.id) {
+        return c.json({
+          success: false,
+          error: 'conversationId, source, and id are required',
+          processingTime: Date.now() - startTime
+        }, 400);
+      }
+
+      try {
+        const extracted = await this.contentEngine.extractContent({
+          source: body.source,
+          id: body.id,
+          conversationId: body.conversationId
+        });
+
+        // Enhance with preview-specific metadata
+        const previewContent: ExtractedContent = {
+          ...extracted,
+          id: body.id,
+          source: body.source,
+          title: extracted.title || `${body.source} content ${body.id}`,
+          confidence: extracted.confidence || 0.8
+        };
+
+        return c.json({
+          success: true,
+          extractedContent: previewContent,
+          processingTime: Date.now() - startTime
+        });
+
+      } catch (extractionError) {
+        console.error(`Error previewing content from ${body.source}:${body.id}:`, extractionError);
+        
+        return c.json({
+          success: false,
+          error: `Failed to preview content from ${body.source}`,
+          details: extractionError instanceof Error ? extractionError.message : 'Unknown error',
+          processingTime: Date.now() - startTime
+        }, 400);
+      }
+
+    } catch (error) {
+      console.error('Content preview error:', error);
+
+      return c.json({
+        success: false,
+        error: 'Failed to preview content',
         details: error instanceof Error ? error.message : 'Unknown error',
         processingTime: Date.now() - startTime
       }, 500);
@@ -1478,6 +1557,7 @@ app.post('/search', (c) => aiSearcherAPIHandler.search(c));
 app.post('/extract', (c) => aiSearcherAPIHandler.extract(c));
 app.post('/generate-query', (c) => aiSearcherAPIHandler.generateQuery(c));
 app.post('/extract-content', (c) => aiSearcherAPIHandler.extractContent(c));
+app.post('/content-preview', (c) => aiSearcherAPIHandler.contentPreview(c));
 app.post('/validate-query', (c) => aiSearcherAPIHandler.validateQuery(c));
 app.post('/combine-queries', (c) => aiSearcherAPIHandler.combineQueries(c));
 app.post('/refine-query', (c) => aiSearcherAPIHandler.refineQuery(c));

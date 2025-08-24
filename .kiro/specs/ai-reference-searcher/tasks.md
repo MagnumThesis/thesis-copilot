@@ -169,7 +169,6 @@
 
 - [x] 8.1 Replace mock data with real search functionality
 
-
   - Connect AI searcher API to Google Scholar client
   - Replace mock search results with actual Google Scholar data
   - Implement real metadata extraction from search results
@@ -177,7 +176,8 @@
   - Write end-to-end tests for real search functionality
   - _Requirements: 3.1, 3.2, 3.3_
 
-- [ ] 8.2 Integrate content extraction with search API
+- [x] 8.2 Integrate content extraction with search API
+
 
   - Connect content extraction engine to AI searcher API endpoints
   - Implement automatic search query generation from extracted content
