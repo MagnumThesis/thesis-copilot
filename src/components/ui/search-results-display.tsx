@@ -17,17 +17,30 @@ import {
   Quote,
   TrendingUp,
   Info,
-  MessageSquare
+  MessageSquare,
+  Bookmark,
+  Compare,
+  Share2,
+  Download
 } from "lucide-react"
 import { ScholarSearchResult, ExtractedContent } from "../../lib/ai-types"
 import { ResultScoringEngine, RankedResult } from "../../worker/lib/result-scoring-engine"
 import { SearchResultFeedbackComponent, QuickFeedbackButtons, SearchResultFeedback } from "./search-result-feedback"
+import { SearchResultBookmark } from "./search-result-bookmark"
 
 export interface SearchResultsDisplayProps {
   results: ScholarSearchResult[]
   extractedContent: ExtractedContent
   onAddReference: (result: ScholarSearchResult) => void
   onProvideFeedback?: (resultId: string, feedback: SearchResultFeedback) => Promise<void>
+  onBookmarkResult?: (result: ScholarSearchResult) => Promise<void>
+  onRemoveBookmark?: (result: ScholarSearchResult) => Promise<void>
+  onAddToComparison?: (result: ScholarSearchResult) => Promise<void>
+  onShareResult?: (result: ScholarSearchResult) => Promise<void>
+  onExportResults?: (results: ScholarSearchResult[]) => Promise<void>
+  bookmarkedResults?: Set<string>
+  comparisonResults?: Set<string>
+  userId?: string
   loading?: boolean
   error?: string | null
   className?: string
@@ -47,6 +60,14 @@ export const SearchResultsDisplay: React.FC<SearchResultsDisplayProps> = ({
   extractedContent,
   onAddReference,
   onProvideFeedback,
+  onBookmarkResult,
+  onRemoveBookmark,
+  onAddToComparison,
+  onShareResult,
+  onExportResults,
+  bookmarkedResults = new Set(),
+  comparisonResults = new Set(),
+  userId,
   loading = false,
   error = null,
   className = ""
@@ -62,6 +83,8 @@ export const SearchResultsDisplay: React.FC<SearchResultsDisplayProps> = ({
   const [showConfidenceDetails, setShowConfidenceDetails] = useState<string | null>(null)
   const [showFeedbackForm, setShowFeedbackForm] = useState<string | null>(null)
   const [submittedFeedback, setSubmittedFeedback] = useState<Set<string>>(new Set())
+  const [processingBookmark, setProcessingBookmark] = useState<string | null>(null)
+  const [processingComparison, setProcessingComparison] = useState<string | null>(null)
 
   // Initialize scoring engine
   const scoringEngine = useMemo(() => new ResultScoringEngine(), [])
@@ -199,6 +222,50 @@ export const SearchResultsDisplay: React.FC<SearchResultsDisplayProps> = ({
     setShowFeedbackForm(null)
   }
 
+  const handleBookmarkToggle = async (result: RankedResult) => {
+    const resultId = `${result.title}-${result.authors[0]}`
+    const isBookmarked = bookmarkedResults.has(resultId)
+    
+    setProcessingBookmark(resultId)
+    try {
+      if (isBookmarked && onRemoveBookmark) {
+        await onRemoveBookmark(result)
+      } else if (!isBookmarked && onBookmarkResult) {
+        await onBookmarkResult(result)
+      }
+    } catch (error) {
+      console.error('Error toggling bookmark:', error)
+    } finally {
+      setProcessingBookmark(null)
+    }
+  }
+
+  const handleAddToComparison = async (result: RankedResult) => {
+    if (!onAddToComparison) return
+
+    const resultId = `${result.title}-${result.authors[0]}`
+    setProcessingComparison(resultId)
+    try {
+      await onAddToComparison(result)
+    } catch (error) {
+      console.error('Error adding to comparison:', error)
+    } finally {
+      setProcessingComparison(null)
+    }
+  }
+
+  const handleShareResult = async (result: RankedResult) => {
+    if (onShareResult) {
+      await onShareResult(result)
+    }
+  }
+
+  const handleExportResults = async () => {
+    if (onExportResults) {
+      await onExportResults(rankedResults)
+    }
+  }
+
   const getConfidenceColor = (confidence: number): string => {
     if (confidence >= 0.8) return 'bg-green-100 text-green-800 border-green-200'
     if (confidence >= 0.6) return 'bg-yellow-100 text-yellow-800 border-yellow-200'
@@ -315,8 +382,20 @@ export const SearchResultsDisplay: React.FC<SearchResultsDisplayProps> = ({
           </div>
         </div>
 
-        {/* Items per page selector */}
+        {/* Action and Items per page selector */}
         <div className="flex items-center gap-2">
+          {onExportResults && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportResults}
+              className="flex items-center gap-2"
+            >
+              <Download className="h-4 w-4" />
+              Export
+            </Button>
+          )}
+          
           <span className="text-sm text-muted-foreground">Show:</span>
           <Select
             value={pagination.itemsPerPage.toString()}
@@ -434,7 +513,7 @@ export const SearchResultsDisplay: React.FC<SearchResultsDisplayProps> = ({
                   </div>
                   
                   {/* Action Buttons */}
-                  <div className="flex items-center gap-1 ml-4">
+                  <div className="flex items-center gap-1 ml-4 flex-wrap">
                     {result.doi && (
                       <a
                         href={`https://doi.org/${result.doi}`}
@@ -446,6 +525,20 @@ export const SearchResultsDisplay: React.FC<SearchResultsDisplayProps> = ({
                         <ExternalLink className="h-4 w-4" />
                       </a>
                     )}
+                    
+                    {/* Management Buttons */}
+                    {(onBookmarkResult || onRemoveBookmark) && (
+                      <SearchResultBookmark
+                        result={result}
+                        isBookmarked={bookmarkedResults.has(resultId)}
+                        onBookmark={onBookmarkResult || (() => Promise.resolve())}
+                        onRemoveBookmark={onRemoveBookmark || (() => Promise.resolve())}
+                        onCompare={onAddToComparison ? () => handleAddToComparison(result) : undefined}
+                        onShare={onShareResult ? () => handleShareResult(result) : undefined}
+                        disabled={processingBookmark === resultId || processingComparison === resultId}
+                      />
+                    )}
+                    
                     <Button
                       variant="outline"
                       size="sm"
