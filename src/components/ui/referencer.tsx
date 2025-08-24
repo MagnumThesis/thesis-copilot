@@ -18,23 +18,65 @@ import { BibliographyGenerator } from "./bibliography-generator"
 import { BookOpen, FileText, Quote, Settings, Search, Plus, Filter, Sparkles } from "lucide-react"
 import { AISearcher } from "./ai-searcher"
 
+/**
+ * Props for the Referencer component
+ */
 interface ReferencerProps {
+  /** Whether the referencer sheet is open */
   isOpen: boolean
+  /** Callback function to close the referencer */
   onClose: () => void
-  currentConversation: { title: string; id: string }
+  /** Current conversation context */
+  currentConversation: { 
+    /** Title of the conversation */
+    title: string; 
+    /** ID of the conversation */
+    id: string 
+  }
 }
 
+/**
+ * Available tabs in the referencer interface
+ */
 type ReferencerTab = 'references' | 'citations' | 'bibliography' | 'ai-searcher'
 
+/**
+ * Internal state for the Referencer component
+ */
 interface ReferencerState {
+  /** Currently active tab */
   activeTab: ReferencerTab
+  /** Current search query */
   searchQuery: string
+  /** Currently selected citation style */
   selectedStyle: CitationStyle
+  /** Current reference type filter */
   filterType: ReferenceType | 'all'
+  /** Whether to show the reference form */
   showForm: boolean
+  /** ID of the reference being edited, or null if adding new */
   editingReference: string | null
 }
 
+/**
+ * Main reference management component that provides a comprehensive interface for handling academic references.
+ * This component includes functionality for adding, editing, searching, and organizing references,
+ * as well as generating citations and bibliographies in various formats.
+ * 
+ * @param {ReferencerProps} props - The props for the Referencer component
+ * @param {boolean} props.isOpen - Whether the referencer sheet is open
+ * @param {() => void} props.onClose - Callback function to close the referencer
+ * @param {{title: string, id: string}} props.currentConversation - Current conversation context
+ * 
+ * @example
+ * ```tsx
+ * <Referencer
+ *   isOpen={true}
+ *   onClose={() => setReferencerOpen(false)}
+ *   currentConversation={{ title: "My Thesis", id: "conv-123" }}
+ * />
+ * ```
+ */
 export const Referencer: React.FC<ReferencerProps> = ({ isOpen, onClose, currentConversation }) => {
   const [state, setState] = useState<ReferencerState>({
     activeTab: 'references',

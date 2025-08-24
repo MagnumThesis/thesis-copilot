@@ -35,6 +35,27 @@ const promptSuggestions = [
   "Improve the logical flow",
 ];
 
+/**
+ * A component that allows users to input a custom prompt for AI text modification.
+ * It provides a textarea for input, optional prompt suggestions, and handles submission and cancellation.
+ * @param {CustomPromptInputProps} props - The properties for the CustomPromptInput component.
+ * @param {string} props.selectedText - The text currently selected by the user that will be modified.
+ * @param {(prompt: string) => void} props.onSubmit - Callback function to be called when the custom prompt is submitted.
+ * @param {() => void} props.onCancel - Callback function to be called when the user cancels the custom prompt input.
+ * @param {() => void} props.onBack - Callback function to navigate back to the previous step (e.g., modification type selection).
+ * @param {boolean} [props.isProcessing=false] - Indicates whether an AI modification operation is currently in progress.
+ * @param {string} [props.className] - Additional CSS classes to apply to the component container.
+ * @example
+ * ```tsx
+ * <CustomPromptInput
+ *   selectedText="This is the text to be modified."
+ *   onSubmit={(prompt) => console.log('Custom prompt submitted:', prompt)}
+ *   onCancel={() => console.log('Custom prompt cancelled')}
+ *   onBack={() => console.log('Go back')}
+ *   isProcessing={false}
+ * />
+ * ```
+ */
 export const CustomPromptInput: React.FC<CustomPromptInputProps> = ({
   selectedText,
   onSubmit,

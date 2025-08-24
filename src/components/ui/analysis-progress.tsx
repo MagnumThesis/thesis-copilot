@@ -27,6 +27,49 @@ interface AnalysisProgressProps {
   }>
 }
 
+/**
+ * Displays the progress and status of an analysis operation, including error handling and recovery options.
+ * It provides visual feedback on the analysis state (analyzing, complete, error) and suggests actions to the user.
+ * @param {AnalysisProgressProps} props - The properties for the AnalysisProgress component.
+ * @param {boolean} props.isAnalyzing - Indicates whether an analysis is currently in progress.
+ * @param {number} props.progress - The current progress of the analysis as a percentage (0-100).
+ * @param {string} props.statusMessage - A message describing the current status or step of the analysis.
+ * @param {() => void} props.onCancel - Callback function to be called when the user cancels the analysis.
+ * @param {string | null} [props.error] - An optional error message if the analysis failed.
+ * @param {boolean} [props.success] - Indicates whether the analysis completed successfully.
+ * @param {() => void} [props.onRetry] - Optional callback function to retry the analysis after an error.
+ * @param {() => void} [props.onDismissError] - Optional callback function to dismiss the error notification.
+ * @param {boolean} [props.isOnline=true] - Indicates whether the application is currently online.
+ * @param {boolean} [props.fallbackUsed=false] - Indicates whether a fallback analysis mode was used.
+ * @param {boolean} [props.cacheUsed=false] - Indicates whether cached results were used.
+ * @param {string} [props.errorType] - The type of error that occurred, used for specific guidance.
+ * @param {Array<{label: string, action: () => void, variant?: 'default' | 'outline' | 'secondary'}>} [props.recoveryOptions=[]] - Custom recovery options to display to the user.
+ * @example
+ * ```tsx
+ * <AnalysisProgress
+ *   isAnalyzing={true}
+ *   progress={50}
+ *   statusMessage="Analyzing content structure..."
+ *   onCancel={() => console.log('Analysis cancelled')}
+ * />
+ *
+ * <AnalysisProgress
+ *   isAnalyzing={false}
+ *   success={true}
+ *   progress={100}
+ *   statusMessage="Analysis complete!"
+ *   onCancel={() => console.log('Analysis closed')}
+ * />
+ *
+ * <AnalysisProgress
+ *   isAnalyzing={false}
+ *   error="Network error"
+ *   statusMessage="Failed to connect to the server."
+ *   onCancel={() => console.log('Error dismissed')}
+ *   onRetry={() => console.log('Retrying analysis')}
+ * />
+ * ```
+ */
 export const AnalysisProgress: React.FC<AnalysisProgressProps> = ({
   isAnalyzing,
   progress,

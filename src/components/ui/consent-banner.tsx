@@ -15,6 +15,22 @@ interface ConsentBannerProps {
   showDetailedOptions?: boolean
 }
 
+/**
+ * A banner component that prompts the user for consent regarding AI-powered features and data usage.
+ * It allows users to accept all, accept essential, or customize their privacy settings.
+ * @param {ConsentBannerProps} props - The properties for the ConsentBanner component.
+ * @param {string} [props.conversationId] - Optional conversation ID to associate consent with a specific conversation.
+ * @param {(granted: boolean) => void} [props.onConsentChange] - Callback function to be called when the consent status changes.
+ * @param {boolean} [props.showDetailedOptions=false] - If true, the detailed options section is shown by default.
+ * @example
+ * ```tsx
+ * <ConsentBanner
+ *   conversationId="test-conversation-123"
+ *   onConsentChange={(granted) => console.log('Consent granted:', granted)}
+ *   showDetailedOptions={false}
+ * />
+ * ```
+ */
 export const ConsentBanner: React.FC<ConsentBannerProps> = ({
   conversationId,
   onConsentChange,
@@ -315,6 +331,24 @@ interface ConsentOptionProps {
   onToggle: (enabled: boolean) => void
 }
 
+/**
+ * A helper component for displaying an individual consent option within the `ConsentBanner`.
+ * It allows users to toggle the enablement of a specific privacy-related feature.
+ * @param {ConsentOptionProps} props - The properties for the ConsentOption component.
+ * @param {string} props.title - The title of the consent option.
+ * @param {string} props.description - A brief description of the consent option.
+ * @param {boolean} props.defaultEnabled - The initial enabled state of the option.
+ * @param {(enabled: boolean) => void} props.onToggle - Callback function to be called when the toggle switch is changed.
+ * @example
+ * ```tsx
+ * <ConsentOption
+ *   title="Analytics"
+ *   description="Allow anonymous usage data collection."
+ *   defaultEnabled={true}
+ *   onToggle={(enabled) => console.log('Analytics enabled:', enabled)}
+ * />
+ * ```
+ */
 const ConsentOption: React.FC<ConsentOptionProps> = ({
   title,
   description,

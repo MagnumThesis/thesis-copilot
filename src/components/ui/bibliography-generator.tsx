@@ -14,6 +14,41 @@ interface BibliographyGeneratorProps {
   onExport?: (format: string) => void
 }
 
+/**
+ * A component that allows users to generate and export bibliographies based on a list of references.
+ * It supports various citation styles and export formats.
+ * @param {BibliographyGeneratorProps} props - The properties for the BibliographyGenerator component.
+ * @param {Record<string, unknown>[]} [props.references=[]] - An array of reference objects to be included in the bibliography.
+ * @param {CitationStyle} [props.citationStyle=CitationStyle.APA] - The currently selected citation style.
+ * @param {(style: CitationStyle) => void} [props.onStyleChange] - Callback function to be called when the citation style changes.
+ * @param {(format: string) => void} [props.onExport] - Callback function to be called when the export button is clicked, with the selected format.
+ * @example
+ * ```tsx
+ * import { CitationStyle } from "@/lib/ai-types";
+ *
+ * const sampleReferences = [
+ *   {
+ *     authors: ["Smith, J."],
+ *     publication_date: "2023",
+ *     title: "The Art of Writing",
+ *     journal: "Journal of Creative Arts",
+ *   },
+ *   {
+ *     authors: ["Doe, A."],
+ *     publication_date: "2022",
+ *     title: "Science in Practice",
+ *     publisher: "Academic Press",
+ *   },
+ * ];
+ *
+ * <BibliographyGenerator
+ *   references={sampleReferences}
+ *   citationStyle={CitationStyle.MLA}
+ *   onStyleChange={(style) => console.log('Style changed to:', style)}
+ *   onExport={(format) => console.log('Exporting as:', format)}
+ * />
+ * ```
+ */
 export const BibliographyGenerator: React.FC<BibliographyGeneratorProps> = ({
   references = [],
   citationStyle = CitationStyle.APA,

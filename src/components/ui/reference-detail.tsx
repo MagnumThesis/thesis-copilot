@@ -34,24 +34,43 @@ import {
   CitationStyle
 } from "@/lib/ai-types"
 
+/**
+ * Props for the ReferenceDetail component
+ */
 interface ReferenceDetailProps {
+  /** The reference to display */
   reference: Reference
+  /** Callback function called when the edit button is clicked */
   onEdit: (reference: Reference) => void
+  /** Callback function called when the delete button is clicked */
   onDelete: (referenceId: string) => void
+  /** Callback function called when a tag is added */
   onTagAdd: (referenceId: string, tag: string) => void
+  /** Callback function called when a tag is removed */
   onTagRemove: (referenceId: string, tag: string) => void
+  /** Callback function called when the close button is clicked */
   onClose: () => void
-
+  /** Whether the component is in a loading state */
   isLoading?: boolean
 }
 
+/**
+ * Internal state for the ReferenceDetail component
+ */
 interface ReferenceDetailState {
+  /** Whether the user is currently editing tags */
   editingTags: boolean
+  /** The new tag being added */
   newTag: string
+  /** The currently selected citation style for preview */
   selectedCitationStyle: CitationStyle
+  /** Whether to show the delete confirmation dialog */
   showDeleteConfirmation: boolean
 }
 
+/**
+ * Mapping of reference types to display labels
+ */
 const REFERENCE_TYPE_LABELS: Record<ReferenceType, string> = {
   [ReferenceType.JOURNAL_ARTICLE]: 'Journal Article',
   [ReferenceType.BOOK]: 'Book',
@@ -64,6 +83,9 @@ const REFERENCE_TYPE_LABELS: Record<ReferenceType, string> = {
   [ReferenceType.OTHER]: 'Other'
 }
 
+/**
+ * Mapping of reference types to icon components
+ */
 const REFERENCE_TYPE_ICONS: Record<ReferenceType, React.ComponentType<{ className?: string }>> = {
   [ReferenceType.JOURNAL_ARTICLE]: FileText,
   [ReferenceType.BOOK]: BookOpen,
@@ -76,6 +98,9 @@ const REFERENCE_TYPE_ICONS: Record<ReferenceType, React.ComponentType<{ classNam
   [ReferenceType.OTHER]: MoreHorizontal
 }
 
+/**
+ * Mapping of citation styles to display labels
+ */
 const CITATION_STYLE_LABELS: Record<CitationStyle, string> = {
   [CitationStyle.APA]: 'APA (7th Edition)',
   [CitationStyle.MLA]: 'MLA (9th Edition)',
@@ -85,6 +110,32 @@ const CITATION_STYLE_LABELS: Record<CitationStyle, string> = {
   [CitationStyle.VANCOUVER]: 'Vancouver'
 }
 
+/**
+ * A detailed view component for displaying and managing a single reference.
+ * This component provides a comprehensive interface for viewing reference details,
+ * managing tags, previewing citations in different styles, and editing or deleting the reference.
+ * 
+ * @param {ReferenceDetailProps} props - The props for the ReferenceDetail component
+ * @param {Reference} props.reference - The reference to display
+ * @param {(reference: Reference) => void} props.onEdit - Callback function called when the edit button is clicked
+ * @param {(referenceId: string) => void} props.onDelete - Callback function called when the delete button is clicked
+ * @param {(referenceId: string, tag: string) => void} props.onTagAdd - Callback function called when a tag is added
+ * @param {(referenceId: string, tag: string) => void} props.onTagRemove - Callback function called when a tag is removed
+ * @param {() => void} props.onClose - Callback function called when the close button is clicked
+ * @param {boolean} [props.isLoading=false] - Whether the component is in a loading state
+ * 
+ * @example
+ * ```tsx
+ * <ReferenceDetail
+ *   reference={selectedReference}
+ *   onEdit={(ref) => console.log("Editing reference:", ref)}
+ *   onDelete={(id) => console.log("Deleting reference:", id)}
+ *   onTagAdd={(id, tag) => console.log("Adding tag:", tag, "to reference:", id)}
+ *   onTagRemove={(id, tag) => console.log("Removing tag:", tag, "from reference:", id)}
+ *   onClose={() => console.log("Closing detail view")}
+ * />
+ * ```
+ */
 export const ReferenceDetail: React.FC<ReferenceDetailProps> = ({
   reference,
   onEdit,

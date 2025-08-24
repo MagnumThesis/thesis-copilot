@@ -17,6 +17,40 @@ interface DeduplicationSettingsProps {
   onReset?: () => void
 }
 
+/**
+ * A component for configuring the settings of the duplicate detection engine.
+ * It allows users to adjust similarity thresholds, enable/disable fuzzy matching, strict DOI matching, and select a merge strategy.
+ * @param {DeduplicationSettingsProps} props - The properties for the DeduplicationSettings component.
+ * @param {DuplicateDetectionOptions} props.options - The current duplicate detection options.
+ * @param {(options: DuplicateDetectionOptions) => void} props.onOptionsChange - Callback function to be called when any option changes.
+ * @param {() => void} [props.onReset] - Optional callback function to reset settings to their default values.
+ * @example
+ * ```tsx
+ * import React, { useState } from 'react';
+ * import { DeduplicationSettings } from './deduplication-settings';
+ * import { DuplicateDetectionOptions } from '../../worker/lib/duplicate-detection-engine';
+ *
+ * const DeduplicationSettingsExample = () => {
+ *   const [options, setOptions] = useState<DuplicateDetectionOptions>({
+ *     titleSimilarityThreshold: 0.85,
+ *     authorSimilarityThreshold: 0.8,
+ *     enableFuzzyMatching: true,
+ *     strictDOIMatching: true,
+ *     mergeStrategy: 'keep_highest_quality',
+ *   });
+ *
+ *   return (
+ *     <DeduplicationSettings
+ *       options={options}
+ *       onOptionsChange={setOptions}
+ *       onReset={() => console.log('Reset to defaults')}
+ *     />
+ *   );
+ * };
+ *
+ * export default DeduplicationSettingsExample;
+ * ```
+ */
 export const DeduplicationSettings: React.FC<DeduplicationSettingsProps> = ({
   options,
   onOptionsChange,

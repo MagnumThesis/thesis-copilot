@@ -43,6 +43,17 @@ interface SearchResult {
   sessionId?: string
 }
 
+/**
+ * A comprehensive AI-powered academic reference search interface.
+ * It allows users to search for references, refine queries, handle duplicates, and track search analytics.
+ * @param {AISearcherProps} props - The properties for the AISearcher component.
+ * @param {string} props.conversationId - The ID of the current conversation, used for context and analytics.
+ * @param {(reference: Partial<Reference>) => void} [props.onAddReference] - Optional callback function to add a selected reference to the user's collection.
+ * @example
+ * ```tsx
+ * <AISearcher conversationId="conv-123" onAddReference={(ref) => console.log('Adding reference', ref)} />
+ * ```
+ */
 export const AISearcher: React.FC<AISearcherProps> = ({
   conversationId,
   onAddReference

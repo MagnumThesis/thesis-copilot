@@ -8,6 +8,13 @@ interface InterruptPromptProps {
   close: () => void
 }
 
+/**
+ * @component InterruptPrompt
+ * @description A small, animated prompt that appears to instruct the user to press Enter again to interrupt an ongoing process.
+ * @param {InterruptPromptProps} props - The properties for the InterruptPrompt component.
+ * @param {boolean} props.isOpen - Controls the visibility of the prompt.
+ * @param {() => void} props.close - Callback function to close the prompt.
+ */
 export function InterruptPrompt({ isOpen, close }: InterruptPromptProps) {
   return (
     <AnimatePresence>

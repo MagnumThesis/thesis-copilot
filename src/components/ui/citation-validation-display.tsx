@@ -16,6 +16,39 @@ export interface CitationValidationDisplayProps {
   compact?: boolean;
 }
 
+/**
+ * Displays validation errors and warnings for references and citations.
+ * It provides visual feedback on the validity of citation data, highlighting errors and warnings.
+ * @param {CitationValidationDisplayProps} props - The properties for the CitationValidationDisplay component.
+ * @param {ValidationResult | null} props.validationResult - The validation result object to display.
+ * @param {string} [props.className=''] - Additional CSS classes to apply to the component container.
+ * @param {boolean} [props.showOnlyErrors=false] - If true, only displays error messages and hides warnings and missing fields.
+ * @param {boolean} [props.compact=false] - If true, renders a more compact version of the display.
+ * @example
+ * ```tsx
+ * import { ValidationResult } from "@/lib/ai-types";
+ *
+ * const validResult: ValidationResult = {
+ *   isValid: true,
+ *   errors: [],
+ *   warnings: [],
+ *   missingFields: [],
+ * };
+ *
+ * const errorResult: ValidationResult = {
+ *   isValid: false,
+ *   errors: [{ field: "title", message: "Title is missing", severity: "error" }],
+ *   warnings: [{ field: "pages", message: "Pages are recommended", severity: "warning" }],
+ *   missingFields: ["abstract"],
+ * };
+ *
+ * <CitationValidationDisplay validationResult={validResult} />
+ *
+ * <CitationValidationDisplay validationResult={errorResult} />
+ *
+ * <CitationValidationDisplay validationResult={errorResult} showOnlyErrors={true} compact={true} />
+ * ```
+ */
 export const CitationValidationDisplay: React.FC<CitationValidationDisplayProps> = ({
   validationResult,
   className = '',

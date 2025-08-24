@@ -71,6 +71,13 @@ const initialState: BibliographyGeneratorState = {
 /**
  * Custom hook for bibliography generation and export
  */
+/**
+ * @function useBibliographyGenerator
+ * @description Custom hook for bibliography generation and export.
+ * @param {Reference[]} [initialReferences=[]] - Initial list of references.
+ * @param {CitationStyle} [initialStyle=CitationStyle.APA] - Initial citation style.
+ * @returns {UseBibliographyGeneratorReturn} An object containing the bibliography generator state and actions.
+ */
 export function useBibliographyGenerator(
   initialReferences: Reference[] = [],
   initialStyle: CitationStyle = CitationStyle.APA
@@ -83,6 +90,12 @@ export function useBibliographyGenerator(
 
   /**
    * Calculate bibliography statistics
+   */
+  /**
+   * @function calculateStatistics
+   * @description Calculate bibliography statistics.
+   * @param {Reference[]} references - The list of references.
+   * @returns {BibliographyStatistics} The calculated statistics.
    */
   const calculateStatistics = useCallback((references: Reference[]): BibliographyStatistics => {
     const totalReferences = references.length;
@@ -118,6 +131,11 @@ export function useBibliographyGenerator(
   /**
    * Set references and update statistics
    */
+  /**
+   * @function setReferences
+   * @description Set references and update statistics.
+   * @param {Reference[]} references - The new list of references.
+   */
   const setReferences = useCallback((references: Reference[]) => {
     setState(prev => {
       const statistics = calculateStatistics(references);
@@ -133,6 +151,11 @@ export function useBibliographyGenerator(
   /**
    * Set citation style
    */
+  /**
+   * @function setStyle
+   * @description Set citation style.
+   * @param {CitationStyle} style - The new citation style.
+   */
   const setStyle = useCallback((style: CitationStyle) => {
     setState(prev => ({
       ...prev,
@@ -144,6 +167,11 @@ export function useBibliographyGenerator(
   /**
    * Set sort order
    */
+  /**
+   * @function setSortOrder
+   * @description Set sort order.
+   * @param {'alphabetical' | 'chronological' | 'appearance'} sortOrder - The new sort order.
+   */
   const setSortOrder = useCallback((sortOrder: 'alphabetical' | 'chronological' | 'appearance') => {
     setState(prev => ({
       ...prev,
@@ -154,6 +182,10 @@ export function useBibliographyGenerator(
 
   /**
    * Generate bibliography using CitationStyleEngine
+   */
+  /**
+   * @function generateBibliography
+   * @description Generate bibliography using CitationStyleEngine.
    */
   const generateBibliography = useCallback(async () => {
     if (state.references.length === 0) {
@@ -190,6 +222,13 @@ export function useBibliographyGenerator(
 
   /**
    * Export bibliography to specified format
+   */
+  const   /**
+   * @function exportBibliography
+   * @description Export bibliography to specified format.
+   * @param {ExportFormat} format - The export format.
+   * @param {ExportOptions} [options={}] - Export options.
+   * @returns {Promise<ExportResult>} A promise that resolves with the export result.
    */
   const exportBibliography = useCallback(async (
     format: ExportFormat,
@@ -238,6 +277,13 @@ export function useBibliographyGenerator(
   /**
    * Download bibliography as file
    */
+  /**
+   * @function downloadBibliography
+   * @description Download bibliography as file.
+   * @param {ExportFormat} format - The export format.
+   * @param {ExportOptions} [options={}] - Export options.
+   * @returns {Promise<void>} A promise that resolves when the download is initiated.
+   */
   const downloadBibliography = useCallback(async (
     format: ExportFormat,
     options: ExportOptions = {}
@@ -271,6 +317,11 @@ export function useBibliographyGenerator(
   /**
    * Copy bibliography to clipboard
    */
+  /**
+   * @function copyToClipboard
+   * @description Copy bibliography to clipboard.
+   * @returns {Promise<boolean>} A promise that resolves to true if successful, false otherwise.
+   */
   const copyToClipboard = useCallback(async (): Promise<boolean> => {
     if (state.generatedBibliography.length === 0) {
       setState(prev => ({
@@ -296,6 +347,10 @@ export function useBibliographyGenerator(
   /**
    * Reset the generator state
    */
+  /**
+   * @function reset
+   * @description Reset the generator state.
+   */
   const reset = useCallback(() => {
     setState({
       ...initialState,
@@ -306,6 +361,10 @@ export function useBibliographyGenerator(
 
   /**
    * Clear error state
+   */
+  /**
+   * @function clearError
+   * @description Clear error state.
    */
   const clearError = useCallback(() => {
     setState(prev => ({ ...prev, error: null }));

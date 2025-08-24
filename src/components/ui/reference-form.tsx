@@ -11,14 +11,54 @@ import { Badge } from "./shadcn/badge"
 import { CitationStyle, Reference, ReferenceType } from "../../lib/ai-types"
 import { X, Plus } from "lucide-react"
 
+/**
+ * Props for the ReferenceForm component
+ */
 interface ReferenceFormProps {
+  /** The ID of the conversation this reference belongs to */
   conversationId: string
+  /** The ID of the reference being edited (optional) */
   referenceId?: string
+  /** Callback function to close the form */
   onClose: () => void
+  /** The citation style to use for the reference */
   citationStyle: CitationStyle
+  /** Prefilled data for the form (optional) */
   prefilledData?: Partial<Reference>
 }
 
+/**
+ * A form component for creating and editing references.
+ * This component provides a comprehensive interface for managing academic references
+ * with support for different reference types and metadata fields.
+ * 
+ * @param {ReferenceFormProps} props - The props for the ReferenceForm component
+ * @param {string} props.conversationId - The ID of the conversation this reference belongs to
+ * @param {string} [props.referenceId] - The ID of the reference being edited
+ * @param {() => void} props.onClose - Callback function to close the form
+ * @param {CitationStyle} props.citationStyle - The citation style to use for the reference
+ * @param {Partial<Reference>} [props.prefilledData] - Prefilled data for the form
+ * 
+ * @example
+ * ```tsx
+ * <ReferenceForm
+ *   conversationId="conv-123"
+ *   onClose={() => setFormOpen(false)}
+ *   citationStyle={CitationStyle.APA}
+ * />
+ * ```
+ * 
+ * @example
+ * ```tsx
+ * <ReferenceForm
+ *   conversationId="conv-123"
+ *   referenceId="ref-456"
+ *   onClose={() => setFormOpen(false)}
+ *   citationStyle={CitationStyle.MLA}
+ *   prefilledData={{ title: "Existing Reference Title" }}
+ * />
+ * ```
+ */
 export const ReferenceForm: React.FC<ReferenceFormProps> = ({
   conversationId,
   referenceId,

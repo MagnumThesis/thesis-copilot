@@ -76,6 +76,31 @@ interface EditorMethods {
 }
 
 
+/**
+ * The main interface for the AI-powered thesis proposal editor.
+ * It integrates a Milkdown markdown editor with comprehensive AI assistance capabilities
+ * including prompt-based generation, content continuation, and text modification.
+ *
+ * Key Features:
+ * - Multiple AI interaction modes (Prompt, Continue, Modify)
+ * - Real-time content synchronization
+ * - Comprehensive error handling and recovery
+ * - Academic context awareness
+ * - Accessibility compliance
+ *
+ * @param {BuilderProps} props - The properties for the Builder component.
+ * @param {boolean} props.isOpen - Whether the Builder sheet is open.
+ * @param {() => void} props.onClose - Callback function to close the Builder.
+ * @param {{title: string, id: string}} props.currentConversation - Current conversation context for AI operations.
+ * @example
+ * ```tsx
+ * <Builder
+ *   isOpen={true}
+ *   onClose={() => setBuilderOpen(false)}
+ *   currentConversation={{ title: "My Thesis", id: "conv-123" }}
+ * />
+ * ```
+ */
 export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConversation }) => {
   const [documentContent, setDocumentContent] = useState("# Thesis Proposal\n\nStart writing your thesis proposal here...");
   const [currentSelection, setCurrentSelection] = useState<TextSelection | null>(null);

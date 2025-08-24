@@ -21,6 +21,14 @@ export interface ExportOptions {
   includeDOI: boolean
 }
 
+/**
+ * @component ExportOptionsComponent
+ * @description A component that provides options for exporting search results or bibliographies.
+ * Users can select the export format and choose which data fields to include.
+ * @param {ExportOptionsProps} props - The properties for the ExportOptionsComponent.
+ * @param {CitationStyle} [props.citationStyle=CitationStyle.APA] - The default citation style to use for export.
+ * @param {(options: ExportOptions) => void} [props.onExport] - Callback function to be called when an export action is triggered.
+ */
 export const ExportOptionsComponent: React.FC<ExportOptionsProps> = ({
   citationStyle = CitationStyle.APA,
   onExport

@@ -27,6 +27,33 @@ interface ContentItem {
   confidence?: number;
 }
 
+/**
+ * A component that allows users to select content from various sources (ideas, builder documents) to be used for AI-powered search.
+ * It displays available content, allows selection, and provides a summary of selected items.
+ * @param {ContentSelectorProps} props - The properties for the ContentSelector component.
+ * @param {string} props.conversationId - The ID of the current conversation.
+ * @param {{ideas: string[], builder: string[]}} props.selectedSources - An object containing arrays of selected idea IDs and builder document IDs.
+ * @param {(sources: { ideas: string[]; builder: string[] }) => void} props.onSelectionChange - Callback function to be called when the selection of content sources changes.
+ * @example
+ * ```tsx
+ * import React, { useState } from 'react';
+ * import { ContentSelector } from './content-selector';
+ *
+ * const ContentSelectorExample = () => {
+ *   const [selectedSources, setSelectedSources] = useState({ ideas: [], builder: [] });
+ *
+ *   return (
+ *     <ContentSelector
+ *       conversationId="conv-123"
+ *       selectedSources={selectedSources}
+ *       onSelectionChange={setSelectedSources}
+ *     />
+ *   );
+ * };
+ *
+ * export default ContentSelectorExample;
+ * ```
+ */
 export const ContentSelector: React.FC<ContentSelectorProps> = ({
   conversationId,
   selectedSources,

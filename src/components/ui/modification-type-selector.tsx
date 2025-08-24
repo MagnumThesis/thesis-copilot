@@ -73,6 +73,17 @@ interface ModificationTypeSelectorProps {
   className?: string;
 }
 
+/**
+ * @component ModificationTypeSelector
+ * @description A component that allows users to select a type of modification to apply to a selected text.
+ * It presents various modification options like rewrite, expand, summarize, improve clarity, and custom prompt.
+ * @param {ModificationTypeSelectorProps} props - The properties for the ModificationTypeSelector component.
+ * @param {string} props.selectedText - The text that has been selected for modification.
+ * @param {(type: ModificationType) => void} props.onModificationTypeSelect - Callback function triggered when a modification type is selected.
+ * @param {() => void} props.onCancel - Callback function triggered when the modification is canceled.
+ * @param {boolean} [props.isProcessing=false] - Indicates if a modification is currently being processed, disabling interaction.
+ * @param {string} [props.className] - Additional CSS classes to apply to the component container.
+ */
 export const ModificationTypeSelector: React.FC<ModificationTypeSelectorProps> = ({
   selectedText,
   onModificationTypeSelect,

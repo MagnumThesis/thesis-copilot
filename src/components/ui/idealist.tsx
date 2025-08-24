@@ -27,6 +27,15 @@ const isDuplicateIdea = (newIdea: {title: string, description: string}, existing
   );
 };
 
+/**
+ * @component Idealist
+ * @description A component for managing and displaying a list of thesis idea definitions.
+ * It allows users to add, update, delete, and generate new ideas, integrated with a conversation context.
+ * @param {IdealistProps} props - The properties for the Idealist component.
+ * @param {boolean} props.isOpen - Controls the visibility of the idea list sheet.
+ * @param {() => void} props.onClose - Callback function to be called when the sheet is closed.
+ * @param {{ title: string; id: string }} props.currentConversation - The current conversation context, including its title and ID.
+ */
 export const Idealist: React.FC<IdealistProps> = ({ isOpen, onClose, currentConversation }) => {
   // Initialize with an empty array, and use the IdeaDefinition type.
   const [ideaDefinitions, setIdeaDefinitions] = useState<IdeaDefinition[]>([]);

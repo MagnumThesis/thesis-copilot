@@ -27,7 +27,7 @@ This document breaks down the implementation of the comprehensive codebase docum
     - Ensure that all exported members have a clear description, parameter and return value documentation, and examples where applicable.
     - *Requirement: 4.1, 4.2*
 
-- [ ] **2.2. Document `src/hooks` directory**
+- [X] **2.2. Document `src/hooks` directory**
     - Add TSDoc comments to all custom hooks in the `src/hooks` directory.
     - *Requirement: 2.2, 4.1, 4.2*
 
@@ -35,6 +35,31 @@ This document breaks down the implementation of the comprehensive codebase docum
     - Add TSDoc comments to all React components in the `src/components` directory.
     - Document the purpose of each component and the props it accepts.
     - *Requirement: 2.1, 4.1, 4.2*
+    
+    - [ ] **2.3.1. Document main UI components (src/components)**
+        - Add TSDoc comments to React components in the main components directory.
+        - Focus on app-sidebar.tsx, resizable-layout.tsx, and search-form.tsx.
+        - *Requirement: 2.1, 4.1, 4.2*
+    
+    - [ ] **2.3.2. Document core UI components (src/components/ui - Part 1)**
+        - Add TSDoc comments to the first set of components in the UI directory.
+        - Focus on commonly used components like dialogs, buttons, cards, etc.
+        - *Requirement: 2.1, 4.1, 4.2*
+    
+    - [ ] **2.3.3. Document specialized UI components (src/components/ui - Part 2)**
+        - Add TSDoc comments to the second set of components in the UI directory.
+        - Focus on feature-specific components like builders, searchers, etc.
+        - *Requirement: 2.1, 4.1, 4.2*
+    
+    - [ ] **2.3.4. Document reference management components (src/components/ui - Part 3)**
+        - Add TSDoc comments to reference management related components.
+        - Focus on components in the reference system like forms, lists, exports, etc.
+        - *Requirement: 2.1, 4.1, 4.2*
+    
+    - [ ] **2.3.5. Document remaining UI components (src/components/ui - Part 4)**
+        - Add TSDoc comments to any remaining components in the UI directory.
+        - Ensure all components have proper documentation.
+        - *Requirement: 2.1, 4.1, 4.2*
 
 - [ ] **2.4. Document `src/worker` directory**
     - Add TSDoc comments to all handlers and functions in the `src/worker` directory.

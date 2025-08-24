@@ -55,6 +55,35 @@ interface ContentPreview {
   error: string | null
 }
 
+/**
+ * A component that allows users to select content sources (ideas, builder documents) for AI search query generation.
+ * It provides tabs for different content types, filtering options, and a preview of selected content.
+ * @param {ContentSourceSelectorProps} props - The properties for the ContentSourceSelector component.
+ * @param {string} props.conversationId - The ID of the current conversation.
+ * @param {(content: ExtractedContent[]) => void} props.onContentSelected - Callback function to be called when content sources are selected, providing an array of `ExtractedContent`.
+ * @param {(content: ExtractedContent) => void} props.onContentPreview - Callback function to be called when a content source is previewed.
+ * @param {(query: string) => void} props.onSearchQueryGenerated - Callback function to be called when a search query is generated from selected content.
+ * @param {boolean} [props.isVisible=true] - Controls the visibility of the component.
+ * @example
+ * ```tsx
+ * import React from 'react';
+ * import { ContentSourceSelector } from './content-source-selector';
+ *
+ * const ContentSourceSelectorExample = () => {
+ *   return (
+ *     <ContentSourceSelector
+ *       conversationId="conv-123"
+ *       onContentSelected={(content) => console.log('Content selected:', content)}
+ *       onContentPreview={(content) => console.log('Content preview:', content)}
+ *       onSearchQueryGenerated={(query) => console.log('Query generated:', query)}
+ *       isVisible={true}
+ *     />
+ *   );
+ * };
+ *
+ * export default ContentSourceSelectorExample;
+ * ```
+ */
 export const ContentSourceSelector: React.FC<ContentSourceSelectorProps> = ({
   conversationId,
   onContentSelected,

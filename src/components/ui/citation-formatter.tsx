@@ -37,6 +37,66 @@ interface FormattingResult {
   };
 }
 
+/**
+ * A component that allows users to format citations and generate bibliographies based on selected references and citation styles.
+ * It provides real-time formatting, validation, and options to copy or generate a full bibliography.
+ * @param {CitationFormatterProps} props - The properties for the CitationFormatter component.
+ * @param {Reference[]} [props.references=[]] - An array of reference objects available for selection and formatting.
+ * @param {(citations: { inline: string; bibliography: string }) => void} [props.onFormattedCitations] - Callback function that is called when citations are formatted, providing the inline and bibliography strings.
+ * @example
+ * ```tsx
+ * import { CitationStyle, ReferenceType } from "@/lib/ai-types";
+ *
+ * const sampleReferences = [
+ *   {
+ *     id: "ref1",
+ *     title: "Machine Learning for Dummies",
+ *     authors: ["John Doe"],
+ *     year: 2020,
+ *     type: ReferenceType.BOOK,
+ *     doi: "10.1000/182",
+ *     url: "https://example.com/ml-dummies",
+ *     abstract: "An introductory guide to machine learning.",
+ *     publisher: "Dummy Publications",
+ *     journal: "",
+ *     volume: "",
+ *     issue: "",
+ *     pages: "",
+ *     citation_count: 10,
+ *     relevance_score: 0.9,
+ *     confidence: 0.95,
+ *     keywords: ["machine learning", "introduction"],
+ *   },
+ *   {
+ *     id: "ref2",
+ *     title: "Advanced AI Techniques",
+ *     authors: ["Jane Smith", "Peter Jones"],
+ *     year: 2021,
+ *     type: ReferenceType.JOURNAL_ARTICLE,
+ *     doi: "10.1000/183",
+ *     url: "https://example.com/advanced-ai",
+ *     abstract: "Deep dive into advanced AI algorithms.",
+ *     publisher: "",
+ *     journal: "AI Journal",
+ *     volume: "5",
+ *     issue: "2",
+ *     pages: "100-120",
+ *     citation_count: 50,
+ *     relevance_score: 0.98,
+ *     confidence: 0.99,
+ *     keywords: ["AI", "algorithms", "deep learning"],
+ *   },
+ * ];
+ *
+ * <CitationFormatter
+ *   references={sampleReferences}
+ *   onFormattedCitations={(citations) => {
+ *     console.log("Inline:", citations.inline);
+ *     console.log("Bibliography:", citations.bibliography);
+ *   }}
+ * />
+ * ```
+ */
 export const CitationFormatter: React.FC<CitationFormatterProps> = ({
   references = [],
   onFormattedCitations

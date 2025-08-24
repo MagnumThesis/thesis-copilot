@@ -7,18 +7,53 @@ import { Card, CardContent, CardHeader, CardTitle } from "./shadcn/card"
 import { CitationStyle, Reference, ReferenceType } from "../../lib/ai-types"
 import { Edit, Trash2, ExternalLink } from "lucide-react"
 
+/**
+ * Props for the ReferenceList component
+ */
 interface ReferenceListProps {
+  /** The ID of the conversation to load references for */
   conversationId: string
+  /** The search query to filter references */
   searchQuery: string
+  /** The reference type to filter by, or 'all' for no filter */
   filterType: ReferenceType | 'all'
+  /** Callback function called when the edit button is clicked for a reference */
   onEdit: (referenceId: string) => void
+  /** The citation style to use for formatting references */
   citationStyle: CitationStyle
 }
 
+/**
+ * Extended Reference interface that includes formatted citation text
+ */
 interface ReferenceWithFormattedCitation extends Reference {
+  /** The formatted citation text according to the selected citation style */
   formattedCitation: string
 }
 
+/**
+ * A component that displays a list of references with filtering and editing capabilities.
+ * This component loads references from storage, formats them according to the selected citation style,
+ * and provides UI for editing and deleting references.
+ * 
+ * @param {ReferenceListProps} props - The props for the ReferenceList component
+ * @param {string} props.conversationId - The ID of the conversation to load references for
+ * @param {string} props.searchQuery - The search query to filter references
+ * @param {ReferenceType | 'all'} props.filterType - The reference type to filter by, or 'all' for no filter
+ * @param {(referenceId: string) => void} props.onEdit - Callback function called when the edit button is clicked for a reference
+ * @param {CitationStyle} props.citationStyle - The citation style to use for formatting references
+ * 
+ * @example
+ * ```tsx
+ * <ReferenceList
+ *   conversationId="conv-123"
+ *   searchQuery=""
+ *   filterType="all"
+ *   onEdit={(refId) => console.log("Editing reference:", refId)}
+ *   citationStyle={CitationStyle.APA}
+ * />
+ * ```
+ */
 export const ReferenceList: React.FC<ReferenceListProps> = ({
   conversationId,
   searchQuery,

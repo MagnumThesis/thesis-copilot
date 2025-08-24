@@ -9,6 +9,13 @@ interface MarkdownRendererProps {
   children: string
 }
 
+/**
+ * @component MarkdownRenderer
+ * @description A component that renders Markdown content, supporting GitHub Flavored Markdown (GFM).
+ * It includes custom rendering for code blocks with syntax highlighting and copy-to-clipboard functionality.
+ * @param {MarkdownRendererProps} props - The properties for the MarkdownRenderer component.
+ * @param {string} props.children - The Markdown string to be rendered.
+ */
 export function MarkdownRenderer({ children }: MarkdownRendererProps) {
   return (
     <div className="space-y-3">
@@ -24,6 +31,14 @@ interface HighlightedPre extends React.HTMLAttributes<HTMLPreElement> {
   language: string
 }
 
+/**
+ * @component HighlightedPre
+ * @description A memoized component that renders preformatted text with syntax highlighting using Shiki.
+ * It dynamically imports Shiki for efficient bundling.
+ * @param {HighlightedPre} props - The properties for the HighlightedPre component.
+ * @param {string} props.children - The code content to be highlighted.
+ * @param {string} props.language - The programming language of the code for syntax highlighting.
+ */
 const HighlightedPre = React.memo(
   async ({ children, language, ...props }: HighlightedPre) => {
     const { codeToTokens, bundledLanguages } = await import("shiki")
@@ -80,6 +95,15 @@ interface CodeBlockProps extends React.HTMLAttributes<HTMLPreElement> {
   language: string
 }
 
+/**
+ * @component CodeBlock
+ * @description A component that renders a code block with syntax highlighting and a copy button.
+ * It uses `HighlightedPre` for the actual highlighting.
+ * @param {CodeBlockProps} props - The properties for the CodeBlock component.
+ * @param {React.ReactNode} props.children - The content of the code block.
+ * @param {string} [props.className] - Additional CSS classes to apply to the code block.
+ * @param {string} props.language - The programming language of the code.
+ */
 const CodeBlock = ({
   children,
   className,
@@ -117,6 +141,13 @@ const CodeBlock = ({
   )
 }
 
+/**
+ * @function childrenTakeAllStringContents
+ * @description Recursively extracts all string content from a React node or its children.
+ * This is primarily used to get the raw text content of code blocks for copying.
+ * @param {any} element - The React element or node to extract string content from.
+ * @returns {string} The concatenated string content.
+ */
 function childrenTakeAllStringContents(element: any): string {
   if (typeof element === "string") {
     return element
@@ -184,6 +215,14 @@ const COMPONENTS = {
   hr: withClass("hr", "border-foreground/20"),
 }
 
+/**
+ * @function withClass
+ * @description A higher-order function that wraps a given HTML tag component with additional CSS classes.
+ * This is used to apply consistent styling to Markdown-rendered elements.
+ * @param {keyof React.JSX.IntrinsicElements} Tag - The HTML tag name (e.g., 'h1', 'p', 'a').
+ * @param {string} classes - The CSS classes to apply to the component.
+ * @returns {React.FC<any>} A React functional component that renders the specified tag with the given classes.
+ */
 function withClass(Tag: keyof React.JSX.IntrinsicElements, classes: string) {
   const Component = ({ node, ...props }: any) => (
     <Tag className={classes} {...props} />

@@ -8,30 +8,75 @@ import { Separator } from "./shadcn/separator"
 import { Reference, ReferenceType, ValidationError } from "../../lib/ai-types"
 import { AlertTriangle, CheckCircle, XCircle, RefreshCw, Shield } from "lucide-react"
 
+/**
+ * Props for the ReferenceValidation component
+ */
 interface ReferenceValidationProps {
+  /** Array of references to validate */
   references: Reference[]
+  /** Callback function called when validation is complete */
   onValidationComplete: (results: ValidationResult[]) => void
+  /** Callback function called when a fix suggestion is applied */
   onFixSuggestion: (referenceId: string, suggestion: ValidationSuggestion) => void
+  /** Additional CSS classes to apply to the component */
   className?: string
+  /** Whether to automatically validate references when they change */
   autoValidate?: boolean
 }
 
+/**
+ * Result of validating a single reference
+ */
 interface ValidationResult {
+  /** The ID of the reference that was validated */
   referenceId: string
+  /** Whether the reference is valid (no errors) */
   isValid: boolean
-  score: number // 0-100
+  /** Validation score from 0-100, where 100 is perfect */
+  score: number
+  /** Validation errors found */
   errors: ValidationError[]
+  /** Validation warnings found */
   warnings: ValidationError[]
+  /** Suggestions for improving the reference */
   suggestions: ValidationSuggestion[]
 }
 
+/**
+ * A suggestion for fixing or improving a reference
+ */
 interface ValidationSuggestion {
+  /** Type of suggestion */
   type: 'fix' | 'improve' | 'verify'
+  /** The field this suggestion applies to */
   field: string
+  /** Description of the suggestion */
   message: string
+  /** Optional action to take when applying the suggestion */
   action?: () => void
 }
 
+/**
+ * A component for validating references and providing suggestions for improvement.
+ * This component checks references for required fields, proper formatting, and other issues,
+ * and provides actionable suggestions for fixing problems.
+ * 
+ * @param {ReferenceValidationProps} props - The props for the ReferenceValidation component
+ * @param {Reference[]} props.references - Array of references to validate
+ * @param {(results: ValidationResult[]) => void} props.onValidationComplete - Callback function called when validation is complete
+ * @param {(referenceId: string, suggestion: ValidationSuggestion) => void} props.onFixSuggestion - Callback function called when a fix suggestion is applied
+ * @param {string} [props.className] - Additional CSS classes to apply to the component
+ * @param {boolean} [props.autoValidate=true] - Whether to automatically validate references when they change
+ * 
+ * @example
+ * ```tsx
+ * <ReferenceValidation
+ *   references={referenceList}
+ *   onValidationComplete={(results) => console.log("Validation results:", results)}
+ *   onFixSuggestion={(refId, suggestion) => console.log("Applying suggestion:", suggestion)}
+ * />
+ * ```
+ */
 export const ReferenceValidation: React.FC<ReferenceValidationProps> = ({
   references,
   onValidationComplete,

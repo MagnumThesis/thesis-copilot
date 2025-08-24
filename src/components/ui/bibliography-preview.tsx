@@ -22,6 +22,17 @@ export interface BibliographyPreviewProps {
  * BibliographyPreview component
  * Displays generated bibliography with statistics and preview
  */
+/**
+ * Displays a preview of the generated bibliography along with relevant statistics.
+ * It provides insights into the number of references, types, publication years, and potential duplicates.
+ * @param {BibliographyPreviewProps} props - The properties for the BibliographyPreview component.
+ * @param {string} [props.className] - Additional CSS classes to apply to the component container.
+ * @param {number} [props.maxPreviewLength=1000] - The maximum number of characters to display in the bibliography preview before truncating.
+ * @example
+ * ```tsx
+ * <BibliographyPreview className="my-custom-class" maxPreviewLength={500} />
+ * ```
+ */
 export function BibliographyPreview({
   className = '',
   maxPreviewLength = 1000

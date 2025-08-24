@@ -23,6 +23,56 @@ interface ConcernListProps {
 type SortOption = 'severity' | 'category' | 'created' | 'updated'
 type SortDirection = 'asc' | 'desc'
 
+/**
+ * Displays a filterable and sortable list of proofreading concerns.
+ * It supports filtering by status, category, and severity, and sorting by severity, category, creation, or update date.
+ * It also implements virtual scrolling for performance with large lists.
+ * @param {ConcernListProps} props - The properties for the ConcernList component.
+ * @param {ProofreadingConcern[]} props.concerns - An array of proofreading concerns to display.
+ * @param {(concernId: string, status: ConcernStatus) => void} props.onStatusChange - Callback function to update the status of a concern.
+ * @param {ConcernStatus | 'all'} props.statusFilter - The current filter for concern status.
+ * @param {(filter: ConcernStatus | 'all') => void} props.onFilterChange - Callback function to change the status filter.
+ * @example
+ * ```tsx
+ * import { ProofreadingConcern, ConcernStatus, ConcernSeverity, ConcernCategory } from "@/lib/ai-types";
+ *
+ * const sampleConcerns: ProofreadingConcern[] = [
+ *   {
+ *     id: "c1",
+ *     title: "Sentence fragment",
+ *     description: "This sentence is incomplete and lacks a main verb.",
+ *     severity: ConcernSeverity.HIGH,
+ *     category: ConcernCategory.GRAMMAR,
+ *     status: ConcernStatus.TO_BE_DONE,
+ *     suggestions: ["Add a verb to complete the sentence."],
+ *     relatedIdeas: [],
+ *     location: { section: "Introduction", paragraph: 2, context: "A fragmented sentence." },
+ *     createdAt: new Date().toISOString(),
+ *     updatedAt: new Date().toISOString(),
+ *   },
+ *   {
+ *     id: "c2",
+ *     title: "Ambiguous pronoun reference",
+ *     description: "The pronoun 'it' could refer to multiple antecedents.",
+ *     severity: ConcernSeverity.MEDIUM,
+ *     category: ConcernCategory.CLARITY,
+ *     status: ConcernStatus.ADDRESSED,
+ *     suggestions: ["Clarify the antecedent of the pronoun."],
+ *     relatedIdeas: [],
+ *     location: { section: "Body", paragraph: 5, context: "An ambiguous reference." },
+ *     createdAt: new Date().toISOString(),
+ *     updatedAt: new Date().toISOString(),
+ *   },
+ * ];
+ *
+ * <ConcernList
+ *   concerns={sampleConcerns}
+ *   onStatusChange={(id, status) => console.log(`Concern ${id} status changed to ${status}`)}
+ *   statusFilter="all"
+ *   onFilterChange={(filter) => console.log('Filter changed to:', filter)}
+ * />
+ * ```
+ */
 export const ConcernList: React.FC<ConcernListProps> = ({
   concerns,
   onStatusChange,

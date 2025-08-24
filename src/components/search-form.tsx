@@ -4,6 +4,15 @@ import { Search } from "lucide-react"
 import { Label } from "@/components/ui/shadcn/label"
 import { SidebarGroup, SidebarGroupContent, SidebarInput } from "@/components/ui/sidebar"
 
+/**
+ * Renders a search form component with an input field and a search icon.
+ * It is typically used within a sidebar for searching ideas.
+ * @param {React.ComponentProps<"form">} props - Props passed to the underlying `form` element.
+ * @example
+ * ```tsx
+ * <SearchForm onSubmit={() => console.log('Searching...')} />
+ * ```
+ */
 export function SearchForm({ ...props }: React.ComponentProps<"form">) {
   return (
     <form {...props}>

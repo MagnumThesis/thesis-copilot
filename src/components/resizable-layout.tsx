@@ -4,6 +4,20 @@ interface ResizableLayoutProps {
   children: React.ReactNode
 }
 
+/**
+ * A layout component that provides a resizable sidebar and a main content area.
+ * The sidebar's width can be adjusted by dragging a separator.
+ * @param {ResizableLayoutProps} props - The properties for the ResizableLayout component.
+ * @param {React.ReactNode} props.children - The children to be rendered within the layout. Expected to be three children: sidebar, separator, and content.
+ * @example
+ * ```tsx
+ * <ResizableLayout>
+ *   <div>Sidebar Content</div>
+ *   <div className="separator" />
+ *   <div>Main Content</div>
+ * </ResizableLayout>
+ * ```
+ */
 export function ResizableLayout({ children }: ResizableLayoutProps) {
   const [sidebarWidth, setSidebarWidth] = React.useState(260)
   const isDragging = React.useRef(false)

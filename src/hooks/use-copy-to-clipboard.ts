@@ -6,6 +6,17 @@ type UseCopyToClipboardProps = {
   copyMessage?: string
 }
 
+/**
+ * @function useCopyToClipboard
+ * @description A hook that provides functionality to copy text to the clipboard and provides visual feedback.
+ * It uses the `navigator.clipboard.writeText` API and integrates with a toast notification system.
+ * @param {UseCopyToClipboardProps} props - The properties for the copy to clipboard hook.
+ * @param {string} props.text - The text to be copied to the clipboard.
+ * @param {string} [props.copyMessage="Copied to clipboard!"] - The message to display in the toast notification upon successful copy.
+ * @returns {{isCopied: boolean, handleCopy: () => void}}
+ * - `isCopied`: A boolean indicating whether the text is currently in a copied state (resets after 2 seconds).
+ * - `handleCopy`: A callback function to trigger the copy operation.
+ */
 export function useCopyToClipboard({
   text,
   copyMessage = "Copied to clipboard!",

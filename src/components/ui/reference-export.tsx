@@ -10,20 +10,54 @@ import { Reference, CitationStyle } from "../../lib/ai-types"
 import { Download, Upload, FileText, Copy, Share2, Archive, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 
+/**
+ * Props for the ReferenceExport component
+ */
 interface ReferenceExportProps {
+  /** Array of references to export */
   references: Reference[]
+  /** The current citation style to use for formatting */
   currentCitationStyle: CitationStyle
+  /** Callback function called when references are imported */
   onImport: (references: Reference[]) => void
+  /** Additional CSS classes to apply to the component */
   className?: string
 }
 
+/**
+ * Interface representing an export format option
+ */
 interface ExportFormat {
+  /** Unique identifier for the format */
   id: string
+  /** Display name of the format */
   name: string
+  /** File extension for the format */
   extension: string
+  /** Description of the format */
   description: string
 }
 
+/**
+ * A component for exporting, importing, and managing references.
+ * Provides functionality to export references in various formats (BibTeX, RIS, JSON, etc.),
+ * import references from files, and manage reference collections with backup and sharing options.
+ * 
+ * @param {ReferenceExportProps} props - The props for the ReferenceExport component
+ * @param {Reference[]} props.references - Array of references to export
+ * @param {CitationStyle} props.currentCitationStyle - The current citation style to use for formatting
+ * @param {(references: Reference[]) => void} props.onImport - Callback function called when references are imported
+ * @param {string} [props.className] - Additional CSS classes to apply to the component
+ * 
+ * @example
+ * ```tsx
+ * <ReferenceExport
+ *   references={referenceList}
+ *   currentCitationStyle={CitationStyle.APA}
+ *   onImport={(refs) => setReferences(refs)}
+ * />
+ * ```
+ */
 export const ReferenceExport: React.FC<ReferenceExportProps> = ({
   references,
   currentCitationStyle,

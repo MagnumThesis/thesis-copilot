@@ -23,6 +23,31 @@ export interface CitationPreviewProps {
   compact?: boolean;
 }
 
+/**
+ * Displays formatted inline citations and bibliography entries.
+ * It provides options to copy or insert the formatted text into the document.
+ * @param {CitationPreviewProps} props - The properties for the CitationPreview component.
+ * @param {string} props.inlineCitation - The formatted inline citation string.
+ * @param {string} props.bibliographyEntry - The formatted bibliography entry string.
+ * @param {boolean} [props.isProcessing=false] - Indicates whether the citation is currently being processed.
+ * @param {string | null} [props.error=null] - An optional error message if formatting failed.
+ * @param {string} [props.className=''] - Additional CSS classes to apply to the component container.
+ * @param {(text: string) => Promise<boolean>} [props.onCopyInline] - Callback to copy the inline citation to clipboard.
+ * @param {(text: string) => Promise<boolean>} [props.onCopyBibliography] - Callback to copy the bibliography entry to clipboard.
+ * @param {(text: string) => Promise<boolean>} [props.onInsertInline] - Callback to insert the inline citation into the document.
+ * @param {(text: string) => Promise<boolean>} [props.onInsertBibliography] - Callback to insert the bibliography entry into the document.
+ * @param {boolean} [props.showActions=true] - Whether to show action buttons (copy, insert).
+ * @param {boolean} [props.compact=false] - Whether to render in a compact layout.
+ * @example
+ * ```tsx
+ * <CitationPreview
+ *   inlineCitation="(Smith, 2023)"
+ *   bibliographyEntry="Smith, J. (2023). Title of article. Journal Name, 1(1), 1-10."
+ *   onCopyInline={async (text) => { console.log('Copied inline:', text); return true; }}
+ *   onInsertInline={async (text) => { console.log('Inserted inline:', text); return true; }}
+ * />
+ * ```
+ */
 export const CitationPreview: React.FC<CitationPreviewProps> = ({
   inlineCitation,
   bibliographyEntry,

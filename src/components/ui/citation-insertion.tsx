@@ -26,6 +26,53 @@ interface InsertionState {
   error: string | null
 }
 
+/**
+ * A component that allows users to select references and generate inline citations and bibliography entries.
+ * It provides a preview of the formatted citations and options to insert them into the document.
+ * @param {CitationInsertionProps} props - The properties for the CitationInsertion component.
+ * @param {string} [props.selectedText] - The currently selected text in the document, used to filter relevant references.
+ * @param {(citation: string) => Promise<boolean>} props.onCitationInsert - Callback function to insert the inline citation into the document.
+ * @param {(bibliography: string) => Promise<boolean>} props.onBibliographyInsert - Callback function to insert the bibliography into the document.
+ * @param {CitationStyle} props.currentCitationStyle - The currently active citation style.
+ * @param {Reference[]} [props.availableReferences=[]] - An array of available references to choose from.
+ * @param {() => void} props.onClose - Callback function to close the citation insertion interface.
+ * @param {string} [props.className=''] - Additional CSS classes to apply to the component container.
+ * @example
+ * ```tsx
+ * import { CitationStyle, ReferenceType } from "@/lib/ai-types";
+ *
+ * const sampleReferences = [
+ *   {
+ *     id: "ref1",
+ *     title: "Sample Article",
+ *     authors: [{ firstName: "J.", lastName: "Doe" }],
+ *     publicationDate: "2023-01-01",
+ *     type: ReferenceType.JOURNAL_ARTICLE,
+ *     doi: "10.1234/example",
+ *     url: "https://example.com",
+ *     abstract: "This is an example abstract.",
+ *     publisher: "Example Publisher",
+ *     journal: "Example Journal",
+ *     volume: "1",
+ *     issue: "1",
+ *     pages: "1-10",
+ *     citation_count: 5,
+ *     relevance_score: 0.8,
+ *     confidence: 0.9,
+ *     keywords: ["example", "sample"],
+ *   },
+ * ];
+ *
+ * <CitationInsertion
+ *   selectedText="example"
+ *   onCitationInsert={async (citation) => { console.log("Insert citation:", citation); return true; }}
+ *   onBibliographyInsert={async (bibliography) => { console.log("Insert bibliography:", bibliography); return true; }}
+ *   currentCitationStyle={CitationStyle.APA}
+ *   availableReferences={sampleReferences}
+ *   onClose={() => console.log("Closed")}
+ * />
+ * ```
+ */
 export const CitationInsertion: React.FC<CitationInsertionProps> = ({
   selectedText,
   onCitationInsert,

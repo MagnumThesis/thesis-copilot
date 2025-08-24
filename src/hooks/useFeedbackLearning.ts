@@ -57,6 +57,20 @@ interface ApplyLearningRankingParams {
   searchResults: any[];
 }
 
+/**
+ * @function useFeedbackLearning
+ * @description Hook for managing user feedback and learning for AI searcher.
+ * @returns {{submitLearningFeedback: (params: SubmitLearningFeedbackParams) => Promise<any>, applyLearningRanking: (params: ApplyLearningRankingParams) => Promise<any[]>, getUserPreferences: (userId: string) => Promise<UserPreferencePattern>, getAdaptiveFilters: (userId: string) => Promise<AdaptiveFilter[]>, getLearningMetrics: (userId: string) => Promise<LearningMetrics>, clearUserLearningData: (userId: string) => Promise<any>, getLearningSystemStatus: () => Promise<any>, isLoading: boolean, error: string | null}}
+ * - `submitLearningFeedback`: Submits user feedback for a search result.
+ * - `applyLearningRanking`: Applies learning-based ranking to search results.
+ * - `getUserPreferences`: Retrieves user-specific learning preferences.
+ * - `getAdaptiveFilters`: Retrieves adaptive filters based on user learning.
+ * - `getLearningMetrics`: Retrieves performance metrics of the learning system.
+ * - `clearUserLearningData`: Clears all learning data for a specific user.
+ * - `getLearningSystemStatus`: Retrieves the status of the learning system.
+ * - `isLoading`: Boolean indicating if an asynchronous operation is in progress.
+ * - `error`: Any error message from the last operation.
+ */
 export function useFeedbackLearning() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -241,6 +255,14 @@ export function useFeedbackLearning() {
 }
 
 // Helper hook for enhanced search result feedback
+/**
+ * @function useEnhancedSearchFeedback
+ * @description Helper hook for enhanced search result feedback.
+ * @param {string} sessionId - The ID of the search session.
+ * @param {string} userId - The ID of the user.
+ * @returns {{submitEnhancedFeedback: (resultId: string, isRelevant: boolean, qualityRating: number, resultMetadata: {title: string, authors: string[], journal?: string, year?: number, citationCount: number, topics: string[]}, comments?: string) => Promise<any>}}
+ * - `submitEnhancedFeedback`: Submits enhanced feedback for a search result.
+ */
 export function useEnhancedSearchFeedback(sessionId: string, userId: string) {
   const { submitLearningFeedback } = useFeedbackLearning();
 
@@ -275,6 +297,12 @@ export function useEnhancedSearchFeedback(sessionId: string, userId: string) {
 }
 
 // Helper hook for learning-enhanced search
+/**
+ * @function useLearningEnhancedSearch
+ * @description Helper hook for learning-enhanced search.
+ * @returns {{enhanceSearchResults: (userId: string, searchResults: any[]) => Promise<any[]>}}
+ * - `enhanceSearchResults`: Enhances search results using learning-based ranking.
+ */
 export function useLearningEnhancedSearch() {
   const { applyLearningRanking } = useFeedbackLearning();
 

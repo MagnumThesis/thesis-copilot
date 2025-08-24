@@ -20,6 +20,23 @@ import { Link } from "react-router-dom"
 
 
 
+/**
+ * Renders the main application sidebar with navigation for ideas, search functionality, and actions to add/delete ideas.
+ * @param {React.ComponentProps<typeof Sidebar>} props - Props passed to the underlying Sidebar component.
+ * @param {IdeaSidebarItem[]} items - An array of idea items to display in the sidebar navigation.
+ * @param {() => void} onNew - Callback function to be called when the "Add new idea" button is clicked.
+ * @param {(id: string) => void} onDelete - Callback function to be called when an idea's delete button is clicked. Receives the idea's ID as an argument.
+ * @param {(item: IdeaSidebarItem) => void} setSelectedItem - Callback function to be called when an idea's title is clicked. Receives the selected idea item as an argument.
+ * @example
+ * ```tsx
+ * <AppSidebar
+ *   items={[{ id: '1', title: 'My Idea', isActive: true }]} 
+ *   onNew={() => console.log('New idea')}
+ *   onDelete={(id) => console.log('Delete idea', id)}
+ *   setSelectedItem={(item) => console.log('Selected idea', item)}
+ * />
+ * ```
+ */
 export function AppSidebar({onNew, items, onDelete, setSelectedItem, ...props }: React.ComponentProps<typeof Sidebar> & {items: IdeaSidebarItem[], onNew : () => void, onDelete: (id: string) => void, setSelectedItem: (item: IdeaSidebarItem) => void}) {
   const data = {
   navMain: [

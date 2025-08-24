@@ -38,6 +38,31 @@ interface AIContentConfirmationProps {
   className?: string;
 }
 
+/**
+ * A component that displays AI-generated content for review and allows the user to accept, reject, or regenerate it.
+ * It provides a preview of the content, metadata about the AI operation, and actions for user interaction.
+ * @param {AIContentConfirmationProps} props - The properties for the AIContentConfirmation component.
+ * @param {string} props.content - The AI-generated content to display.
+ * @param {() => void} props.onAccept - Callback function to be called when the user accepts the content.
+ * @param {() => void} props.onReject - Callback function to be called when the user rejects the content.
+ * @param {() => void} [props.onRegenerate] - Optional callback function to be called when the user requests to regenerate the content.
+ * @param {boolean} props.isVisible - Controls the visibility of the component.
+ * @param {boolean} [props.isRegenerating=false] - Indicates whether the content is currently being regenerated.
+ * @param {{tokensUsed?: number, processingTime?: number, model?: string}} [props.metadata] - Optional metadata about the AI generation process.
+ * @param {string} [props.originalText] - The original text that was modified (used for modify mode preview).
+ * @param {string} [props.modificationType] - The type of modification performed (used for modify mode context).
+ * @param {string} [props.className] - Additional CSS classes to apply to the component container.
+ * @example
+ * ```tsx
+ * <AIContentConfirmation
+ *   content="This is some AI generated content."
+ *   onAccept={() => console.log('Accepted')}
+ *   onReject={() => console.log('Rejected')}
+ *   isVisible={true}
+ *   metadata={{ tokensUsed: 100, processingTime: 500 }}
+ * />
+ * ```
+ */
 export const AIContentConfirmation: React.FC<AIContentConfirmationProps> = ({
   content,
   onAccept,

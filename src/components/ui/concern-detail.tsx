@@ -19,6 +19,38 @@ interface ConcernDetailProps {
   onToggleExpanded?: () => void
 }
 
+/**
+ * Displays the detailed information of a single proofreading concern, including its title, description, severity, category, suggestions, and related ideas.
+ * It also provides actions to change the concern's status (addressed, rejected, to-be-done) and integrates with accessibility features.
+ * @param {ConcernDetailProps} props - The properties for the ConcernDetail component.
+ * @param {ProofreadingConcern} props.concern - The proofreading concern object to display.
+ * @param {(status: ConcernStatus) => void} props.onStatusChange - Callback function to be called when the concern's status is changed.
+ * @param {boolean} [props.isExpanded] - Optional prop to control the expanded state of the concern detail externally.
+ * @param {() => void} [props.onToggleExpanded] - Optional callback function to be called when the expanded state is toggled.
+ * @example
+ * ```tsx
+ * import { ProofreadingConcern, ConcernStatus, ConcernSeverity, ConcernCategory } from "@/lib/ai-types";
+ *
+ * const sampleConcern: ProofreadingConcern = {
+ *   id: "c1",
+ *   title: "Sentence fragment",
+ *   description: "This sentence is incomplete and lacks a main verb.",
+ *   severity: ConcernSeverity.HIGH,
+ *   category: ConcernCategory.GRAMMAR,
+ *   status: ConcernStatus.TO_BE_DONE,
+ *   suggestions: ["Add a verb to complete the sentence.", "Combine with the previous sentence."],
+ *   relatedIdeas: ["idea1", "idea2"],
+ *   location: { section: "Introduction", paragraph: 2, context: "A fragmented sentence." },
+ *   createdAt: new Date().toISOString(),
+ *   updatedAt: new Date().toISOString(),
+ * };
+ *
+ * <ConcernDetail
+ *   concern={sampleConcern}
+ *   onStatusChange={(status) => console.log('Status changed to:', status)}
+ * />
+ * ```
+ */
 export const ConcernDetail: React.FC<ConcernDetailProps> = ({
   concern,
   onStatusChange,

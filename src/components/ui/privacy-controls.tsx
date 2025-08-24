@@ -39,6 +39,16 @@ interface PrivacyControlsProps {
   onDataExported?: (data: any) => void
 }
 
+/**
+ * @component PrivacyControls
+ * @description A comprehensive component for managing user privacy settings and data within the application.
+ * It allows users to control data collection consent, set data retention periods, enable/disable analytics and AI learning, and manage their stored data (export, clear old, clear all).
+ * @param {PrivacyControlsProps} props - The properties for the PrivacyControls component.
+ * @param {string} [props.conversationId] - Optional ID of the current conversation, used for context-specific data management.
+ * @param {(settings: PrivacySettings) => void} [props.onSettingsChange] - Callback function triggered when privacy settings are updated.
+ * @param {() => void} [props.onDataCleared] - Callback function triggered after data has been successfully cleared.
+ * @param {(data: any) => void} [props.onDataExported] - Callback function triggered after data has been successfully exported, providing the exported data.
+ */
 export const PrivacyControls: React.FC<PrivacyControlsProps> = ({
   conversationId,
   onSettingsChange,

@@ -37,6 +37,15 @@ interface AIContentPreviewProps {
   isVisible: boolean;
 }
 
+/**
+ * @component AIContentPreview
+ * @description A component to display a preview of AI-generated content and allow the user to accept or reject it.
+ * @param {AIContentPreviewProps} props - The properties for the AIContentPreview component.
+ * @param {string} props.content - The AI-generated content to display.
+ * @param {() => void} props.onAccept - Callback function to accept the AI content.
+ * @param {() => void} props.onReject - Callback function to reject the AI content.
+ * @param {boolean} props.isVisible - Controls the visibility of the preview component.
+ */
 const AIContentPreview: FC<AIContentPreviewProps> = ({
   content,
   onAccept,
@@ -65,6 +74,18 @@ const AIContentPreview: FC<AIContentPreviewProps> = ({
   );
 };
 
+/**
+ * @component MilkdownEditor
+ * @description A React component that integrates the Milkdown markdown editor.
+ * It provides functionalities for content editing, selection tracking, and AI integration.
+ * @param {MilkdownEditorProps} props - The properties for the MilkdownEditor component.
+ * @param {(content: string) => void} [props.onContentChange] - Callback function triggered when the editor's content changes.
+ * @param {(selection: TextSelection | null) => void} [props.onSelectionChange] - Callback function triggered when the text selection changes.
+ * @param {(position: number) => void} [props.onCursorPositionChange] - Callback function triggered when the cursor position changes.
+ * @param {UseAIModeManager} [props.aiModeManager] - An optional AI mode manager object to integrate AI functionalities with the editor.
+ * @param {(methods: any) => void} [props.onEditorMethodsReady] - Callback function triggered when editor methods are ready for external use.
+ * @param {string} [props.className=""] - Additional CSS classes to apply to the editor container.
+ */
 export const MilkdownEditor: FC<MilkdownEditorProps> = ({
   onContentChange,
   onSelectionChange,

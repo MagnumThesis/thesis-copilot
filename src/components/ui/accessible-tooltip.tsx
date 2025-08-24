@@ -28,6 +28,32 @@ export interface AccessibleTooltipProps {
   className?: string
 }
 
+/**
+ * Enhanced tooltip component with accessibility features and support for different types (info, help, warning, error, success).
+ * It integrates with `shadcn/ui` Tooltip and provides options for persistent display, ARIA attributes, and keyboard shortcuts.
+ * @param {AccessibleTooltipProps} props - The properties for the AccessibleTooltip component.
+ * @param {React.ReactNode} props.content - The content to be displayed inside the tooltip.
+ * @param {React.ReactNode} props.children - The element that triggers the tooltip.
+ * @param {"top" | "right" | "bottom" | "left"} [props.side="top"] - The side of the trigger where the tooltip will be displayed.
+ * @param {"start" | "center" | "end"} [props.align="center"] - The alignment of the tooltip relative to the trigger.
+ * @param {number} [props.delayDuration=200] - The delay in milliseconds before the tooltip appears.
+ * @param {'info' | 'help' | 'warning' | 'error' | 'success'} [props.type='info'] - The type of the tooltip, which influences its icon and styling.
+ * @param {boolean} [props.persistent=false] - If true, the tooltip remains open until explicitly closed or clicked outside.
+ * @param {boolean} [props.describedBy=false] - If true, uses `aria-describedby` for accessibility; otherwise, uses `aria-labelledby`.
+ * @param {string} [props.hotkey] - An optional keyboard shortcut to display within the tooltip content.
+ * @param {number} [props.maxWidth=300] - The maximum width of the tooltip content.
+ * @param {string} [props.className] - Additional CSS classes to apply to the tooltip content.
+ * @example
+ * ```tsx
+ * <AccessibleTooltip content="This is a helpful tip.">
+ *   <span>Hover over me</span>
+ * </AccessibleTooltip>
+ *
+ * <AccessibleTooltip content="Action failed!" type="error" persistent>
+ *   <button>Delete Item</button>
+ * </AccessibleTooltip>
+ * ```
+ */
 export const AccessibleTooltip: React.FC<AccessibleTooltipProps> = ({
   content,
   children,
@@ -150,6 +176,19 @@ export const AccessibleTooltip: React.FC<AccessibleTooltipProps> = ({
 }
 
 // Category-specific tooltip helpers
+/**
+ * A helper component that provides a tooltip with predefined content based on a given category.
+ * It uses the `AccessibleTooltip` component internally with a `help` type.
+ * @param {object} props - The properties for the CategoryTooltip component.
+ * @param {string} props.category - The category string (e.g., 'clarity', 'coherence') for which to display the tooltip content.
+ * @param {React.ReactNode} props.children - The element that triggers the tooltip.
+ * @example
+ * ```tsx
+ * <CategoryTooltip category="clarity">
+ *   <span>Clarity Info</span>
+ * </CategoryTooltip>
+ * ```
+ */
 export const CategoryTooltip: React.FC<{
   category: string
   children: React.ReactNode
@@ -190,6 +229,19 @@ export const CategoryTooltip: React.FC<{
 }
 
 // Severity-specific tooltip helpers
+/**
+ * A helper component that provides a tooltip with predefined content and styling based on a given severity level.
+ * It uses the `AccessibleTooltip` component internally.
+ * @param {object} props - The properties for the SeverityTooltip component.
+ * @param {'low' | 'medium' | 'high' | 'critical'} props.severity - The severity level for which to display the tooltip content and apply styling.
+ * @param {React.ReactNode} props.children - The element that triggers the tooltip.
+ * @example
+ * ```tsx
+ * <SeverityTooltip severity="high">
+ *   <span>High Severity Issue</span>
+ * </SeverityTooltip>
+ * ```
+ */
 export const SeverityTooltip: React.FC<{
   severity: 'low' | 'medium' | 'high' | 'critical'
   children: React.ReactNode

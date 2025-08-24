@@ -138,6 +138,39 @@ export interface ChatMessageProps extends Message {
   actions?: React.ReactNode
 }
 
+/**
+ * Displays a single chat message, handling different roles (user/assistant), content types (text, tool invocations, reasoning), and attachments.
+ * It supports markdown rendering and optional timestamp display.
+ * @param {ChatMessageProps} props - The properties for the ChatMessage component.
+ * @param {string} props.id - The unique ID of the message.
+ * @param {"user" | "assistant" | (string & {})} props.role - The role of the message sender (e.g., "user", "assistant").
+ * @param {string} props.content - The main text content of the message.
+ * @param {Date} [props.createdAt] - The timestamp when the message was created.
+ * @param {boolean} [props.showTimeStamp=false] - If true, displays the creation timestamp.
+ * @param {Animation} [props.animation="scale"] - The animation style for the chat bubble.
+ * @param {React.ReactNode} [props.actions] - Optional React nodes to display as actions within the message bubble.
+ * @param {Attachment[]} [props.experimental_attachments] - Experimental attachments associated with the message.
+ * @param {ToolInvocation[]} [props.toolInvocations] - Tool invocations associated with the message.
+ * @param {MessagePart[]} [props.parts] - Structured parts of the message content.
+ * @example
+ * ```tsx
+ * <ChatMessage
+ *   id="1"
+ *   role="user"
+ *   content="Hello, how are you?"
+ *   createdAt={new Date()}
+ *   showTimeStamp={true}
+ * />
+ *
+ * <ChatMessage
+ *   id="2"
+ *   role="assistant"
+ *   content="I'm doing great! How can I help you today?"
+ *   createdAt={new Date()}
+ *   showTimeStamp={true}
+ * />
+ * ```
+ */
 export const ChatMessage: React.FC<ChatMessageProps> = ({
   role,
   content,
@@ -281,6 +314,15 @@ function dataUrlToUint8Array(data: string) {
   return new Uint8Array(buf)
 }
 
+/**
+ * Displays a collapsible block for AI reasoning or thought processes.
+ * @param {object} props - The properties for the ReasoningBlock component.
+ * @param {ReasoningPart} props.part - The reasoning part of the message content.
+ * @example
+ * ```tsx
+ * <ReasoningBlock part={{ type: "reasoning", reasoning: "The AI is thinking about the best approach to generate the content." }} />
+ * ```
+ */
 const ReasoningBlock = ({ part }: { part: ReasoningPart }) => {
   const [isOpen, setIsOpen] = useState(false)
 
@@ -322,6 +364,18 @@ const ReasoningBlock = ({ part }: { part: ReasoningPart }) => {
   )
 }
 
+/**
+ * Displays the invocation and results of AI tool calls.
+ * It shows the tool name, status (calling, cancelled, result), and the output of the tool.
+ * @param {object} props - The properties for the ToolCall component.
+ * @param {ToolInvocation[]} props.toolInvocations - An array of tool invocation objects to display.
+ * @example
+ * ```tsx
+ * <ToolCall toolInvocations={[{ state: "call", toolName: "search_web" }]} />
+ *
+ * <ToolCall toolInvocations={[{ state: "result", toolName: "search_web", result: { data: "Some search results" } }]} />
+ * ```
+ */
 function ToolCall({
   toolInvocations,
 }: Pick<ChatMessageProps, "toolInvocations">) {

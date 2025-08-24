@@ -24,6 +24,28 @@ interface UsePrivacyManagerReturn {
   canUseLearning: boolean;
 }
 
+/**
+ * @function usePrivacyManager
+ * @description A hook for managing user privacy settings and data handling related to AI searcher features.
+ * It provides functionalities to load, update, clear, export, and anonymize user data, as well as check consent status.
+ * @param {string} [conversationId] - Optional conversation ID to filter privacy settings and data by.
+ * @returns {UsePrivacyManagerReturn}
+ * - `settings`: The current privacy settings of the user.
+ * - `dataSummary`: A summary of the user's data stored.
+ * - `isLoading`: A boolean indicating if an asynchronous operation is in progress.
+ * - `error`: Any error message from the last operation.
+ * - `loadSettings`: Function to load privacy settings from the backend.
+ * - `updateSettings`: Function to update privacy settings.
+ * - `loadDataSummary`: Function to load a summary of user data.
+ * - `clearAllData`: Function to clear all user data.
+ * - `clearOldData`: Function to clear user data older than a specified retention period.
+ * - `exportData`: Function to export user data in a specified format.
+ * - `checkConsentStatus`: Function to check the user's consent status.
+ * - `anonymizeData`: Function to anonymize user data.
+ * - `hasConsent`: A boolean indicating if the user has given consent.
+ * - `canUseAnalytics`: A boolean indicating if analytics can be used based on consent and settings.
+ * - `canUseLearning`: A boolean indicating if learning features can be used based on consent and settings.
+ */
 export const usePrivacyManager = (conversationId?: string): UsePrivacyManagerReturn => {
   const [settings, setSettings] = useState<PrivacySettings | null>(null);
   const [dataSummary, setDataSummary] = useState<DataSummary | null>(null);

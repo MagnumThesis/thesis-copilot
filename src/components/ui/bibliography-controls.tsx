@@ -12,6 +12,23 @@ interface BibliographyControlsProps {
   onExport?: (format: 'bibtex' | 'ris' | 'json' | 'csv') => void
 }
 
+/**
+ * Provides controls for selecting citation style and exporting bibliographies in various formats.
+ * @param {BibliographyControlsProps} props - The properties for the BibliographyControls component.
+ * @param {CitationStyle} [props.citationStyle=CitationStyle.APA] - The currently selected citation style.
+ * @param {(style: CitationStyle) => void} [props.onStyleChange] - Callback function to be called when the citation style changes.
+ * @param {(format: 'bibtex' | 'ris' | 'json' | 'csv') => void} [props.onExport] - Callback function to be called when an export format is selected.
+ * @example
+ * ```tsx
+ * import { CitationStyle } from "@/lib/ai-types";
+ *
+ * <BibliographyControls
+ *   citationStyle={CitationStyle.APA}
+ *   onStyleChange={(style) => console.log('Style changed to:', style)}
+ *   onExport={(format) => console.log('Exporting as:', format)}
+ * />
+ * ```
+ */
 export const BibliographyControls: React.FC<BibliographyControlsProps> = ({
   citationStyle = CitationStyle.APA,
   onStyleChange,
