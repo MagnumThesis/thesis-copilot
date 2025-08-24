@@ -20,6 +20,8 @@ interface BuilderDocument {
 export class ContentExtractionEngine {
   private ideaApi: IdeaApi;
   private builderApi: BuilderApi;
+  private extractionCache = new Map<string, { content: ExtractedContent; timestamp: number }>();
+  private readonly cacheTimeout = 30 * 60 * 1000; // 30 minutes
 
   constructor(baseUrl?: string) {
     // Initialize API clients with optional base URL for testing
@@ -28,10 +30,43 @@ export class ContentExtractionEngine {
   }
 
   /**
-   * Extract content from specified source
+   * Clean up expired cache entries
+   */
+  private cleanupCache(): void {
+    const now = Date.now();
+    const keysToDelete: string[] = [];
+
+    for (const [key, entry] of this.extractionCache.entries()) {
+      if (now - entry.timestamp > this.cacheTimeout) {
+        keysToDelete.push(key);
+      }
+    }
+
+    keysToDelete.forEach(key => this.extractionCache.delete(key));
+
+    // Also limit cache size
+    if (this.extractionCache.size > 100) {
+      const entries = Array.from(this.extractionCache.entries());
+      entries.sort(([, a], [, b]) => a.timestamp - b.timestamp);
+      
+      const entriesToRemove = entries.slice(0, entries.length - 100);
+      entriesToRemove.forEach(([key]) => this.extractionCache.delete(key));
+    }
+  }
+
+  /**
+   * Extract content from specified source (with caching)
    */
   async extractContent(request: ContentExtractionRequest): Promise<ExtractedContent> {
     const startTime = Date.now();
+    const cacheKey = `${request.source}:${request.id}:${request.conversationId}`;
+
+    // Check cache first
+    const cached = this.extractionCache.get(cacheKey);
+    if (cached && (Date.now() - cached.timestamp) < this.cacheTimeout) {
+      console.log(`Using cached content extraction for ${request.source}:${request.id}`);
+      return cached.content;
+    }
 
     try {
       let content: string;
@@ -103,6 +138,15 @@ export class ContentExtractionEngine {
       };
 
       console.log(`Content extraction completed for ${request.source}:${request.id} in ${Date.now() - startTime}ms`);
+
+      // Cache the result
+      this.extractionCache.set(cacheKey, {
+        content: extractedContent,
+        timestamp: Date.now()
+      });
+
+      // Clean up old cache entries to prevent memory issues
+      this.cleanupCache();
 
       return extractedContent;
 
@@ -305,6 +349,43 @@ export class ContentExtractionEngine {
       topics: allTopics,
       confidence: avgConfidence
     };
+  }
+
+  /**
+   * Clear extraction cache
+   */
+  public clearCache(): void {
+    this.extractionCache.clear();
+  }
+
+  /**
+   * Get cache statistics
+   */
+  public getCacheStats(): {
+    size: number;
+    maxSize: number;
+    timeout: number;
+  } {
+    return {
+      size: this.extractionCache.size,
+      maxSize: 100,
+      timeout: this.cacheTimeout
+    };
+  }
+
+  /**
+   * Preload content extraction for background processing
+   */
+  async preloadContent(requests: ContentExtractionRequest[]): Promise<void> {
+    const promises = requests.map(async (request) => {
+      try {
+        await this.extractContent(request);
+      } catch (error) {
+        console.warn(`Failed to preload content for ${request.source}:${request.id}:`, error);
+      }
+    });
+
+    await Promise.allSettled(promises);
   }
 }
 

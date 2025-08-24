@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react"
 import { Button } from "./shadcn/button"
 import { Badge } from "./shadcn/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "./shadcn/card"
-import { Bookmark, BookmarkCheck, Trash2, Eye, Compare, Share2 } from "lucide-react"
+import { Bookmark, BookmarkCheck, Trash2, Eye, GitCompare, Share2 } from "lucide-react"
 import { ScholarSearchResult } from "../../lib/ai-types"
 
 export interface BookmarkedResult extends ScholarSearchResult {
@@ -110,7 +110,7 @@ export const SearchResultBookmark: React.FC<SearchResultBookmarkProps> = ({
           disabled={disabled}
           title="Add to comparison"
         >
-          <Compare className="h-4 w-4" />
+          <GitCompare className="h-4 w-4" />
         </Button>
       )}
 
@@ -243,7 +243,7 @@ export const BookmarkedResultsList: React.FC<BookmarkedResultsListProps> = ({
                       onClick={() => onCompare(result)}
                       title="Add to comparison"
                     >
-                      <Compare className="h-4 w-4" />
+                      <GitCompare className="h-4 w-4" />
                     </Button>
                   )}
 

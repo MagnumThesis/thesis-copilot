@@ -122,6 +122,10 @@ export class QueryGenerationEngine {
     'these', 'those', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them'
   ]);
 
+  // Performance optimization: Cache for term relevance calculations
+  private termRelevanceCache = new Map<string, number>();
+  private queryOptimizationCache = new Map<string, QueryOptimization>();
+
   /**
    * Generate search queries from extracted content
    */
@@ -215,9 +219,16 @@ export class QueryGenerationEngine {
   }
 
   /**
-   * Optimize query for academic search effectiveness
+   * Optimize query for academic search effectiveness (with caching)
    */
   optimizeQuery(query: string, keywords: string[], topics: string[]): QueryOptimization {
+    const cacheKey = `${query}:${keywords.join(',')}:${topics.join(',')}`;
+    
+    // Check cache first
+    if (this.queryOptimizationCache.has(cacheKey)) {
+      return this.queryOptimizationCache.get(cacheKey)!;
+    }
+
     const analysis = this.analyzeQueryQuality(query, keywords, topics);
     let optimizedQuery = query;
     const suggestions: string[] = [];
@@ -233,8 +244,8 @@ export class QueryGenerationEngine {
       suggestions.push('Added academic context terms to improve scholarly relevance');
     }
 
-    // Generate alternative queries
-    alternatives.push(...this.generateAlternativeQueries(keywords, topics));
+    // Generate alternative queries (limit for performance)
+    alternatives.push(...this.generateAlternativeQueries(keywords.slice(0, 5), topics.slice(0, 3)));
 
     // Optimize for Google Scholar
     optimizedQuery = this.optimizeForGoogleScholar(optimizedQuery);
@@ -254,13 +265,24 @@ export class QueryGenerationEngine {
       suggestions.push('Add academic terms like "methodology", "framework", or "empirical"');
     }
 
-    return {
+    const optimization: QueryOptimization = {
       breadthScore: analysis.breadthScore,
       specificityScore: analysis.specificityScore,
       academicRelevance: analysis.academicRelevance,
       suggestions,
       alternativeQueries: alternatives
     };
+
+    // Cache the result
+    this.queryOptimizationCache.set(cacheKey, optimization);
+    
+    // Limit cache size to prevent memory issues
+    if (this.queryOptimizationCache.size > 500) {
+      const firstKey = this.queryOptimizationCache.keys().next().value;
+      this.queryOptimizationCache.delete(firstKey);
+    }
+
+    return optimization;
   }
 
   /**
@@ -486,9 +508,16 @@ export class QueryGenerationEngine {
   }
 
   /**
-   * Calculate relevance score for a term
+   * Calculate relevance score for a term (with caching for performance)
    */
   private calculateTermRelevance(term: string, content: ExtractedContent): number {
+    const cacheKey = `${term}:${content.id || 'unknown'}`;
+    
+    // Check cache first
+    if (this.termRelevanceCache.has(cacheKey)) {
+      return this.termRelevanceCache.get(cacheKey)!;
+    }
+
     let score = 0;
 
     // Academic term bonus
@@ -507,6 +536,15 @@ export class QueryGenerationEngine {
     
     if (keywords.includes(term)) score += 0.4;
     if (topics.includes(term)) score += 0.3;
+
+    // Cache the result
+    this.termRelevanceCache.set(cacheKey, score);
+    
+    // Limit cache size to prevent memory issues
+    if (this.termRelevanceCache.size > 1000) {
+      const firstKey = this.termRelevanceCache.keys().next().value;
+      this.termRelevanceCache.delete(firstKey);
+    }
 
     return score;
   }
@@ -657,6 +695,33 @@ export class QueryGenerationEngine {
     }
 
     return alternatives.slice(0, 3); // Limit to 3 alternatives
+  }
+
+  /**
+   * Clear performance caches to free memory
+   */
+  public clearCaches(): void {
+    this.termRelevanceCache.clear();
+    this.queryOptimizationCache.clear();
+  }
+
+  /**
+   * Get cache statistics for monitoring
+   */
+  public getCacheStats(): {
+    termRelevanceCache: { size: number; maxSize: number };
+    queryOptimizationCache: { size: number; maxSize: number };
+  } {
+    return {
+      termRelevanceCache: {
+        size: this.termRelevanceCache.size,
+        maxSize: 1000
+      },
+      queryOptimizationCache: {
+        size: this.queryOptimizationCache.size,
+        maxSize: 500
+      }
+    };
   }
 
   /**
