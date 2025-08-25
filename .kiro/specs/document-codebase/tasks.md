@@ -72,11 +72,11 @@ This document breaks down the implementation of the comprehensive codebase docum
 
 ### 3. Documentation Generation and CI/CD
 
-- [ ] **3.1. Create a script to generate documentation**
+- [X] **3.1. Create a script to generate documentation**
     - Create a new npm script that runs TypeDoc to generate Markdown files from the TSDoc comments, and then runs Vocs to build the static documentation site.
     - *Requirement: 1.1, 2.1, 2.2, 3.1*
 
-- [ ] **3.2. Integrate documentation generation into CI/CD**
+- [X] **3.2. Integrate documentation generation into CI/CD**
     - Create a new workflow in the CI/CD pipeline that runs the documentation generation script on every push to the `main` branch.
-    - Configure the workflow to deploy the generated documentation site to a hosting service (e.g., Cloudflare Pages).
+    - Configure the workflow to deploy the generated documentation site to GitHub Pages.
     - *Requirement: 1.1, 1.2, 1.3*

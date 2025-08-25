@@ -106,6 +106,8 @@
     "check": "tsc && vite build && wrangler deploy --dry-run",
     "deploy": "wrangler deploy",
     "dev": "vite",
+    "docs:build": "typedoc && vocs build",
+    "docs:dev": "typedoc && vocs dev",
     "lint": "eslint .",
     "preview": "npm run build && vite preview",
     "test": "vitest"
