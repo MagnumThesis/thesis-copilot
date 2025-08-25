@@ -4,6 +4,11 @@
 
 This document provides a detailed breakdown of the major user interface (UI) components in the Thesis Copilot application. These components are primarily located in the `src/components/ui` directory.
 
+**Note:** This documentation covers the core UI components. Additional UI components are documented in:
+* [Remaining UI Components Documentation](ui_components_remaining.md) - UI components not covered in this document
+* [Additional UI Components Documentation](ui_components_additional.md) - Further UI components not covered in the other documents
+* [Final UI Components Documentation](ui_components_final.md) - The last set of UI components completing the documentation
+
 ### AIActionToolbar
 
 **Location:** `src/components/ui/ai-action-toolbar.tsx`

@@ -5,6 +5,13 @@
 
 This document provides a list of the main features implemented in the Thesis Copilot application, along with the modules and files that are primarily responsible for their implementation.
 
+**Note:** Detailed documentation for all UI components can be found in:
+* [UI Classes Documentation](ui_classes.md) - Core UI components
+* [Remaining UI Components Documentation](ui_components_remaining.md) - Additional UI components
+* [Additional UI Components Documentation](ui_components_additional.md) - Further UI components
+* [Final UI Components Documentation](ui_components_final.md) - The last set of UI components completing the documentation
+* [UI Components Documentation Summary](ui_components_summary.md) - Summary of all UI components documentation
+
 ### AI-Powered Content Generation
 
 **Description:** This feature allows users to generate content using AI. It includes three modes: Prompt, Continue, and Modify.

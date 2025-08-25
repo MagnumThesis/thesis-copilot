@@ -42,13 +42,7 @@ C:\Users\njtan\Documents\GitHub\thesis-copilot\
 │   └───tmp\ - Contains temporary files.
 │       └───dev-T8jvp3\ - Temporary development files.
 ├───dist\ - Contains the distributable files.
-├───docs\ - Contains project documentation.
-│   ├───ai-features-user-guide.md - User guide for AI features.
-│   ├───ai-integration-developer-guide.md - Developer guide for AI integration.
-│   ├───modify-mode-prompt-feature.md - Documentation for the modify mode prompt feature.
-│   ├───proofreader-developer-guide.md - Developer guide for the proofreader tool.
-│   ├───proofreader-migration-deployment-guide.md - Migration and deployment guide for the proofreader tool.
-│   └───proofreader-user-guide.md - User guide for the proofreader tool.
+├───docs\\ - Contains project documentation.\n│   ├───ai-features-user-guide.md - User guide for AI features.\n│   ├───ai-integration-developer-guide.md - Developer guide for AI integration.\n│   ├───modify-mode-prompt-feature.md - Documentation for the modify mode prompt feature.\n│   ├───proofreader-developer-guide.md - Developer guide for the proofreader tool.\n│   ├───proofreader-migration-deployment-guide.md - Migration and deployment guide for the proofreader tool.\n│   ├───proofreader-user-guide.md - User guide for the proofreader tool.\n│   ├───ui_classes.md - Documentation for core UI components.\n│   ├───ui_components_remaining.md - Documentation for remaining UI components.\n│   ├───ui_components_additional.md - Documentation for additional UI components.\n│   ├───ui_components_final.md - Documentation for final UI components.\n│   └───ui_components_summary.md - Summary of UI components documentation.
 ├───migrations\ - Contains database migration files.
 │   ├───new_db.sql - SQL script for creating a new database.
 │   ├───README.md - README for the migrations.
