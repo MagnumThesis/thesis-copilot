@@ -303,48 +303,67 @@ export class ReferenceDatabaseOperations {
   async getConversationStatistics(conversationId: string): Promise<ReferenceStatistics> {
     const { data, error } = await this.supabase
       .from('references')
-      .select('type, publication_date, doi, url, metadata_confidence')
+      .select('type, publication_date, doi, url, metadata_confidence, created_at, tags')
       .eq('conversation_id', conversationId);
 
     if (error) {
       throw new Error(`Failed to get statistics: ${error.message}`);
     }
 
+    // Initialize stats with proper structure to satisfy ReferenceStatistics interface
     const stats: ReferenceStatistics = {
-      total: data.length,
-      byType: {} as Record<ReferenceType, number>,
-      byYear: {},
-      withDoi: 0,
-      withUrl: 0,
-      averageConfidence: 0
+      totalReferences: data.length,
+      referencesByType: {} as Record<ReferenceType, number>,
+      recentlyAdded: 0, // Will calculate this based on recent references
+      averageConfidence: 0,
+      topTags: [] // Will populate with most common tags
     };
 
     // Initialize type counts
     Object.values(ReferenceType).forEach(type => {
-      stats.byType[type] = 0;
+      stats.referencesByType[type] = 0;
     });
 
     let totalConfidence = 0;
+    const tagCounts: Record<string, number> = {};
+    let recentCount = 0;
+    const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000; // 7 days ago
 
-    data.forEach(ref => {
+    data.forEach((ref: any) => {
       // Count by type
-      stats.byType[ref.type as ReferenceType]++;
-
-      // Count by year
-      if (ref.publication_date) {
-        const year = new Date(ref.publication_date).getFullYear().toString();
-        stats.byYear[year] = (stats.byYear[year] || 0) + 1;
-      }
+      stats.referencesByType[ref.type as ReferenceType]++;
 
       // Count DOI and URL
-      if (ref.doi) stats.withDoi++;
-      if (ref.url) stats.withUrl++;
+      if (ref.doi) (stats as any).withDoi = ((stats as any).withDoi || 0) + 1;
+      if (ref.url) (stats as any).withUrl = ((stats as any).withUrl || 0) + 1;
 
       // Sum confidence
       totalConfidence += ref.metadata_confidence || 1.0;
+
+      // Check if recently added (within last 7 days)
+      if (ref.created_at) {
+        const createdDate = new Date(ref.created_at as string | number | Date);
+        if (createdDate.getTime() > oneWeekAgo) {
+          recentCount++;
+        }
+      }
+
+      // Count tags
+      if (Array.isArray(ref.tags)) {
+        ref.tags.forEach((tag: string) => {
+          tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+        });
+      }
     });
 
     stats.averageConfidence = data.length > 0 ? totalConfidence / data.length : 0;
+    stats.recentlyAdded = recentCount;
+
+    // Get top 5 tags
+    stats.topTags = Object.entries(tagCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([tag]) => tag);
 
     return stats;
   }
@@ -417,11 +436,11 @@ export class ReferenceDatabaseOperations {
   private mapDatabaseToReference(data: Record<string, unknown>): Reference {
     return {
       id: String(data.id),
-      conversationId: String(data.conversation_id),
+      conversation_id: String(data.conversation_id),
       type: data.type as ReferenceType,
       title: String(data.title),
       authors: typeof data.authors === 'string' ? JSON.parse(data.authors) : data.authors,
-      publicationDate: data.publication_date ? new Date(data.publication_date as string | number | Date) : undefined,
+      publication_date: data.publication_date ? new Date(data.publication_date as string | number | Date).toISOString() : undefined,
       url: data.url ? String(data.url) : undefined,
       doi: data.doi ? String(data.doi) : undefined,
       journal: data.journal ? String(data.journal) : undefined,
@@ -433,12 +452,14 @@ export class ReferenceDatabaseOperations {
       edition: data.edition ? String(data.edition) : undefined,
       chapter: data.chapter ? String(data.chapter) : undefined,
       editor: data.editor ? String(data.editor) : undefined,
-      accessDate: data.access_date ? new Date(data.access_date as string | number | Date) : undefined,
+      access_date: data.access_date ? new Date(data.access_date as string | number | Date).toISOString() : undefined,
       notes: data.notes ? String(data.notes) : undefined,
       tags: Array.isArray(data.tags) ? data.tags as string[] : [],
-      metadataConfidence: typeof data.metadata_confidence === 'number' ? data.metadata_confidence : 1.0,
-      createdAt: new Date(data.created_at as string | number | Date),
-      updatedAt: new Date(data.updated_at as string | number | Date)
+      metadata_confidence: typeof data.metadata_confidence === 'number' ? data.metadata_confidence : 1.0,
+      ai_confidence: typeof data.ai_confidence === 'number' ? data.ai_confidence : 0,
+      ai_relevance_score: typeof data.ai_relevance_score === 'number' ? data.ai_relevance_score : 0,
+      created_at: new Date(data.created_at as string | number | Date).toISOString(),
+      updated_at: new Date(data.updated_at as string | number | Date).toISOString()
     };
   }
 
@@ -448,13 +469,13 @@ export class ReferenceDatabaseOperations {
   private mapDatabaseToCitationInstance(data: Record<string, unknown>): CitationInstance {
     return {
       id: String(data.id),
-      referenceId: String(data.reference_id),
-      conversationId: String(data.conversation_id),
-      citationStyle: data.citation_style as CitationStyle,
-      citationText: String(data.citation_text),
-      documentPosition: typeof data.document_position === 'number' ? data.document_position : undefined,
+      reference_id: String(data.reference_id),
+      conversation_id: String(data.conversation_id),
+      citation_style: data.citation_style as CitationStyle,
+      citation_text: String(data.citation_text),
+      document_position: typeof data.document_position === 'number' ? data.document_position : undefined,
       context: data.context ? String(data.context) : undefined,
-      createdAt: new Date(data.created_at as string | number | Date)
+      created_at: new Date(data.created_at as string | number | Date).toISOString()
     };
   }
 }
