@@ -1,4 +1,4 @@
-import * as React from "react"
+﻿import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { type VariantProps, cva } from "class-variance-authority"
 import { PanelLeftIcon } from "lucide-react"
@@ -394,10 +394,11 @@ function SidebarTrigger({
  * ```tsx
  * <Sidebar>
  *   <SidebarRail />
- *   {/* Sidebar content */}
+ *   &lt;* Sidebar content *&gt;
  * </Sidebar>
  * ```
  */
+
 function SidebarRail({ className, ...props }: React.ComponentProps<"button">) {
   const { toggleSidebar } = useSidebar()
 
@@ -435,7 +436,7 @@ function SidebarRail({ className, ...props }: React.ComponentProps<"button">) {
  * ```tsx
  * <div className="flex">
  *   <Sidebar>
- *     {/* Sidebar content */}
+ *     &lt;* Sidebar content *&gt;
  *   </Sidebar>
  *   <SidebarInset>
  *     <header>
@@ -443,7 +444,7 @@ function SidebarRail({ className, ...props }: React.ComponentProps<"button">) {
  *       <h1>My App</h1>
  *     </header>
  *     <main>
- *       {/* Main content */}
+ *       &lt;* Main content *&gt;
  *     </main>
  *   </SidebarInset>
  * </div>
@@ -521,7 +522,7 @@ function SidebarHeader({ className, ...props }: React.ComponentProps<"div">) {
 }
 
 /**
- * A container for the sidebar's footer section, typically containing action buttons or additional controls.
+ * A container for the sidebar's footer section, typically containing settings or other supplementary actions.
  * 
  * @param {React.ComponentProps<"div">} props - The props for the SidebarFooter component
  * @param {string} [props.className] - Additional CSS classes to apply to the footer
@@ -530,10 +531,16 @@ function SidebarHeader({ className, ...props }: React.ComponentProps<"div">) {
  * @example
  * ```tsx
  * <SidebarFooter>
- *   <Button variant="ghost" size="sm">
- *     <SettingsIcon />
- *     Settings
- *   </Button>
+ *   <SidebarMenu>
+ *     <SidebarMenuItem>
+ *       <SidebarMenuButton asChild>
+ *         <a href="/settings">
+ *           <SettingsIcon />
+ *           <span>Settings</span>
+ *         </a>
+ *       </SidebarMenuButton>
+ *     </SidebarMenuItem>
+ *   </SidebarMenu>
  * </SidebarFooter>
  * ```
  */
@@ -563,7 +570,7 @@ function SidebarSeparator({
 }
 
 /**
- * The main content area of the sidebar, typically containing navigation groups and menus.
+ * A container for the main content area within the sidebar, typically housing navigation items.
  * 
  * @param {React.ComponentProps<"div">} props - The props for the SidebarContent component
  * @param {string} [props.className] - Additional CSS classes to apply to the content

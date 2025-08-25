@@ -119,7 +119,6 @@ type ChatProps = ChatPropsWithoutSuggestions | ChatPropsWithSuggestions
  * export default ChatExample;
  * ```
  */
- */
 export function Chat({
   messages,
   handleSubmit,
