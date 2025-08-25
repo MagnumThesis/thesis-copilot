@@ -110,6 +110,13 @@ export class SearchAnalyticsManager {
   }
 
   /**
+   * Protected getter for accessing the environment
+   */
+  protected getEnvironment() {
+    return this.env;
+  }
+
+  /**
    * Record a new search session
    */
   async recordSearchSession(sessionData: Omit<SearchSession, 'id' | 'createdAt'>): Promise<string> {

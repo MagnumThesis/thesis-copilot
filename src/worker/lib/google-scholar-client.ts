@@ -54,7 +54,7 @@ export class GoogleScholarClient {
   private readonly errorHandlingConfig: ErrorHandlingConfig;
   private requestHistory: number[] = [];
   private isBlocked = false;
-  private blockUntil = 0;
+private blockUntil = 0;
   private consecutiveFailures = 0;
   private lastSuccessfulRequest = 0;
   private serviceAvailable = true;
@@ -261,7 +261,7 @@ export class GoogleScholarClient {
       return [];
 
     } catch (error) {
-      if (error instanceof SearchError) {
+      if (error instanceof SearchErrorImpl) {
         throw error;
       }
 
@@ -538,7 +538,7 @@ export class GoogleScholarClient {
       return responseText;
 
     } catch (error) {
-      if (error instanceof SearchError) {
+      if (error instanceof SearchErrorImpl) {
         throw error;
       }
 
@@ -1173,7 +1173,7 @@ export class GoogleScholarClient {
   private async checkRateLimit(): Promise<void> {
     if (this.isBlocked && Date.now() < this.blockUntil) {
       const waitTime = this.blockUntil - Date.now();
-      throw new SearchError({
+      throw new SearchErrorImpl({
         type: 'rate_limit',
         message: `Blocked until ${new Date(this.blockUntil).toISOString()}`,
         retryAfter: Math.ceil(waitTime / 1000)
@@ -1191,7 +1191,7 @@ export class GoogleScholarClient {
     const hourlyRequests = this.requestHistory.length;
 
     if (recentRequests.length >= this.rateLimitConfig.requestsPerMinute) {
-      throw new SearchError({
+      throw new SearchErrorImpl({
         type: 'rate_limit',
         message: 'Rate limit exceeded: too many requests per minute',
         retryAfter: 60
@@ -1199,7 +1199,7 @@ export class GoogleScholarClient {
     }
 
     if (hourlyRequests >= this.rateLimitConfig.requestsPerHour) {
-      throw new SearchError({
+      throw new SearchErrorImpl({
         type: 'rate_limit',
         message: 'Rate limit exceeded: too many requests per hour',
         retryAfter: 3600
@@ -1218,7 +1218,7 @@ export class GoogleScholarClient {
    * Handle and categorize errors with enhanced error classification
    */
   private handleError(error: unknown): SearchError {
-    if (error instanceof SearchError) {
+    if (error instanceof SearchErrorImpl) {
       return error;
     }
 
@@ -1277,7 +1277,7 @@ export class GoogleScholarClient {
   ): SearchError {
     const customMessage = this.errorHandlingConfig.customErrorMessages[type] || message;
     
-    const searchError = new SearchError({
+    const searchError = new SearchErrorImpl({
       type,
       message: customMessage,
       isRetryable,
@@ -1536,7 +1536,14 @@ export class GoogleScholarClient {
    * Get comprehensive client status including error handling state
    */
   getClientStatus(): {
-    rateLimitStatus: ReturnType<typeof this.getRateLimitStatus>;
+    rateLimitStatus: {
+      isBlocked: boolean;
+      blockUntil: number;
+      requestsInLastMinute: number;
+      requestsInLastHour: number;
+      remainingMinuteRequests: number;
+      remainingHourlyRequests: number;
+    };
     serviceStatus: {
       isAvailable: boolean;
       consecutiveFailures: number;
@@ -1628,7 +1635,7 @@ export class GoogleScholarClient {
 /**
  * SearchError class for typed error handling
  */
-class SearchError extends Error {
+export class SearchErrorImpl extends Error {
   public readonly type: 'rate_limit' | 'network' | 'parsing' | 'blocked' | 'timeout' | 'service_unavailable' | 'quota_exceeded';
   public readonly retryAfter?: number;
   public readonly statusCode?: number;

@@ -121,7 +121,7 @@ export class EnhancedSearchHistoryManager extends SearchAnalyticsManager {
         LIMIT 30
       `;
 
-      const result = await this.env.DB.prepare(query).bind(...params).all();
+      const result = await this.getEnvironment().DB.prepare(query).bind(...params).all();
       
       return (result.results || []).map((row: any) => ({
         date: row.search_date,
@@ -179,7 +179,7 @@ export class EnhancedSearchHistoryManager extends SearchAnalyticsManager {
         WHERE ss.id = ?
       `;
 
-      const sessionResult = await this.env.DB.prepare(sessionQuery).bind(sessionId).first();
+      const sessionResult = await this.getEnvironment().DB.prepare(sessionQuery).bind(sessionId).first();
       
       if (!sessionResult) {
         return null;
@@ -193,7 +193,7 @@ export class EnhancedSearchHistoryManager extends SearchAnalyticsManager {
         ORDER BY sr.relevance_score DESC, sr.quality_score DESC
       `;
 
-      const resultsResult = await this.env.DB.prepare(resultsQuery).bind(sessionId).all();
+      const resultsResult = await this.getEnvironment().DB.prepare(resultsQuery).bind(sessionId).all();
       const results = (resultsResult.results || []).map((row: any) => ({
         id: row.id,
         title: row.result_title,
@@ -220,7 +220,7 @@ export class EnhancedSearchHistoryManager extends SearchAnalyticsManager {
         LIMIT 1
       `;
 
-      const feedbackResult = await this.env.DB.prepare(feedbackQuery).bind(sessionId).first();
+      const feedbackResult = await this.getEnvironment().DB.prepare(feedbackQuery).bind(sessionId).first();
       const feedback = feedbackResult ? {
         overallSatisfaction: feedbackResult.overall_satisfaction,
         relevanceRating: feedbackResult.relevance_rating,
@@ -313,7 +313,7 @@ export class EnhancedSearchHistoryManager extends SearchAnalyticsManager {
         LIMIT 20
       `;
 
-      const result = await this.env.DB.prepare(query).bind(...params).all();
+      const result = await this.getEnvironment().DB.prepare(query).bind(...params).all();
       
       // Get top results for each query
       const queryAnalytics = await Promise.all(
@@ -333,7 +333,7 @@ export class EnhancedSearchHistoryManager extends SearchAnalyticsManager {
             topResultsParams.push(conversationId);
           }
 
-          const topResultsResult = await this.env.DB.prepare(topResultsQuery).bind(...topResultsParams).all();
+          const topResultsResult = await this.getEnvironment().DB.prepare(topResultsQuery).bind(...topResultsParams).all();
           const topResults = (topResultsResult.results || []).map((r: any) => ({
             title: r.result_title,
             relevanceScore: r.relevance_score,
@@ -407,7 +407,7 @@ export class EnhancedSearchHistoryManager extends SearchAnalyticsManager {
         GROUP BY ss.content_sources
       `;
 
-      const effectivenessResult = await this.env.DB.prepare(effectivenessQuery).bind(...params).all();
+      const effectivenessResult = await this.getEnvironment().DB.prepare(effectivenessQuery).bind(...params).all();
       
       // Get relevance scores by source
       const relevanceQuery = `
@@ -420,7 +420,7 @@ export class EnhancedSearchHistoryManager extends SearchAnalyticsManager {
         GROUP BY ss.content_sources
       `;
 
-      const relevanceResult = await this.env.DB.prepare(relevanceQuery).bind(...params).all();
+      const relevanceResult = await this.getEnvironment().DB.prepare(relevanceQuery).bind(...params).all();
       
       // Get trend data (compare first half vs second half of period)
       const trendQuery = `
@@ -437,7 +437,7 @@ export class EnhancedSearchHistoryManager extends SearchAnalyticsManager {
       `;
 
       const trendParams = [halfwayDate.toISOString(), ...params];
-      const trendResult = await this.env.DB.prepare(trendQuery).bind(...trendParams).all();
+      const trendResult = await this.getEnvironment().DB.prepare(trendQuery).bind(...trendParams).all();
 
       // Process results by source type
       const sourceMetrics = new Map<string, any>();
@@ -614,7 +614,7 @@ export class EnhancedSearchHistoryManager extends SearchAnalyticsManager {
         FROM search_sessions ss
         ${whereClause}
       `;
-      const countResult = await this.env.DB.prepare(countQuery).bind(...params).first();
+      const countResult = await this.getEnvironment().DB.prepare(countQuery).bind(...params).first();
       const total = countResult.total || 0;
 
       // Get paginated results
@@ -632,7 +632,7 @@ export class EnhancedSearchHistoryManager extends SearchAnalyticsManager {
       `;
       params.push(limit, offset);
 
-      const result = await this.env.DB.prepare(query).bind(...params).all();
+      const result = await this.getEnvironment().DB.prepare(query).bind(...params).all();
       const sessions = result.results || [];
 
       // Transform to SearchHistoryEntry format
@@ -714,7 +714,7 @@ export class EnhancedSearchHistoryManager extends SearchAnalyticsManager {
         ${whereClause}
       `;
 
-      const statsResult = await this.env.DB.prepare(statsQuery).bind(...params).first();
+      const statsResult = await this.getEnvironment().DB.prepare(statsQuery).bind(...params).first();
 
       // Get content source usage
       const sourcesQuery = `
@@ -726,7 +726,7 @@ export class EnhancedSearchHistoryManager extends SearchAnalyticsManager {
         GROUP BY content_sources
       `;
 
-      const sourcesResult = await this.env.DB.prepare(sourcesQuery).bind(...params).all();
+      const sourcesResult = await this.getEnvironment().DB.prepare(sourcesQuery).bind(...params).all();
       const mostUsedContentSources = this.calculateContentSourceUsage(sourcesResult.results || []);
 
       // Get top search queries
@@ -746,7 +746,7 @@ export class EnhancedSearchHistoryManager extends SearchAnalyticsManager {
         LIMIT 10
       `;
 
-      const queriesResult = await this.env.DB.prepare(queriesQuery).bind(...params).all();
+      const queriesResult = await this.getEnvironment().DB.prepare(queriesQuery).bind(...params).all();
       const topSearchQueries = (queriesResult.results || []).map((row: any) => ({
         query: row.search_query,
         count: row.query_count,
@@ -771,7 +771,7 @@ export class EnhancedSearchHistoryManager extends SearchAnalyticsManager {
         LIMIT 30
       `;
 
-      const trendsResult = await this.env.DB.prepare(trendsQuery).bind(...params).all();
+      const trendsResult = await this.getEnvironment().DB.prepare(trendsQuery).bind(...params).all();
       const searchTrends = (trendsResult.results || []).map((row: any) => ({
         date: row.search_date,
         searchCount: row.search_count,
@@ -828,7 +828,7 @@ export class EnhancedSearchHistoryManager extends SearchAnalyticsManager {
         ORDER BY usage_date DESC
       `;
 
-      const usageResult = await this.env.DB.prepare(usageQuery).bind(...params).all();
+      const usageResult = await this.getEnvironment().DB.prepare(usageQuery).bind(...params).all();
       const usageData = usageResult.results || [];
 
       // Process usage data by source type
@@ -914,7 +914,7 @@ export class EnhancedSearchHistoryManager extends SearchAnalyticsManager {
     errorMessage?: string
   ): Promise<void> {
     try {
-      await this.env.DB.prepare(`
+      await this.getEnvironment().DB.prepare(`
         UPDATE search_sessions 
         SET results_count = ?, results_accepted = ?, results_rejected = ?, 
             search_success = ?, error_message = ?, updated_at = CURRENT_TIMESTAMP
@@ -949,17 +949,17 @@ export class EnhancedSearchHistoryManager extends SearchAnalyticsManager {
         const placeholders = entryIds.map(() => '?').join(',');
         
         // Delete related data first (foreign key constraints)
-        await this.env.DB.prepare(`
+        await this.getEnvironment().DB.prepare(`
           DELETE FROM search_feedback 
           WHERE search_session_id IN (${placeholders})
         `).bind(...entryIds).run();
 
-        await this.env.DB.prepare(`
+        await this.getEnvironment().DB.prepare(`
           DELETE FROM search_results 
           WHERE search_session_id IN (${placeholders})
         `).bind(...entryIds).run();
 
-        await this.env.DB.prepare(`
+        await this.getEnvironment().DB.prepare(`
           DELETE FROM search_sessions 
           WHERE id IN (${placeholders}) AND user_id = ?
           ${conversationId ? 'AND conversation_id = ?' : ''}
@@ -1047,114 +1047,6 @@ export class EnhancedSearchHistoryManager extends SearchAnalyticsManager {
         ]);
 
         return [headers, ...rows].map(row => row.join(',')).join('\n');
-      }
-    } catch (error) {
-      console.error('Error exporting search history:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Update search session results
-   */
-  async updateSearchSessionResults(
-    sessionId: string,
-    resultsCount: number,
-    resultsAccepted: number,
-    resultsRejected: number,
-    errorMessage?: string
-  ): Promise<void> {
-    try {
-      await this.env.DB.prepare(`
-        UPDATE search_sessions 
-        SET results_count = ?, results_accepted = ?, results_rejected = ?, 
-            search_success = ?, error_message = ?, updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?
-      `).bind(
-        resultsCount,
-        resultsAccepted,
-        resultsRejected,
-        resultsCount > 0 && !errorMessage,
-        errorMessage || null,
-        sessionId
-      ).run();
-
-      console.log(`Search session results updated: ${sessionId}`);
-    } catch (error) {
-      console.error('Error updating search session results:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Delete search history entries
-   */
-  async deleteSearchHistory(
-    userId: string,
-    conversationId?: string,
-    entryIds?: string[]
-  ): Promise<void> {
-    try {
-      if (entryIds && entryIds.length > 0) {
-        // Delete specific entries
-        const placeholders = entryIds.map(() => '?').join(',');
-        
-        // Delete related data first (foreign key constraints)
-        await this.env.DB.prepare(`
-          DELETE FROM search_feedback 
-          WHERE search_session_id IN (${placeholders})
-        `).bind(...entryIds).run();
-
-        await this.env.DB.prepare(`
-          DELETE FROM search_results 
-          WHERE search_session_id IN (${placeholders})
-        `).bind(...entryIds).run();
-
-        let query = `
-          DELETE FROM search_sessions 
-          WHERE id IN (${placeholders}) AND user_id = ?
-        `;
-        const params = [...entryIds, userId];
-        
-        if (conversationId) {
-          query += ' AND conversation_id = ?';
-          params.push(conversationId);
-        }
-        
-        await this.env.DB.prepare(query).bind(...params).run();
-      } else {
-        // Delete all entries for user/conversation
-        await this.clearAnalyticsData(userId, conversationId);
-      }
-
-      console.log(`Search history deleted for user ${userId}${conversationId ? ` in conversation ${conversationId}` : ''}`);
-    } catch (error) {
-      console.error('Error deleting search history:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Export search history data
-   */
-  async exportSearchHistory(
-    userId: string,
-    conversationId?: string,
-    format: 'json' | 'csv' = 'json'
-  ): Promise<string> {
-    try {
-      const { entries } = await this.getSearchHistory(userId, conversationId, undefined, 1000, 0);
-      
-      if (format === 'csv') {
-        return this.convertToCSV(entries);
-      } else {
-        return JSON.stringify({
-          exportDate: new Date().toISOString(),
-          userId,
-          conversationId,
-          totalEntries: entries.length,
-          entries
-        }, null, 2);
       }
     } catch (error) {
       console.error('Error exporting search history:', error);
