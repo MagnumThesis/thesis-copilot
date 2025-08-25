@@ -200,7 +200,7 @@ export interface AISearchResult {
   /** @property {number} confidence - The confidence score of the result. */
   confidence: number;
   /** @property {number} relevance_score - The relevance score of the result. */
-  relevance_score: number;
+  relevance_score?: number;
   /** @property {string} source - The source of the result. */
   source: string;
   /** @property {string} search_query - The search query that produced the result. */

@@ -75,6 +75,9 @@ export class ContentExtractionEngine {
 
       switch (request.source) {
         case 'ideas': {
+          if (!request.id) {
+            throw new Error('ID is required for ideas source');
+          }
           const ideaData = await this.extractFromIdeas(request.id);
           content = ideaData.content;
           title = ideaData.title;
@@ -84,13 +87,14 @@ export class ContentExtractionEngine {
 
         case 'builder': {
           // For builder, use conversationId instead of id
+          if (!request.conversationId) {
+            throw new Error('ConversationId is required for builder source');
+          }
           const builderData = await this.extractFromBuilder(request.conversationId);
           content = builderData.content;
           title = builderData.title;
           sourceMetadata = { 
-            conversationId: request.conversationId,
-            wordCount: builderData.wordCount,
-            lastModified: builderData.lastModified
+            conversationId: request.conversationId
           };
           break;
         }
@@ -127,14 +131,7 @@ export class ContentExtractionEngine {
         keywords: analysis.keywords,
         keyPhrases: analysis.keyPhrases,
         topics: analysis.topics,
-        confidence: confidence,
-        extractedAt: new Date(),
-        metadata: {
-          ...sourceMetadata,
-          wordCount: analysis.wordCount,
-          readabilityScore: analysis.readabilityScore,
-          processingTimeMs: Date.now() - startTime
-        }
+        confidence: confidence
       };
 
       console.log(`Content extraction completed for ${request.source}:${request.id} in ${Date.now() - startTime}ms`);
@@ -337,9 +334,9 @@ export class ContentExtractionEngine {
     const avgConfidence = totalConfidence / extractedContents.length;
 
     // Combine keywords, key phrases, and topics (removing duplicates)
-    const allKeywords = [...new Set(extractedContents.flatMap(ec => ec.keywords))];
-    const allKeyPhrases = [...new Set(extractedContents.flatMap(ec => ec.keyPhrases))];
-    const allTopics = [...new Set(extractedContents.flatMap(ec => ec.topics))];
+    const allKeywords = [...new Set(extractedContents.flatMap(ec => ec.keywords || []).filter(Boolean))];
+    const allKeyPhrases = [...new Set(extractedContents.flatMap(ec => ec.keyPhrases || []).filter(Boolean))];
+    const allTopics = [...new Set(extractedContents.flatMap(ec => ec.topics || []).filter(Boolean))];
 
     return {
       source: 'ideas', // Default to ideas for combined content
@@ -424,18 +421,26 @@ class IdeaApi {
 
       const data = await response.json();
       
-      if (data.success && data.idea) {
+      // Type guard to ensure data has the expected properties
+      if (data && 
+          typeof data === 'object' && 
+          'success' in data && 
+          typeof (data as any).success === 'boolean' && 
+          'idea' in data && 
+          typeof (data as any).idea === 'object' && 
+          (data as any).idea !== null) {
+        const idea = (data as any).idea;
         return {
-          id: data.idea.id,
-          title: data.idea.title,
-          description: data.idea.description || data.idea.content || '',
-          content: data.idea.description || data.idea.content || '',
-          type: data.idea.type || 'concept',
-          tags: data.idea.tags || [],
-          confidence: data.idea.confidence || 0.8,
-          created_at: data.idea.created_at || new Date().toISOString(),
-          updated_at: data.idea.updated_at || new Date().toISOString(),
-          conversationid: data.idea.conversationid || data.idea.conversation_id
+          id: idea.id,
+          title: idea.title,
+          description: idea.description || idea.content || '',
+          content: idea.description || idea.content || '',
+          type: idea.type || 'concept',
+          tags: Array.isArray(idea.tags) ? idea.tags : [],
+          confidence: typeof idea.confidence === 'number' ? idea.confidence : 0.8,
+          created_at: typeof idea.created_at === 'string' ? idea.created_at : new Date().toISOString(),
+          updated_at: typeof idea.updated_at === 'string' ? idea.updated_at : new Date().toISOString(),
+          conversationid: idea.conversationid || idea.conversation_id
         };
       }
 
@@ -484,17 +489,23 @@ class IdeaApi {
 
       const data = await response.json();
       
-      if (data.success && data.ideas) {
-        return data.ideas.map((idea: any) => ({
+      // Type guard to ensure data has the expected properties
+      if (data && 
+          typeof data === 'object' && 
+          'success' in data && 
+          typeof (data as any).success === 'boolean' && 
+          'ideas' in data && 
+          Array.isArray((data as any).ideas)) {
+        return (data as any).ideas.map((idea: any) => ({
           id: idea.id,
           title: idea.title,
           description: idea.description || idea.content || '',
           content: idea.description || idea.content || '',
           type: idea.type || 'concept',
-          tags: idea.tags || [],
-          confidence: idea.confidence || 0.8,
-          created_at: idea.created_at || new Date().toISOString(),
-          updated_at: idea.updated_at || new Date().toISOString(),
+          tags: Array.isArray(idea.tags) ? idea.tags : [],
+          confidence: typeof idea.confidence === 'number' ? idea.confidence : 0.8,
+          created_at: typeof idea.created_at === 'string' ? idea.created_at : new Date().toISOString(),
+          updated_at: typeof idea.updated_at === 'string' ? idea.updated_at : new Date().toISOString(),
           conversationid: idea.conversationid || idea.conversation_id
         }));
       }
@@ -545,16 +556,25 @@ class BuilderApi {
 
       const data = await response.json();
       
-      if (data.success && data.content) {
+      // Type guard to ensure data has the expected properties
+      if (data && 
+          typeof data === 'object' && 
+          'success' in data && 
+          typeof (data as any).success === 'boolean' && 
+          'content' in data && 
+          typeof (data as any).content === 'string') {
+        const typedData = data as any;
         return {
           id: conversationId,
-          title: data.title || 'Thesis Document',
-          content: data.content,
-          sections: this.parseContentSections(data.content),
-          updated_at: data.updated_at,
-          created_at: data.created_at,
-          wordCount: data.content.split(/\s+/).length,
-          lastModified: data.updated_at || data.created_at
+          title: ('title' in data && typeof (data as any).title === 'string' ? (data as any).title : 'Thesis Document'),
+          content: typedData.content,
+          sections: this.parseContentSections(typedData.content),
+          updated_at: ('updated_at' in data && typeof (data as any).updated_at === 'string' ? (data as any).updated_at : new Date().toISOString()),
+          created_at: ('created_at' in data && typeof (data as any).created_at === 'string' ? (data as any).created_at : new Date().toISOString()),
+          wordCount: typedData.content.split(/\s+/).length,
+          lastModified: ('updated_at' in data && typeof (data as any).updated_at === 'string' ? (data as any).updated_at : 
+                        'created_at' in data && typeof (data as any).created_at === 'string' ? (data as any).created_at : 
+                        new Date().toISOString())
         };
       }
 
