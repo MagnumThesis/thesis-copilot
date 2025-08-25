@@ -47,7 +47,10 @@ export class ReferenceManagementEngine {
     // Validate the reference data first
     const validationResult = this.validateReferenceData(data);
     if (!validationResult.isValid) {
-      throw new Error(`Validation failed: ${validationResult.errors.map(e => e.message).join(', ')}`);
+      const errorMessages = validationResult.errors.map(e => 
+        typeof e === 'string' ? e : e.message
+      );
+      throw new Error(`Validation failed: ${errorMessages.join(', ')}`);
     }
 
     let finalData = { ...data };
@@ -95,7 +98,10 @@ export class ReferenceManagementEngine {
     const mergedData = { ...this.referenceToFormData(existingReference), ...data };
     const validationResult = this.validateReferenceData(mergedData);
     if (!validationResult.isValid) {
-      throw new Error(`Validation failed: ${validationResult.errors.map(e => e.message).join(', ')}`);
+      const errorMessages = validationResult.errors.map(e => 
+        typeof e === 'string' ? e : e.message
+      );
+      throw new Error(`Validation failed: ${errorMessages.join(', ')}`);
     }
 
     let finalData = { ...data };
@@ -107,7 +113,7 @@ export class ReferenceManagementEngine {
         const extractionRequest: MetadataExtractionRequest = {
           source,
           type: (data.doi || existingReference.doi) ? 'doi' : 'url',
-          conversationId: existingReference.conversationId
+          conversationId: existingReference.conversationId || existingReference.conversation_id || existingReference.conversation_id
         };
 
         const extractionResult = await this.metadataEngine.extractMetadata(extractionRequest);
@@ -201,7 +207,7 @@ export class ReferenceManagementEngine {
       // Create citation instance for tracking
       await this.dbOps.createCitationInstance({
         referenceId: request.referenceId,
-        conversationId: reference.conversationId,
+        conversationId: reference.conversationId || reference.conversation_id,
         citationStyle: request.style,
         citationText: citation,
         context: request.context
