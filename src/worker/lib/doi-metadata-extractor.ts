@@ -157,6 +157,9 @@ function calculateDoiConfidence(crossRefWork: Record<string, unknown>): number {
  */
 function transformCrossRefWork(crossRefWork: Record<string, unknown>, doi: string): ReferenceMetadata {
   const metadata: ReferenceMetadata = {
+    title: '',
+    authors: [],
+    keywords: [],
     confidence: calculateDoiConfidence(crossRefWork)
   };
 

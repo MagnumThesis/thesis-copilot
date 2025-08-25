@@ -354,7 +354,7 @@ export class OptimizedQueryGenerationEngine {
     const queries: SearchQuery[] = [
       {
         id: crypto.randomUUID(),
-        query: primaryQuery.query,
+        query: primaryQuery.primaryQuery,
         originalContent: content,
         generatedAt: new Date(),
         confidence: primaryQuery.confidence,
