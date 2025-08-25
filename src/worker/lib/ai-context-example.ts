@@ -66,6 +66,7 @@ export async function exampleAIPromptHandler(
     const mockResponse: AIResponse = {
       success: true,
       content: `Generated content based on prompt: "${prompt}" with context from "${documentContext.conversationTitle}"`,
+      timestamp: Date.now(),
       metadata: {
         tokensUsed: 150,
         processingTime: 1200
@@ -118,6 +119,7 @@ export async function exampleAIContinueHandler(
     const mockResponse: AIResponse = {
       success: true,
       content: `Continued content based on context around cursor position ${cursorPosition}`,
+      timestamp: Date.now(),
       metadata: {
         tokensUsed: 120,
         processingTime: 900

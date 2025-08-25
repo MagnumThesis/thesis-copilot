@@ -14,12 +14,14 @@ import type {
   CitationRequest,
   CitationResponse,
   BibliographyRequest,
-  BibliographyResponse
+  BibliographyResponse,
+  Author
 } from '../../lib/ai-types';
 
 import { 
   ReferenceType,
-  CitationStyle
+  CitationStyle,
+  normalizeAuthor
 } from '../../lib/ai-types';
 
 /**
@@ -250,7 +252,7 @@ export class ReferenceManagementEngine {
       }
 
       // Sort references according to the requested order
-      const sortedReferences = this.sortReferences(references, request.sortOrder);
+      const sortedReferences = this.sortReferences(references, request.sortOrder || 'alphabetical');
 
       // Format each reference as a bibliography entry
       const entries = sortedReferences.map(ref => {
@@ -311,7 +313,10 @@ export class ReferenceManagementEngine {
     } else {
       // Validate author fields
       data.authors.forEach((author, index) => {
-        if (!author.lastName || author.lastName.trim() === '') {
+        // Normalize author to Author object if it's a string
+        const normalizedAuthor = normalizeAuthor(author);
+          
+        if (!normalizedAuthor.lastName || normalizedAuthor.lastName.trim() === '') {
           errors.push({
             field: `authors[${index}].lastName`,
             message: `Author ${index + 1} must have a last name`,
@@ -447,8 +452,10 @@ export class ReferenceManagementEngine {
       case 'alphabetical':
         return sorted.sort((a, b) => {
           // Sort by first author's last name, then by title
-          const aAuthor = a.authors[0]?.lastName || a.title;
-          const bAuthor = b.authors[0]?.lastName || b.title;
+          const firstAuthorA = a.authors[0] ? normalizeAuthor(a.authors[0]) : null;
+          const firstAuthorB = b.authors[0] ? normalizeAuthor(b.authors[0]) : null;
+          const aAuthor = firstAuthorA?.lastName || a.title;
+          const bAuthor = firstAuthorB?.lastName || b.title;
           return aAuthor.localeCompare(bAuthor);
         });
       
@@ -463,7 +470,10 @@ export class ReferenceManagementEngine {
       case 'appearance':
       default:
         // Sort by creation date (order of appearance in document)
-        return sorted.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+        return sorted.sort((a, b) => {
+          if (!a.createdAt || !b.createdAt) return 0;
+          return a.createdAt.getTime() - b.createdAt.getTime();
+        });
     }
   }
 
@@ -538,5 +548,12 @@ export class ReferenceManagementEngine {
     // Basic DOI format validation
     const doiPattern = /^10\.\d{4,}\/.*$/;
     return doiPattern.test(doi);
+  }
+
+  /**
+   * Normalize an author from string to Author object
+   */
+  private normalizeAuthor(author: string | Author): Author {
+    return normalizeAuthor(author);
   }
 }

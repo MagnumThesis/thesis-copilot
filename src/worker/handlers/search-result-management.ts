@@ -7,8 +7,7 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { searchResultManagementService } from '../lib/search-result-management'
 import { ScholarSearchResult } from '../../lib/ai-types'
-import { ExportOptions } from '../../components/ui/search-result-export'
-import { ShareOptions } from '../../components/ui/search-result-sharing'
+import { ExportOptions, ShareOptions } from '../../types/search-result-types'
 
 const app = new Hono()
 

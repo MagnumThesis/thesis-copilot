@@ -240,7 +240,7 @@ export class AISearcherPerformanceOptimizer {
     // If cache is still too large, remove least recently used entries
     if (cache.size > config.maxSize) {
       const entries = Array.from(cache.entries())
-        .sort(([, a], [, b]) => a.lastAccessed - b.lastAccessed);
+        .sort(([, a], [, b]) => (a as any).lastAccessed - (b as any).lastAccessed);
       
       const entriesToRemove = entries.slice(0, entries.length - config.maxSize);
       entriesToRemove.forEach(([key]) => cache.delete(key));

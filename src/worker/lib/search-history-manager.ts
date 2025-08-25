@@ -85,7 +85,7 @@ export class SearchHistoryManager {
     }
 
     const totalSearches = userHistory.length;
-    const successfulSearches = userHistory.filter(h => h.results.total > 0).length;
+    const successfulSearches = userHistory.filter(h => h.results && h.results.total > 0).length;
     const successRate = totalSearches > 0 ? successfulSearches / totalSearches : 0;
 
     // Calculate popular topics
@@ -103,7 +103,9 @@ export class SearchHistoryManager {
       .map(([topic]) => topic);
 
     // Calculate average results
-    const averageResults = userHistory.reduce((sum, h) => sum + h.results.total, 0) / totalSearches;
+    const averageResults = totalSearches > 0 
+      ? userHistory.reduce((sum, h) => sum + (h.results?.total || 0), 0) / totalSearches
+      : 0;
 
     // Calculate top sources
     const sourceCounts = new Map<string, number>();
@@ -144,7 +146,7 @@ export class SearchHistoryManager {
     console.log(`Search history cleared for user ${userId}`);
   }
 
-  /**
+  /** 
    * Get search statistics
    */
   async getStatistics(userId: string): Promise<{
@@ -163,17 +165,27 @@ export class SearchHistoryManager {
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-    const searchesToday = userHistory.filter(h => h.timestamp >= today).length;
-    const searchesThisWeek = userHistory.filter(h => h.timestamp >= weekAgo).length;
-    const searchesThisMonth = userHistory.filter(h => h.timestamp >= monthAgo).length;
+    const searchesToday = userHistory.filter(h => {
+      const timestamp = safeDate(h.timestamp);
+      return timestamp && timestamp >= today;
+    }).length;
+    const searchesThisWeek = userHistory.filter(h => {
+      const timestamp = safeDate(h.timestamp);
+      return timestamp && timestamp >= weekAgo;
+    }).length;
+    const searchesThisMonth = userHistory.filter(h => {
+      const timestamp = safeDate(h.timestamp);
+      return timestamp && timestamp >= monthAgo;
+    }).length;
 
+    // Ensure we return 0 instead of undefined for averageResults and successRate
     return {
       totalSearches: userHistory.length,
       searchesToday,
       searchesThisWeek,
       searchesThisMonth,
-      averageResults: analytics.averageResults,
-      successRate: analytics.successRate
+      averageResults: analytics.averageResults || 0,
+      successRate: analytics.successRate || 0
     };
   }
 
@@ -224,8 +236,15 @@ export class SearchHistoryManager {
     const cutoff = new Date(Date.now() - hours * 60 * 60 * 1000);
 
     return userHistory
-      .filter(item => item.timestamp >= cutoff)
-      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+      .filter(item => {
+        const timestamp = safeDate(item.timestamp);
+        return timestamp && item.timestamp >= cutoff;
+      })
+      .sort((a, b) => {
+        const aTime = safeDate(a.timestamp)?.getTime() || 0;
+        const bTime = safeDate(b.timestamp)?.getTime() || 0;
+        return bTime - aTime;
+      });
   }
 
   /**
@@ -239,15 +258,18 @@ export class SearchHistoryManager {
     } else {
       // CSV format
       const headers = ['id', 'timestamp', 'query', 'sources', 'total_results', 'accepted', 'rejected'];
-      const rows = userHistory.map(item => [
-        item.id,
-        item.timestamp.toISOString(),
-        `"${item.query.replace(/"/g, '""')}"`,
-        item.sources.join(';'),
-        item.results.total,
-        item.results.accepted,
-        item.results.rejected
-      ]);
+      const rows = userHistory.map(item => {
+        const timestamp = safeDate(item.timestamp);
+        return [
+          item.id,
+          timestamp ? timestamp.toISOString() : new Date().toISOString(),
+          `"${item.query.replace(/"/g, '""')}"`,
+          item.sources.join(';'),
+          item.results?.total || 0,
+          item.results?.accepted || 0,
+          item.results?.rejected || 0
+        ];
+      });
 
       return [headers, ...rows].map(row => row.join(',')).join('\n');
     }

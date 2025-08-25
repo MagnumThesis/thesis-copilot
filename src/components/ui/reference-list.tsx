@@ -103,23 +103,31 @@ export const ReferenceList: React.FC<ReferenceListProps> = ({
   }
 
   const formatCitation = (reference: Reference, style: CitationStyle): string => {
+    // Convert authors to strings
+    const authorStrings = reference.authors.map(author => 
+      typeof author === 'string' ? author : `${author.firstName} ${author.lastName}`
+    );
+    
     // Simplified citation formatting - in a real app you'd use a proper citation library
     switch (style) {
       case CitationStyle.APA:
-        return `${reference.authors.join(', ')} (${reference.publication_date || 'n.d.'}). ${reference.title}. ${reference.journal || reference.publisher || ''}.`
+        return `${authorStrings.join(', ')} (${reference.publication_date || 'n.d.'}). ${reference.title}. ${reference.journal || reference.publisher || ''}.`
       case CitationStyle.MLA:
-        return `${reference.authors.join(', ')}. "${reference.title}." ${reference.journal || reference.publisher || ''}, ${reference.publication_date || 'n.d.'}.`
+        return `${authorStrings.join(', ')}. "${reference.title}." ${reference.journal || reference.publisher || ''}, ${reference.publication_date || 'n.d.'}.`
       default:
-        return `${reference.authors.join(', ')} (${reference.publication_date || 'n.d.'}). ${reference.title}.`
+        return `${authorStrings.join(', ')} (${reference.publication_date || 'n.d.'}). ${reference.title}.`
     }
   }
 
   const filteredReferences = references.filter(ref => {
     const matchesSearch = ref.title.toLowerCase().includes(localSearchQuery.toLowerCase()) ||
-                         ref.authors.some(author => author.toLowerCase().includes(localSearchQuery.toLowerCase()))
-    const matchesFilter = localFilterType === 'all' || ref.type === localFilterType
-    return matchesSearch && matchesFilter
-  })
+                         ref.authors.some(author => 
+                           (typeof author === 'string' ? author : `${author.firstName} ${author.lastName}`)
+                           .toLowerCase().includes(localSearchQuery.toLowerCase())
+                         );
+    const matchesFilter = localFilterType === 'all' || ref.type === localFilterType;
+    return matchesSearch && matchesFilter;
+  });
 
   const handleDelete = async (referenceId: string) => {
     if (confirm('Are you sure you want to delete this reference?')) {
@@ -226,7 +234,9 @@ export const ReferenceList: React.FC<ReferenceListProps> = ({
             </CardHeader>
             <CardContent className="pt-0">
               <div className="text-sm text-muted-foreground mb-3">
-                <strong>Authors:</strong> {reference.authors.join(', ')}
+                <strong>Authors:</strong> {reference.authors.map(author => 
+                  typeof author === 'string' ? author : `${author.firstName} ${author.lastName}`
+                ).join(', ')}
               </div>
 
               {reference.journal && (

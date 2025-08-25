@@ -315,8 +315,8 @@ export class ConcernStatusManagerImpl implements ConcernStatusManager {
         suggestions: concern.suggestions || [],
         related_ideas: concern.relatedIdeas || [],
         status: concern.status,
-        created_at: concern.createdAt.toISOString(),
-        updated_at: concern.updatedAt.toISOString()
+        created_at: concern.createdAt || new Date().toISOString(),
+        updated_at: concern.updatedAt || new Date().toISOString()
       }));
 
       const { error } = await supabase

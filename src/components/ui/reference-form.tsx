@@ -289,7 +289,7 @@ export const ReferenceForm: React.FC<ReferenceFormProps> = ({
               <div className="flex flex-wrap gap-2">
                 {(formData.authors || []).map((author, index) => (
                   <Badge key={index} variant="secondary" className="flex items-center gap-1">
-                    {author}
+                    {typeof author === 'string' ? author : `${author.firstName} ${author.lastName}`}
                     <button
                       type="button"
                       onClick={() => removeAuthor(index)}

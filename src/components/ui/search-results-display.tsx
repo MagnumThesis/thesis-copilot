@@ -19,7 +19,7 @@ import {
   Info,
   MessageSquare,
   Bookmark,
-  Compare,
+  GitCompare,
   Share2,
   Download
 } from "lucide-react"

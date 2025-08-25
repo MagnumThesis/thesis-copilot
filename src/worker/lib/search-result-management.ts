@@ -4,10 +4,7 @@
  */
 
 import { ScholarSearchResult, CitationStyle } from "../../lib/ai-types"
-import { BookmarkedResult } from "../../components/ui/search-result-bookmark"
-import { ComparisonResult } from "../../components/ui/search-result-comparison"
-import { ExportOptions, ExportFormat } from "../../components/ui/search-result-export"
-import { ShareOptions, SharedResult } from "../../components/ui/search-result-sharing"
+import { BookmarkedResult, ComparisonResult, ExportOptions, ExportFormat, ShareOptions, SharedResult } from "../../types/search-result-types"
 
 export interface SearchResultManagementService {
   // Bookmarking
@@ -169,7 +166,10 @@ export class SearchResultManagementServiceImpl implements SearchResultManagement
     userId: string
   ): Promise<SharedResult> {
     const shareId = `share_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-    const shareUrl = `${globalThis.location?.origin || 'https://app.example.com'}/shared/${shareId}`
+    // Use globalThis.origin if available (Workers environment), otherwise fall back to a default
+    // In a production environment, you might want to configure this through environment variables
+    const origin = (globalThis as any).origin || 'https://thesis-copilot.example.com'
+    const shareUrl = `${origin}/shared/${shareId}`
     
     const expiresAt = options.expirationDays 
       ? new Date(Date.now() + options.expirationDays * 24 * 60 * 60 * 1000)

@@ -274,14 +274,14 @@ app.post('/admin/cleanup', async (c) => {
     // This should be protected by admin authentication in production
     const adminKey = c.req.header('x-admin-key');
     
-    if (!adminKey || adminKey !== c.env.ADMIN_KEY) {
+    if (!adminKey || adminKey !== (c.env as any).ADMIN_KEY) {
       return c.json({ 
         success: false, 
         error: 'Unauthorized' 
       }, 401);
     }
 
-    const privacyManager = new PrivacyManager(c.env);
+    const privacyManager = new PrivacyManager(c.env as any);
     const result = await privacyManager.runAutomaticCleanup();
 
     return c.json({ 
@@ -326,7 +326,7 @@ app.get('/admin/compliance-report', async (c) => {
       FROM privacy_settings
     `;
 
-    const statsResult = await c.env.DB.prepare(statsQuery).first();
+    const statsResult = await (c.env as any).DB.prepare(statsQuery).first();
 
     // Get data volume statistics
     const volumeQuery = `
@@ -337,7 +337,7 @@ app.get('/admin/compliance-report', async (c) => {
         (SELECT COUNT(*) FROM user_feedback_learning) as total_learning_data
     `;
 
-    const volumeResult = await c.env.DB.prepare(volumeQuery).first();
+    const volumeResult = await (c.env as any).DB.prepare(volumeQuery).first();
 
     const report = {
       compliance: {

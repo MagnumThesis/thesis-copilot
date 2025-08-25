@@ -279,7 +279,9 @@ export class QueryGenerationEngine {
     // Limit cache size to prevent memory issues
     if (this.queryOptimizationCache.size > 500) {
       const firstKey = this.queryOptimizationCache.keys().next().value;
-      this.queryOptimizationCache.delete(firstKey);
+      if (firstKey !== undefined) {
+        this.queryOptimizationCache.delete(firstKey);
+      }
     }
 
     return optimization;
@@ -543,7 +545,9 @@ export class QueryGenerationEngine {
     // Limit cache size to prevent memory issues
     if (this.termRelevanceCache.size > 1000) {
       const firstKey = this.termRelevanceCache.keys().next().value;
-      this.termRelevanceCache.delete(firstKey);
+      if (firstKey !== undefined) {
+        this.termRelevanceCache.delete(firstKey);
+      }
     }
 
     return score;

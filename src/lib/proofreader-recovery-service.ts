@@ -21,7 +21,7 @@ import {
 
 export interface RecoveryState {
   isOnline: boolean;
-  lastSync: Date | null;
+  lastSync: string | null;
   pendingOperations: PendingOperation[];
   cachedData: CachedData;
   recoveryMode: RecoveryMode;
@@ -136,7 +136,7 @@ export class ProofreaderRecoveryService {
       await this.validateCachedData();
       
       this.recoveryState.recoveryMode = RecoveryMode.NORMAL;
-      this.recoveryState.lastSync = new Date();
+      this.recoveryState.lastSync = new Date().toISOString();
       
       console.log('Recovery completed successfully');
     } catch (error) {
@@ -322,7 +322,36 @@ export class ProofreaderRecoveryService {
       
       return {
         success: false,
-        error: 'Analysis service is temporarily unavailable. Please try again later.',
+        concerns: [],
+        analysis: {
+          totalConcerns: 0,
+          concernsByCategory: {
+            [ConcernCategory.CLARITY]: 0,
+            [ConcernCategory.COHERENCE]: 0,
+            [ConcernCategory.STRUCTURE]: 0,
+            [ConcernCategory.ACADEMIC_TONE]: 0,
+            [ConcernCategory.CITATION]: 0,
+            [ConcernCategory.TERMINOLOGY]: 0,
+            [ConcernCategory.COMPLETENESS]: 0,
+            [ConcernCategory.GRAMMAR]: 0,
+            [ConcernCategory.CONSISTENCY]: 0,
+            [ConcernCategory.STYLE]: 0
+          },
+          concernsBySeverity: {
+            [ConcernSeverity.LOW]: 0,
+            [ConcernSeverity.MEDIUM]: 0,
+            [ConcernSeverity.HIGH]: 0,
+            [ConcernSeverity.CRITICAL]: 0
+          },
+          overallQualityScore: 0
+        },
+        metadata: {
+          processingTime: 0,
+          modelUsed: '',
+          analysisTimestamp: new Date().toISOString(),
+          version: '1.0',
+          confidence: 0
+        },
         analysisMetadata: {
           totalConcerns: 0,
           concernsByCategory: {
@@ -347,7 +376,8 @@ export class ProofreaderRecoveryService {
           contentLength: request.documentContent.length,
           ideaDefinitionsUsed: request.ideaDefinitions?.length || 0,
           fallbackUsed: true
-        }
+        },
+        error: 'Analysis service is temporarily unavailable. Please try again later.'
       };
     }
   }

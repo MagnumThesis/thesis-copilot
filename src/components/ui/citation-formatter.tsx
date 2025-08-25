@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './shadcn/card';
 import { Badge } from './shadcn/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './shadcn/select';
 import { Alert, AlertDescription } from './shadcn/alert';
-import { CitationStyle, Reference, ReferenceType } from '../../lib/ai-types';
+import { CitationStyle, Reference, ReferenceType, ValidationError } from '../../lib/ai-types';
 import { CitationStyleEngine } from '../../worker/lib/citation-style-engine.ts';
 import {
   BookOpen,
@@ -147,8 +147,16 @@ export const CitationFormatter: React.FC<CitationFormatterProps> = ({
           bibliography,
           validation: {
             isValid: validation.isValid,
-            errors: validation.errors.map((error: string) => ({ field: 'general', message: error, severity: 'error' as const })),
-            warnings: validation.warnings.map((warning: string) => ({ field: 'general', message: warning, severity: 'warning' as const })),
+            errors: validation.errors.map((error: string | ValidationError) => 
+              typeof error === 'string' 
+                ? { field: 'general', message: error, severity: 'error' } 
+                : { field: error.field, message: error.message, severity: (error.severity as 'error' | 'warning') || 'error' }
+            ),
+            warnings: validation.warnings.map((warning: string | ValidationError) => 
+              typeof warning === 'string' 
+                ? { field: 'general', message: warning, severity: 'warning' } 
+                : { field: warning.field, message: warning.message, severity: (warning.severity as 'error' | 'warning') || 'warning' }
+            ),
             missingFields: []
           }
         });
@@ -440,8 +448,8 @@ export const CitationFormatter: React.FC<CitationFormatterProps> = ({
                           <AlertDescription className="text-sm">
                             <strong>Errors:</strong>
                             <ul className="list-disc list-inside mt-1 space-y-1">
-                              {result.validation.errors.map((error: { message: string }, index: number) => (
-                                <li key={index}>{error.message}</li>
+                              {result.validation.errors.map((error: string | ValidationError, index: number) => (
+                                <li key={index}>{typeof error === 'string' ? error : error.message}</li>
                               ))}
                             </ul>
                           </AlertDescription>
@@ -454,8 +462,8 @@ export const CitationFormatter: React.FC<CitationFormatterProps> = ({
                           <AlertDescription className="text-sm">
                             <strong>Warnings:</strong>
                             <ul className="list-disc list-inside mt-1 space-y-1">
-                              {result.validation.warnings.map((warning: { message: string }, index: number) => (
-                                <li key={index}>{warning.message}</li>
+                              {result.validation.warnings.map((warning: string | ValidationError, index: number) => (
+                                <li key={index}>{typeof warning === 'string' ? warning : warning.message}</li>
                               ))}
                             </ul>
                           </AlertDescription>

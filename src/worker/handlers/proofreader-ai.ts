@@ -63,6 +63,20 @@ function createProofreaderErrorResponse(
 
   return {
     success: false,
+    concerns: [],
+    analysis: {
+      totalConcerns: 0,
+      concernsByCategory: {} as Record<ConcernCategory, number>,
+      concernsBySeverity: {} as Record<ConcernSeverity, number>,
+      overallQualityScore: 0
+    },
+    metadata: {
+      processingTime: 0,
+      modelUsed: '',
+      analysisTimestamp: new Date().toISOString(),
+      version: '1.0',
+      confidence: 0
+    },
     error: errorMessage
   };
 }
@@ -198,6 +212,11 @@ export async function proofreaderAnalysisHandler(
     // Generate analysis metadata
     const processingTime = Date.now() - startTime;
     const analysisMetadata: AnalysisMetadata = {
+      processingTime: processingTime,
+      modelUsed: 'default-model',
+      analysisTimestamp: new Date().toISOString(),
+      version: '1.0',
+      confidence: 0.95,
       totalConcerns: concerns.length,
       concernsByCategory: generateCategoryBreakdown(concerns),
       concernsBySeverity: generateSeverityBreakdown(concerns),
@@ -209,6 +228,19 @@ export async function proofreaderAnalysisHandler(
     const response: ProofreaderAnalysisResponse = {
       success: true,
       concerns,
+      analysis: {
+        totalConcerns: concerns.length,
+        concernsByCategory: generateCategoryBreakdown(concerns),
+        concernsBySeverity: generateSeverityBreakdown(concerns),
+        overallQualityScore: 0.8 // Placeholder value
+      },
+      metadata: {
+        processingTime: processingTime,
+        modelUsed: 'default-model',
+        analysisTimestamp: new Date().toISOString(),
+        version: '1.0',
+        confidence: 0.95
+      },
       analysisMetadata
     };
     
@@ -279,8 +311,13 @@ export async function getConcernsHandler(
       suggestions: concern.suggestions || [],
       relatedIdeas: concern.related_ideas || [],
       status: concern.status as ConcernStatus,
-      createdAt: new Date(concern.created_at),
-      updatedAt: new Date(concern.updated_at)
+      createdAt: concern.created_at,
+      updatedAt: concern.updated_at,
+      text: concern.text || '',
+      position: concern.position || { start: 0, end: 0 },
+      explanation: concern.explanation || '',
+      created_at: concern.created_at,
+      updated_at: concern.updated_at
     }));
     
     return c.json({
@@ -354,8 +391,13 @@ export async function updateConcernStatusHandler(
       suggestions: data.suggestions || [],
       relatedIdeas: data.related_ideas || [],
       status: data.status as ConcernStatus,
-      createdAt: new Date(data.created_at),
-      updatedAt: new Date(data.updated_at)
+      createdAt: data.created_at,
+      updatedAt: data.updated_at,
+      text: data.text || '',
+      position: data.position || { start: 0, end: 0 },
+      explanation: data.explanation || '',
+      created_at: data.created_at,
+      updated_at: data.updated_at
     };
     
     return c.json({
@@ -452,8 +494,8 @@ async function storeConcernsInDatabase(supabase: any, concerns: ProofreadingConc
     suggestions: concern.suggestions,
     related_ideas: concern.relatedIdeas,
     status: concern.status,
-    created_at: concern.createdAt.toISOString(),
-    updated_at: concern.updatedAt.toISOString()
+    created_at: concern.createdAt || new Date().toISOString(),
+    updated_at: concern.updatedAt || new Date().toISOString()
   }));
   
   // Delete existing concerns for this conversation to avoid duplicates
@@ -544,6 +586,19 @@ function generateConcernStatistics(concerns: any[]): ConcernStatistics {
   });
   
   return {
+    totalConcerns: total,
+    concernsByStatus: {
+      [ConcernStatus.OPEN]: 0, // Placeholder values
+      [ConcernStatus.RESOLVED]: 0,
+      [ConcernStatus.DISMISSED]: 0,
+      [ConcernStatus.ADDRESSED]: addressed,
+      [ConcernStatus.REJECTED]: rejected,
+      [ConcernStatus.TO_BE_DONE]: toBeDone
+    },
+    concernsByCategory: byCategory as Record<ConcernCategory, number>,
+    concernsBySeverity: bySeverity as Record<ConcernSeverity, number>,
+    resolutionRate: total > 0 ? (addressed + rejected) / total : 0,
+    averageResolutionTime: 0, // Placeholder value
     total,
     toBeDone,
     addressed,

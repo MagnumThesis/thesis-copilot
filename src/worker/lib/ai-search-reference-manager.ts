@@ -206,32 +206,35 @@ export class AISearchReferenceManager {
     searchResult: ScholarSearchResult | ReferenceMetadata,
     conversationId: string
   ): any {
-    const baseData = {
+    const baseData: any = {
       conversationId,
       type: this.determineReferenceType(searchResult),
       title: searchResult.title,
       authors: Array.isArray(searchResult.authors) 
-        ? searchResult.authors.map(author => typeof author === 'string' ? author : author.name)
+        ? searchResult.authors.map(author => typeof author === 'string' ? author : `${author.firstName} ${author.lastName}`)
         : [],
       doi: searchResult.doi,
       url: searchResult.url,
       journal: searchResult.journal,
-      publisher: searchResult.publisher,
+      publication_date: undefined as string | undefined,
+      metadata_confidence: undefined as number | undefined,
       tags: [],
       notes: null
     };
 
     // Handle publication date
     if ('year' in searchResult && searchResult.year) {
-      baseData.publicationDate = new Date(searchResult.year, 0, 1);
+      baseData.publication_date = new Date(searchResult.year, 0, 1).toISOString();
     } else if ('publication_date' in searchResult && searchResult.publication_date) {
-      baseData.publicationDate = new Date(searchResult.publication_date);
+      baseData.publication_date = searchResult.publication_date;
     } else if ('publicationDate' in searchResult && searchResult.publicationDate) {
-      baseData.publicationDate = searchResult.publicationDate;
+      baseData.publication_date = searchResult.publicationDate instanceof Date 
+        ? searchResult.publicationDate.toISOString() 
+        : searchResult.publicationDate;
     }
 
-    // Add AI-specific metadata if available
-    if ('confidence' in searchResult) {
+    // Handle metadata confidence
+    if ('confidence' in searchResult && searchResult.confidence !== undefined) {
       baseData.metadata_confidence = searchResult.confidence;
     }
 
@@ -253,17 +256,17 @@ export class AISearchReferenceManager {
     return {
       title: metadata.title,
       authors: Array.isArray(metadata.authors) 
-        ? metadata.authors.map(author => typeof author === 'string' ? author : author.name)
+        ? metadata.authors.map(author => typeof author === 'string' ? author : `${author.firstName} ${author.lastName}`)
         : [],
       year: metadata.publication_date ? new Date(metadata.publication_date).getFullYear() : undefined,
       journal: metadata.journal,
       doi: metadata.doi,
       url: metadata.url,
-      publisher: metadata.publisher,
+      citations: 0,
+      publication_date: metadata.publication_date,
       confidence: metadata.confidence,
-      relevance_score: 0.8, // Default relevance score
-      citation_count: metadata.citations,
-      keywords: metadata.keywords || []
+      keywords: metadata.keywords || [],
+      abstract: undefined
     };
   }
 
@@ -281,10 +284,10 @@ export class AISearchReferenceManager {
     if (searchResult.journal) {
       return ReferenceType.JOURNAL_ARTICLE;
     }
-    if (searchResult.publisher && !searchResult.journal) {
+    if ('publisher' in searchResult && (searchResult as any).publisher && !searchResult.journal) {
       return ReferenceType.BOOK;
     }
-    if (searchResult.url && !searchResult.journal && !searchResult.publisher) {
+    if (searchResult.url && !searchResult.journal && !('publisher' in searchResult && (searchResult as any).publisher)) {
       return ReferenceType.WEBSITE;
     }
 
@@ -310,31 +313,33 @@ export class AISearchReferenceManager {
       const existingRefs = existingRefsResponse.references;
 
       // Convert new reference to scholar format for comparison
-      const newScholarResult = this.convertToScholarSearchResult({
+      const newScholarResult: ScholarSearchResult = {
         title: referenceData.title,
-        authors: referenceData.authors,
+        authors: Array.isArray(referenceData.authors) ? referenceData.authors : [],
         journal: referenceData.journal,
         doi: referenceData.doi,
         url: referenceData.url,
-        publisher: referenceData.publisher,
-        publication_date: referenceData.publicationDate?.toISOString(),
+        citations: 0,
+        publication_date: referenceData.publication_date,
+        year: referenceData.publication_date ? new Date(referenceData.publication_date).getFullYear() : undefined,
         confidence: referenceData.metadata_confidence || 0.8,
-        keywords: []
-      });
+        keywords: [],
+        abstract: undefined
+      };
 
       // Convert existing references to scholar format
       const existingScholarResults = existingRefs.map(ref => ({
         title: ref.title,
         authors: Array.isArray(ref.authors) ? ref.authors : [],
-        year: ref.publicationDate ? ref.publicationDate.getFullYear() : undefined,
+        year: ref.publication_date ? new Date(ref.publication_date).getFullYear() : undefined,
         journal: ref.journal,
         doi: ref.doi,
         url: ref.url,
-        publisher: ref.publisher,
-        confidence: ref.metadataConfidence || 1.0,
-        relevance_score: 0.8,
-        citation_count: 0,
-        keywords: []
+        citations: 0,
+        publication_date: ref.publication_date,
+        confidence: ref.metadata_confidence || 1.0,
+        keywords: [],
+        abstract: undefined
       }));
 
       // Check for duplicates using the duplicate detection engine
@@ -395,26 +400,25 @@ export class AISearchReferenceManager {
   /**
    * Check if two references match (same title and authors)
    */
+
+  /**
+   * Check if two references match (same title and authors)
+   */
+  /**
+   * Check if two references match (same title and authors)
+   */
   private referencesMatch(ref1: any, ref2: any): boolean {
     if (!ref1 || !ref2) return false;
-    
-    // Compare titles (case insensitive)
-    const title1 = (ref1.title || '').toLowerCase().trim();
-    const title2 = (ref2.title || '').toLowerCase().trim();
-    
-    if (title1 !== title2) return false;
-    
-    // Compare authors
     const authors1 = Array.isArray(ref1.authors) ? ref1.authors : [];
     const authors2 = Array.isArray(ref2.authors) ? ref2.authors : [];
     
     if (authors1.length !== authors2.length) return false;
     
     // Simple author comparison (could be more sophisticated)
-    const normalizedAuthors1 = authors1.map(a => (a || '').toLowerCase().trim()).sort();
-    const normalizedAuthors2 = authors2.map(a => (a || '').toLowerCase().trim()).sort();
+    const normalizedAuthors1 = authors1.map((a: any) => (a || '').toLowerCase().trim()).sort();
+    const normalizedAuthors2 = authors2.map((a: any) => (a || '').toLowerCase().trim()).sort();
     
-    return normalizedAuthors1.every((author, index) => author === normalizedAuthors2[index]);
+    return normalizedAuthors1.every((author: any, index: string | number) => author === normalizedAuthors2[index]);
   }
 
   /**
@@ -428,7 +432,7 @@ export class AISearchReferenceManager {
 
     // Compare key fields and identify conflicts
     const fieldsToCompare: (keyof Reference)[] = [
-      'title', 'authors', 'journal', 'publisher', 'doi', 'url', 
+      'title', 'authors', 'journal', 'doi', 'url', 
       'publicationDate', 'volume', 'issue', 'pages'
     ];
 

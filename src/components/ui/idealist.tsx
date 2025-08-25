@@ -90,6 +90,12 @@ export const Idealist: React.FC<IdealistProps> = ({ isOpen, onClose, currentConv
       const newIdea = await createIdea({
         title: newIdeaTitle,
         description: newIdeaDescription,
+        content: newIdeaDescription,
+        type: 'concept',
+        tags: [],
+        confidence: 0.8,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
         conversationid: currentConversation?.id, // Assign conversationid from props
       });
       setIdeaDefinitions((prevIdeas) => [...prevIdeas, newIdea]);
@@ -161,6 +167,12 @@ export const Idealist: React.FC<IdealistProps> = ({ isOpen, onClose, currentConv
       if (uniqueIdeas.length > 0) {
         setIdeaDefinitions(prevIdeas => [...prevIdeas, ...uniqueIdeas.map(idea => ({
           id: Date.now() + Math.random(), // Temporary ID until saved to DB
+          content: idea.description,
+          type: 'concept' as const, // Use 'concept' as a const assertion
+          tags: [],
+          confidence: 0.8,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
           ...idea
         }))]);
         

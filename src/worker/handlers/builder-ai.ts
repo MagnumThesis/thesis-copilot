@@ -11,12 +11,24 @@ import {
   AIPromptRequest, 
   AIContinueRequest, 
   AIModifyRequest, 
-  ModificationType 
+  ModificationType,
+  AcademicValidationResult
 } from "../../lib/ai-types";
 import {
   AISuccessResponse,
   AIErrorResponse
 } from "../../lib/ai-types";
+
+// Helper function to convert AcademicValidationResult to the expected format
+function formatAcademicValidation(academicValidation: AcademicValidationResult | undefined) {
+  if (!academicValidation) return undefined;
+  
+  return {
+    score: academicValidation.toneScore,
+    issues: academicValidation.styleIssues,
+    suggestions: academicValidation.suggestions
+  };
+}
 
 // Enhanced error handling for backend operations
 interface BackendErrorContext {
@@ -261,7 +273,7 @@ Generate the content:`;
       
       if (text.length > 50000) {
         console.warn('Generated content is very long, truncating');
-        text = text.substring(0, 50000) + '\n\n[Content truncated due to length]';
+        text = text.substring(0, 50000) + '[Content truncated due to length]';
       }
       
     } catch (error) {
@@ -292,7 +304,7 @@ Generate the content:`;
         tokensUsed: usage?.totalTokens || 0,
         processingTime,
         model: "gemini-1.5-flash-latest",
-        academicValidation
+        academicValidation: formatAcademicValidation(academicValidation)
       }
     };
     
@@ -472,7 +484,7 @@ export async function builderAIContinueHandler(
         model: "gemini-1.5-flash-latest",
         contextSufficiency: contextSufficiency.sufficient,
         styleAnalysis: styleAnalysis.summary,
-        academicValidation
+        academicValidation: formatAcademicValidation(academicValidation)
       }
     };
     

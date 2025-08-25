@@ -388,7 +388,7 @@ export class SearchAnalyticsManager {
       `;
       
       const topicsResult = await this.env.DB.prepare(topicsQuery).bind(...searchParams).all();
-      const popularTopics = this.extractPopularTopics(topicsResult.results?.map(r => r.search_query) || []);
+      const popularTopics = this.extractPopularTopics(topicsResult.results?.map((r: any) => r.search_query) || []);
       
       // Get popular sources
       const sourcesQuery = `
@@ -399,7 +399,7 @@ export class SearchAnalyticsManager {
       `;
       
       const sourcesResult = await this.env.DB.prepare(sourcesQuery).bind(...searchParams).all();
-      const popularSources = this.extractPopularSources(sourcesResult.results?.map(r => r.content_sources) || []);
+      const popularSources = this.extractPopularSources(sourcesResult.results?.map((r: any) => r.content_sources) || []);
 
       const totalSearches = searchStats.total_searches || 0;
       const successfulSearches = searchStats.successful_searches || 0;

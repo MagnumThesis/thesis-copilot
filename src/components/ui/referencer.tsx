@@ -198,15 +198,15 @@ export const Referencer: React.FC<ReferencerProps> = ({ isOpen, onClose, current
         }
         
         return result
-      } catch (error) {
+      } catch (error: unknown) {
         lastError = error as Error
         
         // Don't retry on validation errors or client errors (4xx)
-        if (error.message.includes('Validation failed') || 
-            error.message.includes('400') || 
-            error.message.includes('401') || 
-            error.message.includes('403') || 
-            error.message.includes('404')) {
+        if ((error as Error).message.includes('Validation failed') || 
+            (error as Error).message.includes('400') || 
+            (error as Error).message.includes('401') || 
+            (error as Error).message.includes('403') || 
+            (error as Error).message.includes('404')) {
           break
         }
         
@@ -298,7 +298,7 @@ export const Referencer: React.FC<ReferencerProps> = ({ isOpen, onClose, current
       }))
       
       // Show user-friendly error message
-      const errorMessage = error.message || 'Unknown error occurred'
+      const errorMessage = (error as Error).message || 'Unknown error occurred'
       alert(`Failed to add reference automatically: ${errorMessage}. Please review and save manually.`)
     }
   }

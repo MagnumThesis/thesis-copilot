@@ -275,10 +275,10 @@ export const ConcernDetail: React.FC<ConcernDetailProps> = ({
                     </Badge>
                   </AccessibleTooltip>
                   
-                                    &lt;AccessibleTooltip 
+                                    <AccessibleTooltip 
                     content={`Category: ${getCategoryLabel(concern.category)}. This concern relates to ${(concern.category || '').replace('_', ' ').toLowerCase()} aspects of your writing.`}
                     type="help"
-                  &gt;
+                  >
                     <Badge 
                       variant="outline" 
                       className={cn("text-xs", getCategoryColor(concern.category))}
@@ -471,6 +471,6 @@ export const ConcernDetail: React.FC<ConcernDetailProps> = ({
         </CollapsibleContent>
       </div>
     </Collapsible>
-    </TooltipProvider>
-  )
+  </TooltipProvider>
+)
 }

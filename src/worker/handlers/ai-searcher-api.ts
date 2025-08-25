@@ -13,7 +13,7 @@ import {
   GoogleScholarClient,
   SearchOptions,
 } from "../lib/google-scholar-client";
-import { ExtractedContent, ScholarSearchResult } from "../../lib/ai-types";
+import { ExtractedContent, ScholarSearchResult, SearchFilters } from "../../lib/ai-types";
 import { AISearcherPerformanceOptimizer } from "../../lib/ai-searcher-performance-optimizer";
 import feedbackApi from "./ai-searcher-feedback";
 import learningApi from "./ai-searcher-learning";
@@ -432,7 +432,7 @@ export class AISearcherAPIHandler {
         }
 
         // Check cache first
-        const searchFilters = body.filters || {};
+        const searchFilters: SearchFilters = body.filters || {};
         const cachedResults = this.performanceOptimizer.getCachedSearchResults(
           searchQuery,
           searchFilters
@@ -637,7 +637,7 @@ export class AISearcherAPIHandler {
 
           // Update search session with results
           const processingTime = Date.now() - startTime;
-          await this.updateSearchSession(sessionId, {
+          await this.updateSearchSession(c.env, sessionId, {
             resultsCount: finalResults.length,
             searchSuccess: true,
             processingTimeMs: processingTime,
@@ -698,7 +698,7 @@ export class AISearcherAPIHandler {
       // Record failed search session if we have a sessionId
       if (sessionId) {
         try {
-          await this.updateSearchSession(sessionId, {
+          await this.updateSearchSession(c.env, sessionId, {
             resultsCount: 0,
             searchSuccess: false,
             processingTimeMs: Date.now() - startTime,
@@ -877,15 +877,15 @@ export class AISearcherAPIHandler {
       const offset = parseInt(c.req.query("offset") || "0");
       const searchQuery = c.req.query("searchQuery");
       const successOnly = c.req.query("successOnly") === "true";
-      const minResultsCount = c.req.query("minResultsCount")
-        ? parseInt(c.req.query("minResultsCount"))
+      const minResultsCount = c.req.query("minResultsCount") 
+        ? parseInt(c.req.query("minResultsCount")!)
         : undefined;
       const contentSources = c.req
         .query("contentSources")
         ?.split(",")
         .filter((s) => s === "ideas" || s === "builder");
-      const startDate = c.req.query("startDate");
-      const endDate = c.req.query("endDate");
+      const startDate = c.req.query("startDate") || "";
+      const endDate = c.req.query("endDate") || "";
 
       if (!conversationId) {
         return c.json(
@@ -1127,7 +1127,7 @@ export class AISearcherAPIHandler {
 
       // Get the original search results from cache or database
       // For now, we'll return empty results as this would need integration with search session storage
-      const nextBatch = [];
+      const nextBatch: ScholarSearchResult[] = [];
       const isComplete = true;
 
       return c.json({
@@ -2309,6 +2309,7 @@ export class AISearcherAPIHandler {
    * Update search session with results
    */
   private async updateSearchSession(
+    env: any,
     sessionId: string,
     updates: {
       resultsCount?: number;
@@ -2323,7 +2324,7 @@ export class AISearcherAPIHandler {
       const { EnhancedSearchHistoryManager } = await import(
         "../lib/enhanced-search-history-manager"
       );
-      const historyManager = new EnhancedSearchHistoryManager(this.env);
+      const historyManager = new EnhancedSearchHistoryManager(env);
 
       if (updates.resultsCount !== undefined) {
         await historyManager.updateSearchSessionResults(
@@ -2393,7 +2394,7 @@ export class AISearcherAPIHandler {
           updates.resultsRejected = 1;
         }
 
-        await this.updateSearchSession(body.sessionId, updates);
+        await this.updateSearchSession(c.env, body.sessionId, updates);
       }
 
       return c.json({

@@ -1,12 +1,27 @@
-import { Hono } from 'hono'
+             import { Hono, Context } from 'hono'
 import { SearchAnalyticsManager } from '../lib/search-analytics-manager'
+import { Env } from '../types/env'
+import { D1Database } from '../types/d1'
 
-const app = new Hono()
+// Define SupabaseEnv type locally since it's not exported from supabase.ts
+type SupabaseEnv = {
+  SUPABASE_URL: string;
+  SUPABASE_ANON: string;
+};
+
+// Type for the Hono context
+type AISearcherFeedbackContext = {
+  Bindings: Env & SupabaseEnv & {
+    DB: D1Database;
+  };
+};
+
+const app = new Hono<AISearcherFeedbackContext>()
 
 /**
  * Submit feedback for a specific search result
  */
-app.post('/result', async (c) => {
+app.post('/result', async (c: Context<AISearcherFeedbackContext>) => {
   try {
     const { searchSessionId, resultId, feedback } = await c.req.json()
 
@@ -75,7 +90,7 @@ app.post('/result', async (c) => {
 /**
  * Submit feedback for an entire search session
  */
-app.post('/session', async (c) => {
+app.post('/session', async (c: Context<AISearcherFeedbackContext>) => {
   try {
     const { searchSessionId, conversationId, feedback } = await c.req.json()
 
@@ -148,9 +163,9 @@ app.post('/session', async (c) => {
 })
 
 /**
- * Get feedback analytics for a conversation or user
+ * Submit detailed feedback for search analytics
  */
-app.get('/analytics', async (c) => {
+app.post('/analytics', async (c: Context<AISearcherFeedbackContext>) => {
   try {
     const conversationId = c.req.query('conversationId')
     const userId = c.req.query('userId')
@@ -202,9 +217,9 @@ app.get('/analytics', async (c) => {
 })
 
 /**
- * Get feedback summary for a specific search session
+ * Get feedback for a specific search session
  */
-app.get('/session/:sessionId', async (c) => {
+app.get('/session/:sessionId', async (c: Context<AISearcherFeedbackContext>) => {
   try {
     const sessionId = c.req.param('sessionId')
 

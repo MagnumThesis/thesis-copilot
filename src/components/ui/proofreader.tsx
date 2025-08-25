@@ -38,23 +38,23 @@ interface ProofreaderState {
     builderIntegration: {
       connected: boolean;
       hasContent: boolean;
-      lastSync?: Date;
+      lastSync?: string;
     };
     idealistIntegration: {
       connected: boolean;
       ideaCount: number;
-      lastSync?: Date;
+      lastSync?: string;
     };
   } | null
   recoveryState: {
     isOnline: boolean;
     recoveryMode: RecoveryMode;
     pendingOperations: number;
-    lastSync: Date | null;
+    lastSync: string | null;
     cacheUsed: boolean;
   }
   errorHistory: Array<{
-    timestamp: Date;
+    timestamp: string;
     type: ErrorType;
     message: string;
     operation: string;
@@ -254,7 +254,7 @@ export const Proofreader: React.FC<ProofreaderProps> = ({
         ...prev,
         errorHistory: [
           {
-            timestamp: new Date(),
+            timestamp: new Date().toISOString(),
             type: classifiedError.type,
             message: classifiedError.message,
             operation: 'load_concerns'
@@ -289,7 +289,23 @@ export const Proofreader: React.FC<ProofreaderProps> = ({
   const checkIntegrationStatus = async () => {
     try {
       const integrationStatus = await contentRetrievalService.getIntegrationStatus(currentConversation.id)
-      setState(prev => ({ ...prev, integrationStatus }))
+      // Convert Date objects to strings if they exist
+      const formattedIntegrationStatus = {
+        ...integrationStatus,
+        builderIntegration: {
+          ...integrationStatus.builderIntegration,
+          lastSync: integrationStatus.builderIntegration.lastSync ? 
+            new Date(integrationStatus.builderIntegration.lastSync).toISOString() : 
+            undefined
+        },
+        idealistIntegration: {
+          ...integrationStatus.idealistIntegration,
+          lastSync: integrationStatus.idealistIntegration.lastSync ? 
+            new Date(integrationStatus.idealistIntegration.lastSync).toISOString() : 
+            undefined
+        }
+      }
+      setState(prev => ({ ...prev, integrationStatus: formattedIntegrationStatus }))
     } catch (error) {
       console.error("Failed to check integration status:", error)
       // Don't show error to user as this is background functionality
@@ -304,7 +320,7 @@ export const Proofreader: React.FC<ProofreaderProps> = ({
         isOnline: recoveryState.isOnline,
         recoveryMode: recoveryState.recoveryMode,
         pendingOperations: recoveryState.pendingOperations.length,
-        lastSync: recoveryState.lastSync,
+        lastSync: recoveryState.lastSync ? new Date(recoveryState.lastSync).toISOString() : null,
         cacheUsed: prev.recoveryState.cacheUsed
       }
     }))
@@ -503,7 +519,7 @@ export const Proofreader: React.FC<ProofreaderProps> = ({
         ...prev,
         errorHistory: [
           {
-            timestamp: new Date(),
+            timestamp: new Date().toISOString(),
             type: classifiedError.type,
             message: classifiedError.message,
             operation: 'analysis'
@@ -569,7 +585,7 @@ export const Proofreader: React.FC<ProofreaderProps> = ({
     // Update cached concerns
     const updatedConcerns = state.concerns.map(concern =>
       concern.id === concernId
-        ? { ...concern, status, updatedAt: new Date() }
+        ? { ...concern, status, updatedAt: new Date().toISOString() }
         : concern
     );
     proofreaderRecoveryService.cacheConcerns(currentConversation.id, updatedConcerns);
@@ -593,7 +609,7 @@ export const Proofreader: React.FC<ProofreaderProps> = ({
       ...prev,
       concerns: prev.concerns.map(concern =>
         concern.id === concernId
-          ? { ...concern, status, updatedAt: new Date() }
+          ? { ...concern, status, updatedAt: new Date().toISOString() }
           : concern
       )
     }));
@@ -618,7 +634,7 @@ export const Proofreader: React.FC<ProofreaderProps> = ({
         ...prev,
         errorHistory: [
           {
-            timestamp: new Date(),
+            timestamp: new Date().toISOString(),
             type: classifiedError.type,
             message: classifiedError.message,
             operation: 'status_update'
@@ -697,7 +713,7 @@ export const Proofreader: React.FC<ProofreaderProps> = ({
             
             {state.recoveryState.lastSync && (
               <div className="text-xs text-muted-foreground">
-                Last sync: {state.recoveryState.lastSync.toLocaleTimeString()}
+                Last sync: {new Date(state.recoveryState.lastSync).toLocaleTimeString()}
               </div>
             )}
           </div>
@@ -751,7 +767,7 @@ export const Proofreader: React.FC<ProofreaderProps> = ({
                         {error.type}
                       </Badge>
                       <span className="text-muted-foreground">
-                        {error.timestamp.toLocaleTimeString()}
+                        {new Date(error.timestamp).toLocaleTimeString()}
                       </span>
                     </div>
                     <div className="mt-1 text-muted-foreground">

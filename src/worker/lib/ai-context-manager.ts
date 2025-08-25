@@ -74,7 +74,7 @@ export class AIContextManagerImpl implements AIContextManager {
     try {
       const { data, error } = await this.supabase
         .from('ideas')
-        .select('id, title, description, conversationid')
+        .select('id, title, content, description, type, tags, confidence, created_at, updated_at, conversationid')
         .eq('conversationid', conversationId)
         .order('created_at', { ascending: true });
 

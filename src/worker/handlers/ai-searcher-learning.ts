@@ -1,12 +1,25 @@
-import { Hono } from 'hono'
+import { Hono, Context } from 'hono'
 import { FeedbackLearningSystem } from '../lib/feedback-learning-system'
+import { Env } from '../types/env'
+import { D1Database } from '../types/d1'
 
-const app = new Hono()
+// Define SupabaseEnv type locally since it's not exported from supabase.ts
+type SupabaseEnv = {
+  SUPABASE_URL: string;
+  SUPABASE_ANON: string;
+};
 
-/**
- * Submit detailed feedback for learning system
- */
-app.post('/feedback', async (c) => {
+// Type for the Hono context
+type AISearcherLearningContext = {
+  Bindings: Env & SupabaseEnv & {
+    DB: D1Database;
+  };
+};
+
+const app = new Hono<AISearcherLearningContext>()
+
+/**\n * Submit detailed feedback for learning system\n */
+app.post('/feedback', async (c: Context<AISearcherLearningContext>) => {
   try {
     const { 
       userId, 
@@ -110,7 +123,7 @@ app.post('/apply-ranking', async (c) => {
 /**
  * Get user preference patterns
  */
-app.get('/preferences/:userId', async (c) => {
+app.get('/preferences/:userId', async (c: Context<AISearcherLearningContext>) => {
   try {
     const userId = c.req.param('userId')
 
@@ -142,7 +155,7 @@ app.get('/preferences/:userId', async (c) => {
 /**
  * Generate adaptive filters for a user
  */
-app.get('/adaptive-filters/:userId', async (c) => {
+app.get('/adaptive-filters/:userId', async (c: Context<AISearcherLearningContext>) => {
   try {
     const userId = c.req.param('userId')
 
@@ -174,7 +187,7 @@ app.get('/adaptive-filters/:userId', async (c) => {
 /**
  * Get learning metrics for a user
  */
-app.get('/metrics/:userId', async (c) => {
+app.get('/metrics/:userId', async (c: Context<AISearcherLearningContext>) => {
   try {
     const userId = c.req.param('userId')
 
@@ -265,7 +278,7 @@ app.post('/batch-update', async (c) => {
         results.push({ 
           success: false, 
           resultId: feedback.resultId, 
-          error: error.message 
+          error: (error as Error).message 
         })
       }
     }
@@ -294,7 +307,7 @@ app.post('/batch-update', async (c) => {
 /**
  * Get learning system status and health
  */
-app.get('/status', async (c) => {
+app.get('/status', async (c: Context<AISearcherLearningContext>) => {
   try {
     // Get basic statistics about the learning system
     const totalUsers = await c.env.DB.prepare(`

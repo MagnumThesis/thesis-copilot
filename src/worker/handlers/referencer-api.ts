@@ -763,8 +763,8 @@ export class ReferencerAPIHandler {
       } else {
         // Auto-merge: prefer new values for empty fields
         Object.keys(newReferenceData).forEach(key => {
-          if (newReferenceData[key] && !existingReference[key]) {
-            updateData[key] = newReferenceData[key];
+          if ((newReferenceData as any)[key] && !(existingReference as any)[key]) {
+            (updateData as any)[key] = (newReferenceData as any)[key];
           }
         });
       }

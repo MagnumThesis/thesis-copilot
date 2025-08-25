@@ -724,7 +724,7 @@ export function useAIModeManager(
   /**
    * Processes a continue request with comprehensive error handling and performance optimizations
    */
-  const /**
+  /**
    * @function processContinue
    * @description Processes a continue request with comprehensive error handling and performance optimizations.
    * @param {number} cursorPosition - The current cursor position.
@@ -814,7 +814,7 @@ export function useAIModeManager(
   /**
    * Processes a modify request with comprehensive error handling and performance optimizations
    */
-  const   /**
+  /**
    * @function processModify
    * @description Processes a modify request with comprehensive error handling and performance optimizations.
    * @param {string} selectedText - The selected text to modify.

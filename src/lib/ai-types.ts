@@ -1376,7 +1376,7 @@ export interface SearchFilters {
   journals?: string[];
   minCitations?: number;
   maxResults?: number;
-  sortBy: 'relevance' | 'date' | 'citations' | 'quality';
+  sortBy?: 'relevance' | 'date' | 'citations' | 'quality';
 }
 
 // Missing types for concern status management
@@ -1421,4 +1421,49 @@ export interface AnalysisOptions {
   minSeverity?: ConcernSeverity;
   includeGrammar?: boolean;
   academicLevel?: string;
+}
+
+// Citation Format
+export interface CitationFormat {
+  style: 'APA' | 'MLA' | 'Chicago' | 'Harvard' | 'IEEE' | 'Vancouver' | 'Unknown';
+  detected: boolean;
+  examples: string[];
+}
+
+// Academic Context
+export interface AcademicContext {
+  thesisStructure: ThesisStructure;
+  citationFormat: CitationFormat;
+  academicTone: {
+    level: 'undergraduate' | 'graduate' | 'doctoral';
+    discipline: string;
+    formalityScore: number;
+  };
+  keyTerms: string[];
+  researchMethodology?: string;
+}
+
+// Thesis Structure
+export interface ThesisStructure {
+  sections: ThesisSection[];
+  currentSection?: string;
+  completeness: number;
+}
+
+// Thesis Section
+export interface ThesisSection {
+  name: string;
+  level: number;
+  required: boolean;
+  present: boolean;
+  content?: string;
+}
+
+// Academic Validation Result
+export interface AcademicValidationResult {
+  isAcademic: boolean;
+  toneScore: number;
+  styleIssues: string[];
+  suggestions: string[];
+  citationFormat: CitationFormat;
 }

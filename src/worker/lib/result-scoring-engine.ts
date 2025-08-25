@@ -286,7 +286,7 @@ export class ResultScoringEngine {
 
   private calculateSemanticSimilarity(result: ScholarSearchResult, content: ExtractedContent): number {
     // Simplified semantic similarity based on common academic terms
-    const resultTerms = this.extractAcademicTerms(result);
+    const resultTerms = this.extractAcademicTerms({ content: result.abstract || result.title || '' });
     const contentTerms = this.extractAcademicTerms({ content: content.content || '' });
 
     if (resultTerms.length === 0 || contentTerms.length === 0) return 0;
