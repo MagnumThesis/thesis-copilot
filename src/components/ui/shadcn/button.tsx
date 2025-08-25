@@ -4,6 +4,23 @@ import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/lib/utils"
 
+/**
+ * Defines the visual style and appearance variants for the button.
+ * 
+ * @param {Object} variants - The available style variants
+ * @param {"default" | "destructive" | "outline" | "secondary" | "ghost" | "link"} variants.variant - The visual style of the button
+ * @param {"default" | "sm" | "lg" | "icon"} variants.size - The size of the button
+ * @returns {string} The CSS classes for the specified variants
+ * 
+ * @example
+ * ```ts
+ * // Get default button classes
+ * const classes = buttonVariants({ variant: "default", size: "default" });
+ * 
+ * // Get small ghost button classes
+ * const classes = buttonVariants({ variant: "ghost", size: "sm" });
+ * ```
+ */
 const buttonVariants = cva(
   "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
   {
@@ -35,6 +52,38 @@ const buttonVariants = cva(
   }
 )
 
+/**
+ * A customizable button component with various style and size options.
+ * 
+ * @param {React.ComponentProps<"button"> & VariantProps<typeof buttonVariants> & { asChild?: boolean }} props - The props for the Button component
+ * @param {string} [props.className] - Additional CSS classes to apply to the button
+ * @param {"default" | "destructive" | "outline" | "secondary" | "ghost" | "link"} [props.variant="default"] - The visual style of the button
+ * @param {"default" | "sm" | "lg" | "icon"} [props.size="default"] - The size of the button
+ * @param {boolean} [props.asChild=false] - If true, renders as a Slot component to merge props and avoid wrapper elements
+ * @param {React.ReactNode} props.children - The content to display inside the button
+ * 
+ * @example
+ * ```tsx
+ * // Default button
+ * <Button>Click me</Button>
+ * 
+ * // Destructive button
+ * <Button variant="destructive">Delete</Button>
+ * 
+ * // Small outline button
+ * <Button variant="outline" size="sm">Cancel</Button>
+ * 
+ * // Icon button
+ * <Button variant="ghost" size="icon">
+ *   <SettingsIcon />
+ * </Button>
+ * 
+ * // AsChild usage to style a link as a button
+ * <Button asChild>
+ *   <Link to="/dashboard">Dashboard</Link>
+ * </Button>
+ * ```
+ */
 function Button({
   className,
   variant,

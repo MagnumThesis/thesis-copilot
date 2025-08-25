@@ -36,19 +36,24 @@ This document breaks down the implementation of the comprehensive codebase docum
     - Document the purpose of each component and the props it accepts.
     - *Requirement: 2.1, 4.1, 4.2*
     
-    - [ ] **2.3.1. Document main UI components (src/components)**
+    - [X] **2.3.1. Document main UI components (src/components)**
         - Add TSDoc comments to React components in the main components directory.
         - Focus on app-sidebar.tsx, resizable-layout.tsx, and search-form.tsx.
         - *Requirement: 2.1, 4.1, 4.2*
     
-    - [ ] **2.3.2. Document core UI components (src/components/ui - Part 1)**
+    - [X] **2.3.2. Document core UI components (src/components/ui - Part 1)**
         - Add TSDoc comments to the first set of components in the UI directory.
         - Focus on commonly used components like dialogs, buttons, cards, etc.
         - *Requirement: 2.1, 4.1, 4.2*
     
-    - [ ] **2.3.3. Document specialized UI components (src/components/ui - Part 2)**
+    - [X] **2.3.3. Document specialized UI components (src/components/ui - Part 2)**
         - Add TSDoc comments to the second set of components in the UI directory.
         - Focus on feature-specific components like builders, searchers, etc.
+        - *Requirement: 2.1, 4.1, 4.2*
+    
+    - [X] **2.3.4. Document reference management components (src/components/ui - Part 3)**
+        - Add TSDoc comments to reference management related components.
+        - Focus on components in the reference system like forms, lists, exports, etc.
         - *Requirement: 2.1, 4.1, 4.2*
     
     - [ ] **2.3.4. Document reference management components (src/components/ui - Part 3)**
