@@ -69,9 +69,6 @@ function analyzeErrorOutput(output: string): ErrorSummary {
   };
 }
 
-// Export for use in other scripts
-export { BuildError, ErrorSummary, parseBuildErrors, analyzeErrorOutput };
-
 // Run if called directly
 if (require.main === module) {
   parseBuildErrors().then(summary => {
@@ -83,3 +80,6 @@ if (require.main === module) {
     console.error('Error analyzing build:', error);
   });
 }
+
+// Export for use in other scripts
+export { BuildError, ErrorSummary, parseBuildErrors, analyzeErrorOutput };
