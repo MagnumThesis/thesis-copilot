@@ -676,7 +676,7 @@ Modified content:`;
         tokensUsed: usage?.totalTokens || 0,
         processingTime,
         model: "gemini-1.5-flash-latest",
-        academicValidation
+        academicValidation: formatAcademicValidation(academicValidation)
       }
     };
     

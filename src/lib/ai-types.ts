@@ -816,9 +816,23 @@ export interface IdeaDefinition {
   conversationid?: string;
 }
 
+// Document section interface
+/** @interface DocumentSection
+ * @description Interface for a document section.
+ */
+export interface DocumentSection {
+  /** @property {'heading' | 'paragraph' | 'list' | 'code'} type - The type of the section. */
+  type: 'heading' | 'paragraph' | 'list' | 'code';
+  /** @property {number} [level] - The level of the section (for headings). */
+  level?: number;
+  /** @property {string} content - The content of the section. */
+  content: string;
+  /** @property {{start: number, end: number}} position - The position of the section in the document. */
+  position: { start: number; end: number };
+}
+
 // Document context interface
-/**
- * @interface DocumentContext
+/** @interface DocumentContext
  * @description Interface for the document context.
  */
 export interface DocumentContext {
@@ -836,13 +850,16 @@ export interface DocumentContext {
   paragraphCount: number;
   /** @property {string} [section] - The current section of the document. */
   section?: string;
-  /** @property {{discipline?: string, level?: 'undergraduate' | 'graduate' | 'phd', field?: string, style?: string}} [academicContext] - The academic context of the document. */
-  academicContext?: {
-    discipline?: string;
-    level?: 'undergraduate' | 'graduate' | 'phd';
-    field?: string;
-    style?: string;
-  };
+  /** @property {IdeaDefinition[]} ideaDefinitions - The idea definitions. */
+  ideaDefinitions: IdeaDefinition[];
+  /** @property {string} conversationTitle - The title of the conversation. */
+  conversationTitle: string;
+  /** @property {DocumentSection[]} documentStructure - The document structure. */
+  documentStructure: DocumentSection[];
+  /** @property {AcademicContext} [academicContext] - The academic context of the document. */
+  academicContext?: AcademicContext;
+  /** @property {string} content - The content of the document. */
+  content: string;
 }
 
 // AI processing state (different from status)

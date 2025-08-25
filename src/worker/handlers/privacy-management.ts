@@ -307,7 +307,7 @@ app.get('/admin/compliance-report', async (c) => {
     // This should be protected by admin authentication in production
     const adminKey = c.req.header('x-admin-key');
     
-    if (!adminKey || adminKey !== c.env.ADMIN_KEY) {
+    if (!adminKey || adminKey !== (c.env as any).ADMIN_KEY) {
       return c.json({ 
         success: false, 
         error: 'Unauthorized' 

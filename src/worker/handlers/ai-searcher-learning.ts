@@ -312,40 +312,36 @@ app.get('/status', async (c: Context<AISearcherLearningContext>) => {
     // Get basic statistics about the learning system
     const totalUsers = await c.env.DB.prepare(`
       SELECT COUNT(DISTINCT user_id) as count FROM user_preference_patterns
-    `).first()
+    `).first<{ count: number }>()
 
     const totalFeedback = await c.env.DB.prepare(`
       SELECT COUNT(*) as count FROM user_feedback_learning 
       WHERE created_at >= datetime('now', '-30 days')
-    `).first()
+    `).first<{ count: number }>()
 
     const activeFilters = await c.env.DB.prepare(`
       SELECT COUNT(*) as count FROM adaptive_filters WHERE is_active = true
-    `).first()
+    `).first<{ count: number }>()
 
     const avgConfidence = await c.env.DB.prepare(`
       SELECT AVG(confidence_level) as avg_confidence FROM learning_metrics
-    `).first()
+    `).first<{ avg_confidence: number }>()
 
-    return c.json({ 
-      success: true, 
-      status: {
+    return c.json({
+      status: 'healthy',
+      stats: {
         totalUsers: totalUsers?.count || 0,
-        totalFeedbackLast30Days: totalFeedback?.count || 0,
+        totalFeedback: totalFeedback?.count || 0,
         activeFilters: activeFilters?.count || 0,
-        averageConfidenceLevel: avgConfidence?.avg_confidence || 0,
-        systemHealth: 'operational'
-      },
-      message: 'Learning system status retrieved successfully' 
+        avgConfidence: avgConfidence?.avg_confidence ? Number(avgConfidence.avg_confidence.toFixed(2)) : 0
+      }
     })
-
   } catch (error) {
-    console.error('Error getting learning system status:', error)
-    return c.json({ 
-      success: false, 
-      error: 'Internal server error' 
-    }, 500)
+    console.error('Status check failed:', error)
+    return c.json({ status: 'error', message: 'System health check failed' }, 500)
   }
 })
+
+    
 
 export default app

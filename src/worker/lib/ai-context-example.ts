@@ -7,7 +7,7 @@ import { Context } from "hono";
 import { getSupabase, SupabaseEnv } from "./supabase";
 import { Env } from "../types/env";
 import { createAIContextManager } from "./ai-context-manager";
-import { AIPromptRequest, AIResponse } from "../../lib/ai-types";
+import { AIPromptRequest, AISuccessResponse, AIErrorResponse } from "../../lib/ai-types";
 
 /**
  * Example handler showing AI context manager integration
@@ -63,23 +63,33 @@ export async function exampleAIPromptHandler(
     console.log('AI Context prepared:', formattedContext.substring(0, 200) + '...');
     
     // Mock response for demonstration
-    const mockResponse: AIResponse = {
+    const mockResponse: AISuccessResponse = {
       success: true,
       content: `Generated content based on prompt: "${prompt}" with context from "${documentContext.conversationTitle}"`,
       timestamp: Date.now(),
+      requestId: "example-request-id",
       metadata: {
         tokensUsed: 150,
-        processingTime: 1200
+        processingTime: 1200,
+        model: "example-model"
       }
     };
     
     return c.json(mockResponse);
   } catch (error) {
     console.error("Error in AI prompt handler:", error);
-    return c.json({ 
-      success: false, 
-      error: "Failed to process AI request" 
-    }, 500);
+    const errorResponse: AIErrorResponse = {
+      success: false,
+      error: "Failed to process AI request",
+      errorCode: "AI_PROCESSING_ERROR",
+      retryable: true,
+      timestamp: Date.now(),
+      metadata: {
+        tokensUsed: 0,
+        processingTime: 0
+      }
+    };
+    return c.json(errorResponse, 500);
   }
 }
 
@@ -116,22 +126,32 @@ export async function exampleAIContinueHandler(
     console.log('Full context prepared:', formattedContext.substring(0, 200) + '...');
     
     // This would integrate with AI service for content continuation
-    const mockResponse: AIResponse = {
+    const mockResponse: AISuccessResponse = {
       success: true,
       content: `Continued content based on context around cursor position ${cursorPosition}`,
       timestamp: Date.now(),
+      requestId: "example-request-id",
       metadata: {
         tokensUsed: 120,
-        processingTime: 900
+        processingTime: 900,
+        model: "example-model"
       }
     };
     
     return c.json(mockResponse);
   } catch (error) {
     console.error("Error in AI continue handler:", error);
-    return c.json({ 
-      success: false, 
-      error: "Failed to continue content" 
-    }, 500);
+    const errorResponse: AIErrorResponse = {
+      success: false,
+      error: "Failed to continue content",
+      errorCode: "CONTENT_CONTINUATION_ERROR",
+      retryable: true,
+      timestamp: Date.now(),
+      metadata: {
+        tokensUsed: 0,
+        processingTime: 0
+      }
+    };
+    return c.json(errorResponse, 500);
   }
 }

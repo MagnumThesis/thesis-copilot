@@ -125,7 +125,7 @@ app.post('/session', async (c: Context<AISearcherFeedbackContext>) => {
     // Get user ID from the search session
     const sessionResult = await c.env.DB.prepare(`
       SELECT user_id FROM search_sessions WHERE id = ?
-    `).bind(searchSessionId).first()
+    `).bind(searchSessionId).first<{ user_id: string }>()
 
     if (!sessionResult) {
       return c.json({ 

@@ -266,7 +266,8 @@ export class AISearchReferenceManager {
       publication_date: metadata.publication_date,
       confidence: metadata.confidence,
       keywords: metadata.keywords || [],
-      abstract: undefined
+      abstract: undefined,
+      relevance_score: 0.0 // Adding the missing relevance_score property
     };
   }
 
@@ -315,7 +316,9 @@ export class AISearchReferenceManager {
       // Convert new reference to scholar format for comparison
       const newScholarResult: ScholarSearchResult = {
         title: referenceData.title,
-        authors: Array.isArray(referenceData.authors) ? referenceData.authors : [],
+        authors: Array.isArray(referenceData.authors) 
+          ? referenceData.authors.map((author: string | { firstName: string; lastName: string; }) => typeof author === 'string' ? author : `${author.firstName} ${author.lastName}`)
+          : [],
         journal: referenceData.journal,
         doi: referenceData.doi,
         url: referenceData.url,
@@ -324,23 +327,27 @@ export class AISearchReferenceManager {
         year: referenceData.publication_date ? new Date(referenceData.publication_date).getFullYear() : undefined,
         confidence: referenceData.metadata_confidence || 0.8,
         keywords: [],
-        abstract: undefined
+        abstract: undefined,
+        relevance_score: 0.0 // Adding the missing relevance_score property
       };
 
       // Convert existing references to scholar format
-      const existingScholarResults = existingRefs.map(ref => ({
-        title: ref.title,
-        authors: Array.isArray(ref.authors) ? ref.authors : [],
-        year: ref.publication_date ? new Date(ref.publication_date).getFullYear() : undefined,
-        journal: ref.journal,
-        doi: ref.doi,
-        url: ref.url,
-        citations: 0,
-        publication_date: ref.publication_date,
-        confidence: ref.metadata_confidence || 1.0,
-        keywords: [],
-        abstract: undefined
-      }));
+    const existingScholarResults = existingRefs.map(ref => ({
+      title: ref.title,
+      authors: Array.isArray(ref.authors) 
+        ? ref.authors.map((author: string | { firstName: string; lastName: string; }) => typeof author === 'string' ? author : `${author.firstName} ${author.lastName}`)
+        : [],
+      year: ref.publication_date ? new Date(ref.publication_date).getFullYear() : undefined,
+      journal: ref.journal,
+      doi: ref.doi,
+      url: ref.url,
+      citations: 0,
+      publication_date: ref.publication_date,
+      confidence: ref.metadata_confidence || 1.0,
+      keywords: [],
+      abstract: undefined,
+      relevance_score: 0.0 // Adding the missing relevance_score property
+    }));
 
       // Check for duplicates using the duplicate detection engine
       const allResults = [newScholarResult, ...existingScholarResults];

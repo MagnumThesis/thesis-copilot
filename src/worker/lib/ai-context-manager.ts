@@ -43,26 +43,43 @@ export class AIContextManagerImpl implements AIContextManager {
         conversationContext.title
       );
 
-      return {
-        content: documentContent,
-        ideaDefinitions,
-        conversationTitle: conversationContext.title,
+      // Count words and paragraphs
+      const wordCount = documentContent.split(/\s+/).filter(word => word.length > 0).length;
+      const paragraphCount = documentContent.split('\n\n').length;
+
+      const documentContext: DocumentContext = {
+        conversationId,
+        documentContent,
         cursorPosition,
         selectedText,
+        wordCount,
+        paragraphCount,
+        ideaDefinitions,
+        conversationTitle: conversationContext.title,
         documentStructure,
-        academicContext
+        academicContext,
+        content: documentContent
       };
+
+      return documentContext;
     } catch (error) {
       console.error('Error building AI context:', error);
       // Return minimal context on error
+      const wordCount = documentContent.split(/\s+/).filter(word => word.length > 0).length;
+      const paragraphCount = documentContent.split('\n\n').length;
+      
       return {
-        content: documentContent,
-        ideaDefinitions: [],
-        conversationTitle: 'Unknown',
+        conversationId,
+        documentContent: documentContent,
         cursorPosition,
         selectedText,
+        wordCount,
+        paragraphCount,
+        ideaDefinitions: [],
+        conversationTitle: 'Unknown',
         documentStructure: [],
-        academicContext: undefined
+        academicContext: undefined,
+        content: documentContent
       };
     }
   }
