@@ -56,6 +56,37 @@ const errorVariants = {
   [AIErrorType.UNKNOWN_ERROR]: "destructive",
 } as const;
 
+/**
+ * A component to display AI-related error notifications with options for retry, graceful degradation, and detailed error information.
+ * It categorizes errors by type and provides user-friendly messages and recovery actions.
+ * @param {AIErrorNotificationProps} props - The properties for the AIErrorNotification component.
+ * @param {AIError} props.error - The AIError object containing details about the error.
+ * @param {() => void} [props.onRetry] - Callback function to be called when the retry button is clicked.
+ * @param {() => void} props.onDismiss - Callback function to be called when the notification is dismissed.
+ * @param {() => void} [props.onGracefulDegradation] - Callback function to be called when graceful degradation is triggered.
+ * @param {boolean} [props.canRetry=false] - Indicates whether the error is retryable.
+ * @param {number} [props.retryCount=0] - The current retry attempt count.
+ * @param {string} [props.className] - Additional CSS classes to apply to the notification container.
+ * @example
+ * ```tsx
+ * import { AIError, AIErrorType } from "@/lib/ai-infrastructure";
+ *
+ * const sampleError: AIError = {
+ *   type: AIErrorType.NETWORK_ERROR,
+ *   message: "Failed to connect to the AI service.",
+ *   code: "NET_001",
+ *   retryable: true,
+ * };
+ *
+ * <AIErrorNotification
+ *   error={sampleError}
+ *   onDismiss={() => console.log('Dismissed')}
+ *   onRetry={() => console.log('Retrying...')}
+ *   canRetry={true}
+ *   retryCount={1}
+ * />
+ * ```
+ */
 export const AIErrorNotification: React.FC<AIErrorNotificationProps> = ({
   error,
   onRetry,

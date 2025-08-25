@@ -16,6 +16,15 @@ interface MessageListProps {
     | ((message: Message) => AdditionalMessageOptions)
 }
 
+/**
+ * @component MessageList
+ * @description A component that displays a list of chat messages, optionally showing timestamps and a typing indicator.
+ * @param {MessageListProps} props - The properties for the MessageList component.
+ * @param {Message[]} props.messages - An array of message objects to display.
+ * @param {boolean} [props.showTimeStamps=true] - If true, displays timestamps for each message.
+ * @param {boolean} [props.isTyping=false] - If true, displays a typing indicator at the end of the message list.
+ * @param {AdditionalMessageOptions | ((message: Message) => AdditionalMessageOptions)} [props.messageOptions] - Additional options to pass to individual `ChatMessage` components, either as a static object or a function that returns options based on the message.
+ */
 export function MessageList({
   messages,
   showTimeStamps = true,

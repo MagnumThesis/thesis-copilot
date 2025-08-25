@@ -7,6 +7,16 @@ interface UseAutosizeTextAreaProps {
   dependencies: React.DependencyList
 }
 
+/**
+ * @function useAutosizeTextArea
+ * @description A hook that automatically adjusts the height of a textarea to fit its content.
+ * It prevents the textarea from growing beyond a specified `maxHeight` and ensures it doesn't shrink below its initial content height.
+ * @param {UseAutosizeTextAreaProps} props - The properties for the autosize textarea hook.
+ * @param {React.RefObject<HTMLTextAreaElement | null>} props.ref - A ref to the textarea element.
+ * @param {number} [props.maxHeight=Number.MAX_SAFE_INTEGER] - The maximum height the textarea can grow to in pixels.
+ * @param {number} [props.borderWidth=0] - The total width of the top and bottom borders of the textarea in pixels. This is added to the calculated height.
+ * @param {React.DependencyList} props.dependencies - An array of dependencies that, when changed, will trigger a recalculation of the textarea height.
+ */
 export function useAutosizeTextArea({
   ref,
   maxHeight = Number.MAX_SAFE_INTEGER,

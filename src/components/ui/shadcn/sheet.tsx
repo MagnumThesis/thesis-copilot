@@ -3,29 +3,94 @@ import * as SheetPrimitive from "@radix-ui/react-dialog"
 import { XIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { VisuallyHidden } from "@/components/ui/visually-hidden"
 
+/**
+ * A modal dialog that slides in from the edge of the screen.
+ * This component is built on top of Radix UI's Dialog primitive.
+ * 
+ * @param {React.ComponentProps<typeof SheetPrimitive.Root>} props - The props for the Sheet component
+ * @param {boolean} [props.open] - Whether the sheet is open
+ * @param {function} [props.onOpenChange] - Callback function when the sheet's open state changes
+ * @param {React.ReactNode} props.children - The content to display inside the sheet
+ * 
+ * @example
+ * ```tsx
+ * <Sheet>
+ *   <SheetTrigger>Open Sheet</SheetTrigger>
+ *   <SheetContent>
+ *     <SheetHeader>
+ *       <SheetTitle>Sheet Title</SheetTitle>
+ *       <SheetDescription>Sheet description text</SheetDescription>
+ *     </SheetHeader>
+ *     <div>Sheet content</div>
+ *     <SheetFooter>
+ *       <Button>Save</Button>
+ *     </SheetFooter>
+ *   </SheetContent>
+ * </Sheet>
+ * ```
+ */
 function Sheet({ ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) {
   return <SheetPrimitive.Root data-slot="sheet" {...props} />
 }
 
+/**
+ * The button that opens the sheet when clicked.
+ * This component is built on top of Radix UI's Dialog.Trigger primitive.
+ * 
+ * @param {React.ComponentProps<typeof SheetPrimitive.Trigger>} props - The props for the SheetTrigger component
+ * @param {React.ReactNode} props.children - The content to display inside the trigger
+ * 
+ * @example
+ * ```tsx
+ * <SheetTrigger>Open Sheet</SheetTrigger>
+ * ```
+ */
 function SheetTrigger({
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Trigger>) {
   return <SheetPrimitive.Trigger data-slot="sheet-trigger" {...props} />
 }
 
+/**
+ * The button that closes the sheet.
+ * This component is built on top of Radix UI's Dialog.Close primitive.
+ * 
+ * @param {React.ComponentProps<typeof SheetPrimitive.Close>} props - The props for the SheetClose component
+ * @param {React.ReactNode} props.children - The content to display inside the close button
+ * 
+ * @example
+ * ```tsx
+ * <SheetClose>Close</SheetClose>
+ * ```
+ */
 function SheetClose({
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Close>) {
   return <SheetPrimitive.Close data-slot="sheet-close" {...props} />
 }
 
+/**
+ * The portal component that renders the sheet in a separate part of the DOM tree.
+ * This component is built on top of Radix UI's Dialog.Portal primitive.
+ * 
+ * @param {React.ComponentProps<typeof SheetPrimitive.Portal>} props - The props for the SheetPortal component
+ * @param {React.ReactNode} props.children - The content to display inside the portal
+ */
 function SheetPortal({
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Portal>) {
   return <SheetPrimitive.Portal data-slot="sheet-portal" {...props} />
 }
 
+/**
+ * The overlay that appears behind the sheet to prevent interaction with the main page.
+ * This component is built on top of Radix UI's Dialog.Overlay primitive.
+ * 
+ * @param {React.ComponentProps<typeof SheetPrimitive.Overlay>} props - The props for the SheetOverlay component
+ * @param {string} [props.className] - Additional CSS classes to apply to the overlay
+ */
 function SheetOverlay({
   className,
   ...props
@@ -42,6 +107,29 @@ function SheetOverlay({
   )
 }
 
+/**
+ * The main content area of the sheet.
+ * This component is built on top of Radix UI's Dialog.Content primitive.
+ * 
+ * @param {React.ComponentProps<typeof SheetPrimitive.Content> & { side?: "top" | "right" | "bottom" | "left" }} props - The props for the SheetContent component
+ * @param {string} [props.className] - Additional CSS classes to apply to the content
+ * @param {React.ReactNode} props.children - The content to display inside the sheet
+ * @param {"top" | "right" | "bottom" | "left"} [props.side="right"] - The side of the screen from which the sheet slides in
+ * 
+ * @example
+ * ```tsx
+ * <SheetContent>
+ *   <SheetHeader>
+ *     <SheetTitle>Sheet Title</SheetTitle>
+ *     <SheetDescription>Sheet description text</SheetDescription>
+ *   </SheetHeader>
+ *   <div>Sheet content</div>
+ *   <SheetFooter>
+ *     <Button>Save</Button>
+ *   </SheetFooter>
+ * </SheetContent>
+ * ```
+ */
 function SheetContent({
   className,
   children,
@@ -69,6 +157,9 @@ function SheetContent({
         )}
         {...props}
       >
+        <VisuallyHidden>
+          <SheetPrimitive.Title>Sheet</SheetPrimitive.Title>
+        </VisuallyHidden>
         {children}
         <SheetPrimitive.Close className="ring-offset-background focus:ring-ring data-[state=open]:bg-secondary absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none">
           <XIcon className="size-4" />
@@ -79,6 +170,21 @@ function SheetContent({
   )
 }
 
+/**
+ * The header section of the sheet, typically containing the title and description.
+ * 
+ * @param {React.ComponentProps<"div">} props - The props for the SheetHeader component
+ * @param {string} [props.className] - Additional CSS classes to apply to the header
+ * @param {React.ReactNode} props.children - The content to display inside the header
+ * 
+ * @example
+ * ```tsx
+ * <SheetHeader>
+ *   <SheetTitle>Sheet Title</SheetTitle>
+ *   <SheetDescription>Sheet description text</SheetDescription>
+ * </SheetHeader>
+ * ```
+ */
 function SheetHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -89,6 +195,21 @@ function SheetHeader({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
+/**
+ * The footer section of the sheet, typically containing action buttons.
+ * 
+ * @param {React.ComponentProps<"div">} props - The props for the SheetFooter component
+ * @param {string} [props.className] - Additional CSS classes to apply to the footer
+ * @param {React.ReactNode} props.children - The content to display inside the footer
+ * 
+ * @example
+ * ```tsx
+ * <SheetFooter>
+ *   <Button variant="outline">Cancel</Button>
+ *   <Button>Save</Button>
+ * </SheetFooter>
+ * ```
+ */
 function SheetFooter({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -99,6 +220,19 @@ function SheetFooter({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
+/**
+ * The title of the sheet.
+ * This component is built on top of Radix UI's Dialog.Title primitive.
+ * 
+ * @param {React.ComponentProps<typeof SheetPrimitive.Title>} props - The props for the SheetTitle component
+ * @param {string} [props.className] - Additional CSS classes to apply to the title
+ * @param {React.ReactNode} props.children - The content to display as the sheet title
+ * 
+ * @example
+ * ```tsx
+ * <SheetTitle>Sheet Title</SheetTitle>
+ * ```
+ */
 function SheetTitle({
   className,
   ...props
@@ -112,6 +246,19 @@ function SheetTitle({
   )
 }
 
+/**
+ * The description text for the sheet.
+ * This component is built on top of Radix UI's Dialog.Description primitive.
+ * 
+ * @param {React.ComponentProps<typeof SheetPrimitive.Description>} props - The props for the SheetDescription component
+ * @param {string} [props.className] - Additional CSS classes to apply to the description
+ * @param {React.ReactNode} props.children - The content to display as the sheet description
+ * 
+ * @example
+ * ```tsx
+ * <SheetDescription>This is a description of what the sheet does.</SheetDescription>
+ * ```
+ */
 function SheetDescription({
   className,
   ...props

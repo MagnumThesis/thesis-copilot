@@ -1,0 +1,6 @@
+{
+  "entryPoints": ["./src/lib", "./src/hooks", "./src/components", "./src/worker"],
+  "out": "doc-site/pages/api",
+  "plugin": ["typedoc-plugin-markdown"],
+  "theme": "markdown"
+}

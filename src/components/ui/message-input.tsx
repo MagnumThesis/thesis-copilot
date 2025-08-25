@@ -35,6 +35,23 @@ type MessageInputProps =
   | MessageInputWithoutAttachmentProps
   | MessageInputWithAttachmentsProps
 
+/**
+ * @component MessageInput
+ * @description A versatile input component for sending messages, supporting text input, file attachments, and voice recording.
+ * It includes features like autosizing, drag-and-drop file uploads, and an interrupt prompt for AI generation.
+ * @param {MessageInputProps} props - The properties for the MessageInput component.
+ * @param {string} [props.placeholder="Ask AI..."] - The placeholder text for the textarea.
+ * @param {string} [props.className] - Additional CSS classes to apply to the textarea.
+ * @param {React.KeyboardEventHandler<HTMLTextAreaElement>} [props.onKeyDown] - Callback for keydown events on the textarea.
+ * @param {boolean} [props.submitOnEnter=true] - If true, pressing Enter submits the message (Shift+Enter for new line).
+ * @param {() => void} [props.stop] - Callback function to stop AI generation.
+ * @param {boolean} props.isGenerating - Indicates if AI is currently generating a response.
+ * @param {boolean} [props.enableInterrupt=true] - If true, enables the interrupt prompt when AI is generating.
+ * @param {(blob: Blob) => Promise<string>} [props.transcribeAudio] - Function to transcribe audio blobs to text.
+ * @param {boolean} [props.allowAttachments] - If true, enables file attachment features.
+ * @param {File[] | null} [props.files] - An array of attached files (required if `allowAttachments` is true).
+ * @param {React.Dispatch<React.SetStateAction<File[] | null>>} [props.setFiles] - State setter for attached files (required if `allowAttachments` is true).
+ */
 export function MessageInput({
   placeholder = "Ask AI...",
   className,
@@ -312,6 +329,12 @@ interface FileUploadOverlayProps {
   isDragging: boolean
 }
 
+/**
+ * @component FileUploadOverlay
+ * @description An overlay that appears when a user drags files over the message input area, indicating that files can be dropped for attachment.
+ * @param {FileUploadOverlayProps} props - The properties for the FileUploadOverlay component.
+ * @param {boolean} props.isDragging - Indicates whether files are currently being dragged over the input area.
+ */
 function FileUploadOverlay({ isDragging }: FileUploadOverlayProps) {
   return (
     <AnimatePresence>
@@ -332,6 +355,11 @@ function FileUploadOverlay({ isDragging }: FileUploadOverlayProps) {
   )
 }
 
+/**
+ * @function showFileUploadDialog
+ * @description Opens a native file upload dialog and returns a Promise that resolves with the selected files.
+ * @returns {Promise<File[] | null>} A Promise that resolves with an array of selected File objects, or null if no files were selected.
+ */
 function showFileUploadDialog() {
   const input = document.createElement("input")
 
@@ -354,6 +382,10 @@ function showFileUploadDialog() {
   })
 }
 
+/**
+ * @component TranscribingOverlay
+ * @description An overlay displayed when audio is being transcribed, showing a loading indicator.
+ */
 function TranscribingOverlay() {
   return (
     <motion.div
@@ -389,6 +421,13 @@ interface RecordingPromptProps {
   onStopRecording: () => void
 }
 
+/**
+ * @component RecordingPrompt
+ * @description A prompt that appears when audio recording is active, instructing the user how to stop the recording.
+ * @param {RecordingPromptProps} props - The properties for the RecordingPrompt component.
+ * @param {boolean} props.isVisible - Controls the visibility of the prompt.
+ * @param {() => void} props.onStopRecording - Callback function to stop the audio recording.
+ */
 function RecordingPrompt({ isVisible, onStopRecording }: RecordingPromptProps) {
   return (
     <AnimatePresence>
@@ -425,6 +464,16 @@ interface RecordingControlsProps {
   onStopRecording: () => void
 }
 
+/**
+ * @component RecordingControls
+ * @description Manages and displays the audio recording visualization or transcription overlay based on the recording state.
+ * @param {RecordingControlsProps} props - The properties for the RecordingControls component.
+ * @param {boolean} props.isRecording - Indicates if audio is currently being recorded.
+ * @param {boolean} props.isTranscribing - Indicates if recorded audio is currently being transcribed.
+ * @param {MediaStream | null} props.audioStream - The audio media stream for visualization.
+ * @param {number} props.textAreaHeight - The height of the message input textarea, used for positioning overlays.
+ * @param {() => void} props.onStopRecording - Callback function to stop the audio recording.
+ */
 function RecordingControls({
   isRecording,
   isTranscribing,

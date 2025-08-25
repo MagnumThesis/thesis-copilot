@@ -29,6 +29,25 @@ const PROMPT_SUGGESTIONS = [
   "Write a conclusion paragraph",
 ];
 
+/**
+ * A component for users to input prompts for AI content generation.
+ * It includes a textarea, character counter, validation, and optional prompt suggestions.
+ * @param {AIPromptInputProps} props - The properties for the AIPromptInput component.
+ * @param {(prompt: string) => Promise<void>} props.onSubmit - Callback function to be called when the prompt is submitted. Receives the trimmed prompt string.
+ * @param {() => void} props.onCancel - Callback function to be called when the user cancels the prompt input.
+ * @param {boolean} props.isProcessing - Indicates whether an AI generation operation is currently in progress.
+ * @param {string} [props.className] - Additional CSS classes to apply to the component container.
+ * @param {string} [props.placeholder="Enter your prompt to generate content..."] - The placeholder text for the textarea.
+ * @param {number} [props.maxLength=500] - The maximum length allowed for the prompt input.
+ * @example
+ * ```tsx
+ * <AIPromptInput
+ *   onSubmit={async (prompt) => console.log('Prompt submitted:', prompt)}
+ *   onCancel={() => console.log('Prompt cancelled')}
+ *   isProcessing={false}
+ * />
+ * ```
+ */
 export const AIPromptInput: React.FC<AIPromptInputProps> = ({
   onSubmit,
   onCancel,

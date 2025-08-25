@@ -32,13 +32,45 @@ interface AIContentPreviewProps {
 }
 
 const modificationTypeLabels: Record<ModificationType, string> = {
-  [ModificationType.REWRITE]: "Rewritten",
+  [ModificationType.PROMPT]: "Custom Modified",
   [ModificationType.EXPAND]: "Expanded",
+  [ModificationType.SHORTEN]: "Shortened",
+  [ModificationType.REPHRASE]: "Rephrased",
+  [ModificationType.CORRECT]: "Corrected",
+  [ModificationType.TONE]: "Tone Adjusted",
+  [ModificationType.FORMAT]: "Formatted",
+  [ModificationType.REWRITE]: "Rewritten",
   [ModificationType.SUMMARIZE]: "Summarized",
   [ModificationType.IMPROVE_CLARITY]: "Clarity Improved",
-  [ModificationType.PROMPT]: "Custom Modified",
 };
 
+/**
+ * Displays a preview of AI-modified content, allowing for comparison with the original text.
+ * Provides options to accept, reject, or regenerate the modified content.
+ * @param {AIContentPreviewProps} props - The properties for the AIContentPreview component.
+ * @param {string} props.originalText - The original text before modification.
+ * @param {string} props.modifiedText - The AI-generated modified text.
+ * @param {ModificationType} props.modificationType - The type of modification performed (e.g., rewrite, summarize).
+ * @param {() => void} props.onAccept - Callback function to be called when the user accepts the modified content.
+ * @param {() => void} props.onReject - Callback function to be called when the user rejects the modified content.
+ * @param {() => void} [props.onRegenerate] - Optional callback function to be called when the user requests to regenerate the content.
+ * @param {boolean} props.isVisible - Controls the visibility of the component.
+ * @param {boolean} [props.isRegenerating=false] - Indicates whether the content is currently being regenerated.
+ * @param {string} [props.className] - Additional CSS classes to apply to the component container.
+ * @example
+ * ```tsx
+ * import { ModificationType } from "@/lib/ai-types";
+ *
+ * <AIContentPreview
+ *   originalText="This is the original text."
+ *   modifiedText="This is the modified text."
+ *   modificationType={ModificationType.REWRITE}
+ *   onAccept={() => console.log('Accepted')}
+ *   onReject={() => console.log('Rejected')}
+ *   isVisible={true}
+ * />
+ * ```
+ */
 export const AIContentPreview: React.FC<AIContentPreviewProps> = ({
   originalText,
   modifiedText,

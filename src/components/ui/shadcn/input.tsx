@@ -2,6 +2,34 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
+/**
+ * A customizable input component with various style options.
+ * 
+ * @param {React.ComponentProps<"input">} props - The props for the Input component
+ * @param {string} [props.className] - Additional CSS classes to apply to the input
+ * @param {string} [props.type] - The type of input (e.g., "text", "email", "password")
+ * @param {string} [props.placeholder] - Placeholder text for the input
+ * @param {string} [props.value] - The value of the input
+ * @param {function} [props.onChange] - Change handler for the input
+ * @param {boolean} [props.disabled] - Whether the input is disabled
+ * @param {string} [props.id] - The id of the input
+ * @param {string} [props.name] - The name of the input
+ * 
+ * @example
+ * ```tsx
+ * // Basic text input
+ * <Input type="text" placeholder="Enter your name" />
+ * 
+ * // Email input
+ * <Input type="email" placeholder="Enter your email" />
+ * 
+ * // Password input
+ * <Input type="password" placeholder="Enter your password" />
+ * 
+ * // Disabled input
+ * <Input type="text" placeholder="Disabled input" disabled />
+ * ```
+ */
 function Input({ className, type, ...props }: React.ComponentProps<"input">) {
   return (
     <input

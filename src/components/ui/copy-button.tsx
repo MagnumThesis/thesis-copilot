@@ -9,6 +9,17 @@ type CopyButtonProps = {
   copyMessage?: string
 }
 
+/**
+ * A button component that allows users to copy specified content to the clipboard.
+ * It provides visual feedback (a checkmark) when the content is successfully copied.
+ * @param {CopyButtonProps} props - The properties for the CopyButton component.
+ * @param {string} props.content - The text content to be copied to the clipboard.
+ * @param {string} [props.copyMessage] - An optional message to display as a toast notification upon successful copy.
+ * @example
+ * ```tsx
+ * <CopyButton content="Text to copy" copyMessage="Copied successfully!" />
+ * ```
+ */
 export function CopyButton({ content, copyMessage }: CopyButtonProps) {
   const { isCopied, handleCopy } = useCopyToClipboard({
     text: content,

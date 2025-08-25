@@ -27,6 +27,15 @@ const isDuplicateIdea = (newIdea: {title: string, description: string}, existing
   );
 };
 
+/**
+ * @component Idealist
+ * @description A component for managing and displaying a list of thesis idea definitions.
+ * It allows users to add, update, delete, and generate new ideas, integrated with a conversation context.
+ * @param {IdealistProps} props - The properties for the Idealist component.
+ * @param {boolean} props.isOpen - Controls the visibility of the idea list sheet.
+ * @param {() => void} props.onClose - Callback function to be called when the sheet is closed.
+ * @param {{ title: string; id: string }} props.currentConversation - The current conversation context, including its title and ID.
+ */
 export const Idealist: React.FC<IdealistProps> = ({ isOpen, onClose, currentConversation }) => {
   // Initialize with an empty array, and use the IdeaDefinition type.
   const [ideaDefinitions, setIdeaDefinitions] = useState<IdeaDefinition[]>([]);
@@ -87,6 +96,11 @@ export const Idealist: React.FC<IdealistProps> = ({ isOpen, onClose, currentConv
       setNewIdeaTitle("");
       setNewIdeaDescription("");
       setIsFormOpen(false); // Close the form after submission
+      
+      // Notify content retrieval service that ideas have changed
+      const { contentRetrievalService } = await import("@/lib/content-retrieval-service");
+      contentRetrievalService.invalidateCache(currentConversation.id, 'ideas');
+      
       toast.success("Idea created successfully!");
     } catch (err) {
       console.error("Failed to create idea:", err);
@@ -103,6 +117,11 @@ export const Idealist: React.FC<IdealistProps> = ({ isOpen, onClose, currentConv
       setIdeaDefinitions(prevIdeas =>
         prevIdeas.map(idea => idea.id === id ? { ...idea, ...updatedIdea } : idea)
       );
+      
+      // Notify content retrieval service that ideas have changed
+      const { contentRetrievalService } = await import("@/lib/content-retrieval-service");
+      contentRetrievalService.invalidateCache(currentConversation.id, 'ideas');
+      
       toast.success("Idea updated successfully!");
     } catch (err) {
       console.error("Failed to update idea:", err);
@@ -116,6 +135,11 @@ export const Idealist: React.FC<IdealistProps> = ({ isOpen, onClose, currentConv
     try {
       await deleteIdea(id);
       setIdeaDefinitions(prevIdeas => prevIdeas.filter(idea => idea.id !== id));
+      
+      // Notify content retrieval service that ideas have changed
+      const { contentRetrievalService } = await import("@/lib/content-retrieval-service");
+      contentRetrievalService.invalidateCache(currentConversation.id, 'ideas');
+      
       toast.success("Idea deleted successfully!");
     } catch (err) {
       console.error("Failed to delete idea:", err);
@@ -139,6 +163,10 @@ export const Idealist: React.FC<IdealistProps> = ({ isOpen, onClose, currentConv
           id: Date.now() + Math.random(), // Temporary ID until saved to DB
           ...idea
         }))]);
+        
+        // Notify content retrieval service that ideas have changed
+        const { contentRetrievalService } = await import("@/lib/content-retrieval-service");
+        contentRetrievalService.invalidateCache(currentConversation.id, 'ideas');
       }
       
       // Show appropriate toast message based on results

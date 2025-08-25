@@ -9,6 +9,14 @@ interface FilePreviewProps {
   onRemove?: () => void
 }
 
+/**
+ * @component FilePreview
+ * @description A polymorphic component that displays a preview of a file based on its type (image, text, or generic).
+ * It handles rendering different visual representations for various file formats.
+ * @param {FilePreviewProps} props - The properties for the FilePreview component.
+ * @param {File} props.file - The File object to preview.
+ * @param {() => void} [props.onRemove] - Optional callback function to remove the file.
+ */
 export const FilePreview = React.forwardRef<HTMLDivElement, FilePreviewProps>(
   (props, ref) => {
     if (props.file.type.startsWith("image/")) {
@@ -28,6 +36,13 @@ export const FilePreview = React.forwardRef<HTMLDivElement, FilePreviewProps>(
 )
 FilePreview.displayName = "FilePreview"
 
+/**
+ * @component ImageFilePreview
+ * @description Displays a preview for image files, showing a thumbnail of the image.
+ * @param {FilePreviewProps} props - The properties for the ImageFilePreview component.
+ * @param {File} props.file - The image File object to preview.
+ * @param {() => void} [props.onRemove] - Optional callback function to remove the file.
+ */
 const ImageFilePreview = React.forwardRef<HTMLDivElement, FilePreviewProps>(
   ({ file, onRemove }, ref) => {
     return (
@@ -67,6 +82,13 @@ const ImageFilePreview = React.forwardRef<HTMLDivElement, FilePreviewProps>(
 )
 ImageFilePreview.displayName = "ImageFilePreview"
 
+/**
+ * @component TextFilePreview
+ * @description Displays a preview for text files, showing the first few lines of the text content.
+ * @param {FilePreviewProps} props - The properties for the TextFilePreview component.
+ * @param {File} props.file - The text File object to preview.
+ * @param {() => void} [props.onRemove] - Optional callback function to remove the file.
+ */
 const TextFilePreview = React.forwardRef<HTMLDivElement, FilePreviewProps>(
   ({ file, onRemove }, ref) => {
     const [preview, setPreview] = React.useState<string>("")
@@ -116,6 +138,13 @@ const TextFilePreview = React.forwardRef<HTMLDivElement, FilePreviewProps>(
 )
 TextFilePreview.displayName = "TextFilePreview"
 
+/**
+ * @component GenericFilePreview
+ * @description Displays a generic preview for files that are not images or text, showing a file icon and the file name.
+ * @param {FilePreviewProps} props - The properties for the GenericFilePreview component.
+ * @param {File} props.file - The generic File object to preview.
+ * @param {() => void} [props.onRemove] - Optional callback function to remove the file.
+ */
 const GenericFilePreview = React.forwardRef<HTMLDivElement, FilePreviewProps>(
   ({ file, onRemove }, ref) => {
     return (

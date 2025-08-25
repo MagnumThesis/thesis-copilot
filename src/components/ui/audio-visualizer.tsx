@@ -20,6 +20,53 @@ interface AudioVisualizerProps {
   onClick: () => void
 }
 
+/**
+ * A React component that visualizes audio input from a MediaStream on a canvas.
+ * It displays a real-time frequency spectrum, useful for indicating active audio recording.
+ * @param {AudioVisualizerProps} props - The properties for the AudioVisualizer component.
+ * @param {MediaStream | null} props.stream - The audio MediaStream to visualize. If null, no visualization occurs.
+ * @param {boolean} props.isRecording - A boolean indicating whether audio is currently being recorded. Controls the active state of the visualization.
+ * @param {() => void} props.onClick - Callback function to be called when the visualizer canvas is clicked.
+ * @example
+ * ```tsx
+ * import React, { useState, useEffect } from 'react';
+ * import { AudioVisualizer } from './AudioVisualizer';
+ *
+ * const AudioRecorder = () => {
+ *   const [stream, setStream] = useState<MediaStream | null>(null);
+ *   const [isRecording, setIsRecording] = useState(false);
+ *
+ *   useEffect(() => {
+ *     if (isRecording) {
+ *       navigator.mediaDevices.getUserMedia({ audio: true })
+ *         .then((audioStream) => setStream(audioStream))
+ *         .catch((err) => console.error('Error accessing microphone:', err));
+ *     } else {
+ *       stream?.getTracks().forEach(track => track.stop());
+ *       setStream(null);
+ *     }
+ *     return () => {
+ *       stream?.getTracks().forEach(track => track.stop());
+ *     };
+ *   }, [isRecording]);
+ *
+ *   return (
+ *     <div style={{ width: '200px', height: '50px', border: '1px solid black' }}>
+ *       <AudioVisualizer
+ *         stream={stream}
+ *         isRecording={isRecording}
+ *         onClick={() => setIsRecording(!isRecording)}
+ *       />
+ *       <button onClick={() => setIsRecording(!isRecording)}>
+ *         {isRecording ? 'Stop Recording' : 'Start Recording'}
+ *       </button>
+ *     </div>
+ *   );
+ * };
+ *
+ * export default AudioRecorder;
+ * ```
+ */
 export function AudioVisualizer({
   stream,
   isRecording,

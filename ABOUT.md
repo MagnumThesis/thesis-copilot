@@ -12,17 +12,15 @@ As such we split up the tasks in different key areas:
 
 # TODO
 ## Features
-- Builder to be integrated with AI
-    - Prompt mode
-    - Continue generating mode
-    - Modify selected content/text mode
-    - implement action toolbar the user can choose what mode to use
 - Proofreader and Referencer to be implemented
 - Proofreader will list area of concerns
     - Same format with idealist tool except here the proofreader will read the proposal and list of idea definitions instead of the chat messages
+    - Proof reader reads only the content in the builder tool, which is the thesis proposal
     - Proof reader just list the concerns, it will not command the AI to do something about it, it will be the users job
         - If the AI commands the AI, it will be an agentic job which is not really the goal of this tool
         - The proof reader will not do actions, it will just list the concerns and the user will manage the concerns themselves
+    - Suggestion will have a status of "To be done", "Addressed", "Rejected"
+    
 - Referencer will get sources based on what the user prompted, will strictly only use google scholar and IEEE 
 
 ## Code Quality Improvement

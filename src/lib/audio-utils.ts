@@ -4,6 +4,12 @@ type RecordAudioType = {
   currentRecorder?: MediaRecorder
 }
 
+/**
+ * @function recordAudio
+ * @description Records audio from a MediaStream.
+ * @param {MediaStream} stream - The MediaStream to record from.
+ * @returns {Promise<Blob>} A promise that resolves with the recorded audio Blob.
+ */
 export const recordAudio = (function (): RecordAudioType {
   const func = async function recordAudio(stream: MediaStream): Promise<Blob> {
     try {
@@ -38,6 +44,9 @@ export const recordAudio = (function (): RecordAudioType {
     }
   }
 
+  /**
+   * @property {() => void} stop - Stops the recording.
+   */
   ;(func as RecordAudioType).stop = () => {
     const recorder = (func as RecordAudioType).currentRecorder
     if (recorder && recorder.state !== "inactive") {

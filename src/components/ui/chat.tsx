@@ -47,6 +47,79 @@ interface ChatPropsWithSuggestions extends ChatPropsBase {
 
 type ChatProps = ChatPropsWithoutSuggestions | ChatPropsWithSuggestions
 
+/**
+ * @component Chat
+ * @description A comprehensive chat interface component that displays messages, handles user input, and provides various chat-related functionalities.
+ * It integrates with message lists, input fields, and optional prompt suggestions.
+ * @param {ChatProps} props - The properties for the Chat component.
+ * @param {Message[]} props.messages - An array of message objects to display in the chat.
+ * @param {(event?: { preventDefault?: () => void }, options?: { experimental_attachments?: FileList }) => void} props.handleSubmit - Callback function to handle message submission.
+ * @param {string} props.input - The current value of the message input field.
+ * @param {React.ChangeEventHandler<HTMLTextAreaElement>} props.handleInputChange - Event handler for changes in the message input field.
+ * @param {boolean} props.isGenerating - Indicates whether an AI response is currently being generated.
+ * @param {() => void} [props.stop] - Optional callback function to stop the current generation.
+ * @param {(messageId: string, rating: "thumbs-up" | "thumbs-down") => void} [props.onRateResponse] - Optional callback function to rate a message.
+ * @param {(messages: any[]) => void} [props.setMessages] - Optional setter for messages state, used for internal message manipulation (e.g., cancelling tool calls).
+ * @param {(blob: Blob) => Promise<string>} [props.transcribeAudio] - Optional function to transcribe audio input.
+ * @param {string} [props.className] - Additional CSS classes to apply to the chat container.
+ /**
+ * A comprehensive chat interface component that displays messages, handles user input, and provides various chat-related functionalities.
+ * It integrates with message lists, input fields, and optional prompt suggestions.
+ * @param {ChatProps} props - The properties for the Chat component.
+ * @param {Message[]} props.messages - An array of message objects to display in the chat.
+ * @param {(event?: { preventDefault?: () => void }, options?: { experimental_attachments?: FileList }) => void} props.handleSubmit - Callback function to handle message submission.
+ * @param {string} props.input - The current value of the message input field.
+ * @param {React.ChangeEventHandler<HTMLTextAreaElement>} props.handleInputChange - Event handler for changes in the message input field.
+ * @param {boolean} props.isGenerating - Indicates whether an AI response is currently being generated.
+ * @param {() => void} [props.stop] - Optional callback function to stop the current generation.
+ * @param {(messageId: string, rating: "thumbs-up" | "thumbs-down") => void} [props.onRateResponse] - Optional callback function to rate a message.
+ * @param {(messages: any[]) => void} [props.setMessages] - Optional setter for messages state, used for internal message manipulation (e.g., cancelling tool calls).
+ * @param {(blob: Blob) => Promise<string>} [props.transcribeAudio] - Optional function to transcribe audio input.
+ * @param {string} [props.className] - Additional CSS classes to apply to the chat container.
+ * @param {((message: { role: "user"; content: string }) => void)} [props.append] - Function to append a new message to the chat (required if `suggestions` are provided).
+ * @param {string[]} [props.suggestions] - An array of prompt suggestions to display (requires `append` function).
+ * @example
+ * ```tsx
+ * import React, { useState } from 'react';
+ * import { Chat } from './chat';
+ * import { Message } from './chat-message';
+ *
+ * const ChatExample = () => {
+ *   const [messages, setMessages] = useState<Message[]>([]);
+ *   const [input, setInput] = useState('');
+ *
+ *   const handleSubmit = () => {
+ *     if (input.trim()) {
+ *       setMessages((prev) => [...prev, { id: Date.now().toString(), role: 'user', content: input }]);
+ *       setInput('');
+ *       // Simulate AI response
+ *       setTimeout(() => {
+ *         setMessages((prev) => [...prev, { id: Date.now().toString(), role: 'assistant', content: 'This is a simulated AI response.' }]);
+ *       }, 1000);
+ *     }
+ *   };
+ *
+ *   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+ *     setInput(e.target.value);
+ *   };
+ *
+ *   return (
+ *     <div style={{ height: '400px', display: 'flex', flexDirection: 'column', border: '1px solid #ccc' }}>
+ *       <Chat
+ *         messages={messages}
+ *         input={input}
+ *         handleInputChange={handleInputChange}
+ *         handleSubmit={handleSubmit}
+ *         isGenerating={false}
+ *       />
+ *     </div>
+ *   );
+ * };
+ *
+ * export default ChatExample;
+ * ```
+ */
+ */
 export function Chat({
   messages,
   handleSubmit,
@@ -232,6 +305,27 @@ export function Chat({
 }
 Chat.displayName = "Chat"
 
+/**
+ * A container component for displaying chat messages with auto-scrolling functionality.
+ * It uses the `useAutoScroll` hook to manage scrolling behavior.
+ * @param {object} props - The properties for the ChatMessages component.
+ * @param {Message[]} props.messages - An array of message objects to trigger auto-scrolling.
+ * @param {React.ReactNode} props.children - The actual message list component to be rendered inside the scrollable area.
+ * @example
+ * ```tsx
+ * import { Message } from './chat-message';
+ * import { MessageList } from './message-list';
+ *
+ * const sampleMessages: Message[] = [
+ *   { id: '1', role: 'user', content: 'Hello' },
+ *   { id: '2', role: 'assistant', content: 'Hi there!' },
+ * ];
+ *
+ * <ChatMessages messages={sampleMessages}>
+ *   <MessageList messages={sampleMessages} isTyping={false} />
+ * </ChatMessages>
+ * ```
+ */
 export function ChatMessages({
   messages,
   children,
@@ -275,6 +369,21 @@ export function ChatMessages({
   )
 }
 
+
+
+/**
+ * A forwardRef component that serves as the main container for the chat interface.
+ * It applies basic styling for a flex column layout.
+ * @param {React.HTMLAttributes<HTMLDivElement>} props - Standard HTML div attributes.
+ * @param {string} [props.className] - Additional CSS classes to apply to the container.
+ * @example
+ * ```tsx
+ * <ChatContainer className="my-chat-container">
+ *   <div>Chat messages go here</div>
+ *   <div>Input form goes here</div>
+ * </ChatContainer>
+ * ```
+ */
 export const ChatContainer = forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
@@ -302,6 +411,36 @@ interface ChatFormProps {
   }) => ReactElement
 }
 
+/**
+ * A forwardRef component that wraps the message input form.
+ * It handles file attachments and form submission logic.
+ * @param {ChatFormProps} props - The properties for the ChatForm component.
+ * @param {string} [props.className] - Additional CSS classes to apply to the form.
+ * @param {boolean} props.isPending - Indicates whether a form submission is pending.
+ * @param {(event?: { preventDefault?: () => void }, options?: { experimental_attachments?: FileList }) => void} props.handleSubmit - Callback function to handle form submission.
+ * @param {(props: { files: File[] | null, setFiles: React.Dispatch<React.SetStateAction<File[] | null>> }) => ReactElement} props.children - A render prop function that receives `files` and `setFiles` for managing file inputs.
+ * @example
+ * ```tsx
+ * import React, { useState } from 'react';
+ * import { MessageInput } from './message-input';
+ *
+ * <ChatForm
+ *   handleSubmit={(e) => { e?.preventDefault(); console.log('Form submitted'); }}
+ *   isPending={false}
+ * >
+ *   {({ files, setFiles }) => (
+ *     <MessageInput
+ *       value=""
+ *       onChange={() => {}}
+ *       allowAttachments
+ *       files={files}
+ *       setFiles={setFiles}
+ *       isGenerating={false}
+ *     />
+ *   )}
+ * </ChatForm>
+ * ```
+ */
 export const ChatForm = forwardRef<HTMLFormElement, ChatFormProps>(
   ({ children, handleSubmit, isPending, className }, ref) => {
     const [files, setFiles] = useState<File[] | null>(null)

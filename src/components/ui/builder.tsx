@@ -18,7 +18,7 @@
  * @version 1.0.0
  */
 
-import React, { useState, useCallback, useRef } from "react"
+import React, { useState, useCallback, useRef, useEffect } from "react"
 import { ScrollArea } from "@/components/ui/shadcn/scroll-area"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/shadcn/sheet"
 import { Button } from "@/components/ui/shadcn/button"
@@ -32,6 +32,7 @@ import { AIContentPreview } from "@/components/ui/ai-content-preview"
 import { CustomPromptInput } from "@/components/ui/custom-prompt-input"
 import { useAIModeManager } from "@/hooks/use-ai-mode-manager"
 import { AIMode, TextSelection, ContentInsertionOptions, ModificationType } from "@/lib/ai-types"
+import { contentRetrievalService } from "@/lib/content-retrieval-service"
 import { toast } from "sonner"
 
 /**
@@ -67,6 +68,39 @@ interface BuilderProps {
  * @param props - The component props
  * @returns The Builder component JSX
  */
+
+interface EditorMethods {
+  insertContent: (content: string, options: ContentInsertionOptions) => void;
+  setContent?: (newContent: string) => void; // Make setContent optional to match the callback
+  // Add other methods if you need to use them in the parent component
+}
+
+
+/**
+ * The main interface for the AI-powered thesis proposal editor.
+ * It integrates a Milkdown markdown editor with comprehensive AI assistance capabilities
+ * including prompt-based generation, content continuation, and text modification.
+ *
+ * Key Features:
+ * - Multiple AI interaction modes (Prompt, Continue, Modify)
+ * - Real-time content synchronization
+ * - Comprehensive error handling and recovery
+ * - Academic context awareness
+ * - Accessibility compliance
+ *
+ * @param {BuilderProps} props - The properties for the Builder component.
+ * @param {boolean} props.isOpen - Whether the Builder sheet is open.
+ * @param {() => void} props.onClose - Callback function to close the Builder.
+ * @param {{title: string, id: string}} props.currentConversation - Current conversation context for AI operations.
+ * @example
+ * ```tsx
+ * <Builder
+ *   isOpen={true}
+ *   onClose={() => setBuilderOpen(false)}
+ *   currentConversation={{ title: "My Thesis", id: "conv-123" }}
+ * />
+ * ```
+ */
 export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConversation }) => {
   const [documentContent, setDocumentContent] = useState("# Thesis Proposal\n\nStart writing your thesis proposal here...");
   const [currentSelection, setCurrentSelection] = useState<TextSelection | null>(null);
@@ -74,12 +108,17 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
   const [aiGeneratedContent, setAIGeneratedContent] = useState<string>("");
   const [showContentConfirmation, setShowContentConfirmation] = useState(false);
   const [pendingInsertionOptions, setPendingInsertionOptions] = useState<ContentInsertionOptions | null>(null);
-  const [aiMetadata, setAIMetadata] = useState<any>(null);
+  const [aiMetadata, setAIMetadata] = useState<{
+    tokensUsed?: number;
+    processingTime?: number;
+    model?: string;
+    academicValidation?: any;
+  } | undefined>(undefined);
   const [originalTextForModification, setOriginalTextForModification] = useState<string>("");
   const [currentModificationType, setCurrentModificationType] = useState<ModificationType | null>(null);
 
   // Editor methods ref to interact with Milkdown editor
-  const editorMethodsRef = useRef<any>(null);
+  const editorMethodsRef = useRef<EditorMethods | null>(null);
 
   // AI Mode Manager
   const aiModeManager = useAIModeManager(
@@ -92,10 +131,46 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
     aiModeManager.updateSelection(currentSelection);
   }, [currentSelection, aiModeManager]);
 
+
+  // Load saved content when component mounts or conversation changes
+  React.useEffect(() => {
+    const loadSavedContent = async () => {
+      try {
+        const result = await contentRetrievalService.retrieveBuilderContent(currentConversation.id);
+        if (result.success && result.builderContent && result.builderContent.content.trim()) {
+          // Load the saved content instead of default
+          const savedContent = result.builderContent.content;
+
+          // Use the exposed setContent method to update the editor
+          if (editorMethodsRef.current?.setContent) {
+            editorMethodsRef.current.setContent(savedContent);
+          } else {
+            setDocumentContent(savedContent);
+          }
+
+        }
+      } catch (error) {
+        console.error('Failed to load saved Builder content:', error);
+        // Keep default content if loading fails
+      }
+    };
+
+    loadSavedContent();
+  }, [currentConversation.id]);
+
   // Handle content changes from editor
-  const handleContentChange = useCallback((content: string) => {
+  const handleContentChange = useCallback(async (content: string) => {
+    
     setDocumentContent(content);
-  }, []);
+    // Store content in retrieval service for other tools to access
+    try {
+      await contentRetrievalService.storeBuilderContent(currentConversation.id, content);
+      // Invalidate cache to ensure other tools get fresh content
+      contentRetrievalService.invalidateCache(currentConversation.id, 'builder');
+    } catch (error) {
+      console.error('Failed to save Builder content:', error);
+    }
+  }, [currentConversation.id]);
 
   // Handle selection changes from editor
   const handleSelectionChange = useCallback((selection: TextSelection | null) => {
@@ -111,11 +186,11 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
   const handlePromptSubmit = useCallback(async (prompt: string) => {
     try {
       const response = await aiModeManager.processPrompt(prompt, cursorPosition);
-      
+
       if (response.success && response.content) {
         setAIGeneratedContent(response.content);
         setAIMetadata(response.metadata);
-        
+
         // Set up insertion options for cursor position
         const insertionOptions: ContentInsertionOptions = {
           insertAt: cursorPosition,
@@ -130,7 +205,7 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
           toast.error("Failed to generate content");
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Error is already handled by the AI mode manager
       console.error("Error processing prompt:", error);
     }
@@ -140,16 +215,16 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
   const handleAcceptAIContent = useCallback(() => {
     if (editorMethodsRef.current && aiGeneratedContent && pendingInsertionOptions) {
       editorMethodsRef.current.insertContent(aiGeneratedContent, pendingInsertionOptions);
-      
+
       // Reset state
       setShowContentConfirmation(false);
       setAIGeneratedContent("");
       setPendingInsertionOptions(null);
-      setAIMetadata(null);
+      setAIMetadata(undefined);
       setOriginalTextForModification("");
       setCurrentModificationType(null);
       aiModeManager.resetMode();
-      
+
       toast.success("Content inserted successfully");
     }
   }, [aiGeneratedContent, pendingInsertionOptions, aiModeManager]);
@@ -159,7 +234,7 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
     setShowContentConfirmation(false);
     setAIGeneratedContent("");
     setPendingInsertionOptions(null);
-    setAIMetadata(null);
+    setAIMetadata(undefined);
     setOriginalTextForModification("");
     setCurrentModificationType(null);
     aiModeManager.resetMode();
@@ -180,11 +255,11 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
   const handleContinueMode = useCallback(async () => {
     try {
       const response = await aiModeManager.processContinue(cursorPosition, currentSelection?.text);
-      
+
       if (response.success && response.content) {
         setAIGeneratedContent(response.content);
         setAIMetadata(response.metadata);
-        
+
         // Set up insertion options for cursor position
         const insertionOptions: ContentInsertionOptions = {
           insertAt: cursorPosition,
@@ -198,7 +273,7 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
           toast.error("Failed to continue content");
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Error is already handled by the AI mode manager
       console.error("Error processing continue mode:", error);
     }
@@ -211,7 +286,7 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
       if (!aiModeManager.errorState.hasError) {
         toast.success("Modification generated successfully");
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Error is already handled by the AI mode manager
       console.error("Error processing modification:", error);
     }
@@ -228,7 +303,7 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
         },
         preserveFormatting: true
       };
-      
+
       editorMethodsRef.current.insertContent(aiModeManager.modificationPreviewContent, insertionOptions);
       aiModeManager.acceptModification();
       toast.success("Modification applied successfully");
@@ -247,7 +322,7 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
       if (!aiModeManager.errorState.hasError) {
         toast.success("Modification regenerated successfully");
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Error is already handled by the AI mode manager
       console.error("Error regenerating modification:", error);
     }
@@ -260,7 +335,7 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
       if (!aiModeManager.errorState.hasError) {
         toast.success("Custom modification generated successfully");
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Error is already handled by the AI mode manager
       console.error("Error processing custom prompt:", error);
     }
@@ -285,10 +360,34 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
     aiModeManager.resetMode();
   }, [aiModeManager]);
 
-  // Store editor methods when they become available
-  const handleEditorMethodsReady = useCallback((methods: any) => {
+
+  // Store editor methods when they become avail able
+
+  const hasRun = useRef(false);
+
+  const handleEditorMethodsReady = useCallback((methods: {
+    insertContent: (content: string, options: ContentInsertionOptions) => void;
+    setContent?: (newContent: string) => void;
+  }) => {
+
+
     editorMethodsRef.current = methods;
-  }, []);
+    if (!isOpen) {
+      hasRun.current = false;
+      return
+    };
+    if (hasRun.current) return;
+    if (editorMethodsRef?.current?.setContent) {
+      // Use setTimeout to delay the content setting
+      setTimeout(() => {
+        editorMethodsRef.current?.setContent?.(documentContent);
+      }, 500); // 2000 milliseconds = 2 seconds
+      hasRun.current = true;
+    }
+  }, [documentContent, isOpen]);
+
+
+
 
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
@@ -299,7 +398,7 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
             Build and manage your thesis components for "{currentConversation.title}"
           </SheetDescription>
         </SheetHeader>
-        
+
         <div className="flex flex-col h-[calc(100vh-150px)] gap-4">
           {/* AI Action Toolbar with Error Handling */}
           <AIActionToolbar
@@ -372,21 +471,21 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
           )}
 
           {/* Modification Preview (shown when previewing modifications) */}
-          {aiModeManager.showModificationPreview && 
-           aiModeManager.modificationPreviewContent && 
-           aiModeManager.originalTextForModification &&
-           aiModeManager.currentModificationType && (
-            <AIContentPreview
-              originalText={aiModeManager.originalTextForModification}
-              modifiedText={aiModeManager.modificationPreviewContent}
-              modificationType={aiModeManager.currentModificationType}
-              onAccept={handleAcceptModification}
-              onReject={handleRejectModification}
-              onRegenerate={handleRegenerateModification}
-              isVisible={aiModeManager.showModificationPreview}
-              isRegenerating={aiModeManager.isProcessing}
-            />
-          )}
+          {aiModeManager.showModificationPreview &&
+            aiModeManager.modificationPreviewContent &&
+            aiModeManager.originalTextForModification &&
+            aiModeManager.currentModificationType && (
+              <AIContentPreview
+                originalText={aiModeManager.originalTextForModification}
+                modifiedText={aiModeManager.modificationPreviewContent}
+                modificationType={aiModeManager.currentModificationType}
+                onAccept={handleAcceptModification}
+                onReject={handleRejectModification}
+                onRegenerate={handleRegenerateModification}
+                isVisible={aiModeManager.showModificationPreview}
+                isRegenerating={aiModeManager.isProcessing}
+              />
+            )}
 
           {/* AI Content Confirmation */}
           {showContentConfirmation && (
@@ -406,13 +505,11 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
           <ScrollArea className="flex-1 pr-4">
             <MilkdownProvider>
               <MilkdownEditor
-                initialContent={documentContent}
                 onContentChange={handleContentChange}
                 onSelectionChange={handleSelectionChange}
                 onCursorPositionChange={handleCursorPositionChange}
                 aiModeManager={aiModeManager}
-                onEditorMethodsReady={handleEditorMethodsReady}
-              />
+                onEditorMethodsReady={handleEditorMethodsReady} />
             </MilkdownProvider>
           </ScrollArea>
         </div>

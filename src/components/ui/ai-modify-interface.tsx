@@ -69,6 +69,27 @@ const modificationOptions: ModificationOption[] = [
   }
 ];
 
+/**
+ * Provides an interface for users to select a modification type for selected text and initiate AI-powered text modification.
+ * It displays various modification options with descriptions and examples, and handles the submission of the modification request.
+ * @param {AIModifyInterfaceProps} props - The properties for the AIModifyInterface component.
+ * @param {string} props.selectedText - The text currently selected by the user that will be modified.
+ * @param {(modificationType: ModificationType) => Promise<void>} props.onModify - Callback function to be called when a modification type is selected and confirmed. It receives the chosen `ModificationType`.
+ * @param {() => void} props.onCancel - Callback function to be called when the user cancels the modification process.
+ * @param {boolean} props.isProcessing - Indicates whether an AI modification operation is currently in progress.
+ * @param {string} [props.className] - Additional CSS classes to apply to the component container.
+ * @example
+ * ```tsx
+ * import { ModificationType } from "@/lib/ai-types";
+ *
+ * <AIModifyInterface
+ *   selectedText="This is some text to modify."
+ *   onModify={async (type) => console.log('Modifying:', type)}
+ *   onCancel={() => console.log('Cancelled')}
+ *   isProcessing={false}
+ * />
+ * ```
+ */
 export const AIModifyInterface: React.FC<AIModifyInterfaceProps> = ({
   selectedText,
   onModify,

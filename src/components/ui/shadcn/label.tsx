@@ -3,6 +3,21 @@ import * as LabelPrimitive from "@radix-ui/react-label"
 
 import { cn } from "@/lib/utils"
 
+/**
+ * A label component that associates with form controls.
+ * This component is built on top of Radix UI's Label primitive.
+ * 
+ * @param {React.ComponentProps<typeof LabelPrimitive.Root>} props - The props for the Label component
+ * @param {string} [props.className] - Additional CSS classes to apply to the label
+ * @param {React.ReactNode} props.children - The content to display inside the label
+ * @param {string} [props.htmlFor] - The id of the form element the label is associated with
+ * 
+ * @example
+ * ```tsx
+ * <Label htmlFor="email">Email</Label>
+ * <Input type="email" id="email" />
+ * ```
+ */
 function Label({
   className,
   ...props

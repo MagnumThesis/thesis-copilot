@@ -122,6 +122,14 @@ const DEFAULT_CONFIG: Required<AIModeManagerConfig> = {
  * AI Mode Manager Hook
  * Manages AI mode state, transitions, and processing for the Builder tool
  */
+/**
+ * @function useAIModeManager
+ * @description Manages AI mode state, transitions, and processing for the Builder tool.
+ * @param {string} conversationId - The ID of the current conversation.
+ * @param {string} documentContent - The current content of the document.
+ * @param {AIModeManagerConfig} [config={}] - Configuration options for the AI mode manager.
+ * @returns {UseAIModeManager} An object containing state, mode management functions, AI operations, error handling, and modify mode specific functions.
+ */
 export function useAIModeManager(
   conversationId: string,
   documentContent: string,
@@ -179,6 +187,12 @@ export function useAIModeManager(
   /**
    * Validates if a mode can be activated based on current state
    */
+  /**
+   * @function canActivateMode
+   * @description Validates if a mode can be activated based on current state.
+   * @param {AIMode} mode - The AI mode to check.
+   * @returns {boolean} True if the mode can be activated, false otherwise.
+   */
   const canActivateMode = useCallback(
     (mode: AIMode): boolean => {
       switch (mode) {
@@ -199,6 +213,11 @@ export function useAIModeManager(
 
   /**
    * Sets the current AI mode with validation
+   */
+  /**
+   * @function setMode
+   * @description Sets the current AI mode with validation.
+   * @param {AIMode} mode - The AI mode to set.
    */
   const setMode = useCallback(
     (mode: AIMode) => {
@@ -230,6 +249,10 @@ export function useAIModeManager(
   /**
    * Resets mode to NONE and clears errors
    */
+  /**
+   * @function resetMode
+   * @description Resets mode to NONE and clears errors.
+   */
   const resetMode = useCallback(() => {
     setMode(AIMode.NONE);
     clearError();
@@ -237,6 +260,10 @@ export function useAIModeManager(
 
   /**
    * Clear error state
+   */
+  /**
+   * @function clearError
+   * @description Clear error state.
    */
   const clearError = useCallback(() => {
     setErrorState({
@@ -250,6 +277,12 @@ export function useAIModeManager(
 
   /**
    * Handle error with recovery strategy
+   */
+  /**
+   * @function handleError
+   * @description Handle error with recovery strategy.
+   * @param {unknown} error - The error to handle.
+   * @param {ErrorContext} context - The context of the error.
    */
   const handleError = useCallback(
     (error: unknown, context: ErrorContext) => {
@@ -299,6 +332,10 @@ export function useAIModeManager(
   /**
    * Retry the last failed operation
    */
+  /**
+   * @function retryLastOperation
+   * @description Retry the last failed operation.
+   */
   const retryLastOperation = useCallback(async () => {
     if (!errorState.canRetry || !lastOperationRef.current) {
       console.warn('Cannot retry: no retryable operation available');
@@ -327,6 +364,10 @@ export function useAIModeManager(
   /**
    * Handle graceful degradation manually
    */
+  /**
+   * @function handleGracefulDegradation
+   * @description Handle graceful degradation manually.
+   */
   const handleGracefulDegradation = useCallback(() => {
     if (!errorState.error) return;
 
@@ -340,6 +381,10 @@ export function useAIModeManager(
   /**
    * Clear performance cache
    */
+  /**
+   * @function clearCache
+   * @description Clear performance cache.
+   */
   const clearCache = useCallback(() => {
     aiPerformanceOptimizer.clearCache();
     setPerformanceMetrics(aiPerformanceOptimizer.getMetrics());
@@ -347,6 +392,13 @@ export function useAIModeManager(
 
   /**
    * Get optimized content for AI processing
+   */
+  /**
+   * @function getOptimizedContent
+   * @description Get optimized content for AI processing.
+   * @param {string} content - The content to optimize.
+   * @param {AIMode} mode - The AI mode.
+   * @returns {string} The optimized content.
    */
   const getOptimizedContent = useCallback((content: string, mode: AIMode): string => {
     if (!mergedConfig.enableContextOptimization) {
@@ -358,12 +410,23 @@ export function useAIModeManager(
   /**
    * Update performance metrics
    */
+  /**
+   * @function updatePerformanceMetrics
+   * @description Update performance metrics.
+   */
   const updatePerformanceMetrics = useCallback(() => {
     setPerformanceMetrics(aiPerformanceOptimizer.getMetrics());
   }, []);
 
   /**
    * Create optimistic update for immediate UI feedback
+   */
+  /**
+   * @function createOptimisticUpdate
+   * @description Create optimistic update for immediate UI feedback.
+   * @param {AIMode} mode - The AI mode.
+   * @param {Record<string, any>} parameters - The parameters for the update.
+   * @returns {OptimisticUpdate | null} The optimistic update or null.
    */
   const createOptimisticUpdate = useCallback((mode: AIMode, parameters: Record<string, any>) => {
     if (!mergedConfig.enableOptimisticUpdates) {
@@ -374,6 +437,12 @@ export function useAIModeManager(
 
   /**
    * Validates text selection for modify mode
+   */
+  /**
+   * @function validateTextSelection
+   * @description Validates text selection for modify mode.
+   * @param {TextSelection | null} selection - The text selection.
+   * @returns {boolean} True if the selection is valid, false otherwise.
    */
   const validateTextSelection = useCallback(
     (selection: TextSelection | null): boolean => {
@@ -392,6 +461,11 @@ export function useAIModeManager(
   /**
    * Updates text selection state
    */
+  /**
+   * @function updateSelection
+   * @description Updates text selection state.
+   * @param {TextSelection | null} selection - The text selection.
+   */
   const updateSelection = useCallback(
     (selection: TextSelection | null) => {
       setSelectedText(selection);
@@ -408,6 +482,17 @@ export function useAIModeManager(
 
   /**
    * Generic AI request handler with comprehensive error handling and retry logic
+   */
+    /**
+   * @function handleAIRequest
+   * @description Generic AI request handler with comprehensive error handling and retry logic.
+   * @template T
+   * @param {() => Promise<T>} requestFn - The function to execute the AI request.
+   * @param {AIMode} mode - The AI mode.
+   * @param {string} statusMessage - The status message to display during processing.
+   * @param {'prompt' | 'continue' | 'modify'} operationType - The type of AI operation.
+   * @param {any} operationParams - The parameters for the AI operation.
+   * @returns {Promise<T>} The AI response.
    */
   const handleAIRequest = useCallback(
     async <T extends AIResponse>(
@@ -544,6 +629,13 @@ export function useAIModeManager(
   /**
    * Processes a prompt request with comprehensive error handling and performance optimizations
    */
+  /**
+   * @function processPrompt
+   * @description Processes a prompt request with comprehensive error handling and performance optimizations.
+   * @param {string} prompt - The prompt text.
+   * @param {number} cursorPosition - The current cursor position.
+   * @returns {Promise<AIResponse>} The AI response.
+   */
   const processPrompt = useCallback(
     async (prompt: string, cursorPosition: number): Promise<AIResponse> => {
       if (!prompt.trim()) {
@@ -632,6 +724,13 @@ export function useAIModeManager(
   /**
    * Processes a continue request with comprehensive error handling and performance optimizations
    */
+  const /**
+   * @function processContinue
+   * @description Processes a continue request with comprehensive error handling and performance optimizations.
+   * @param {number} cursorPosition - The current cursor position.
+   * @param {string} [selectedText] - The selected text, if any.
+   * @returns {Promise<AIResponse>} The AI response.
+   */
   const processContinue = useCallback(
     async (
       cursorPosition: number,
@@ -714,6 +813,14 @@ export function useAIModeManager(
 
   /**
    * Processes a modify request with comprehensive error handling and performance optimizations
+   */
+  const   /**
+   * @function processModify
+   * @description Processes a modify request with comprehensive error handling and performance optimizations.
+   * @param {string} selectedText - The selected text to modify.
+   * @param {ModificationType} modificationType - The type of modification to perform.
+   * @param {string} [customPromptText] - Optional custom prompt text for `ModificationType.PROMPT`.
+   * @returns {Promise<AIResponse>} The AI response.
    */
   const processModify = useCallback(
     async (
@@ -811,6 +918,10 @@ export function useAIModeManager(
   /**
    * Starts modify mode workflow
    */
+  /**
+   * @function startModifyMode
+   * @description Starts modify mode workflow.
+   */
   const startModifyMode = useCallback(() => {
     if (!validateTextSelection(selectedText)) {
       console.warn("Cannot start modify mode: invalid text selection");
@@ -829,6 +940,11 @@ export function useAIModeManager(
 
   /**
    * Selects modification type and processes the modification
+   */
+  /**
+   * @function selectModificationType
+   * @description Selects modification type and processes the modification.
+   * @param {ModificationType} type - The type of modification to select.
    */
   const selectModificationType = useCallback(
     async (type: ModificationType) => {
@@ -876,6 +992,11 @@ export function useAIModeManager(
 
   /**
    * Submits custom prompt and processes the modification
+   */
+  /**
+   * @function submitCustomPrompt
+   * @description Submits custom prompt and processes the modification.
+   * @param {string} prompt - The custom prompt text.
    */
   const submitCustomPrompt = useCallback(
     async (prompt: string) => {
@@ -929,6 +1050,10 @@ export function useAIModeManager(
   /**
    * Returns to modification type selection
    */
+  /**
+   * @function backToModificationTypes
+   * @description Returns to modification type selection.
+   */
   const backToModificationTypes = useCallback(() => {
     setShowCustomPromptInput(false);
     setShowModificationTypeSelector(true);
@@ -938,6 +1063,10 @@ export function useAIModeManager(
 
   /**
    * Accepts the current modification and applies it to the document
+   */
+  /**
+   * @function acceptModification
+   * @description Accepts the current modification and applies it to the document.
    */
   const acceptModification = useCallback(() => {
     if (!modificationPreviewContent || !selectedText) {
@@ -964,6 +1093,10 @@ export function useAIModeManager(
   /**
    * Rejects the current modification and returns to type selection
    */
+  /**
+   * @function rejectModification
+   * @description Rejects the current modification and returns to type selection.
+   */
   const rejectModification = useCallback(() => {
     setShowModificationPreview(false);
     setModificationPreviewContent(null);
@@ -987,6 +1120,10 @@ export function useAIModeManager(
 
   /**
    * Regenerates the current modification with the same type
+   */
+  /**
+   * @function regenerateModification
+   * @description Regenerates the current modification with the same type.
    */
   const regenerateModification = useCallback(async () => {
     if (

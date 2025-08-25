@@ -57,6 +57,10 @@ export interface OptimisticUpdate {
  * AI Performance Optimizer class
  * Handles caching, debouncing, and performance optimizations for AI requests
  */
+/**
+ * @class AIPerformanceOptimizer
+ * @description Handles caching, debouncing, and performance optimizations for AI requests.
+ */
 export class AIPerformanceOptimizer {
   private cache = new Map<string, CacheEntry>();
   private debounceTimers = new Map<string, NodeJS.Timeout>();
@@ -217,6 +221,14 @@ export class AIPerformanceOptimizer {
   /**
    * Optimize document content for AI processing
    */
+  /**
+   * @method optimizeDocumentContent
+   * @description Optimize document content for AI processing.
+   * @param {string} content - The content to optimize.
+   * @param {AIMode} mode - The AI mode.
+   * @param {number} [maxLength=8000] - The maximum length of the content.
+   * @returns {string} The optimized content.
+   */
   public optimizeDocumentContent(content: string, mode: AIMode, maxLength: number = 8000): string {
     if (content.length <= maxLength) {
       return content;
@@ -315,6 +327,13 @@ export class AIPerformanceOptimizer {
   /**
    * Create optimistic update for immediate UI feedback
    */
+  /**
+   * @method createOptimisticUpdate
+   * @description Create optimistic update for immediate UI feedback.
+   * @param {AIMode} mode - The AI mode.
+   * @param {Record<string, any>} parameters - The request parameters.
+   * @returns {OptimisticUpdate} The optimistic update.
+   */
   public createOptimisticUpdate(
     mode: AIMode,
     parameters: Record<string, any>
@@ -398,6 +417,15 @@ export class AIPerformanceOptimizer {
 
   /**
    * Debounced AI request execution
+   */
+  /**
+   * @method debouncedRequest
+   * @description Debounced AI request execution.
+   * @template T
+   * @param {string} requestKey - The key for the request.
+   * @param {() => Promise<T>} requestFn - The function to execute.
+   * @param {boolean} [forceImmediate=false] - Whether to force immediate execution.
+   * @returns {Promise<T>} The response.
    */
   public async debouncedRequest<T extends AIResponse>(
     requestKey: string,
@@ -488,6 +516,21 @@ export class AIPerformanceOptimizer {
   /**
    * Optimized AI request with all performance features
    */
+  /**
+   * @method optimizedRequest
+   * @description Optimized AI request with all performance features.
+   * @template T
+   * @param {AIMode} mode - The AI mode.
+   * @param {string} documentContent - The content of the document.
+   * @param {Record<string, any>} parameters - The request parameters.
+   * @param {() => Promise<T>} requestFn - The function to execute.
+   * @param {object} [options] - The options for the request.
+   * @param {boolean} [options.enableCaching=true] - Whether to enable caching.
+   * @param {boolean} [options.enableDebouncing=true] - Whether to enable debouncing.
+   * @param {boolean} [options.enableOptimization=true] - Whether to enable content optimization.
+   * @param {boolean} [options.forceImmediate=false] - Whether to force immediate execution.
+   * @returns {Promise<T>} The response.
+   */
   public async optimizedRequest<T extends AIResponse>(
     mode: AIMode,
     documentContent: string,
@@ -538,12 +581,21 @@ export class AIPerformanceOptimizer {
   /**
    * Get current performance metrics
    */
+  /**
+   * @method getMetrics
+   * @description Get current performance metrics.
+   * @returns {PerformanceMetrics} The performance metrics.
+   */
   public getMetrics(): PerformanceMetrics {
     return { ...this.metrics };
   }
 
   /**
    * Reset performance metrics
+   */
+  /**
+   * @method resetMetrics
+   * @description Reset performance metrics.
    */
   public resetMetrics(): void {
     this.metrics = {
@@ -559,12 +611,20 @@ export class AIPerformanceOptimizer {
   /**
    * Clear all caches
    */
+  /**
+   * @method clearCache
+   * @description Clear all caches.
+   */
   public clearCache(): void {
     this.cache.clear();
   }
 
   /**
    * Cancel all pending debounced requests
+   */
+  /**
+   * @method cancelPendingRequests
+   * @description Cancel all pending debounced requests.
    */
   public cancelPendingRequests(): void {
     for (const timer of this.debounceTimers.values()) {
@@ -576,6 +636,11 @@ export class AIPerformanceOptimizer {
 
   /**
    * Get cache statistics
+   */
+  /**
+   * @method getCacheStats
+   * @description Get cache statistics.
+   * @returns {{size: number, maxSize: number, hitRate: number, oldestEntry: number, newestEntry: number}} The cache statistics.
    */
   public getCacheStats(): {
     size: number;

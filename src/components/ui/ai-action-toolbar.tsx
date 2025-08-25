@@ -74,6 +74,33 @@ const modeConfigs: ModeConfig[] = [
   },
 ];
 
+/**
+ * A toolbar component for managing AI modes and displaying AI processing status and errors.
+ * It provides buttons to switch between different AI modes (Prompt, Continue, Modify) and visual feedback for AI operations.
+ * @param {AIActionToolbarProps} props - The properties for the AIActionToolbar component.
+ * @param {AIMode} props.currentMode - The currently active AI mode.
+ * @param {(mode: AIMode) => void} props.onModeChange - Callback function to be called when the AI mode changes.
+ * @param {boolean} props.hasSelectedText - Indicates whether text is currently selected in the editor.
+ * @param {boolean} props.isAIProcessing - Indicates whether an AI operation is currently in progress.
+ * @param {AIError | null} [props.error] - An optional AIError object if an error occurred.
+ * @param {boolean} [props.canRetry=false] - Indicates whether the last failed AI operation can be retried.
+ * @param {number} [props.retryCount=0] - The number of times the last operation has been retried.
+ * @param {() => void} [props.onRetry] - Callback function to be called when the retry button is clicked.
+ * @param {() => void} [props.onClearError] - Callback function to be called when the error notification is dismissed.
+ * @param {() => void} [props.onGracefulDegradation] - Callback function to be called when graceful degradation is triggered.
+ * @param {string} [props.className] - Additional CSS classes to apply to the toolbar container.
+ * @example
+ * ```tsx
+ * import { AIMode } from "@/lib/ai-infrastructure";
+ *
+ * <AIActionToolbar
+ *   currentMode={AIMode.NONE}
+ *   onModeChange={(mode) => console.log(mode)}
+ *   hasSelectedText={false}
+ *   isAIProcessing={false}
+ * />
+ * ```
+ */
 export const AIActionToolbar: React.FC<AIActionToolbarProps> = ({
   currentMode,
   onModeChange,

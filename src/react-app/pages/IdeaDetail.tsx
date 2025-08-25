@@ -23,7 +23,7 @@ export const IdeaDetail: React.FC<IdeaDetailProps> = ({ idea, onUpdate, onDelete
     
     try {
       setIsUpdating(true);
-      await onUpdate(idea.id, { title: editedTitle, description: editedDescription });
+      await onUpdate(Number(idea.id), { title: editedTitle, description: editedDescription });
       setIsEditing(false);
     } catch (error) {
       console.error("Failed to update idea:", error);
@@ -37,7 +37,7 @@ export const IdeaDetail: React.FC<IdeaDetailProps> = ({ idea, onUpdate, onDelete
     if (!onDelete) return;
     
     try {
-      await onDelete(idea.id);
+      await onDelete(Number(idea.id));
       setIsDeleting(false);
     } catch (error) {
       console.error("Failed to delete idea:", error);

@@ -3,7 +3,8 @@ import { useEffect, useState, useCallback, useRef, type FC } from "react";
 import { Crepe } from "@milkdown/crepe";
 import { Milkdown, useEditor } from "@milkdown/react";
 import { Editor } from "@milkdown/kit/core";
-import { replaceAll } from "@milkdown/kit/utils";
+import { getMarkdown, replaceAll } from "@milkdown/kit/utils";
+import { listener, listenerCtx } from "@milkdown/plugin-listener"; // 1. Import listener plugin
 
 import "@milkdown/crepe/theme/common/style.css";
 import "@milkdown/crepe/theme/frame.css";
@@ -20,7 +21,6 @@ import type { UseAIModeManager } from "../../hooks/use-ai-mode-manager";
 
 // Enhanced Milkdown Editor Props
 export interface MilkdownEditorProps {
-  initialContent?: string;
   onContentChange?: (content: string) => void;
   onSelectionChange?: (selection: TextSelection | null) => void;
   onCursorPositionChange?: (position: number) => void;
@@ -37,6 +37,15 @@ interface AIContentPreviewProps {
   isVisible: boolean;
 }
 
+/**
+ * @component AIContentPreview
+ * @description A component to display a preview of AI-generated content and allow the user to accept or reject it.
+ * @param {AIContentPreviewProps} props - The properties for the AIContentPreview component.
+ * @param {string} props.content - The AI-generated content to display.
+ * @param {() => void} props.onAccept - Callback function to accept the AI content.
+ * @param {() => void} props.onReject - Callback function to reject the AI content.
+ * @param {boolean} props.isVisible - Controls the visibility of the preview component.
+ */
 const AIContentPreview: FC<AIContentPreviewProps> = ({
   content,
   onAccept,
@@ -65,8 +74,19 @@ const AIContentPreview: FC<AIContentPreviewProps> = ({
   );
 };
 
+/**
+ * @component MilkdownEditor
+ * @description A React component that integrates the Milkdown markdown editor.
+ * It provides functionalities for content editing, selection tracking, and AI integration.
+ * @param {MilkdownEditorProps} props - The properties for the MilkdownEditor component.
+ * @param {(content: string) => void} [props.onContentChange] - Callback function triggered when the editor's content changes.
+ * @param {(selection: TextSelection | null) => void} [props.onSelectionChange] - Callback function triggered when the text selection changes.
+ * @param {(position: number) => void} [props.onCursorPositionChange] - Callback function triggered when the cursor position changes.
+ * @param {UseAIModeManager} [props.aiModeManager] - An optional AI mode manager object to integrate AI functionalities with the editor.
+ * @param {(methods: any) => void} [props.onEditorMethodsReady] - Callback function triggered when editor methods are ready for external use.
+ * @param {string} [props.className=""] - Additional CSS classes to apply to the editor container.
+ */
 export const MilkdownEditor: FC<MilkdownEditorProps> = ({
-  initialContent = "# Hello",
   onContentChange,
   onSelectionChange,
   onCursorPositionChange,
@@ -74,7 +94,6 @@ export const MilkdownEditor: FC<MilkdownEditorProps> = ({
   onEditorMethodsReady,
   className = "",
 }) => {
-  const [content, setContent] = useState(initialContent);
   const [currentSelection, setCurrentSelection] =
     useState<TextSelection | null>(null);
   const [cursorPosition, setCursorPosition] = useState(0);
@@ -86,27 +105,62 @@ export const MilkdownEditor: FC<MilkdownEditorProps> = ({
   const editorRef = useRef<Editor | null>(null);
   const selectionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+
+
+
+  const handleContentChange = useCallback(
+    (newContent: string) => {
+      // Only notify parent if content actually changed
+      if (newContent) {
+        onContentChange?.(newContent);
+      }
+    },
+    [onContentChange]
+  );
+
   const { get } = useEditor((root) => {
     const crepe = new Crepe({
       root,
-      defaultValue: content,
+      defaultValue: "Start writing here...",
+    }); // 2. Use the listener plugin
+
+    crepe.editor.use(listener);
+
+
+    crepe.editor.config((ctx) => {
+      // 3. Get the listener manager from the context
+      const listenerManager = ctx.get(listenerCtx);
+      // 4. Subscribe to the markdownUpdated event
+      listenerManager.markdownUpdated((ctx, newContent) => {
+        // You can now access the updated markdown content
+        handleContentChange(newContent);
+
+      });
     });
 
     // Store editor reference for direct manipulation
     editorRef.current = crepe.editor;
 
     return crepe;
-  }, []);
+  }, []); // Add handleContentChange to the dependency array
 
-  // Handle content changes
-  const handleContentChange = useCallback(
+  const setContent = useCallback(
     (newContent: string) => {
-      setContent(newContent);
-      onContentChange?.(newContent);
+      const editor = get();
+      try {
+        if (editor) {
+          console.log("Setting content...")
+          editor.action(replaceAll(newContent));
+        }
+      } catch (e) {
+        console.log("editor not set")
+      }
+      
     },
-    [onContentChange]
+    [get]
   );
 
+  // ... (rest of your code remains the same)
   // Track text selection changes
   const handleSelectionChange = useCallback(() => {
     // Clear existing timeout
@@ -146,7 +200,7 @@ export const MilkdownEditor: FC<MilkdownEditorProps> = ({
         }
 
         // Update cursor position
-        const newCursorPosition = range.startOffset;
+        const newCursorPosition = range.startOffset || 0;
         setCursorPosition(newCursorPosition);
         onCursorPositionChange?.(newCursorPosition);
       } catch (error) {
@@ -177,18 +231,20 @@ export const MilkdownEditor: FC<MilkdownEditorProps> = ({
   }, [get, handleSelectionChange]);
 
   // Update editor content when content prop changes
-  useEffect(() => {
-    const editor = get();
-    if (editor && content !== initialContent) {
-      editor.action(replaceAll(content));
-    }
-  }, [content, get, initialContent]);
+  // useEffect(() => {
+  //   const editor = get();
+  //   if (editor && content !== lastContentRef.current) {
+  //     lastContentRef.current = content;
+  //     editor.action(replaceAll(content));
+  //   }
+  // }, [content, get]);
 
   // Content insertion method for AI-generated content
   const insertContent = useCallback(
     (newContent: string, options: ContentInsertionOptions) => {
       const editor = get();
       if (!editor) return;
+      const content = editor.action(getMarkdown());
 
       try {
         if (options.replaceRange) {
@@ -204,8 +260,9 @@ export const MilkdownEditor: FC<MilkdownEditorProps> = ({
         } else {
           // Insert at cursor position
           const currentContent = content;
-          const beforeCursor = currentContent.substring(0, options.insertAt);
-          const afterCursor = currentContent.substring(options.insertAt);
+          const insertAt = options.insertAt || 0;
+          const beforeCursor = currentContent.substring(0, insertAt);
+          const afterCursor = currentContent.substring(insertAt);
           const updatedContent = beforeCursor + newContent + afterCursor;
 
           editor.action(replaceAll(updatedContent));
@@ -215,7 +272,7 @@ export const MilkdownEditor: FC<MilkdownEditorProps> = ({
         console.error("Error inserting content:", error);
       }
     },
-    [get, content, handleContentChange]
+    [get, handleContentChange]
   );
 
   // Replace selected text method
@@ -239,8 +296,11 @@ export const MilkdownEditor: FC<MilkdownEditorProps> = ({
 
   // Get current document content
   const getCurrentContent = useCallback(() => {
+    const editor = get();
+    if (!editor) return;
+    const content = editor.action(getMarkdown());
     return content;
-  }, [content]);
+  }, [get]);
 
   // Get current cursor position
   const getCurrentCursorPosition = useCallback(() => {
@@ -278,27 +338,30 @@ export const MilkdownEditor: FC<MilkdownEditorProps> = ({
   }, []);
 
   // Expose methods for AI integration
-  const editorMethods = {
-    insertContent,
-    replaceSelectedText,
-    getCurrentContent,
-    getCurrentCursorPosition,
-    getCurrentSelection,
-    showAIContentPreview,
-  };
+
 
   // Attach methods to AI mode manager if provided
   useEffect(() => {
+    const editorMethods = {
+      insertContent,
+      replaceSelectedText,
+      getCurrentContent,
+      getCurrentCursorPosition,
+      getCurrentSelection,
+      showAIContentPreview,
+      setContent,
+    };
+
     if (aiModeManager && typeof aiModeManager === "object") {
       // Extend aiModeManager with editor methods
       Object.assign(aiModeManager, { editorMethods });
     }
-    
+
     // Notify parent component that editor methods are ready
     if (onEditorMethodsReady) {
       onEditorMethodsReady(editorMethods);
     }
-  }, [aiModeManager, editorMethods, onEditorMethodsReady]);
+  }, [aiModeManager, getCurrentContent, getCurrentCursorPosition, getCurrentSelection, insertContent, onEditorMethodsReady, replaceSelectedText, setContent, showAIContentPreview]);
 
   return (
     <div className={`milkdown-editor-container ${className}`}>
