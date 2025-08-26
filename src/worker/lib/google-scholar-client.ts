@@ -1,4 +1,5 @@
 import { ScholarSearchResult } from '../../lib/ai-types';
+import { aiSearcherPerformanceOptimizer } from '../../lib/ai-searcher-performance-optimizer';
 
 /**
  * Google Scholar Search Client
@@ -109,6 +110,31 @@ private blockUntil = 0;
       throw this.createSearchError('parsing', 'Search query cannot be empty', false);
     }
 
+    // Check if this search is already in progress to avoid duplicate API calls
+    const ongoingSearch = aiSearcherPerformanceOptimizer.getOngoingSearch(query, options as any);
+    if (ongoingSearch) {
+      this.logError(`Joining ongoing search for query: ${query}`);
+      return ongoingSearch;
+    }
+
+    // Check cache first
+    const cachedResults = aiSearcherPerformanceOptimizer.getCachedSearchResults(query, options as any);
+    if (cachedResults) {
+      this.logError(`Returning cached results for query: ${query}`);
+      return cachedResults;
+    }
+
+    // Register this search as ongoing to prevent duplicate API calls
+    const searchPromise = this.performSearch(query, options);
+    aiSearcherPerformanceOptimizer.registerOngoingSearch(query, options as any, searchPromise);
+    
+    return searchPromise;
+  }
+
+  /**
+   * Perform the actual search operation
+   */
+  private async performSearch(query: string, options: SearchOptions = {}): Promise<ScholarSearchResult[]> {
     // Check service availability
     await this.checkServiceAvailability();
 
@@ -118,6 +144,7 @@ private blockUntil = 0;
     const searchUrl = this.buildSearchUrl(query, options);
     let lastError: SearchError | null = null;
     let retryCount = 0;
+    const startTime = Date.now();
 
     while (retryCount < this.rateLimitConfig.maxRetries) {
       try {
@@ -133,6 +160,9 @@ private blockUntil = 0;
         
         // Record successful request and reset failure counters
         this.recordSuccessfulRequest();
+
+        const processingTime = Date.now() - startTime;
+        aiSearcherPerformanceOptimizer.cacheSearchResults(query, options as any, results, processingTime);
         
         return this.validateResults(results);
 

@@ -109,6 +109,9 @@ export class AISearcherPerformanceOptimizer {
   private contentExtractionCache = new Map<string, ContentExtractionCacheEntry>();
   private queryGenerationCache = new Map<string, QueryGenerationCacheEntry>();
   
+  // Track ongoing searches to prevent duplicate API calls
+  private ongoingSearches = new Map<string, Promise<ScholarSearchResult[]>>();
+  
   private backgroundTaskQueue: BackgroundTask[] = [];
   private isProcessingBackground = false;
   private backgroundWorkerInterval: NodeJS.Timeout | null = null;
@@ -181,6 +184,66 @@ export class AISearcherPerformanceOptimizer {
     const filtersHash = this.createContentHash(filters);
     const queryHash = this.createContentHash(query.toLowerCase().trim());
     return `search:${queryHash}:${filtersHash}`;
+  }
+
+  /**
+   * Generate ongoing search key to track duplicate requests
+   */
+  private getOngoingSearchKey(query: string, filters: SearchFilters): string {
+    const filtersHash = this.createContentHash(filters);
+    const normalizedQuery = this.normalizeSearchQuery(query);
+    const queryHash = this.createContentHash(normalizedQuery);
+    return `ongoing:${queryHash}:${filtersHash}`;
+  }
+
+  /**
+   * Normalize search query to improve cache hit rate for similar queries
+   */
+  private normalizeSearchQuery(query: string): string {
+    // Remove extra whitespace and normalize
+    let normalized = query.toLowerCase().trim();
+    
+    // Remove extra spaces between words
+    normalized = normalized.replace(/\s+/g, ' ');
+    
+    // Remove common academic search modifiers that don't change results significantly
+    normalized = normalized.replace(/(and|or|not)\s+(and|or|not)\s+/gi, '$1 ');
+    
+    // Standardize quotation marks
+    normalized = normalized.replace(/["\u201C\u201D]/g, '"');
+    
+    return normalized;
+  }
+
+  /**
+   * Generate fuzzy cache key for similar queries to avoid duplicate API calls
+   */
+  private getFuzzySearchResultsCacheKey(query: string, filters: SearchFilters): string {
+    const normalizedQuery = this.normalizeSearchQuery(query);
+    const filtersHash = this.createContentHash(filters);
+    const queryHash = this.createContentHash(normalizedQuery);
+    return `fuzzy_search:${queryHash}:${filtersHash}`;
+  }
+
+  /**
+   * Check if a search is already in progress
+   */
+  public getOngoingSearch(query: string, filters: SearchFilters): Promise<ScholarSearchResult[]> | null {
+    const searchKey = this.getOngoingSearchKey(query, filters);
+    return this.ongoingSearches.get(searchKey) || null;
+  }
+
+  /**
+   * Register an ongoing search to prevent duplicate API calls
+   */
+  public registerOngoingSearch(query: string, filters: SearchFilters, searchPromise: Promise<ScholarSearchResult[]>): void {
+    const searchKey = this.getOngoingSearchKey(query, filters);
+    this.ongoingSearches.set(searchKey, searchPromise);
+    
+    // Clean up the ongoing search tracking when the promise resolves
+    searchPromise.finally(() => {
+      this.ongoingSearches.delete(searchKey);
+    });
   }
 
   /**
@@ -258,11 +321,28 @@ export class AISearcherPerformanceOptimizer {
    * @returns {ScholarSearchResult[] | null} The cached search results or null.
    */
   public getCachedSearchResults(query: string, filters: SearchFilters): ScholarSearchResult[] | null {
-    const cacheKey = this.getSearchResultsCacheKey(query, filters);
-    const entry = this.searchResultsCache.get(cacheKey);
+    // Try exact match first
+    const exactCacheKey = this.getSearchResultsCacheKey(query, filters);
+    let entry = this.searchResultsCache.get(exactCacheKey);
+    
+    // If no exact match, try fuzzy match to avoid duplicate API calls
+    if (!entry) {
+      const fuzzyCacheKey = this.getFuzzySearchResultsCacheKey(query, filters);
+      entry = this.searchResultsCache.get(fuzzyCacheKey);
+      
+      // Track fuzzy cache hits separately for metrics
+      if (entry) {
+        this.metrics.cachedSearches++;
+        this.updateCacheHitRate();
+      }
+    }
     
     if (!entry || !this.isCacheEntryValid(entry, this.cacheConfig.searchResults)) {
       if (entry) {
+        // Remove invalid entry
+        const cacheKey = entry.contentHash === this.createContentHash({ query, filters }) 
+          ? this.getSearchResultsCacheKey(query, filters)
+          : this.getFuzzySearchResultsCacheKey(query, filters);
         this.searchResultsCache.delete(cacheKey);
       }
       return null;
@@ -295,7 +375,7 @@ export class AISearcherPerformanceOptimizer {
     results: ScholarSearchResult[],
     processingTimeMs: number
   ): void {
-    const cacheKey = this.getSearchResultsCacheKey(query, filters);
+    const exactCacheKey = this.getSearchResultsCacheKey(query, filters);
     const contentHash = this.createContentHash({ query, filters });
 
     const entry: SearchResultCacheEntry = {
@@ -309,7 +389,20 @@ export class AISearcherPerformanceOptimizer {
       processingTimeMs
     };
 
-    this.searchResultsCache.set(cacheKey, entry);
+    // Store exact match
+    this.searchResultsCache.set(exactCacheKey, entry);
+    
+    // Also store fuzzy match to avoid duplicate API calls for similar queries
+    const fuzzyCacheKey = this.getFuzzySearchResultsCacheKey(query, filters);
+    if (fuzzyCacheKey !== exactCacheKey) {
+      // Create a separate entry for the fuzzy cache to track access separately
+      const fuzzyEntry: SearchResultCacheEntry = {
+        ...entry,
+        contentHash: this.createContentHash({ query: this.normalizeSearchQuery(query), filters })
+      };
+      this.searchResultsCache.set(fuzzyCacheKey, fuzzyEntry);
+    }
+
     this.cleanCache(this.searchResultsCache, this.cacheConfig.searchResults);
     
     // Update metrics for new search
@@ -905,6 +998,7 @@ export class AISearcherPerformanceOptimizer {
     this.clearAllCaches();
     this.backgroundTaskQueue.length = 0;
     this.progressiveLoadingStates.clear();
+    this.ongoingSearches.clear();
   }
 }
 

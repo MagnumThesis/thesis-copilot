@@ -1,5 +1,6 @@
 import { ExtractedContent, ContentExtractionRequest, IdeaDefinition } from '../../lib/ai-types';
 import { analyzeText, TextAnalysis } from '../../utils/text-analysis';
+import { aiSearcherPerformanceOptimizer } from '../../lib/ai-searcher-performance-optimizer';
 
 /**
  * Content Extraction Engine
@@ -10,7 +11,7 @@ import { analyzeText, TextAnalysis } from '../../utils/text-analysis';
 interface BuilderDocument {
   id: string;
   title?: string;
-  sections?: Array<{
+  sections?: Array<{ 
     title?: string;
     content?: string;
   }>;
@@ -20,8 +21,6 @@ interface BuilderDocument {
 export class ContentExtractionEngine {
   private ideaApi: IdeaApi;
   private builderApi: BuilderApi;
-  private extractionCache = new Map<string, { content: ExtractedContent; timestamp: number }>();
-  private readonly cacheTimeout = 30 * 60 * 1000; // 30 minutes
 
   constructor(baseUrl?: string) {
     // Initialize API clients with optional base URL for testing
@@ -30,42 +29,17 @@ export class ContentExtractionEngine {
   }
 
   /**
-   * Clean up expired cache entries
-   */
-  private cleanupCache(): void {
-    const now = Date.now();
-    const keysToDelete: string[] = [];
-
-    for (const [key, entry] of this.extractionCache.entries()) {
-      if (now - entry.timestamp > this.cacheTimeout) {
-        keysToDelete.push(key);
-      }
-    }
-
-    keysToDelete.forEach(key => this.extractionCache.delete(key));
-
-    // Also limit cache size
-    if (this.extractionCache.size > 100) {
-      const entries = Array.from(this.extractionCache.entries());
-      entries.sort(([, a], [, b]) => a.timestamp - b.timestamp);
-      
-      const entriesToRemove = entries.slice(0, entries.length - 100);
-      entriesToRemove.forEach(([key]) => this.extractionCache.delete(key));
-    }
-  }
-
-  /**
    * Extract content from specified source (with caching)
    */
   async extractContent(request: ContentExtractionRequest): Promise<ExtractedContent> {
     const startTime = Date.now();
-    const cacheKey = `${request.source}:${request.id}:${request.conversationId}`;
+    const { source, id, conversationId } = request;
 
     // Check cache first
-    const cached = this.extractionCache.get(cacheKey);
-    if (cached && (Date.now() - cached.timestamp) < this.cacheTimeout) {
-      console.log(`Using cached content extraction for ${request.source}:${request.id}`);
-      return cached.content;
+    const cached = aiSearcherPerformanceOptimizer.getCachedContentExtraction(conversationId, source, id);
+    if (cached) {
+      console.log(`Using cached content extraction for ${source}:${id}`);
+      return cached;
     }
 
     try {
@@ -73,46 +47,46 @@ export class ContentExtractionEngine {
       let title: string;
       let sourceMetadata: any = {};
 
-      switch (request.source) {
+      switch (source) {
         case 'ideas': {
-          if (!request.id) {
+          if (!id) {
             throw new Error('ID is required for ideas source');
           }
-          const ideaData = await this.extractFromIdeas(request.id);
+          const ideaData = await this.extractFromIdeas(id);
           content = ideaData.content;
           title = ideaData.title;
-          sourceMetadata = { ideaId: request.id };
+          sourceMetadata = { ideaId: id };
           break;
         }
 
         case 'builder': {
           // For builder, use conversationId instead of id
-          if (!request.conversationId) {
+          if (!conversationId) {
             throw new Error('ConversationId is required for builder source');
           }
-          const builderData = await this.extractFromBuilder(request.conversationId);
+          const builderData = await this.extractFromBuilder(conversationId);
           content = builderData.content;
           title = builderData.title;
           sourceMetadata = { 
-            conversationId: request.conversationId
+            conversationId: conversationId
           };
           break;
         }
 
         default:
-          throw new Error(`Unsupported source: ${request.source}`);
+          throw new Error(`Unsupported source: ${source}`);
       }
 
       // Validate content - if empty, use fallback
       if (!content || content.trim().length === 0) {
-        console.warn(`No content found in ${request.source} source, using fallback`);
+        console.warn(`No content found in ${source} source, using fallback`);
         // Use fallback content based on source type
-        if (request.source === 'ideas') {
-          content = `Research Topic ${request.id}. This is a placeholder for content that could not be extracted from the Ideas source.`;
-          title = `Research Topic ${request.id}`;
+        if (source === 'ideas') {
+          content = `Research Topic ${id}. This is a placeholder for content that could not be extracted from the Ideas source.`;
+          title = `Research Topic ${id}`;
         } else {
-          content = `Document content for ${request.conversationId}. This is a placeholder for content that could not be extracted from the Builder source.`;
-          title = `Document ${request.conversationId}`;
+          content = `Document content for ${conversationId}. This is a placeholder for content that could not be extracted from the Builder source.`;
+          title = `Document ${conversationId}`;
         }
       }
 
@@ -124,8 +98,8 @@ export class ContentExtractionEngine {
 
       // Generate search query
       const extractedContent: ExtractedContent = {
-        id: request.id,
-        source: request.source,
+        id: id,
+        source: source,
         title: title,
         content: analysis.content,
         keywords: analysis.keywords,
@@ -134,22 +108,16 @@ export class ContentExtractionEngine {
         confidence: confidence
       };
 
-      console.log(`Content extraction completed for ${request.source}:${request.id} in ${Date.now() - startTime}ms`);
+      console.log(`Content extraction completed for ${source}:${id} in ${Date.now() - startTime}ms`);
 
       // Cache the result
-      this.extractionCache.set(cacheKey, {
-        content: extractedContent,
-        timestamp: Date.now()
-      });
-
-      // Clean up old cache entries to prevent memory issues
-      this.cleanupCache();
+      aiSearcherPerformanceOptimizer.cacheContentExtraction(conversationId, source, id, extractedContent);
 
       return extractedContent;
 
     } catch (error) {
       console.error('Error in content extraction:', error);
-      throw new Error(`Failed to extract content from ${request.source}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(`Failed to extract content from ${source}: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -352,7 +320,7 @@ export class ContentExtractionEngine {
    * Clear extraction cache
    */
   public clearCache(): void {
-    this.extractionCache.clear();
+    aiSearcherPerformanceOptimizer.clearAllCaches();
   }
 
   /**
@@ -363,10 +331,11 @@ export class ContentExtractionEngine {
     maxSize: number;
     timeout: number;
   } {
+    const stats = aiSearcherPerformanceOptimizer.getCacheStats();
     return {
-      size: this.extractionCache.size,
-      maxSize: 100,
-      timeout: this.cacheTimeout
+      size: stats.contentExtraction.size,
+      maxSize: stats.contentExtraction.maxSize,
+      timeout: 0 // Not available in the optimizer
     };
   }
 
@@ -374,15 +343,17 @@ export class ContentExtractionEngine {
    * Preload content extraction for background processing
    */
   async preloadContent(requests: ContentExtractionRequest[]): Promise<void> {
-    const promises = requests.map(async (request) => {
-      try {
-        await this.extractContent(request);
-      } catch (error) {
-        console.warn(`Failed to preload content for ${request.source}:${request.id}:`, error);
-      }
-    });
-
-    await Promise.allSettled(promises);
+    for (const request of requests) {
+      aiSearcherPerformanceOptimizer.addBackgroundTask({
+        type: 'content_extraction',
+        priority: 'low',
+        data: {
+          ...request,
+          extractionFn: () => this.extractContent(request)
+        },
+        maxRetries: 2
+      });
+    }
   }
 }
 

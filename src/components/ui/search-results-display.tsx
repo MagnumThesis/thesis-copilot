@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useMemo } from "react"
+import React, { useState, useMemo, useEffect } from "react"
 import { Button } from "./shadcn/button"
 import { Card, CardContent, CardHeader, CardTitle } from "./shadcn/card"
 import { Badge } from "./shadcn/badge"
@@ -27,9 +27,11 @@ import { ScholarSearchResult, ExtractedContent } from "../../lib/ai-types"
 import { ResultScoringEngine, RankedResult } from "../../worker/lib/result-scoring-engine"
 import { SearchResultFeedbackComponent, QuickFeedbackButtons, SearchResultFeedback } from "./search-result-feedback"
 import { SearchResultBookmark } from "./search-result-bookmark"
+import { aiSearcherPerformanceOptimizer } from "../../lib/ai-searcher-performance-optimizer"
 
 export interface SearchResultsDisplayProps {
   results: ScholarSearchResult[]
+  totalResults: number
   extractedContent: ExtractedContent
   onAddReference: (result: ScholarSearchResult) => void
   onProvideFeedback?: (resultId: string, feedback: SearchResultFeedback) => Promise<void>
@@ -38,6 +40,7 @@ export interface SearchResultsDisplayProps {
   onAddToComparison?: (result: ScholarSearchResult) => Promise<void>
   onShareResult?: (result: ScholarSearchResult) => Promise<void>
   onExportResults?: (results: ScholarSearchResult[]) => Promise<void>
+  onLoadMore?: () => Promise<void>
   bookmarkedResults?: Set<string>
   comparisonResults?: Set<string>
   userId?: string
@@ -49,14 +52,9 @@ export interface SearchResultsDisplayProps {
 export type SortOption = 'relevance' | 'date' | 'citations' | 'quality'
 export type SortDirection = 'asc' | 'desc'
 
-interface PaginationState {
-  currentPage: number
-  itemsPerPage: number
-  totalItems: number
-}
-
 export const SearchResultsDisplay: React.FC<SearchResultsDisplayProps> = ({
   results,
+  totalResults,
   extractedContent,
   onAddReference,
   onProvideFeedback,
@@ -65,6 +63,7 @@ export const SearchResultsDisplay: React.FC<SearchResultsDisplayProps> = ({
   onAddToComparison,
   onShareResult,
   onExportResults,
+  onLoadMore,
   bookmarkedResults = new Set(),
   comparisonResults = new Set(),
   userId,
@@ -74,17 +73,13 @@ export const SearchResultsDisplay: React.FC<SearchResultsDisplayProps> = ({
 }) => {
   const [sortBy, setSortBy] = useState<SortOption>('relevance')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
-  const [pagination, setPagination] = useState<PaginationState>({
-    currentPage: 1,
-    itemsPerPage: 10,
-    totalItems: results.length
-  })
   const [addingReference, setAddingReference] = useState<string | null>(null)
   const [showConfidenceDetails, setShowConfidenceDetails] = useState<string | null>(null)
   const [showFeedbackForm, setShowFeedbackForm] = useState<string | null>(null)
   const [submittedFeedback, setSubmittedFeedback] = useState<Set<string>>(new Set())
   const [processingBookmark, setProcessingBookmark] = useState<string | null>(null)
   const [processingComparison, setProcessingComparison] = useState<string | null>(null)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
 
   // Initialize scoring engine
   const scoringEngine = useMemo(() => new ResultScoringEngine(), [])
@@ -124,30 +119,10 @@ export const SearchResultsDisplay: React.FC<SearchResultsDisplayProps> = ({
       return sortDirection === 'desc' ? comparison : -comparison
     })
 
-    // Update pagination total
-    if (sorted.length !== pagination.totalItems) {
-      setPagination(prev => ({
-        ...prev,
-        totalItems: sorted.length,
-        currentPage: 1 // Reset to first page when results change
-      }))
-    }
-
     return sorted
-  }, [results, extractedContent, sortBy, sortDirection, scoringEngine, pagination.totalItems])
+  }, [results, extractedContent, sortBy, sortDirection, scoringEngine])
 
-  // Paginated results
-  const paginatedResults = useMemo(() => {
-    const startIndex = (pagination.currentPage - 1) * pagination.itemsPerPage
-    const endIndex = startIndex + pagination.itemsPerPage
-    return rankedResults.slice(startIndex, endIndex)
-  }, [rankedResults, pagination.currentPage, pagination.itemsPerPage])
-
-  // Pagination calculations
-  const totalPages = Math.ceil(pagination.totalItems / pagination.itemsPerPage)
-  const hasNextPage = pagination.currentPage < totalPages
-  const hasPrevPage = pagination.currentPage > 1 
- const handleSortChange = (newSortBy: SortOption) => {
+  const handleSortChange = (newSortBy: SortOption) => {
     if (newSortBy === sortBy) {
       // Toggle direction if same sort option
       setSortDirection(prev => prev === 'desc' ? 'asc' : 'desc')
@@ -155,20 +130,6 @@ export const SearchResultsDisplay: React.FC<SearchResultsDisplayProps> = ({
       setSortBy(newSortBy)
       setSortDirection('desc') // Default to descending for new sort
     }
-  }
-
-  const handlePageChange = (newPage: number) => {
-    if (newPage >= 1 && newPage <= totalPages) {
-      setPagination(prev => ({ ...prev, currentPage: newPage }))
-    }
-  }
-
-  const handleItemsPerPageChange = (newItemsPerPage: number) => {
-    setPagination(prev => ({
-      ...prev,
-      itemsPerPage: newItemsPerPage,
-      currentPage: 1 // Reset to first page
-    }))
   }
 
   const handleAddReference = async (result: RankedResult) => {
@@ -266,6 +227,14 @@ export const SearchResultsDisplay: React.FC<SearchResultsDisplayProps> = ({
     }
   }
 
+  const handleLoadMore = async () => {
+    if (onLoadMore) {
+      setIsLoadingMore(true);
+      await onLoadMore();
+      setIsLoadingMore(false);
+    }
+  }
+
   const getConfidenceColor = (confidence: number): string => {
     if (confidence >= 0.8) return 'bg-green-100 text-green-800 border-green-200'
     if (confidence >= 0.6) return 'bg-yellow-100 text-yellow-800 border-yellow-200'
@@ -289,7 +258,7 @@ export const SearchResultsDisplay: React.FC<SearchResultsDisplayProps> = ({
       <ArrowUpDown className="h-4 w-4" />
   }
 
-  if (loading) {
+  if (loading && results.length === 0) {
     return (
       <div className={`space-y-4 ${className}`}>
         <div className="text-center py-8">
@@ -331,7 +300,7 @@ export const SearchResultsDisplay: React.FC<SearchResultsDisplayProps> = ({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <h4 className="text-base font-semibold">
-            Search Results ({pagination.totalItems})
+            Search Results ({totalResults})
           </h4>
           
           {/* Sort Controls */}
@@ -395,29 +364,12 @@ export const SearchResultsDisplay: React.FC<SearchResultsDisplayProps> = ({
               Export
             </Button>
           )}
-          
-          <span className="text-sm text-muted-foreground">Show:</span>
-          <Select
-            value={pagination.itemsPerPage.toString()}
-            onValueChange={(value) => handleItemsPerPageChange(parseInt(value))}
-          >
-            <SelectTrigger className="w-20">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="5">5</SelectItem>
-              <SelectItem value="10">10</SelectItem>
-              <SelectItem value="20">20</SelectItem>
-              <SelectItem value="50">50</SelectItem>
-            </SelectContent>
-          </Select>
         </div>
       </div>    
   {/* Results List */}
       <div className="space-y-4">
-        {paginatedResults.map((result, index) => {
+        {rankedResults.map((result, index) => {
           const resultId = `${result.title}-${result.authors[0]}`
-          const globalIndex = (pagination.currentPage - 1) * pagination.itemsPerPage + index + 1
           
           return (
             <Card key={index} className="hover:shadow-md transition-shadow">
@@ -426,7 +378,7 @@ export const SearchResultsDisplay: React.FC<SearchResultsDisplayProps> = ({
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
                       <Badge variant="outline" className="text-xs">
-                        #{globalIndex}
+                        #{index + 1}
                       </Badge>
                       <Badge variant="outline" className="text-xs">
                         Rank #{result.rank}
@@ -608,65 +560,16 @@ export const SearchResultsDisplay: React.FC<SearchResultsDisplayProps> = ({
           )
         })}
       </div>      
-{/* Pagination Controls */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-muted-foreground">
-            Showing {((pagination.currentPage - 1) * pagination.itemsPerPage) + 1} to{' '}
-            {Math.min(pagination.currentPage * pagination.itemsPerPage, pagination.totalItems)} of{' '}
-            {pagination.totalItems} results
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handlePageChange(pagination.currentPage - 1)}
-              disabled={!hasPrevPage}
-              className="flex items-center gap-1"
-            >
-              <ChevronLeft className="h-4 w-4" />
-              Previous
-            </Button>
-            
-            <div className="flex items-center gap-1">
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                let pageNum: number
-                if (totalPages <= 5) {
-                  pageNum = i + 1
-                } else if (pagination.currentPage <= 3) {
-                  pageNum = i + 1
-                } else if (pagination.currentPage >= totalPages - 2) {
-                  pageNum = totalPages - 4 + i
-                } else {
-                  pageNum = pagination.currentPage - 2 + i
-                }
-                
-                return (
-                  <Button
-                    key={pageNum}
-                    variant={pageNum === pagination.currentPage ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => handlePageChange(pageNum)}
-                    className="w-8 h-8 p-0"
-                  >
-                    {pageNum}
-                  </Button>
-                )
-              })}
-            </div>
-            
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handlePageChange(pagination.currentPage + 1)}
-              disabled={!hasNextPage}
-              className="flex items-center gap-1"
-            >
-              Next
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
+      {/* Load More Button */}
+      {results.length < totalResults && (
+        <div className="text-center mt-4">
+          <Button
+            variant="outline"
+            onClick={handleLoadMore}
+            disabled={isLoadingMore}
+          >
+            {isLoadingMore ? 'Loading...' : 'Load More Results'}
+          </Button>
         </div>
       )}
     </div>
