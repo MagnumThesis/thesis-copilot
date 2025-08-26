@@ -20,16 +20,4 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-  build: {
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          'zod': ['zod'],
-          '@supabase/node-fetch': ['@supabase/node-fetch'],
-          'react-dom': ['react-dom'],
-          'ai': ['ai'],
-        }
-      },
-    },
-  },
 });
