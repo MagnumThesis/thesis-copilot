@@ -15,6 +15,13 @@ import {
 } from "../lib/google-scholar-client";
 import { ExtractedContent, ScholarSearchResult, SearchFilters } from "../../lib/ai-types";
 import { AISearcherPerformanceOptimizer } from "../../lib/ai-searcher-performance-optimizer";
+import { 
+  AISearcherErrorHandler,
+  AISearcherErrorType,
+  AISearcherError
+} from "../../lib/ai-searcher-error-handling";
+import { AISearcherMonitoringService } from "../../lib/ai-searcher-monitoring";
+import { EnhancedGoogleScholarClient } from "../lib/enhanced-google-scholar-client";
 import feedbackApi from "./ai-searcher-feedback";
 import learningApi from "./ai-searcher-learning";
 
@@ -138,14 +145,19 @@ interface StatisticsData {
 export class AISearcherAPIHandler {
   private queryEngine: QueryGenerationEngine;
   private contentEngine: ContentExtractionEngine;
-  private scholarClient: GoogleScholarClient;
+  private scholarClient: EnhancedGoogleScholarClient;
   private performanceOptimizer: AISearcherPerformanceOptimizer;
+  private errorHandler: AISearcherErrorHandler;
+  private monitoringService: AISearcherMonitoringService;
 
   constructor() {
     this.queryEngine = new QueryGenerationEngine();
     this.contentEngine = new ContentExtractionEngine();
     this.performanceOptimizer = new AISearcherPerformanceOptimizer();
-    this.scholarClient = new GoogleScholarClient(
+    this.errorHandler = AISearcherErrorHandler.getInstance();
+    this.monitoringService = AISearcherMonitoringService.getInstance();
+    
+    this.scholarClient = new EnhancedGoogleScholarClient(
       {
         requestsPerMinute: 8, // Conservative rate limiting
         requestsPerHour: 80,
@@ -177,76 +189,170 @@ export class AISearcherAPIHandler {
   }
 
   /**
-   * Handle search errors and provide appropriate fallback responses
+   * GET /api/ai-searcher/health
+   * Get system health status and error metrics
    */
-  private handleSearchError(
+  async getHealth(c: Context<AISearcherContext>) {
+    const startTime = Date.now();
+
+    try {
+      // Get system health status
+      const healthStatus = this.monitoringService.getHealthStatus();
+      
+      // Get error metrics
+      const errorMetrics = this.errorHandler.getErrorMetrics();
+      
+      // Get performance metrics
+      const performanceMetrics = this.monitoringService.getPerformanceMetrics();
+      
+      // Get fallback service status
+      const fallbackServiceStatus = await this.scholarClient.getFallbackServiceStatus();
+      
+      // Get recent events
+      const recentEvents = this.monitoringService.getRecentEvents(50, 'error');
+      
+      return c.json({
+        success: true,
+        health: {
+          status: healthStatus.status,
+          issues: healthStatus.issues,
+          metrics: healthStatus.metrics,
+          timestamp: new Date().toISOString()
+        },
+        error_metrics: errorMetrics,
+        performance_metrics: performanceMetrics,
+        fallback_services: fallbackServiceStatus,
+        recent_errors: recentEvents.map(event => ({
+          id: event.id,
+          timestamp: event.timestamp,
+          type: event.data?.errorType,
+          severity: event.severity,
+          message: event.message,
+          operation: event.data?.operation
+        })),
+        system_info: {
+          uptime: Date.now() - startTime,
+          version: '1.0.0',
+          features: {
+            comprehensive_error_handling: true,
+            fallback_services: true,
+            degraded_mode: true,
+            monitoring: true,
+            circuit_breakers: true
+          }
+        },
+        processingTime: Date.now() - startTime
+      });
+
+    } catch (error) {
+      console.error('Health check failed:', error);
+      
+      return c.json({
+        success: false,
+        health: {
+          status: 'unhealthy',
+          issues: ['Health check system failure'],
+          metrics: {
+            errorRate: 1.0,
+            averageResponseTime: 0,
+            fallbackRate: 0,
+            degradedModeRate: 0
+          },
+          timestamp: new Date().toISOString()
+        },
+        error: 'Health check system failure',
+        processingTime: Date.now() - startTime
+      }, 500);
+    }
+  }
+
+  /**
+   * Handle search errors with comprehensive error handling and recovery
+   */
+  private async handleSearchError(
     error: unknown,
-    query: string
-  ): {
+    query: string,
+    context?: {
+      conversationId?: string;
+      sessionId?: string;
+      requestId?: string;
+    }
+  ): Promise<{
     shouldRetry: boolean;
     fallbackResults: SearchResult[];
     errorMessage: string;
-  } {
-    let shouldRetry = false;
-    let finalErrorMessage = "Search failed due to unknown error";
+    recoveryActions: any[];
+    aiSearcherError: AISearcherError;
+  }> {
+    // Use the comprehensive error handler
+    const aiSearcherError = await this.errorHandler.handleError(
+      error,
+      'search',
+      {
+        ...context,
+        query,
+        searchFilters: {}
+      }
+    );
+
+    // Log the error for monitoring
+    this.monitoringService.logError(aiSearcherError);
+
+    const shouldRetry = aiSearcherError.retryable;
+    const errorMessage = aiSearcherError.userMessage;
+    const recoveryActions = aiSearcherError.recoveryActions;
     const fallbackResults: SearchResult[] = [];
 
-    if (error instanceof Error) {
-      const errorMessage = error.message.toLowerCase();
-
-      if (errorMessage.includes("rate limit") || errorMessage.includes("429")) {
-        shouldRetry = true;
-        finalErrorMessage =
-          "Search rate limit exceeded. Please wait before trying again.";
-      } else if (
-        errorMessage.includes("blocked") ||
-        errorMessage.includes("403")
-      ) {
-        shouldRetry = false;
-        finalErrorMessage =
-          "Access to Google Scholar is temporarily blocked. Please try again later.";
-      } else if (
-        errorMessage.includes("timeout") ||
-        errorMessage.includes("network")
-      ) {
-        shouldRetry = true;
-        finalErrorMessage =
-          "Network timeout occurred. Please check your connection and try again.";
-      } else if (
-        errorMessage.includes("service unavailable") ||
-        errorMessage.includes("503")
-      ) {
-        shouldRetry = true;
-        finalErrorMessage =
-          "Google Scholar is temporarily unavailable. Please try again later.";
-      } else {
-        shouldRetry = false;
-        finalErrorMessage = `Search error: ${error.message}`;
-      }
-    }
-
-    // Provide a helpful fallback result that explains the situation
-    if (!shouldRetry) {
+    // If error is not retryable or fallback is not available, provide helpful fallback results
+    if (!shouldRetry || !aiSearcherError.fallbackAvailable) {
       fallbackResults.push({
-        title: `Search temporarily unavailable for: "${query}"`,
+        title: `Search temporarily unavailable: "${query}"`,
         authors: ["System Message"],
         journal: "Thesis Copilot",
         publication_date: new Date().getFullYear().toString(),
         confidence: 0.1,
         relevance_score: 0.1,
-        abstract: `We're currently unable to search Google Scholar. ${finalErrorMessage} You can try again later or search manually using your query: "${query}"`,
-        keywords: ["search", "unavailable", "retry"],
-        url: `https://scholar.google.com/scholar?q=${encodeURIComponent(
-          query
-        )}`,
+        abstract: `${errorMessage} You can try again later or search manually using your query: "${query}". ${this.getRecoveryInstructions(recoveryActions)}`,
+        keywords: ["search", "unavailable", "retry", "error"],
+        url: `https://scholar.google.com/scholar?q=${encodeURIComponent(query)}`,
       });
+
+      // Add additional helpful results based on error type
+      if (aiSearcherError.type === AISearcherErrorType.RATE_LIMIT_ERROR) {
+        fallbackResults.push({
+          title: "Rate Limit Information",
+          authors: ["Thesis Copilot"],
+          journal: "System Information",
+          publication_date: new Date().getFullYear().toString(),
+          confidence: 0.2,
+          relevance_score: 0.2,
+          abstract: `Search rate limits help ensure fair usage. Please wait ${aiSearcherError.retryAfter ? Math.ceil(aiSearcherError.retryAfter / 1000) + ' seconds' : 'a moment'} before trying again. You can use this time to refine your search query or explore your existing references.`,
+          keywords: ["rate", "limit", "wait", "information"],
+        });
+      }
     }
 
     return {
       shouldRetry,
       fallbackResults,
-      errorMessage: finalErrorMessage,
+      errorMessage,
+      recoveryActions,
+      aiSearcherError
     };
+  }
+
+  /**
+   * Generate user-friendly recovery instructions
+   */
+  private getRecoveryInstructions(recoveryActions: any[]): string {
+    if (recoveryActions.length === 0) return "";
+
+    const instructions = recoveryActions
+      .slice(0, 3) // Show top 3 actions
+      .map((action, index) => `${index + 1}. ${action.description}`)
+      .join(" ");
+
+    return `Recovery options: ${instructions}`;
   }
   /**
    * POST /api/ai-searcher/search
@@ -413,51 +519,87 @@ export class AISearcherAPIHandler {
         sessionId = crypto.randomUUID();
       }
 
-      // Perform real Google Scholar search with caching
+      // Perform enhanced Google Scholar search with comprehensive error handling
       let scholarResults: ScholarSearchResult[] = [];
+      let searchSource = 'google_scholar';
+      let fallbackUsed = false;
+      let degradedMode = false;
+      let searchError: AISearcherError | undefined;
 
       try {
-        // Configure search options based on filters
-        const searchOptions: SearchOptions = {
+        // Configure enhanced search options
+        const enhancedSearchOptions = {
           maxResults: body.filters?.maxResults || 20,
           sortBy: body.filters?.sortBy === "date" ? "date" : "relevance",
           includePatents: false,
           includeCitations: true,
+          yearStart: body.filters?.dateRange?.start,
+          yearEnd: body.filters?.dateRange?.end,
+          enableFallback: true,
+          enableDegradedMode: true,
+          context: {
+            conversationId: body.conversationId,
+            sessionId,
+            requestId: crypto.randomUUID()
+          }
         };
 
-        // Apply date range filter if provided
-        if (body.filters?.dateRange) {
-          searchOptions.yearStart = body.filters.dateRange.start;
-          searchOptions.yearEnd = body.filters.dateRange.end;
-        }
-
-        // Check cache first
-        const searchFilters: SearchFilters = body.filters || {};
-        const cachedResults = this.performanceOptimizer.getCachedSearchResults(
-          searchQuery,
-          searchFilters
+        // Log search attempt
+        this.monitoringService.logInfo(
+          `Starting search for query: "${searchQuery}"`,
+          'search',
+          { options: enhancedSearchOptions },
+          { conversationId: body.conversationId, sessionId }
         );
 
-        if (cachedResults) {
-          console.log(
-            `Using cached search results for query: "${searchQuery}"`
-          );
-          scholarResults = cachedResults;
-        } else {
-          console.log(
-            `Performing Google Scholar search for query: "${searchQuery}" with options:`,
-            searchOptions
-          );
+        // Execute the enhanced search with comprehensive error handling
+        const searchStartTime = Date.now();
+        const searchResult = await this.scholarClient.search(
+          searchQuery,
+          enhancedSearchOptions
+        );
+        const searchDuration = Date.now() - searchStartTime;
 
-          // Execute the search
-          const searchStartTime = Date.now();
-          scholarResults = await this.scholarClient.search(
-            searchQuery,
-            searchOptions
-          );
-          const searchDuration = Date.now() - searchStartTime;
+        // Extract results and metadata
+        scholarResults = searchResult.results;
+        searchSource = searchResult.source;
+        fallbackUsed = searchResult.fallbackUsed;
+        degradedMode = searchResult.degradedMode;
+        searchError = searchResult.error;
 
-          // Cache the results
+        // Log performance metrics
+        this.monitoringService.logPerformance({
+          operationType: 'search',
+          duration: searchDuration,
+          success: searchResult.success,
+          retryCount: searchResult.retryCount,
+          fallbackUsed,
+          degradedMode,
+          timestamp: new Date(),
+          context: {
+            query: searchQuery,
+            resultCount: scholarResults.length,
+            source: searchSource
+          }
+        });
+
+        // Log search completion
+        this.monitoringService.logInfo(
+          `Search completed: ${scholarResults.length} results from ${searchSource}`,
+          'search',
+          {
+            resultCount: scholarResults.length,
+            source: searchSource,
+            fallbackUsed,
+            degradedMode,
+            duration: searchDuration
+          },
+          { conversationId: body.conversationId, sessionId }
+        );
+
+        // Cache successful results (only if not degraded mode)
+        if (!degradedMode && scholarResults.length > 0) {
+          const searchFilters: SearchFilters = body.filters || {};
           this.performanceOptimizer.cacheSearchResults(
             searchQuery,
             searchFilters,
@@ -476,39 +618,33 @@ export class AISearcherAPIHandler {
                   query: relatedQuery.query,
                   filters: searchFilters,
                   searchFn: () =>
-                    this.scholarClient.search(
-                      relatedQuery.query,
-                      searchOptions
-                    ),
+                    this.scholarClient.search(relatedQuery.query, enhancedSearchOptions),
                 },
                 maxRetries: 1,
               });
             }
           }
-
-          console.log(
-            `Google Scholar search returned ${scholarResults.length} results in ${searchDuration}ms`
-          );
         }
+
+        console.log(
+          `Enhanced search completed: ${scholarResults.length} results from ${searchSource} in ${searchDuration}ms`
+        );
+
       } catch (searchError) {
-        console.error("Google Scholar search failed:", searchError);
+        console.error("Enhanced search failed:", searchError);
 
-        // Handle the error and determine appropriate response
-        const errorHandling = this.handleSearchError(searchError, searchQuery);
+        // Handle the error with comprehensive error handling
+        const errorHandling = await this.handleSearchError(
+          searchError,
+          searchQuery,
+          {
+            conversationId: body.conversationId,
+            sessionId,
+            requestId: crypto.randomUUID()
+          }
+        );
 
-        if (errorHandling.shouldRetry) {
-          // For retryable errors, we might want to implement retry logic here
-          // For now, we'll log and continue with fallback
-          console.warn(
-            `Retryable search error for query "${searchQuery}": ${errorHandling.errorMessage}`
-          );
-        } else {
-          console.error(
-            `Non-retryable search error for query "${searchQuery}": ${errorHandling.errorMessage}`
-          );
-        }
-
-        // Use fallback results if available
+        // Use fallback results
         scholarResults = errorHandling.fallbackResults.map((result) => ({
           title: result.title,
           authors: result.authors,
@@ -525,6 +661,10 @@ export class AISearcherAPIHandler {
           relevance_score: result.relevance_score,
           citation_count: result.citation_count,
         }));
+
+        searchSource = 'error_fallback';
+        degradedMode = true;
+        searchError = errorHandling.aiSearcherError;
       }
 
       // Convert ScholarSearchResult to SearchResult format
@@ -691,6 +831,23 @@ export class AISearcherAPIHandler {
         processingTime,
         learningApplied: true, // Indicate that learning-based ranking was applied
         performance_metrics: this.performanceOptimizer.getMetrics(),
+        // Enhanced error handling information
+        search_metadata: {
+          source: searchSource,
+          fallback_used: fallbackUsed,
+          degraded_mode: degradedMode,
+          error_handled: searchError ? {
+            type: searchError.type,
+            severity: searchError.severity,
+            user_message: searchError.userMessage,
+            recovery_actions: searchError.recoveryActions.map(action => ({
+              type: action.type,
+              label: action.label,
+              description: action.description,
+              priority: action.priority
+            }))
+          } : undefined
+        }
       });
     } catch (error) {
       console.error("AI Search error:", error);
