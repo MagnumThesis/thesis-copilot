@@ -759,7 +759,7 @@ export const AISearcher: React.FC<AISearcherProps> = ({
                     ? "Query generated from selected content (you can modify it)" 
                     : "Enter your search query (e.g., 'machine learning in education')"
                   }
-                  onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                 />
                 <Button
                   variant="outline"
