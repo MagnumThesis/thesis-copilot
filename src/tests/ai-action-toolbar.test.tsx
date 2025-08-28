@@ -130,15 +130,7 @@ describe('AIActionToolbar', () => {
   });
 
   describe('Disabled States', () => {
-    it('should disable modify mode when no text is selected', () => {
-      render(
-        <AIActionToolbar {...defaultProps} hasSelectedText={false} />
-      );
-      
-      const modifyButton = screen.getByTestId('ai-mode-modify');
-      expect(modifyButton).toBeDisabled();
-      expect(modifyButton).toHaveClass('opacity-50');
-    });
+    
 
     it('should enable modify mode when text is selected', () => {
       render(

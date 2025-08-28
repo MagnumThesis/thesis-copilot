@@ -61,6 +61,8 @@ The engine will analyze existing tests to:
 - Detect obsolete functionality coverage
 - Calculate test execution metrics
 
+The engine will be implemented using the `ts-morph` library to traverse the TypeScript AST and extract the necessary information.
+
 ### Test Consolidation Service
 
 Responsible for:

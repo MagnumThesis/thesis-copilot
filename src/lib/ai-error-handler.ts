@@ -5,6 +5,9 @@
 
 import { AIErrorResponse, AIResponse } from './ai-interfaces';
 import { AIMode } from './ai-types';
+import { NetworkErrorHandler } from './error-handling/network-error-handler';
+import { ValidationErrorHandler } from './error-handling/validation-error-handler';
+import { RecoveryStrategyManager } from './error-handling/recovery-strategy-manager';
 
 // AI Error types enumeration
 export enum AIErrorType {
@@ -69,22 +72,12 @@ export interface ErrorRecoveryStrategy {
   autoRetry?: boolean;
 }
 
-// Network status interface for connection monitoring
-export interface NetworkStatus {
-  isOnline: boolean;
-  connectionType?: 'slow-2g' | '2g' | '3g' | '4g' | 'unknown';
-  effectiveType?: string;
-  downlink?: number;
-  rtt?: number;
-}
-
 // Error context interface for better error tracking
 export interface ErrorContext {
   operation: string;
   mode: AIMode;
   timestamp: number;
   userAgent?: string;
-  networkStatus?: NetworkStatus;
   retryCount?: number;
 }
 
@@ -94,11 +87,6 @@ export interface ErrorContext {
  * @description Handles AI operation errors with appropriate recovery strategies.
  */
 export class AIErrorHandler {
-  private static readonly DEFAULT_RETRY_ATTEMPTS = 3;
-  private static readonly RETRY_DELAYS = [1000, 2000, 4000]; // Exponential backoff
-  private static readonly MAX_RETRY_DELAY = 10000; // Maximum delay between retries
-  private static readonly NETWORK_CHECK_TIMEOUT = 5000; // Network connectivity check timeout
-
   /**
    * Handle AI operation errors with appropriate recovery strategies
    */
@@ -128,51 +116,6 @@ export class AIErrorHandler {
   }
 
   /**
-   * Check network connectivity
-   */
-  /**
-   * @static
-   * @method checkNetworkConnectivity
-   * @description Check network connectivity.
-   * @returns {Promise<NetworkStatus>} The network status.
-   */
-  static async checkNetworkConnectivity(): Promise<NetworkStatus> {
-    const status: NetworkStatus = {
-      isOnline: navigator.onLine
-    };
-
-    // Get connection information if available
-    if ('connection' in navigator) {
-      const connection = (navigator as any).connection;
-      status.connectionType = connection?.type;
-      status.effectiveType = connection?.effectiveType;
-      status.downlink = connection?.downlink;
-      status.rtt = connection?.rtt;
-    }
-
-    // Perform actual connectivity test
-    if (status.isOnline) {
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), this.NETWORK_CHECK_TIMEOUT);
-        
-        const response = await fetch('/api/health', {
-          method: 'HEAD',
-          signal: controller.signal,
-          cache: 'no-cache'
-        });
-        
-        clearTimeout(timeoutId);
-        status.isOnline = response.ok;
-      } catch (error) {
-        status.isOnline = false;
-      }
-    }
-
-    return status;
-  }
-
-  /**
    * Handle network-specific errors with intelligent retry
    */
     /**
@@ -181,59 +124,15 @@ export class AIErrorHandler {
    * @description Handle network-specific errors with intelligent retry.
    * @param {() => Promise<any>} operation - The operation to retry.
    * @param {ErrorContext} context - The error context.
-   * @param {number} [maxRetries=AIErrorHandler.DEFAULT_RETRY_ATTEMPTS] - The maximum number of retries.
+   * @param {number} [maxRetries=3] - The maximum number of retries.
    * @returns {Promise<any>} The result of the operation.
    */
   static async handleNetworkError(
     operation: () => Promise<any>,
     context: ErrorContext,
-    maxRetries: number = this.DEFAULT_RETRY_ATTEMPTS
+    maxRetries: number = 3
   ): Promise<any> {
-    let lastError: unknown;
-    let networkStatus = await this.checkNetworkConnectivity();
-
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      try {
-        // Check network status before retry
-        if (attempt > 0) {
-          networkStatus = await this.checkNetworkConnectivity();
-          if (!networkStatus.isOnline) {
-            throw new AIError(
-              'No internet connection available',
-              AIErrorType.NETWORK_ERROR,
-              'NO_CONNECTION',
-              true
-            );
-          }
-        }
-
-        return await operation();
-      } catch (error) {
-        lastError = error;
-        const aiError = this.normalizeError(error);
-
-        // Don't retry if error is not retryable or max attempts reached
-        if (!aiError.retryable || attempt === maxRetries) {
-          throw aiError;
-        }
-
-        // Calculate delay with jitter for network errors
-        const baseDelay = this.RETRY_DELAYS[attempt] || this.RETRY_DELAYS[this.RETRY_DELAYS.length - 1];
-        const jitter = Math.random() * 1000; // Add randomness to prevent thundering herd
-        const delay = Math.min(baseDelay + jitter, this.MAX_RETRY_DELAY);
-
-        // Wait before retry
-        await new Promise(resolve => setTimeout(resolve, delay));
-
-        console.info(`Retrying network operation (attempt ${attempt + 1}/${maxRetries}) in ${context.operation}`, {
-          delay,
-          networkStatus,
-          error: aiError.message
-        });
-      }
-    }
-
-    throw this.normalizeError(lastError);
+    return NetworkErrorHandler.handleNetworkError(operation, context, maxRetries);
   }
 
   /**
@@ -247,157 +146,168 @@ export class AIErrorHandler {
    * @returns {AIError} The normalized AIError.
    */
   static normalizeError(error: unknown): AIError {
-    if (error instanceof AIError) {
-      return error;
-    }
+    // First try to normalize as network error
+    try {
+      return NetworkErrorHandler.normalizeNetworkError(error);
+    } catch {
+      // If that fails, try to normalize as validation error
+      try {
+        return ValidationErrorHandler.normalizeValidationError(error);
+      } catch {
+        // If that also fails, use the original normalization logic
+        if (error instanceof AIError) {
+          return error;
+        }
 
-    if (error instanceof Error) {
-      const message = error.message.toLowerCase();
+        if (error instanceof Error) {
+          const message = error.message.toLowerCase();
 
-      // Network errors
-      if (message.includes('fetch') || message.includes('network') || message.includes('connection')) {
+          // Network errors
+          if (message.includes('fetch') || message.includes('network') || message.includes('connection')) {
+            return new AIError(
+              'Network connection failed. Please check your internet connection.',
+              AIErrorType.NETWORK_ERROR,
+              'NETWORK_FAILED',
+              true,
+              error
+            );
+          }
+
+          // Timeout errors
+          if (message.includes('timeout') || message.includes('aborted')) {
+            return new AIError(
+              'Request timed out. Please try again.',
+              AIErrorType.TIMEOUT_ERROR,
+              'REQUEST_TIMEOUT',
+              true,
+              error
+            );
+          }
+
+          // Rate limit errors
+          if (message.includes('rate limit') || message.includes('429') || message.includes('too many requests')) {
+            return new AIError(
+              'Too many requests. Please wait a moment before trying again.',
+              AIErrorType.RATE_LIMIT_ERROR,
+              'RATE_LIMIT_EXCEEDED',
+              true,
+              error
+            );
+          }
+
+          // Authentication errors
+          if (message.includes('401') || message.includes('unauthorized') || message.includes('authentication')) {
+            return new AIError(
+              'Authentication failed. AI service is temporarily unavailable.',
+              AIErrorType.AUTHENTICATION_ERROR,
+              'AUTH_FAILED',
+              false,
+              error
+            );
+          }
+
+          // Service unavailable errors
+          if (message.includes('503') || message.includes('service unavailable') || message.includes('502') || message.includes('504')) {
+            return new AIError(
+              'AI service is temporarily unavailable. Please try again later.',
+              AIErrorType.SERVICE_UNAVAILABLE,
+              'SERVICE_DOWN',
+              true,
+              error
+            );
+          }
+
+          // Quota exceeded errors
+          if (message.includes('quota') || message.includes('limit exceeded') || message.includes('billing')) {
+            return new AIError(
+              'AI service quota exceeded. Please try again later.',
+              AIErrorType.QUOTA_EXCEEDED,
+              'QUOTA_EXCEEDED',
+              false,
+              error
+            );
+          }
+
+          // Content filter errors
+          if (message.includes('content filter') || message.includes('inappropriate') || message.includes('blocked')) {
+            return new AIError(
+              'Content was blocked by safety filters. Please modify your request.',
+              AIErrorType.CONTENT_FILTER_ERROR,
+              'CONTENT_BLOCKED',
+              false,
+              error
+            );
+          }
+
+          // General API errors
+          if (message.includes('api') || message.includes('400') || message.includes('500')) {
+            return new AIError(
+              'AI service error. Please try again later.',
+              AIErrorType.API_ERROR,
+              'API_ERROR',
+              true,
+              error
+            );
+          }
+        }
+
+        // Handle fetch response errors
+        if (typeof error === 'object' && error !== null && 'status' in error) {
+          const status = (error as any).status;
+          switch (status) {
+            case 400:
+              return new AIError(
+                'Invalid request. Please check your input.',
+                AIErrorType.VALIDATION_ERROR,
+                'BAD_REQUEST',
+                false,
+                error instanceof Error ? error : new Error(`HTTP ${status}`)
+              );
+            case 401:
+              return new AIError(
+                'Authentication failed. AI service is temporarily unavailable.',
+                AIErrorType.AUTHENTICATION_ERROR,
+                'UNAUTHORIZED',
+                false,
+                error instanceof Error ? error : new Error(`HTTP ${status}`)
+              );
+            case 429:
+              return new AIError(
+                'Too many requests. Please wait before trying again.',
+                AIErrorType.RATE_LIMIT_ERROR,
+                'RATE_LIMITED',
+                true,
+                error instanceof Error ? error : new Error(`HTTP ${status}`)
+              );
+            case 503:
+              return new AIError(
+                'AI service is temporarily unavailable.',
+                AIErrorType.SERVICE_UNAVAILABLE,
+                'SERVICE_UNAVAILABLE',
+                true,
+                error instanceof Error ? error : new Error(`HTTP ${status}`)
+              );
+            default:
+              return new AIError(
+                'AI service error occurred.',
+                AIErrorType.API_ERROR,
+                `HTTP_${status}`,
+                status >= 500,
+                error instanceof Error ? error : new Error(`HTTP ${status}`)
+              );
+          }
+        }
+
+        // Unknown errors
         return new AIError(
-          'Network connection failed. Please check your internet connection.',
-          AIErrorType.NETWORK_ERROR,
-          'NETWORK_FAILED',
-          true,
-          error
-        );
-      }
-
-      // Timeout errors
-      if (message.includes('timeout') || message.includes('aborted')) {
-        return new AIError(
-          'Request timed out. Please try again.',
-          AIErrorType.TIMEOUT_ERROR,
-          'REQUEST_TIMEOUT',
-          true,
-          error
-        );
-      }
-
-      // Rate limit errors
-      if (message.includes('rate limit') || message.includes('429') || message.includes('too many requests')) {
-        return new AIError(
-          'Too many requests. Please wait a moment before trying again.',
-          AIErrorType.RATE_LIMIT_ERROR,
-          'RATE_LIMIT_EXCEEDED',
-          true,
-          error
-        );
-      }
-
-      // Authentication errors
-      if (message.includes('401') || message.includes('unauthorized') || message.includes('authentication')) {
-        return new AIError(
-          'Authentication failed. AI service is temporarily unavailable.',
-          AIErrorType.AUTHENTICATION_ERROR,
-          'AUTH_FAILED',
+          'An unexpected error occurred. Please try again.',
+          AIErrorType.UNKNOWN_ERROR,
+          'UNKNOWN',
           false,
-          error
-        );
-      }
-
-      // Service unavailable errors
-      if (message.includes('503') || message.includes('service unavailable') || message.includes('502') || message.includes('504')) {
-        return new AIError(
-          'AI service is temporarily unavailable. Please try again later.',
-          AIErrorType.SERVICE_UNAVAILABLE,
-          'SERVICE_DOWN',
-          true,
-          error
-        );
-      }
-
-      // Quota exceeded errors
-      if (message.includes('quota') || message.includes('limit exceeded') || message.includes('billing')) {
-        return new AIError(
-          'AI service quota exceeded. Please try again later.',
-          AIErrorType.QUOTA_EXCEEDED,
-          'QUOTA_EXCEEDED',
-          false,
-          error
-        );
-      }
-
-      // Content filter errors
-      if (message.includes('content filter') || message.includes('inappropriate') || message.includes('blocked')) {
-        return new AIError(
-          'Content was blocked by safety filters. Please modify your request.',
-          AIErrorType.CONTENT_FILTER_ERROR,
-          'CONTENT_BLOCKED',
-          false,
-          error
-        );
-      }
-
-      // General API errors
-      if (message.includes('api') || message.includes('400') || message.includes('500')) {
-        return new AIError(
-          'AI service error. Please try again later.',
-          AIErrorType.API_ERROR,
-          'API_ERROR',
-          true,
-          error
+          error instanceof Error ? error : new Error(String(error))
         );
       }
     }
-
-    // Handle fetch response errors
-    if (typeof error === 'object' && error !== null && 'status' in error) {
-      const status = (error as any).status;
-      switch (status) {
-        case 400:
-          return new AIError(
-            'Invalid request. Please check your input.',
-            AIErrorType.VALIDATION_ERROR,
-            'BAD_REQUEST',
-            false,
-            error instanceof Error ? error : new Error(`HTTP ${status}`)
-          );
-        case 401:
-          return new AIError(
-            'Authentication failed. AI service is temporarily unavailable.',
-            AIErrorType.AUTHENTICATION_ERROR,
-            'UNAUTHORIZED',
-            false,
-            error instanceof Error ? error : new Error(`HTTP ${status}`)
-          );
-        case 429:
-          return new AIError(
-            'Too many requests. Please wait before trying again.',
-            AIErrorType.RATE_LIMIT_ERROR,
-            'RATE_LIMITED',
-            true,
-            error instanceof Error ? error : new Error(`HTTP ${status}`)
-          );
-        case 503:
-          return new AIError(
-            'AI service is temporarily unavailable.',
-            AIErrorType.SERVICE_UNAVAILABLE,
-            'SERVICE_UNAVAILABLE',
-            true,
-            error instanceof Error ? error : new Error(`HTTP ${status}`)
-          );
-        default:
-          return new AIError(
-            'AI service error occurred.',
-            AIErrorType.API_ERROR,
-            `HTTP_${status}`,
-            status >= 500,
-            error instanceof Error ? error : new Error(`HTTP ${status}`)
-          );
-      }
-    }
-
-    // Unknown errors
-    return new AIError(
-      'An unexpected error occurred. Please try again.',
-      AIErrorType.UNKNOWN_ERROR,
-      'UNKNOWN',
-      false,
-      error instanceof Error ? error : new Error(String(error))
-    );
   }
 
   /**
@@ -463,114 +373,7 @@ export class AIErrorHandler {
    * @returns {ErrorRecoveryStrategy} The retry strategy.
    */
   static getRetryStrategy(error: AIError): ErrorRecoveryStrategy {
-    switch (error.type) {
-      case AIErrorType.NETWORK_ERROR:
-        return {
-          retryAttempts: 3,
-          userNotification: 'Connection issue detected. Retrying...',
-          logLevel: 'warn',
-          gracefulDegradation: true,
-          showRetryButton: true,
-          autoRetry: true
-        };
-
-      case AIErrorType.TIMEOUT_ERROR:
-        return {
-          retryAttempts: 2,
-          userNotification: 'Request timed out. Retrying with shorter timeout...',
-          logLevel: 'warn',
-          gracefulDegradation: true,
-          showRetryButton: true,
-          autoRetry: true
-        };
-
-      case AIErrorType.RATE_LIMIT_ERROR:
-        return {
-          retryAttempts: 2,
-          userNotification: 'Service is busy. Please wait a moment...',
-          logLevel: 'warn',
-          gracefulDegradation: false,
-          showRetryButton: true,
-          autoRetry: false
-        };
-
-      case AIErrorType.SERVICE_UNAVAILABLE:
-        return {
-          retryAttempts: 1,
-          userNotification: 'AI service temporarily unavailable. Retrying...',
-          logLevel: 'error',
-          gracefulDegradation: true,
-          showRetryButton: true,
-          autoRetry: true
-        };
-
-      case AIErrorType.API_ERROR:
-        return {
-          retryAttempts: 1,
-          userNotification: 'AI service error. Retrying...',
-          logLevel: 'error',
-          gracefulDegradation: true,
-          showRetryButton: true,
-          autoRetry: false
-        };
-
-      case AIErrorType.AUTHENTICATION_ERROR:
-      case AIErrorType.QUOTA_EXCEEDED:
-        return {
-          retryAttempts: 0,
-          fallbackMode: AIMode.NONE,
-          userNotification: 'AI service is temporarily unavailable. Please try again later.',
-          logLevel: 'error',
-          gracefulDegradation: true,
-          showRetryButton: false,
-          autoRetry: false
-        };
-
-      case AIErrorType.VALIDATION_ERROR:
-      case AIErrorType.CONTEXT_ERROR:
-        return {
-          retryAttempts: 0,
-          fallbackMode: AIMode.NONE,
-          userNotification: 'Please check your input and try again.',
-          logLevel: 'info',
-          gracefulDegradation: false,
-          showRetryButton: false,
-          autoRetry: false
-        };
-
-      case AIErrorType.CONTENT_FILTER_ERROR:
-        return {
-          retryAttempts: 0,
-          fallbackMode: AIMode.NONE,
-          userNotification: 'Content was blocked by safety filters. Please modify your request.',
-          logLevel: 'info',
-          gracefulDegradation: false,
-          showRetryButton: false,
-          autoRetry: false
-        };
-
-      case AIErrorType.OPERATION_CANCELLED:
-        return {
-          retryAttempts: 0,
-          fallbackMode: AIMode.NONE,
-          userNotification: 'Operation was cancelled.',
-          logLevel: 'info',
-          gracefulDegradation: false,
-          showRetryButton: false,
-          autoRetry: false
-        };
-
-      default:
-        return {
-          retryAttempts: 0,
-          fallbackMode: AIMode.NONE,
-          userNotification: 'An error occurred. Please try again later.',
-          logLevel: 'error',
-          gracefulDegradation: true,
-          showRetryButton: true,
-          autoRetry: false
-        };
-    }
+    return RecoveryStrategyManager.getRetryStrategy(error);
   }
 
   /**
@@ -583,13 +386,13 @@ export class AIErrorHandler {
    * @template T
    * @param {() => Promise<T>} operation - The operation to execute.
    * @param {string} context - The context of the operation.
-   * @param {number} [maxRetries=AIErrorHandler.DEFAULT_RETRY_ATTEMPTS] - The maximum number of retries.
+   * @param {number} [maxRetries=3] - The maximum number of retries.
    * @returns {Promise<T>} The result of the operation.
    */
   static async withRetry<T>(
     operation: () => Promise<T>,
     context: string,
-    maxRetries: number = this.DEFAULT_RETRY_ATTEMPTS
+    maxRetries: number = 3
   ): Promise<T> {
     let lastError: unknown;
 
@@ -606,7 +409,7 @@ export class AIErrorHandler {
         }
 
         // Wait before retry with exponential backoff
-        const delay = this.RETRY_DELAYS[attempt] || this.RETRY_DELAYS[this.RETRY_DELAYS.length - 1];
+        const delay = Math.min(1000 * Math.pow(2, attempt), 10000);
         await new Promise(resolve => setTimeout(resolve, delay));
 
         console.info(`Retrying AI operation (attempt ${attempt + 1}/${maxRetries}) in ${context}`);
@@ -627,36 +430,20 @@ export class AIErrorHandler {
    * @param {string[]} requiredFields - The required fields.
    */
   static validateRequest(request: any, requiredFields: string[]): void {
-    for (const field of requiredFields) {
-      if (!request[field]) {
-        throw new AIError(
-          `Missing required field: ${field}`,
-          AIErrorType.VALIDATION_ERROR,
-          'MISSING_FIELD',
-          false
-        );
-      }
-    }
+    ValidationErrorHandler.validateRequest(request, requiredFields);
+  }
 
-    // Validate conversation ID format
-    if (request.conversationId && typeof request.conversationId !== 'string') {
-      throw new AIError(
-        'Invalid conversation ID format',
-        AIErrorType.VALIDATION_ERROR,
-        'INVALID_CONVERSATION_ID',
-        false
-      );
-    }
-
-    // Validate document content
-    if (request.documentContent && typeof request.documentContent !== 'string') {
-      throw new AIError(
-        'Invalid document content format',
-        AIErrorType.VALIDATION_ERROR,
-        'INVALID_DOCUMENT_CONTENT',
-        false
-      );
-    }
+  /**
+   * Validate request parameters
+   */
+  /**
+   * @static
+   * @method validateParameters
+   * @description Validate request parameters.
+   * @param {Record<string, any>} params - The parameters to validate.
+   */
+  static validateParameters(params: Record<string, any>): void {
+    ValidationErrorHandler.validateParameters(params);
   }
 
   /**
@@ -684,32 +471,13 @@ export class AIErrorHandler {
    * @returns {string} The user-friendly message.
    */
   static getUserFriendlyMessage(error: AIError): string {
-    switch (error.type) {
-      case AIErrorType.NETWORK_ERROR:
-        return 'Unable to connect to AI service. Please check your internet connection and try again.';
-      case AIErrorType.TIMEOUT_ERROR:
-        return 'The request took too long to complete. Please try again with a shorter prompt.';
-      case AIErrorType.RATE_LIMIT_ERROR:
-        return 'Too many requests at once. Please wait a moment before trying again.';
-      case AIErrorType.SERVICE_UNAVAILABLE:
-        return 'AI service is temporarily unavailable. Please try again in a few minutes.';
-      case AIErrorType.API_ERROR:
-        return 'AI service encountered an error. Please try again or contact support if the issue persists.';
-      case AIErrorType.AUTHENTICATION_ERROR:
-        return 'AI service authentication failed. Please try again later or contact support.';
-      case AIErrorType.QUOTA_EXCEEDED:
-        return 'AI service usage limit reached. Please try again later or upgrade your plan.';
-      case AIErrorType.VALIDATION_ERROR:
-        return 'Please check your input and try again. Make sure all required fields are filled.';
-      case AIErrorType.CONTEXT_ERROR:
-        return 'Unable to process the document context. Please try with different content or a shorter document.';
-      case AIErrorType.CONTENT_FILTER_ERROR:
-        return 'Your content was blocked by safety filters. Please modify your request and try again.';
-      case AIErrorType.OPERATION_CANCELLED:
-        return 'Operation was cancelled. You can try again if needed.';
-      default:
-        return 'An unexpected error occurred. Please try again later or contact support if the issue persists.';
+    // First try to get user-friendly message from validation error handler
+    if (error.type === AIErrorType.VALIDATION_ERROR) {
+      return ValidationErrorHandler.getUserFriendlyMessage(error);
     }
+    
+    // Otherwise use recovery strategy manager
+    return RecoveryStrategyManager.getUserFriendlyMessage(error);
   }
 
   /**
@@ -745,8 +513,7 @@ export class AIErrorHandler {
    * @returns {boolean} Whether to gracefully degrade.
    */
   static shouldGracefullyDegrade(error: AIError): boolean {
-    const strategy = this.getRetryStrategy(error);
-    return strategy.gracefulDegradation === true;
+    return RecoveryStrategyManager.shouldGracefullyDegrade(error);
   }
 
   /**
@@ -761,26 +528,6 @@ export class AIErrorHandler {
    * @returns {AIMode} The fallback AI mode.
    */
   static getFallbackMode(error: AIError, currentMode: AIMode): AIMode {
-    const strategy = this.getRetryStrategy(error);
-    
-    // If strategy specifies a fallback mode, use it
-    if (strategy.fallbackMode) {
-      return strategy.fallbackMode;
-    }
-
-    // Default fallback logic based on current mode
-    switch (currentMode) {
-      case AIMode.MODIFY:
-        // For modify mode, fall back to manual editing
-        return AIMode.NONE;
-      case AIMode.CONTINUE:
-        // For continue mode, fall back to prompt mode if possible
-        return error.type === AIErrorType.CONTEXT_ERROR ? AIMode.PROMPT : AIMode.NONE;
-      case AIMode.PROMPT:
-        // For prompt mode, fall back to manual editing
-        return AIMode.NONE;
-      default:
-        return AIMode.NONE;
-    }
+    return RecoveryStrategyManager.getFallbackMode(error, currentMode);
   }
 }

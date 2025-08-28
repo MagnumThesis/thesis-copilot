@@ -3,46 +3,12 @@
  * Implements performance optimizations for AI operations including debouncing, caching, and context optimization
  */
 
-import { AIResponse, AISuccessResponse, AIErrorResponse } from './ai-interfaces';
+import { AIResponse } from './ai-interfaces';
 import { AIMode, ModificationType } from './ai-types';
-
-// Cache entry interface
-interface CacheEntry {
-  response: AIResponse;
-  timestamp: number;
-  accessCount: number;
-  lastAccessed: number;
-}
-
-// Cache configuration
-interface CacheConfig {
-  maxSize: number;
-  ttlMs: number; // Time to live in milliseconds
-  maxAccessCount: number; // Maximum access count before eviction
-}
-
-// Debounce configuration
-interface DebounceConfig {
-  delayMs: number;
-  maxWaitMs: number; // Maximum time to wait before forcing execution
-}
-
-// Performance metrics interface
-export interface PerformanceMetrics {
-  cacheHitRate: number;
-  averageResponseTime: number;
-  totalRequests: number;
-  cachedRequests: number;
-  debouncedRequests: number;
-  contextOptimizations: number;
-}
-
-// Request fingerprint for caching
-interface RequestFingerprint {
-  mode: AIMode;
-  contentHash: string;
-  parametersHash: string;
-}
+import { CacheManager } from './performance/cache-manager';
+import { DebounceManager } from './performance/debounce-manager';
+import { MetricsCollector, PerformanceMetrics } from './performance/metrics-collector';
+import { simpleHash } from './utils/text-utils';
 
 // Optimistic update interface
 export interface OptimisticUpdate {
@@ -62,160 +28,14 @@ export interface OptimisticUpdate {
  * @description Handles caching, debouncing, and performance optimizations for AI requests.
  */
 export class AIPerformanceOptimizer {
-  private cache = new Map<string, CacheEntry>();
-  private debounceTimers = new Map<string, NodeJS.Timeout>();
-  private pendingRequests = new Map<string, Promise<AIResponse>>();
-  private metrics: PerformanceMetrics = {
-    cacheHitRate: 0,
-    averageResponseTime: 0,
-    totalRequests: 0,
-    cachedRequests: 0,
-    debouncedRequests: 0,
-    contextOptimizations: 0
-  };
+  private cacheManager: CacheManager;
+  private debounceManager: DebounceManager;
+  private metricsCollector: MetricsCollector;
 
-  private readonly cacheConfig: CacheConfig = {
-    maxSize: 100,
-    ttlMs: 30 * 60 * 1000, // 30 minutes
-    maxAccessCount: 10
-  };
-
-  private readonly debounceConfig: DebounceConfig = {
-    delayMs: 300,
-    maxWaitMs: 2000
-  };
-
-  /**
-   * Create a fingerprint for request caching
-   */
-  private createRequestFingerprint(
-    mode: AIMode,
-    content: string,
-    parameters: Record<string, any>
-  ): RequestFingerprint {
-    // Create content hash (simple hash for performance)
-    const contentHash = this.simpleHash(content);
-    
-    // Create parameters hash
-    const parametersString = JSON.stringify(parameters, Object.keys(parameters).sort());
-    const parametersHash = this.simpleHash(parametersString);
-
-    return {
-      mode,
-      contentHash,
-      parametersHash
-    };
-  }
-
-  /**
-   * Simple hash function for creating cache keys
-   */
-  private simpleHash(str: string): string {
-    let hash = 0;
-    if (str.length === 0) return hash.toString();
-    
-    for (let i = 0; i < str.length; i++) {
-      const char = str.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // Convert to 32-bit integer
-    }
-    
-    return Math.abs(hash).toString(36);
-  }
-
-  /**
-   * Generate cache key from request fingerprint
-   */
-  private getCacheKey(fingerprint: RequestFingerprint): string {
-    return `${fingerprint.mode}:${fingerprint.contentHash}:${fingerprint.parametersHash}`;
-  }
-
-  /**
-   * Check if cache entry is valid
-   */
-  private isCacheEntryValid(entry: CacheEntry): boolean {
-    const now = Date.now();
-    const isNotExpired = (now - entry.timestamp) < this.cacheConfig.ttlMs;
-    const hasAccessesLeft = entry.accessCount < this.cacheConfig.maxAccessCount;
-    
-    return isNotExpired && hasAccessesLeft;
-  }
-
-  /**
-   * Clean expired cache entries
-   */
-  private cleanCache(): void {
-    const now = Date.now();
-    const keysToDelete: string[] = [];
-
-    for (const [key, entry] of this.cache.entries()) {
-      if (!this.isCacheEntryValid(entry)) {
-        keysToDelete.push(key);
-      }
-    }
-
-    keysToDelete.forEach(key => this.cache.delete(key));
-
-    // If cache is still too large, remove least recently used entries
-    if (this.cache.size > this.cacheConfig.maxSize) {
-      const entries = Array.from(this.cache.entries())
-        .sort(([, a], [, b]) => a.lastAccessed - b.lastAccessed);
-      
-      const entriesToRemove = entries.slice(0, entries.length - this.cacheConfig.maxSize);
-      entriesToRemove.forEach(([key]) => this.cache.delete(key));
-    }
-  }
-
-  /**
-   * Get cached response if available
-   */
-  private getCachedResponse(cacheKey: string): AIResponse | null {
-    const entry = this.cache.get(cacheKey);
-    
-    if (!entry || !this.isCacheEntryValid(entry)) {
-      if (entry) {
-        this.cache.delete(cacheKey);
-      }
-      return null;
-    }
-
-    // Update access information
-    entry.accessCount++;
-    entry.lastAccessed = Date.now();
-    
-    this.metrics.cachedRequests++;
-    this.updateCacheHitRate();
-
-    return entry.response;
-  }
-
-  /**
-   * Cache response
-   */
-  private cacheResponse(cacheKey: string, response: AIResponse): void {
-    // Only cache successful responses
-    if (!response.success) {
-      return;
-    }
-
-    const entry: CacheEntry = {
-      response,
-      timestamp: Date.now(),
-      accessCount: 1,
-      lastAccessed: Date.now()
-    };
-
-    this.cache.set(cacheKey, entry);
-    this.cleanCache();
-  }
-
-  /**
-   * Update cache hit rate metric
-   */
-  private updateCacheHitRate(): void {
-    if (this.metrics.totalRequests > 0) {
-      this.metrics.cacheHitRate = this.metrics.cachedRequests / this.metrics.totalRequests;
-    }
+  constructor() {
+    this.cacheManager = new CacheManager();
+    this.debounceManager = new DebounceManager();
+    this.metricsCollector = new MetricsCollector();
   }
 
   /**
@@ -234,7 +54,7 @@ export class AIPerformanceOptimizer {
       return content;
     }
 
-    this.metrics.contextOptimizations++;
+    this.metricsCollector.recordContextOptimization();
 
     // Different optimization strategies based on mode
     switch (mode) {
@@ -416,104 +236,6 @@ export class AIPerformanceOptimizer {
   }
 
   /**
-   * Debounced AI request execution
-   */
-  /**
-   * @method debouncedRequest
-   * @description Debounced AI request execution.
-   * @template T
-   * @param {string} requestKey - The key for the request.
-   * @param {() => Promise<T>} requestFn - The function to execute.
-   * @param {boolean} [forceImmediate=false] - Whether to force immediate execution.
-   * @returns {Promise<T>} The response.
-   */
-  public async debouncedRequest<T extends AIResponse>(
-    requestKey: string,
-    requestFn: () => Promise<T>,
-    forceImmediate: boolean = false
-  ): Promise<T> {
-    // If force immediate, execute right away
-    if (forceImmediate) {
-      return this.executeRequest(requestKey, requestFn);
-    }
-
-    // Check if there's already a pending request
-    const pendingRequest = this.pendingRequests.get(requestKey);
-    if (pendingRequest) {
-      return pendingRequest as Promise<T>;
-    }
-
-    // Clear existing timer for this request
-    const existingTimer = this.debounceTimers.get(requestKey);
-    if (existingTimer) {
-      clearTimeout(existingTimer);
-    }
-
-    // Set up debounced execution
-    return new Promise<T>((resolve, reject) => {
-      const timer = setTimeout(async () => {
-        this.debounceTimers.delete(requestKey);
-        this.metrics.debouncedRequests++;
-        
-        try {
-          const result = await this.executeRequest(requestKey, requestFn);
-          resolve(result);
-        } catch (error) {
-          reject(error);
-        }
-      }, this.debounceConfig.delayMs);
-
-      this.debounceTimers.set(requestKey, timer);
-    });
-  }
-
-  /**
-   * Execute request with caching and metrics
-   */
-  private async executeRequest<T extends AIResponse>(
-    requestKey: string,
-    requestFn: () => Promise<T>
-  ): Promise<T> {
-    const startTime = Date.now();
-    
-    try {
-      // Check cache first
-      const cachedResponse = this.getCachedResponse(requestKey);
-      if (cachedResponse) {
-        return cachedResponse as T;
-      }
-
-      // Execute request
-      const requestPromise = requestFn();
-      this.pendingRequests.set(requestKey, requestPromise);
-
-      const response = await requestPromise;
-      
-      // Update metrics for all requests
-      this.metrics.totalRequests++;
-      const responseTime = Date.now() - startTime;
-      this.updateAverageResponseTime(responseTime);
-      
-      // Cache successful responses
-      if (response.success) {
-        this.cacheResponse(requestKey, response);
-      }
-
-      return response;
-    } finally {
-      this.pendingRequests.delete(requestKey);
-    }
-  }
-
-  /**
-   * Update average response time metric
-   */
-  private updateAverageResponseTime(responseTime: number): void {
-    const totalTime = this.metrics.averageResponseTime * (this.metrics.totalRequests - 1);
-    this.metrics.averageResponseTime = (totalTime + responseTime) / this.metrics.totalRequests;
-  }
-
-  /**
    * Optimized AI request with all performance features
    */
   /**
@@ -555,27 +277,44 @@ export class AIPerformanceOptimizer {
       ? this.optimizeDocumentContent(documentContent, mode)
       : documentContent;
 
-    // Create request fingerprint for caching
-    const fingerprint = this.createRequestFingerprint(mode, optimizedContent, parameters);
-    const cacheKey = this.getCacheKey(fingerprint);
+    // Create cache key for caching
+    const cacheKey = this.cacheManager.createCacheKey(mode, optimizedContent, parameters);
 
     // Check cache if enabled
     if (enableCaching) {
-      const cachedResponse = this.getCachedResponse(cacheKey);
+      const cachedResponse = this.cacheManager.getCachedResponse(cacheKey);
       if (cachedResponse) {
+        this.metricsCollector.recordCacheHit();
         return cachedResponse as T;
       }
     }
 
     // Create optimized request function
-    const optimizedRequestFn = () => requestFn();
+    const optimizedRequestFn = () => {
+      // Record cache miss if caching is enabled
+      if (enableCaching) {
+        this.metricsCollector.recordCacheMiss();
+      }
+      return requestFn();
+    };
+
+    let response: T;
 
     // Execute with or without debouncing
     if (enableDebouncing && !forceImmediate) {
-      return this.debouncedRequest(cacheKey, optimizedRequestFn, forceImmediate);
+      this.metricsCollector.recordDebouncedRequest();
+      response = await this.debounceManager.debouncedRequest(cacheKey, optimizedRequestFn, forceImmediate);
     } else {
-      return this.executeRequest(cacheKey, optimizedRequestFn);
+      response = await optimizedRequestFn();
+      this.metricsCollector.incrementTotalRequests();
     }
+
+    // Cache successful responses
+    if (enableCaching && response.success) {
+      this.cacheManager.cacheResponse(cacheKey, response);
+    }
+
+    return response;
   }
 
   /**
@@ -587,7 +326,7 @@ export class AIPerformanceOptimizer {
    * @returns {PerformanceMetrics} The performance metrics.
    */
   public getMetrics(): PerformanceMetrics {
-    return { ...this.metrics };
+    return this.metricsCollector.getMetrics();
   }
 
   /**
@@ -598,14 +337,7 @@ export class AIPerformanceOptimizer {
    * @description Reset performance metrics.
    */
   public resetMetrics(): void {
-    this.metrics = {
-      cacheHitRate: 0,
-      averageResponseTime: 0,
-      totalRequests: 0,
-      cachedRequests: 0,
-      debouncedRequests: 0,
-      contextOptimizations: 0
-    };
+    this.metricsCollector.resetMetrics();
   }
 
   /**
@@ -616,7 +348,7 @@ export class AIPerformanceOptimizer {
    * @description Clear all caches.
    */
   public clearCache(): void {
-    this.cache.clear();
+    this.cacheManager.clearCache();
   }
 
   /**
@@ -627,11 +359,7 @@ export class AIPerformanceOptimizer {
    * @description Cancel all pending debounced requests.
    */
   public cancelPendingRequests(): void {
-    for (const timer of this.debounceTimers.values()) {
-      clearTimeout(timer);
-    }
-    this.debounceTimers.clear();
-    this.pendingRequests.clear();
+    this.debounceManager.cancelPendingRequests();
   }
 
   /**
@@ -642,23 +370,8 @@ export class AIPerformanceOptimizer {
    * @description Get cache statistics.
    * @returns {{size: number, maxSize: number, hitRate: number, oldestEntry: number, newestEntry: number}} The cache statistics.
    */
-  public getCacheStats(): {
-    size: number;
-    maxSize: number;
-    hitRate: number;
-    oldestEntry: number;
-    newestEntry: number;
-  } {
-    const entries = Array.from(this.cache.values());
-    const timestamps = entries.map(entry => entry.timestamp);
-    
-    return {
-      size: this.cache.size,
-      maxSize: this.cacheConfig.maxSize,
-      hitRate: this.metrics.cacheHitRate,
-      oldestEntry: timestamps.length > 0 ? Math.min(...timestamps) : 0,
-      newestEntry: timestamps.length > 0 ? Math.max(...timestamps) : 0
-    };
+  public getCacheStats() {
+    return this.cacheManager.getCacheStats();
   }
 }
 
