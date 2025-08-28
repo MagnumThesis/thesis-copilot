@@ -25,9 +25,7 @@ Welcome to Thesis Copilot! This tool is designed for graduate students, research
 
 ### Quick Start
 
-To get started right away, you can access the live deployment of our application:
-
-- **[Try Thesis Copilot Now](https://react-vite-template.templates.workers.dev)**
+To get started right away, you can access the live deployment of our application.
 
 ## For Developers
 
