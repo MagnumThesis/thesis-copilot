@@ -1,4 +1,6 @@
 import { SearchResult, SearchFeedback } from './search-analytics-manager';
+import { getSupabase } from './supabase';
+import type { Database } from '../types/supabase_types';
 
 /**
  * Feedback Learning System
@@ -83,36 +85,33 @@ export class FeedbackLearningSystem {
       };
     }
   ): Promise<void> {
-    // Check if DB is available
-    if (!this.isDatabaseAvailable()) {
-      console.warn('Database not available, cannot store feedback for learning');
-      return;
-    }
-
     try {
+      const supabase = getSupabase(this.env);
+      
       // Store the detailed feedback for learning
-      await this.env.DB.prepare(`
-        INSERT INTO user_feedback_learning (
-          id, user_id, search_session_id, result_id, is_relevant, quality_rating,
-          comments, result_title, result_authors, result_journal, result_year,
-          citation_count, result_topics, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).bind(
-        crypto.randomUUID(),
-        userId,
-        searchSessionId,
-        resultId,
-        feedback.isRelevant,
-        feedback.qualityRating,
-        feedback.comments || null,
-        feedback.resultMetadata.title,
-        JSON.stringify(feedback.resultMetadata.authors),
-        feedback.resultMetadata.journal || null,
-        feedback.resultMetadata.year || null,
-        feedback.resultMetadata.citationCount,
-        JSON.stringify(feedback.resultMetadata.topics),
-        new Date().toISOString()
-      ).run();
+      const { error } = await supabase
+        .from('user_feedback_learning')
+        .insert({
+          id: crypto.randomUUID(),
+          user_id: userId,
+          search_session_id: searchSessionId,
+          result_id: resultId,
+          is_relevant: feedback.isRelevant,
+          quality_rating: feedback.qualityRating,
+          comments: feedback.comments || null,
+          result_title: feedback.resultMetadata.title,
+          result_authors: feedback.resultMetadata.authors,
+          result_journal: feedback.resultMetadata.journal || null,
+          result_year: feedback.resultMetadata.year || null,
+          citation_count: feedback.resultMetadata.citationCount,
+          result_topics: feedback.resultMetadata.topics,
+          created_at: new Date().toISOString()
+        });
+
+      if (error) {
+        console.error('Error storing feedback for learning:', error);
+        throw error;
+      }
 
       // Update user preference patterns
       await this.updateUserPreferencePatterns(userId, feedback);

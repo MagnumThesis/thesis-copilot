@@ -1,19 +1,11 @@
 import { Hono, Context } from 'hono';
 import { PrivacyManager, PrivacySettings } from '../lib/privacy-manager';
 import { Env } from '../types/env';
-import { D1Database } from '../types/d1';
-
-// Define SupabaseEnv type locally since it's not exported from supabase.ts
-type SupabaseEnv = {
-  SUPABASE_URL: string;
-  SUPABASE_ANON: string;
-};
+import { SupabaseEnv } from '../lib/supabase';
 
 // Type for the Hono context
 type PrivacyManagementContext = {
-  Bindings: Env & SupabaseEnv & {
-    DB?: D1Database; // Optional to support both D1 and Supabase
-  };
+  Bindings: Env & SupabaseEnv;
 };
 
 const app = new Hono<PrivacyManagementContext>();

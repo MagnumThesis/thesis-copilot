@@ -1,19 +1,11 @@
 import { Hono, Context } from 'hono'
 import { SearchAnalyticsManager } from '../lib/search-analytics-manager'
 import { Env } from '../types/env'
-import { D1Database } from '../types/d1'
-
-// Define SupabaseEnv type locally since it's not exported from supabase.ts
-type SupabaseEnv = {
-  SUPABASE_URL: string;
-  SUPABASE_ANON: string;
-};
+import { SupabaseEnv } from '../lib/supabase'
 
 // Type for the Hono context
 type AISearcherFeedbackContext = {
-  Bindings: Env & SupabaseEnv & {
-    DB: D1Database;
-  };
+  Bindings: Env & SupabaseEnv;
 };
 
 const app = new Hono<AISearcherFeedbackContext>()

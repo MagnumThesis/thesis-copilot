@@ -1,24 +1,18 @@
 import { Hono, Context } from 'hono'
 import { FeedbackLearningSystem } from '../lib/feedback-learning-system'
 import { Env } from '../types/env'
-import { D1Database } from '../types/d1'
-
-// Define SupabaseEnv type locally since it's not exported from supabase.ts
-type SupabaseEnv = {
-  SUPABASE_URL: string;
-  SUPABASE_ANON: string;
-};
+import { SupabaseEnv } from '../lib/supabase'
 
 // Type for the Hono context
 type AISearcherLearningContext = {
-  Bindings: Env & SupabaseEnv & {
-    DB: D1Database;
-  };
+  Bindings: Env & SupabaseEnv;
 };
 
 const app = new Hono<AISearcherLearningContext>()
 
-/**\n * Submit detailed feedback for learning system\n */
+/**
+ * Submit detailed feedback for learning system
+ */
 app.post('/feedback', async (c: Context<AISearcherLearningContext>) => {
   try {
     const { 

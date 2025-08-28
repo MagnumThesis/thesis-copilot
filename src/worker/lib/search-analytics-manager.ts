@@ -1,4 +1,6 @@
 import { SearchHistoryItem, SearchAnalytics, safeDate } from '../../lib/ai-types';
+import { getSupabase } from './supabase';
+import type { Database } from '../types/supabase_types';
 
 /**
  * Search Analytics Manager
@@ -135,35 +137,31 @@ export class SearchAnalyticsManager {
    * Record a new search session
    */
   async recordSearchSession(sessionData: Omit<SearchSession, 'id' | 'createdAt'>): Promise<string> {
-    // Check if DB is available
-    if (!this.isDatabaseAvailable()) {
-      console.warn('Database not available, cannot record search session');
-      return 'temp-session-id';
-    }
-    
-    const sessionId = crypto.randomUUID();
-    
     try {
-      await this.env.DB.prepare(`
-        INSERT INTO search_sessions (
-          id, conversation_id, user_id, search_query, content_sources,
-          search_filters, results_count, results_accepted, results_rejected,
-          search_success, processing_time_ms, error_message
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).bind(
-        sessionId,
-        sessionData.conversationId,
-        sessionData.userId,
-        sessionData.searchQuery,
-        JSON.stringify(sessionData.contentSources),
-        JSON.stringify(sessionData.searchFilters),
-        sessionData.resultsCount,
-        sessionData.resultsAccepted,
-        sessionData.resultsRejected,
-        sessionData.searchSuccess,
-        sessionData.processingTimeMs,
-        sessionData.errorMessage || null
-      ).run();
+      const supabase = getSupabase(this.env);
+      const sessionId = crypto.randomUUID();
+      
+      const { error } = await supabase
+        .from('search_sessions')
+        .insert({
+          id: sessionId,
+          conversation_id: sessionData.conversationId,
+          user_id: sessionData.userId,
+          search_query: sessionData.searchQuery,
+          content_sources: sessionData.contentSources,
+          search_filters: sessionData.searchFilters,
+          results_count: sessionData.resultsCount,
+          results_accepted: sessionData.resultsAccepted,
+          results_rejected: sessionData.resultsRejected,
+          search_success: sessionData.searchSuccess,
+          processing_time_ms: sessionData.processingTimeMs,
+          error_message: sessionData.errorMessage || null
+        });
+
+      if (error) {
+        console.error('Error recording search session:', error);
+        throw error;
+      }
 
       console.log(`Search session recorded: ${sessionId}`);
       return sessionId;

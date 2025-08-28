@@ -1,5 +1,7 @@
 import { SearchAnalyticsManager } from './search-analytics-manager';
 import { FeedbackLearningSystem } from './feedback-learning-system';
+import { getSupabase } from './supabase';
+import type { Database } from '../types/supabase_types';
 
 /**
  * Privacy Manager
@@ -54,10 +56,6 @@ export class PrivacyManager {
       throw new Error('Environment object is required for PrivacyManager');
     }
     
-    if (!env.DB) {
-      console.warn('Database binding (DB) not found in environment - some features may be limited');
-    }
-    
     this.analyticsManager = new SearchAnalyticsManager(env);
     this.learningSystem = new FeedbackLearningSystem(env);
   }
@@ -67,40 +65,30 @@ export class PrivacyManager {
    */
   async getPrivacySettings(userId: string, conversationId?: string): Promise<PrivacySettings | null> {
     try {
-      // Check if DB is available
-      if (!this.env || !this.env.DB) {
-        console.warn('Database not available, returning default privacy settings');
-        return {
-          userId,
-          conversationId,
-          dataRetentionDays: 365,
-          autoDeleteEnabled: false,
-          analyticsEnabled: true,
-          learningEnabled: true,
-          exportFormat: 'json',
-          consentGiven: false,
-          lastUpdated: new Date()
-        };
-      }
+      const supabase = getSupabase(this.env);
 
-      let whereClause = 'WHERE user_id = ?';
-      const params = [userId];
+      let query = supabase
+        .from('privacy_settings')
+        .select('*')
+        .eq('user_id', userId)
+        .order('last_updated', { ascending: false })
+        .limit(1);
 
       if (conversationId) {
-        whereClause += ' AND conversation_id = ?';
-        params.push(conversationId);
+        query = query.eq('conversation_id', conversationId);
+      } else {
+        // For global settings, we might want to handle null conversation_id differently
+        query = query.is('conversation_id', null);
       }
 
-      const query = `
-        SELECT * FROM privacy_settings
-        ${whereClause}
-        ORDER BY last_updated DESC
-        LIMIT 1
-      `;
+      const { data, error } = await query;
 
-      const result = await this.env.DB.prepare(query).bind(...params).first();
+      if (error) {
+        console.error('Error getting privacy settings:', error);
+        throw error;
+      }
 
-      if (!result) {
+      if (!data || data.length === 0) {
         // Return default settings if none exist
         return {
           userId,
@@ -114,6 +102,8 @@ export class PrivacyManager {
           lastUpdated: new Date()
         };
       }
+
+      const result = data[0];
 
       return {
         userId: result.user_id,
@@ -137,42 +127,30 @@ export class PrivacyManager {
    * Update privacy settings for a user
    */
   async updatePrivacySettings(settings: PrivacySettings): Promise<void> {
-    // Check if DB is available
-    if (!this.env || !this.env.DB) {
-      console.warn('Database not available, cannot update privacy settings');
-      return;
-    }
-
     try {
-      const query = `
-        INSERT INTO privacy_settings (
-          user_id, conversation_id, data_retention_days, auto_delete_enabled,
-          analytics_enabled, learning_enabled, export_format, consent_given,
-          consent_date, last_updated
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT (user_id, COALESCE(conversation_id::text, 'global')) DO UPDATE SET
-          data_retention_days = excluded.data_retention_days,
-          auto_delete_enabled = excluded.auto_delete_enabled,
-          analytics_enabled = excluded.analytics_enabled,
-          learning_enabled = excluded.learning_enabled,
-          export_format = excluded.export_format,
-          consent_given = excluded.consent_given,
-          consent_date = excluded.consent_date,
-          last_updated = excluded.last_updated
-      `;
+      const supabase = getSupabase(this.env);
 
-      await this.env.DB.prepare(query).bind(
-        settings.userId,
-        settings.conversationId || null,
-        settings.dataRetentionDays,
-        settings.autoDeleteEnabled,
-        settings.analyticsEnabled,
-        settings.learningEnabled,
-        settings.exportFormat,
-        settings.consentGiven,
-        settings.consentDate?.toISOString() || null,
-        new Date().toISOString()
-      ).run();
+      const { error } = await supabase
+        .from('privacy_settings')
+        .upsert({
+          user_id: settings.userId,
+          conversation_id: settings.conversationId || null,
+          data_retention_days: settings.dataRetentionDays,
+          auto_delete_enabled: settings.autoDeleteEnabled,
+          analytics_enabled: settings.analyticsEnabled,
+          learning_enabled: settings.learningEnabled,
+          export_format: settings.exportFormat,
+          consent_given: settings.consentGiven,
+          consent_date: settings.consentDate?.toISOString() || null,
+          last_updated: new Date().toISOString()
+        }, {
+          onConflict: 'user_id,conversation_id'
+        });
+
+      if (error) {
+        console.error('Error updating privacy settings:', error);
+        throw error;
+      }
 
       console.log(`Privacy settings updated for user ${settings.userId}`);
     } catch (error) {
@@ -185,79 +163,110 @@ export class PrivacyManager {
    * Get data summary for a user
    */
   async getDataSummary(userId: string, conversationId?: string): Promise<DataSummary> {
-    // Check if DB is available
-    if (!this.env || !this.env.DB) {
-      console.warn('Database not available, returning empty data summary');
-      return {
-        searchSessions: 0,
-        searchResults: 0,
-        feedbackEntries: 0,
-        learningData: 0,
-        totalSize: '0 KB'
-      };
-    }
-
     try {
-      let whereClause = 'WHERE user_id = ?';
-      const params = [userId];
+      const supabase = getSupabase(this.env);
 
+      // Build query conditions
+      const userFilter = `user_id.eq.${userId}`;
+      
+      let sessionFilter = userFilter;
+      let resultFilter = `search_session_id.in.(${sessionFilter})`;
+      let feedbackFilter = `search_session_id.in.(${sessionFilter})`;
+      let learningFilter = userFilter;
+      
       if (conversationId) {
-        whereClause += ' AND conversation_id = ?';
-        params.push(conversationId);
+        sessionFilter += `,conversation_id.eq.${conversationId}`;
+        resultFilter = `search_session_id.in.(${sessionFilter})`;
+        feedbackFilter = `search_session_id.in.(${sessionFilter})`;
+        learningFilter += `,conversation_id.eq.${conversationId}`;
       }
 
-      // Get search sessions count
-      const sessionsQuery = `
-        SELECT COUNT(*) as count, MIN(created_at) as oldest, MAX(created_at) as newest
-        FROM search_sessions ss
-        ${whereClause}
-      `;
-      const sessionsResult = await this.env.DB.prepare(sessionsQuery).bind(...params).first();
+      // Get search sessions count and date range
+      const { data: sessionsData, error: sessionsError } = await supabase
+        .from('search_sessions')
+        .select('count(), min(created_at), max(created_at)')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (sessionsError) {
+        console.error('Error getting search sessions data:', sessionsError);
+        throw sessionsError;
+      }
 
       // Get search results count
-      const resultsQuery = `
-        SELECT COUNT(*) as count
-        FROM search_results sr
-        JOIN search_sessions ss ON sr.search_session_id = ss.id
-        ${whereClause}
-      `;
-      const resultsResult = await this.env.DB.prepare(resultsQuery).bind(...params).first();
+      // First get session IDs for the user/conversation
+      const { data: sessionIds, error: sessionIdsError } = await supabase
+        .from('search_sessions')
+        .select('id')
+        .eq('user_id', userId);
+      
+      if (sessionIdsError) {
+        console.error('Error getting session IDs:', sessionIdsError);
+        throw sessionIdsError;
+      }
+
+      let resultsCount = 0;
+      if (sessionIds && sessionIds.length > 0) {
+        const sessionIdList = sessionIds.map(s => s.id);
+        const { count: resultsCountResult, error: resultsCountError } = await supabase
+          .from('search_results')
+          .select('*', { count: 'exact', head: true })
+          .in('search_session_id', sessionIdList);
+        
+        if (resultsCountError) {
+          console.error('Error getting search results count:', resultsCountError);
+          throw resultsCountError;
+        }
+        
+        resultsCount = resultsCountResult || 0;
+      }
 
       // Get feedback count
-      const feedbackQuery = `
-        SELECT COUNT(*) as count
-        FROM search_feedback sf
-        JOIN search_sessions ss ON sf.search_session_id = ss.id
-        ${whereClause}
-      `;
-      const feedbackResult = await this.env.DB.prepare(feedbackQuery).bind(...params).first();
+      let feedbackCount = 0;
+      if (sessionIds && sessionIds.length > 0) {
+        const sessionIdList = sessionIds.map(s => s.id);
+        const { count: feedbackCountResult, error: feedbackCountError } = await supabase
+          .from('search_feedback')
+          .select('*', { count: 'exact', head: true })
+          .in('search_session_id', sessionIdList);
+        
+        if (feedbackCountError) {
+          console.error('Error getting feedback count:', feedbackCountError);
+          throw feedbackCountError;
+        }
+        
+        feedbackCount = feedbackCountResult || 0;
+      }
 
       // Get learning data count
-      const learningQuery = `
-        SELECT COUNT(*) as count
-        FROM user_feedback_learning ufl
-        ${whereClause.replace('ss.', 'ufl.')}
-      `;
-      const learningResult = await this.env.DB.prepare(learningQuery).bind(...params).first();
+      const { count: learningCount, error: learningCountError } = await supabase
+        .from('user_feedback_learning')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId);
+      
+      if (learningCountError) {
+        console.error('Error getting learning data count:', learningCountError);
+        throw learningCountError;
+      }
 
       // Calculate approximate storage size (rough estimate)
-      const totalRecords = (sessionsResult?.count || 0) + 
-                          (resultsResult?.count || 0) + 
-                          (feedbackResult?.count || 0) + 
-                          (learningResult?.count || 0);
+      const totalRecords = (sessionsData?.count || 0) + 
+                          resultsCount + 
+                          feedbackCount + 
+                          (learningCount || 0);
       const estimatedSizeKB = Math.round(totalRecords * 2.5); // Rough estimate: 2.5KB per record
       const totalSize = estimatedSizeKB > 1024 
         ? `${(estimatedSizeKB / 1024).toFixed(1)} MB`
         : `${estimatedSizeKB} KB`;
 
       return {
-        searchSessions: sessionsResult?.count || 0,
-        searchResults: resultsResult?.count || 0,
-        feedbackEntries: feedbackResult?.count || 0,
-        learningData: learningResult?.count || 0,
+        searchSessions: sessionsData?.count || 0,
+        searchResults: resultsCount,
+        feedbackEntries: feedbackCount,
+        learningData: learningCount || 0,
         totalSize,
-        oldestEntry: sessionsResult?.oldest ? new Date(sessionsResult.oldest) : undefined,
-        newestEntry: sessionsResult?.newest ? new Date(sessionsResult.newest) : undefined
+        oldestEntry: sessionsData?.min ? new Date(sessionsData.min) : undefined,
+        newestEntry: sessionsData?.max ? new Date(sessionsData.max) : undefined
       };
     } catch (error) {
       console.error('Error getting data summary:', error);
@@ -269,48 +278,67 @@ export class PrivacyManager {
    * Clear all data for a user
    */
   async clearAllData(userId: string, conversationId?: string): Promise<{ deletedCount: number }> {
-    // Check if DB is available
-    if (!this.env || !this.env.DB) {
-      console.warn('Database not available, cannot clear data');
-      return { deletedCount: 0 };
-    }
-
     try {
-      let whereClause = 'WHERE user_id = ?';
-      const params = [userId];
-
-      if (conversationId) {
-        whereClause += ' AND conversation_id = ?';
-        params.push(conversationId);
-      }
-
+      const supabase = getSupabase(this.env);
       let totalDeleted = 0;
 
+      // Build filter conditions
+      let userFilter = `user_id.eq.${userId}`;
+      if (conversationId) {
+        userFilter += ` ,conversation_id.eq.${conversationId}`;
+      }
+
       // Clear learning data first (has foreign key to search_sessions)
-      const learningQuery = `DELETE FROM user_feedback_learning ${whereClause.replace('ss.', '')}`;
-      const learningResult = await this.env.DB.prepare(learningQuery).bind(...params).run();
-      totalDeleted += learningResult.changes || 0;
+      const { error: learningError } = await supabase
+        .from('user_feedback_learning')
+        .delete()
+        .match({ user_id: userId });
+      
+      if (learningError) {
+        console.error('Error clearing learning data:', learningError);
+        throw learningError;
+      }
 
       // Clear user preference patterns
-      const preferencesQuery = `DELETE FROM user_preference_patterns WHERE user_id = ?`;
-      const preferencesResult = await this.env.DB.prepare(preferencesQuery).bind(userId).run();
-      totalDeleted += preferencesResult.changes || 0;
+      const { error: preferencesError } = await supabase
+        .from('user_preference_patterns')
+        .delete()
+        .match({ user_id: userId });
+      
+      if (preferencesError) {
+        console.error('Error clearing preference patterns:', preferencesError);
+        throw preferencesError;
+      }
 
       // Clear adaptive filters
-      const filtersQuery = `DELETE FROM adaptive_filters WHERE user_id = ?`;
-      const filtersResult = await this.env.DB.prepare(filtersQuery).bind(userId).run();
-      totalDeleted += filtersResult.changes || 0;
+      const { error: filtersError } = await supabase
+        .from('adaptive_filters')
+        .delete()
+        .match({ user_id: userId });
+      
+      if (filtersError) {
+        console.error('Error clearing adaptive filters:', filtersError);
+        throw filtersError;
+      }
 
       // Clear learning metrics
-      const metricsQuery = `DELETE FROM learning_metrics WHERE user_id = ?`;
-      const metricsResult = await this.env.DB.prepare(metricsQuery).bind(userId).run();
-      totalDeleted += metricsResult.changes || 0;
+      const { error: metricsError } = await supabase
+        .from('learning_metrics')
+        .delete()
+        .match({ user_id: userId });
+      
+      if (metricsError) {
+        console.error('Error clearing learning metrics:', metricsError);
+        throw metricsError;
+      }
 
       // Use analytics manager to clear search data (handles cascading deletes)
       await this.analyticsManager.clearAnalyticsData(userId, conversationId);
 
       console.log(`Cleared all data for user ${userId}${conversationId ? ` in conversation ${conversationId}` : ''}`);
       
+      // Note: We're not returning an accurate count since Supabase doesn't easily provide
+      // the number of deleted rows in a single operation
       return { deletedCount: totalDeleted };
     } catch (error) {
       console.error('Error clearing all data:', error);
@@ -322,46 +350,59 @@ export class PrivacyManager {
    * Clear old data based on retention policy
    */
   async clearOldData(userId: string, retentionDays: number, conversationId?: string): Promise<{ deletedCount: number }> {
-    // Check if DB is available
-    if (!this.env || !this.env.DB) {
-      console.warn('Database not available, cannot clear old data');
-      return { deletedCount: 0 };
-    }
-
     try {
+      const supabase = getSupabase(this.env);
       const cutoffDate = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
       
-      let whereClause = 'WHERE user_id = ? AND created_at < ?';
-      const params = [userId, cutoffDate.toISOString()];
-
+      // Build filter conditions
+      let userFilter = `user_id.eq.${userId}`;
+      let dateFilter = `created_at.lt.${cutoffDate.toISOString()}`;
+      
       if (conversationId) {
-        whereClause += ' AND conversation_id = ?';
-        params.push(conversationId);
+        userFilter += `,conversation_id.eq.${conversationId}`;
       }
 
-      let totalDeleted = 0;
-
       // Clear old learning data
-      const learningQuery = `DELETE FROM user_feedback_learning ${whereClause.replace('ss.', '')}`;
-      const learningResult = await this.env.DB.prepare(learningQuery).bind(...params).run();
-      totalDeleted += learningResult.changes || 0;
+      const { error: learningError } = await supabase
+        .from('user_feedback_learning')
+        .delete()
+        .match({ user_id: userId })
+        .lt('created_at', cutoffDate.toISOString());
+      
+      if (learningError) {
+        console.error('Error clearing old learning data:', learningError);
+        throw learningError;
+      }
 
       // Clear old adaptive filters
-      const filtersQuery = `DELETE FROM adaptive_filters WHERE user_id = ? AND created_at < ?`;
-      const filtersResult = await this.env.DB.prepare(filtersQuery).bind(userId, cutoffDate.toISOString()).run();
-      totalDeleted += filtersResult.changes || 0;
+      const { error: filtersError } = await supabase
+        .from('adaptive_filters')
+        .delete()
+        .match({ user_id: userId })
+        .lt('created_at', cutoffDate.toISOString());
+      
+      if (filtersError) {
+        console.error('Error clearing old adaptive filters:', filtersError);
+        throw filtersError;
+      }
 
       // Clear old search sessions and related data
-      const sessionsQuery = `
-        DELETE FROM search_sessions 
-        ${whereClause}
-      `;
-      const sessionsResult = await this.env.DB.prepare(sessionsQuery).bind(...params).run();
-      totalDeleted += sessionsResult.changes || 0;
-
-      console.log(`Cleared ${totalDeleted} old records for user ${userId} (older than ${retentionDays} days)`);
+      const { error: sessionsError } = await supabase
+        .from('search_sessions')
+        .delete()
+        .match({ user_id: userId })
+        .lt('created_at', cutoffDate.toISOString());
       
-      return { deletedCount: totalDeleted };
+      if (sessionsError) {
+        console.error('Error clearing old search sessions:', sessionsError);
+        throw sessionsError;
+      }
+
+      console.log(`Cleared old records for user ${userId} (older than ${retentionDays} days)`);
+      
+      // Note: We're not returning an accurate count since Supabase doesn't easily provide
+      // the number of deleted rows in a single operation
+      return { deletedCount: 0 };
     } catch (error) {
       console.error('Error clearing old data:', error);
       throw error;
