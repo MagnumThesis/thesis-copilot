@@ -413,26 +413,8 @@ export class PrivacyManager {
    * Export user data
    */
   async exportData(userId: string, format: 'json' | 'csv', conversationId?: string): Promise<{ exportData: string; recordCount: number }> {
-    // Check if DB is available
-    if (!this.env || !this.env.DB) {
-      console.warn('Database not available, cannot export data');
-      return { 
-        exportData: JSON.stringify({ 
-          error: 'Database not available', 
-          message: 'Data export is not available at this time' 
-        }, null, 2), 
-        recordCount: 0 
-      };
-    }
-
     try {
-      let whereClause = 'WHERE user_id = ?';
-      const params = [userId];
-
-      if (conversationId) {
-        whereClause += ' AND conversation_id = ?';
-        params.push(conversationId);
-      }
+      const supabase = getSupabase(this.env);
 
       // Get all user data
       const exportData: ExportData = {
@@ -451,39 +433,110 @@ export class PrivacyManager {
       };
 
       // Export search sessions
-      const sessionsQuery = `SELECT * FROM search_sessions ss ${whereClause} ORDER BY created_at DESC`;
-      const sessionsResult = await this.env.DB.prepare(sessionsQuery).bind(...params).all();
-      exportData.searchSessions = sessionsResult.results || [];
+      let sessionsQuery = supabase
+        .from('search_sessions')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (conversationId) {
+        sessionsQuery = sessionsQuery.eq('conversation_id', conversationId);
+      }
+
+      const { data: sessionsData, error: sessionsError } = await sessionsQuery;
+      if (sessionsError) {
+        console.error('Error exporting search sessions:', sessionsError);
+        throw sessionsError;
+      }
+      exportData.searchSessions = sessionsData || [];
 
       // Export search results
-      const resultsQuery = `
-        SELECT sr.* FROM search_results sr
-        JOIN search_sessions ss ON sr.search_session_id = ss.id
-        ${whereClause}
-        ORDER BY sr.created_at DESC
-      `;
-      const resultsResult = await this.env.DB.prepare(resultsQuery).bind(...params).all();
-      exportData.searchResults = resultsResult.results || [];
+      // First get session IDs for the user/conversation
+      let sessionQuery = supabase
+        .from('search_sessions')
+        .select('id')
+        .eq('user_id', userId);
+
+      if (conversationId) {
+        sessionQuery = sessionQuery.eq('conversation_id', conversationId);
+      }
+
+      const { data: sessionIdsData, error: sessionIdsError } = await sessionQuery;
+      if (sessionIdsError) {
+        console.error('Error getting session IDs:', sessionIdsError);
+        throw sessionIdsError;
+      }
+
+      if (sessionIdsData && sessionIdsData.length > 0) {
+        const sessionIdList = sessionIdsData.map(s => s.id);
+        
+        let resultsQuery = supabase
+          .from('search_results')
+          .select('*')
+          .in('search_session_id', sessionIdList)
+          .order('created_at', { ascending: false });
+
+        const { data: resultsData, error: resultsError } = await resultsQuery;
+        if (resultsError) {
+          console.error('Error exporting search results:', resultsError);
+          throw resultsError;
+        }
+        exportData.searchResults = resultsData || [];
+      }
 
       // Export feedback
-      const feedbackQuery = `
-        SELECT sf.* FROM search_feedback sf
-        JOIN search_sessions ss ON sf.search_session_id = ss.id
-        ${whereClause}
-        ORDER BY sf.created_at DESC
-      `;
-      const feedbackResult = await this.env.DB.prepare(feedbackQuery).bind(...params).all();
-      exportData.feedback = feedbackResult.results || [];
+      if (sessionIdsData && sessionIdsData.length > 0) {
+        const sessionIdList = sessionIdsData.map(s => s.id);
+        
+        let feedbackQuery = supabase
+          .from('search_feedback')
+          .select('*')
+          .in('search_session_id', sessionIdList)
+          .order('created_at', { ascending: false });
+
+        const { data: feedbackData, error: feedbackError } = await feedbackQuery;
+        if (feedbackError) {
+          console.error('Error exporting feedback:', feedbackError);
+          throw feedbackError;
+        }
+        exportData.feedback = feedbackData || [];
+      }
 
       // Export learning data
-      const learningQuery = `SELECT * FROM user_feedback_learning ${whereClause.replace('ss.', '')} ORDER BY created_at DESC`;
-      const learningResult = await this.env.DB.prepare(learningQuery).bind(...params).all();
-      exportData.learningData = learningResult.results || [];
+      let learningQuery = supabase
+        .from('user_feedback_learning')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (conversationId) {
+        learningQuery = learningQuery.eq('conversation_id', conversationId);
+      }
+
+      const { data: learningData, error: learningError } = await learningQuery;
+      if (learningError) {
+        console.error('Error exporting learning data:', learningError);
+        throw learningError;
+      }
+      exportData.learningData = learningData || [];
 
       // Export analytics
-      const analyticsQuery = `SELECT * FROM search_analytics sa ${whereClause.replace('ss.', 'sa.')} ORDER BY created_at DESC`;
-      const analyticsResult = await this.env.DB.prepare(analyticsQuery).bind(...params).all();
-      exportData.analytics = analyticsResult.results || [];
+      let analyticsQuery = supabase
+        .from('search_analytics')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (conversationId) {
+        analyticsQuery = analyticsQuery.eq('conversation_id', conversationId);
+      }
+
+      const { data: analyticsData, error: analyticsError } = await analyticsQuery;
+      if (analyticsError) {
+        console.error('Error exporting analytics:', analyticsError);
+        throw analyticsError;
+      }
+      exportData.analytics = analyticsData || [];
 
       const totalRecords = exportData.searchSessions.length + 
                           exportData.searchResults.length + 
@@ -608,27 +661,25 @@ export class PrivacyManager {
    * Run automatic cleanup based on retention policies
    */
   async runAutomaticCleanup(): Promise<{ usersProcessed: number; recordsDeleted: number }> {
-    // Check if DB is available
-    if (!this.env || !this.env.DB) {
-      console.warn('Database not available, cannot run automatic cleanup');
-      return { usersProcessed: 0, recordsDeleted: 0 };
-    }
-
     try {
-      // Get all users with auto-delete enabled
-      const query = `
-        SELECT DISTINCT user_id, conversation_id, data_retention_days
-        FROM privacy_settings
-        WHERE auto_delete_enabled = true AND consent_given = true
-      `;
+      const supabase = getSupabase(this.env);
 
-      const result = await this.env.DB.prepare(query).all();
-      const settings = result.results || [];
+      // Get all users with auto-delete enabled
+      const { data: settings, error } = await supabase
+        .from('privacy_settings')
+        .select('user_id, conversation_id, data_retention_days')
+        .eq('auto_delete_enabled', true)
+        .eq('consent_given', true);
+
+      if (error) {
+        console.error('Error getting privacy settings for cleanup:', error);
+        throw error;
+      }
 
       let totalDeleted = 0;
       let usersProcessed = 0;
 
-      for (const setting of settings) {
+      for (const setting of settings || []) {
         try {
           const { deletedCount } = await this.clearOldData(
             setting.user_id,
@@ -658,41 +709,67 @@ export class PrivacyManager {
    * Anonymize user data (for GDPR compliance)
    */
   async anonymizeUserData(userId: string): Promise<{ recordsAnonymized: number }> {
-    // Check if DB is available
-    if (!this.env || !this.env.DB) {
-      console.warn('Database not available, cannot anonymize user data');
-      return { recordsAnonymized: 0 };
-    }
-
     try {
+      const supabase = getSupabase(this.env);
       const anonymizedUserId = `anon_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       let totalAnonymized = 0;
 
       // Anonymize search sessions
-      const sessionsQuery = `UPDATE search_sessions SET user_id = ? WHERE user_id = ?`;
-      const sessionsResult = await this.env.DB.prepare(sessionsQuery).bind(anonymizedUserId, userId).run();
-      totalAnonymized += sessionsResult.changes || 0;
+      const { error: sessionsError } = await supabase
+        .from('search_sessions')
+        .update({ user_id: anonymizedUserId })
+        .eq('user_id', userId);
+      
+      if (sessionsError) {
+        console.error('Error anonymizing search sessions:', sessionsError);
+        throw sessionsError;
+      }
 
       // Anonymize feedback
-      const feedbackQuery = `UPDATE search_feedback SET user_id = ? WHERE user_id = ?`;
-      const feedbackResult = await this.env.DB.prepare(feedbackQuery).bind(anonymizedUserId, userId).run();
-      totalAnonymized += feedbackResult.changes || 0;
+      const { error: feedbackError } = await supabase
+        .from('search_feedback')
+        .update({ user_id: anonymizedUserId })
+        .eq('user_id', userId);
+      
+      if (feedbackError) {
+        console.error('Error anonymizing feedback:', feedbackError);
+        throw feedbackError;
+      }
 
       // Anonymize learning data
-      const learningQuery = `UPDATE user_feedback_learning SET user_id = ? WHERE user_id = ?`;
-      const learningResult = await this.env.DB.prepare(learningQuery).bind(anonymizedUserId, userId).run();
-      totalAnonymized += learningResult.changes || 0;
+      const { error: learningError } = await supabase
+        .from('user_feedback_learning')
+        .update({ user_id: anonymizedUserId })
+        .eq('user_id', userId);
+      
+      if (learningError) {
+        console.error('Error anonymizing learning data:', learningError);
+        throw learningError;
+      }
 
       // Anonymize analytics
-      const analyticsQuery = `UPDATE search_analytics SET user_id = ? WHERE user_id = ?`;
-      const analyticsResult = await this.env.DB.prepare(analyticsQuery).bind(anonymizedUserId, userId).run();
-      totalAnonymized += analyticsResult.changes || 0;
+      const { error: analyticsError } = await supabase
+        .from('search_analytics')
+        .update({ user_id: anonymizedUserId })
+        .eq('user_id', userId);
+      
+      if (analyticsError) {
+        console.error('Error anonymizing analytics:', analyticsError);
+        throw analyticsError;
+      }
 
       // Remove privacy settings (contains PII)
-      const privacyQuery = `DELETE FROM privacy_settings WHERE user_id = ?`;
-      await this.env.DB.prepare(privacyQuery).bind(userId).run();
+      const { error: privacyError } = await supabase
+        .from('privacy_settings')
+        .delete()
+        .eq('user_id', userId);
+      
+      if (privacyError) {
+        console.error('Error removing privacy settings:', privacyError);
+        throw privacyError;
+      }
 
-      console.log(`Anonymized ${totalAnonymized} records for user ${userId}`);
+      console.log(`Anonymized records for user ${userId}`);
       
       return { recordsAnonymized: totalAnonymized };
     } catch (error) {

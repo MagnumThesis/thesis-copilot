@@ -46,13 +46,7 @@ export class FeedbackLearningSystem {
   private env: any;
 
   constructor(env: any) {
-    if (!env) {
-      throw new Error('Environment object is required for FeedbackLearningSystem');
-    }
-    
-    if (!env.DB) {
-      console.warn('Database binding (DB) not found in environment - some features may be limited');
-    }
+   
     
     this.env = env;
   }
@@ -148,24 +142,28 @@ export class FeedbackLearningSystem {
       const updatedPattern = this.calculateUpdatedPatterns(existingPattern, feedback);
       
       // Store updated patterns
-      await this.env.DB.prepare(`
-        INSERT OR REPLACE INTO user_preference_patterns (
-          user_id, preferred_authors, preferred_journals, preferred_year_range,
-          preferred_citation_range, topic_preferences, quality_threshold,
-          relevance_threshold, rejection_patterns, last_updated
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).bind(
-        userId,
-        JSON.stringify(updatedPattern.preferredAuthors),
-        JSON.stringify(updatedPattern.preferredJournals),
-        JSON.stringify(updatedPattern.preferredYearRange),
-        JSON.stringify(updatedPattern.preferredCitationRange),
-        JSON.stringify(updatedPattern.topicPreferences),
-        updatedPattern.qualityThreshold,
-        updatedPattern.relevanceThreshold,
-        JSON.stringify(updatedPattern.rejectionPatterns),
-        new Date().toISOString()
-      ).run();
+      const supabase = getSupabase(this.env);
+      const { error } = await supabase
+        .from('user_preference_patterns')
+        .upsert({
+          user_id: userId,
+          preferred_authors: updatedPattern.preferredAuthors,
+          preferred_journals: updatedPattern.preferredJournals,
+          preferred_year_range: updatedPattern.preferredYearRange,
+          preferred_citation_range: updatedPattern.preferredCitationRange,
+          topic_preferences: updatedPattern.topicPreferences,
+          quality_threshold: updatedPattern.qualityThreshold,
+          relevance_threshold: updatedPattern.relevanceThreshold,
+          rejection_patterns: updatedPattern.rejectionPatterns,
+          last_updated: new Date().toISOString()
+        }, {
+          onConflict: 'user_id'
+        });
+
+      if (error) {
+        console.error('Error updating user preference patterns:', error);
+        throw error;
+      }
 
     } catch (error) {
       console.error('Error updating user preference patterns:', error);
@@ -199,11 +197,19 @@ export class FeedbackLearningSystem {
     }
 
     try {
-      const result = await this.env.DB.prepare(`
-        SELECT * FROM user_preference_patterns WHERE user_id = ?
-      `).bind(userId).first();
+      const supabase = getSupabase(this.env);
+      const { data, error } = await supabase
+        .from('user_preference_patterns')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle();
 
-      if (!result) {
+      if (error) {
+        console.error('Error getting user preference patterns:', error);
+        throw error;
+      }
+
+      if (!data) {
         // Return default patterns for new users
         return {
           userId,
@@ -224,16 +230,20 @@ export class FeedbackLearningSystem {
       }
 
       return {
-        userId: result.user_id,
-        preferredAuthors: JSON.parse(result.preferred_authors || '[]'),
-        preferredJournals: JSON.parse(result.preferred_journals || '[]'),
-        preferredYearRange: JSON.parse(result.preferred_year_range || '{"min": 2010, "max": 2024}'),
-        preferredCitationRange: JSON.parse(result.preferred_citation_range || '{"min": 0, "max": 10000}'),
-        topicPreferences: JSON.parse(result.topic_preferences || '{}'),
-        qualityThreshold: result.quality_threshold || 0.5,
-        relevanceThreshold: result.relevance_threshold || 0.5,
-        rejectionPatterns: JSON.parse(result.rejection_patterns || '{"authors": [], "journals": [], "keywords": []}'),
-        lastUpdated: new Date(result.last_updated)
+        userId: data.user_id,
+        preferredAuthors: data.preferred_authors || [],
+        preferredJournals: data.preferred_journals || [],
+        preferredYearRange: data.preferred_year_range || { min: 2010, max: new Date().getFullYear() },
+        preferredCitationRange: data.preferred_citation_range || { min: 0, max: 10000 },
+        topicPreferences: data.topic_preferences || {},
+        qualityThreshold: data.quality_threshold || 0.5,
+        relevanceThreshold: data.relevance_threshold || 0.5,
+        rejectionPatterns: data.rejection_patterns || {
+          authors: [],
+          journals: [],
+          keywords: []
+        },
+        lastUpdated: new Date(data.last_updated)
       };
     } catch (error) {
       console.error('Error getting user preference patterns:', error);
@@ -506,20 +516,29 @@ export class FeedbackLearningSystem {
     }
 
     try {
-      const result = await this.env.DB.prepare(`
-        SELECT 
-          COUNT(*) as total_feedback,
-          COUNT(CASE WHEN is_relevant = true AND quality_rating >= 4 THEN 1 END) as positive_ratings,
-          COUNT(CASE WHEN is_relevant = false OR quality_rating <= 2 THEN 1 END) as negative_ratings,
-          AVG(quality_rating) as average_rating
-        FROM user_feedback_learning 
-        WHERE user_id = ? AND created_at >= datetime('now', '-30 days')
-      `).bind(userId).first();
+      const supabase = getSupabase(this.env);
+      const { data, error } = await supabase
+        .from('user_feedback_learning')
+        .select(`
+          count(),
+          is_relevant,
+          quality_rating
+        `)
+        .eq('user_id', userId)
+        .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
 
-      const totalFeedback = result?.total_feedback || 0;
-      const positiveRatings = result?.positive_ratings || 0;
-      const negativeRatings = result?.negative_ratings || 0;
-      const averageRating = result?.average_rating || 0;
+      if (error) {
+        console.error('Error getting learning metrics:', error);
+        throw error;
+      }
+
+      // Calculate metrics from the data
+      const totalFeedback = data.length;
+      const positiveRatings = data.filter(item => item.is_relevant && item.quality_rating >= 4).length;
+      const negativeRatings = data.filter(item => !item.is_relevant || item.quality_rating <= 2).length;
+      const averageRating = totalFeedback > 0 
+        ? data.reduce((sum, item) => sum + item.quality_rating, 0) / totalFeedback 
+        : 0;
 
       // Calculate confidence level based on feedback volume and consistency
       const confidenceLevel = Math.min(1, totalFeedback / 20) * 
@@ -639,8 +658,29 @@ export class FeedbackLearningSystem {
     }
 
     try {
-      await this.env.DB.prepare(`DELETE FROM user_feedback_learning WHERE user_id = ?`).bind(userId).run();
-      await this.env.DB.prepare(`DELETE FROM user_preference_patterns WHERE user_id = ?`).bind(userId).run();
+      const supabase = getSupabase(this.env);
+      
+      // Clear user feedback learning data
+      const { error: feedbackError } = await supabase
+        .from('user_feedback_learning')
+        .delete()
+        .eq('user_id', userId);
+      
+      if (feedbackError) {
+        console.error('Error clearing user feedback learning data:', feedbackError);
+        throw feedbackError;
+      }
+      
+      // Clear user preference patterns
+      const { error: patternsError } = await supabase
+        .from('user_preference_patterns')
+        .delete()
+        .eq('user_id', userId);
+      
+      if (patternsError) {
+        console.error('Error clearing user preference patterns:', patternsError);
+        throw patternsError;
+      }
       
       console.log(`Learning data cleared for user: ${userId}`);
     } catch (error) {

@@ -112,9 +112,6 @@ export class SearchAnalyticsManager {
       throw new Error('Environment object is required for SearchAnalyticsManager');
     }
     
-    if (!env.DB) {
-      console.warn('Database binding (DB) not found in environment - some features may be limited');
-    }
     
     this.env = env;
   }
@@ -178,33 +175,34 @@ export class SearchAnalyticsManager {
     const resultId = crypto.randomUUID();
     
     try {
-      await this.env.DB.prepare(`
-        INSERT INTO search_results (
-          id, search_session_id, reference_id, result_title, result_authors,
-          result_journal, result_year, result_doi, result_url, relevance_score,
-          confidence_score, quality_score, citation_count, user_action,
-          user_feedback_rating, user_feedback_comments, added_to_library, added_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).bind(
-        resultId,
-        resultData.searchSessionId,
-        resultData.referenceId || null,
-        resultData.resultTitle,
-        JSON.stringify(resultData.resultAuthors),
-        resultData.resultJournal || null,
-        resultData.resultYear || null,
-        resultData.resultDoi || null,
-        resultData.resultUrl || null,
-        resultData.relevanceScore,
-        resultData.confidenceScore,
-        resultData.qualityScore,
-        resultData.citationCount,
-        resultData.userAction || null,
-        resultData.userFeedbackRating || null,
-        resultData.userFeedbackComments || null,
-        resultData.addedToLibrary,
-        resultData.addedAt?.toISOString() || null
-      ).run();
+      const supabase = getSupabase(this.env);
+      const { error } = await supabase
+        .from('search_results')
+        .insert({
+          id: resultId,
+          search_session_id: resultData.searchSessionId,
+          reference_id: resultData.referenceId || null,
+          result_title: resultData.resultTitle,
+          result_authors: resultData.resultAuthors,
+          result_journal: resultData.resultJournal || null,
+          result_year: resultData.resultYear || null,
+          result_doi: resultData.resultDoi || null,
+          result_url: resultData.resultUrl || null,
+          relevance_score: resultData.relevanceScore,
+          confidence_score: resultData.confidenceScore,
+          quality_score: resultData.qualityScore,
+          citation_count: resultData.citationCount,
+          user_action: resultData.userAction || null,
+          user_feedback_rating: resultData.userFeedbackRating || null,
+          user_feedback_comments: resultData.userFeedbackComments || null,
+          added_to_library: resultData.addedToLibrary,
+          added_at: resultData.addedAt?.toISOString() || null
+        });
+
+      if (error) {
+        console.error('Error recording search result:', error);
+        throw error;
+      }
 
       console.log(`Search result recorded: ${resultId}`);
       return resultId;
@@ -223,6 +221,7 @@ export class SearchAnalyticsManager {
     referenceId?: string
   ): Promise<void> {
     try {
+      const supabase = getSupabase(this.env);
       const updateData: any = {
         user_action: action,
         added_to_library: action === 'added',
@@ -233,17 +232,15 @@ export class SearchAnalyticsManager {
         updateData.reference_id = referenceId;
       }
 
-      await this.env.DB.prepare(`
-        UPDATE search_results 
-        SET user_action = ?, added_to_library = ?, added_at = ?, reference_id = ?
-        WHERE id = ?
-      `).bind(
-        updateData.user_action,
-        updateData.added_to_library,
-        updateData.added_at,
-        referenceId || null,
-        resultId
-      ).run();
+      const { error } = await supabase
+        .from('search_results')
+        .update(updateData)
+        .eq('id', resultId);
+
+      if (error) {
+        console.error('Error updating search result action:', error);
+        throw error;
+      }
 
       console.log(`Search result action updated: ${resultId} -> ${action}`);
     } catch (error) {
@@ -259,24 +256,26 @@ export class SearchAnalyticsManager {
     const feedbackId = crypto.randomUUID();
     
     try {
-      await this.env.DB.prepare(`
-        INSERT INTO search_feedback (
-          id, search_session_id, user_id, overall_satisfaction, relevance_rating,
-          quality_rating, ease_of_use_rating, feedback_comments, would_recommend,
-          improvement_suggestions
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).bind(
-        feedbackId,
-        feedbackData.searchSessionId,
-        feedbackData.userId,
-        feedbackData.overallSatisfaction,
-        feedbackData.relevanceRating,
-        feedbackData.qualityRating,
-        feedbackData.easeOfUseRating,
-        feedbackData.feedbackComments || null,
-        feedbackData.wouldRecommend,
-        feedbackData.improvementSuggestions || null
-      ).run();
+      const supabase = getSupabase(this.env);
+      const { error } = await supabase
+        .from('search_feedback')
+        .insert({
+          id: feedbackId,
+          search_session_id: feedbackData.searchSessionId,
+          user_id: feedbackData.userId,
+          overall_satisfaction: feedbackData.overallSatisfaction,
+          relevance_rating: feedbackData.relevanceRating,
+          quality_rating: feedbackData.qualityRating,
+          ease_of_use_rating: feedbackData.easeOfUseRating,
+          feedback_comments: feedbackData.feedbackComments || null,
+          would_recommend: feedbackData.wouldRecommend,
+          improvement_suggestions: feedbackData.improvementSuggestions || null
+        });
+
+      if (error) {
+        console.error('Error recording search feedback:', error);
+        throw error;
+      }
 
       console.log(`Search feedback recorded: ${feedbackId}`);
       return feedbackId;
@@ -291,36 +290,50 @@ export class SearchAnalyticsManager {
    */
   async getConversionMetrics(userId: string, conversationId?: string, days: number = 30): Promise<ConversionMetrics> {
     try {
+      const supabase = getSupabase(this.env);
       const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
       
-      let query = `
-        SELECT 
-          COUNT(DISTINCT ss.id) as total_searches,
-          COALESCE(SUM(ss.results_count), 0) as total_results,
-          COUNT(CASE WHEN sr.user_action = 'viewed' THEN 1 END) as results_viewed,
-          COUNT(CASE WHEN sr.user_action = 'added' THEN 1 END) as results_added,
-          COUNT(CASE WHEN sr.user_action = 'rejected' THEN 1 END) as results_rejected
-        FROM search_sessions ss
-        LEFT JOIN search_results sr ON ss.id = sr.search_session_id
-        WHERE ss.user_id = ? AND ss.created_at >= ?
-      `;
-      
-      const params = [userId, cutoffDate.toISOString()];
+      // Get search sessions with their results
+      let sessionsQuery = supabase
+        .from('search_sessions')
+        .select('id, results_count')
+        .eq('user_id', userId)
+        .gte('created_at', cutoffDate.toISOString());
       
       if (conversationId) {
-        query += ' AND ss.conversation_id = ?';
-        params.push(conversationId);
+        sessionsQuery = sessionsQuery.eq('conversation_id', conversationId);
       }
-
-      const result = await this.env.DB.prepare(query).bind(...params).first();
       
-      const totalResults = result.total_results || 0;
-      const resultsViewed = result.results_viewed || 0;
-      const resultsAdded = result.results_added || 0;
-      const resultsRejected = result.results_rejected || 0;
+      const { data: sessions, error: sessionsError } = await sessionsQuery;
+      
+      if (sessionsError) {
+        console.error('Error getting search sessions:', sessionsError);
+        throw sessionsError;
+      }
+      
+      // Get search results with user actions
+      const sessionIds = sessions.map(session => session.id);
+      let resultsQuery = supabase
+        .from('search_results')
+        .select('user_action')
+        .in('search_session_id', sessionIds);
+      
+      const { data: results, error: resultsError } = await resultsQuery;
+      
+      if (resultsError) {
+        console.error('Error getting search results:', resultsError);
+        throw resultsError;
+      }
+      
+      // Calculate metrics
+      const totalSearches = sessions.length;
+      const totalResults = sessions.reduce((sum, session) => sum + (session.results_count || 0), 0);
+      const resultsViewed = results.filter(result => result.user_action === 'viewed').length;
+      const resultsAdded = results.filter(result => result.user_action === 'added').length;
+      const resultsRejected = results.filter(result => result.user_action === 'rejected').length;
 
       return {
-        totalSearches: result.total_searches || 0,
+        totalSearches,
         totalResults,
         resultsViewed,
         resultsAdded,
@@ -340,37 +353,65 @@ export class SearchAnalyticsManager {
    */
   async getUserSatisfactionMetrics(userId: string, conversationId?: string, days: number = 30): Promise<UserSatisfactionMetrics> {
     try {
+      const supabase = getSupabase(this.env);
       const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
       
-      let query = `
-        SELECT 
-          AVG(sf.overall_satisfaction) as avg_overall_satisfaction,
-          AVG(sf.relevance_rating) as avg_relevance_rating,
-          AVG(sf.quality_rating) as avg_quality_rating,
-          AVG(sf.ease_of_use_rating) as avg_ease_of_use_rating,
-          COUNT(CASE WHEN sf.would_recommend = true THEN 1 END) * 100.0 / COUNT(*) as recommendation_rate,
-          COUNT(*) as total_feedback_count
-        FROM search_feedback sf
-        JOIN search_sessions ss ON sf.search_session_id = ss.id
-        WHERE sf.user_id = ? AND sf.created_at >= ?
-      `;
+      // Get feedback data with session information
+      let feedbackQuery = supabase
+        .from('search_feedback')
+        .select(`
+          overall_satisfaction,
+          relevance_rating,
+          quality_rating,
+          ease_of_use_rating,
+          would_recommend
+        `)
+        .eq('user_id', userId)
+        .gte('created_at', cutoffDate.toISOString());
       
-      const params = [userId, cutoffDate.toISOString()];
-      
+      // Join with search_sessions to filter by conversationId if needed
       if (conversationId) {
-        query += ' AND ss.conversation_id = ?';
-        params.push(conversationId);
+        feedbackQuery = feedbackQuery.eq('conversation_id', conversationId);
       }
-
-      const result = await this.env.DB.prepare(query).bind(...params).first();
       
+      const { data: feedbackData, error: feedbackError } = await feedbackQuery;
+      
+      if (feedbackError) {
+        console.error('Error getting user satisfaction metrics:', feedbackError);
+        throw feedbackError;
+      }
+      
+      // Calculate metrics from the data
+      const totalFeedbackCount = feedbackData.length;
+      
+      if (totalFeedbackCount === 0) {
+        return {
+          averageOverallSatisfaction: 0,
+          averageRelevanceRating: 0,
+          averageQualityRating: 0,
+          averageEaseOfUseRating: 0,
+          recommendationRate: 0,
+          totalFeedbackCount: 0
+        };
+      }
+      
+      // Calculate averages
+      const avgOverallSatisfaction = feedbackData.reduce((sum, item) => sum + item.overall_satisfaction, 0) / totalFeedbackCount;
+      const avgRelevanceRating = feedbackData.reduce((sum, item) => sum + item.relevance_rating, 0) / totalFeedbackCount;
+      const avgQualityRating = feedbackData.reduce((sum, item) => sum + item.quality_rating, 0) / totalFeedbackCount;
+      const avgEaseOfUseRating = feedbackData.reduce((sum, item) => sum + item.ease_of_use_rating, 0) / totalFeedbackCount;
+      
+      // Calculate recommendation rate
+      const wouldRecommendCount = feedbackData.filter(item => item.would_recommend).length;
+      const recommendationRate = (wouldRecommendCount / totalFeedbackCount) * 100;
+
       return {
-        averageOverallSatisfaction: result.avg_overall_satisfaction || 0,
-        averageRelevanceRating: result.avg_relevance_rating || 0,
-        averageQualityRating: result.avg_quality_rating || 0,
-        averageEaseOfUseRating: result.avg_ease_of_use_rating || 0,
-        recommendationRate: result.recommendation_rate || 0,
-        totalFeedbackCount: result.total_feedback_count || 0
+        averageOverallSatisfaction: avgOverallSatisfaction,
+        averageRelevanceRating: avgRelevanceRating,
+        averageQualityRating: avgQualityRating,
+        averageEaseOfUseRating: avgEaseOfUseRating,
+        recommendationRate,
+        totalFeedbackCount
       };
     } catch (error) {
       console.error('Error getting user satisfaction metrics:', error);
@@ -383,65 +424,73 @@ export class SearchAnalyticsManager {
    */
   async getSearchAnalytics(userId: string, conversationId?: string, days: number = 30): Promise<SearchAnalytics> {
     try {
+      const supabase = getSupabase(this.env);
       const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
       
       // Get basic search statistics
-      let searchQuery = `
-        SELECT 
-          COUNT(*) as total_searches,
-          COUNT(CASE WHEN search_success = true THEN 1 END) as successful_searches,
-          AVG(results_count) as avg_results,
-          AVG(processing_time_ms) as avg_processing_time
-        FROM search_sessions
-        WHERE user_id = ? AND created_at >= ?
-      `;
-      
-      const searchParams = [userId, cutoffDate.toISOString()];
+      let sessionsQuery = supabase
+        .from('search_sessions')
+        .select('search_success, results_count, processing_time_ms')
+        .eq('user_id', userId)
+        .gte('created_at', cutoffDate.toISOString());
       
       if (conversationId) {
-        searchQuery += ' AND conversation_id = ?';
-        searchParams.push(conversationId);
+        sessionsQuery = sessionsQuery.eq('conversation_id', conversationId);
       }
-
-      const searchStats = await this.env.DB.prepare(searchQuery).bind(...searchParams).first();
       
-      // Get popular topics from search queries
-      const topicsQuery = `
-        SELECT search_query
-        FROM search_sessions
-        WHERE user_id = ? AND created_at >= ?
-        ${conversationId ? 'AND conversation_id = ?' : ''}
-      `;
+      const { data: sessions, error: sessionsError } = await sessionsQuery;
       
-      const topicsResult = await this.env.DB.prepare(topicsQuery).bind(...searchParams).all();
-      const popularTopics = this.extractPopularTopics(topicsResult.results?.map((r: any) => r.search_query) || []);
+      if (sessionsError) {
+        console.error('Error getting search sessions:', sessionsError);
+        throw sessionsError;
+      }
       
-      // Get popular sources
-      const sourcesQuery = `
-        SELECT content_sources
-        FROM search_sessions
-        WHERE user_id = ? AND created_at >= ?
-        ${conversationId ? 'AND conversation_id = ?' : ''}
-      `;
+      // Calculate statistics
+      const totalSearches = sessions.length;
+      const successfulSearches = sessions.filter(session => session.search_success).length;
+      const avgResults = totalSearches > 0 
+        ? sessions.reduce((sum, session) => sum + session.results_count, 0) / totalSearches 
+        : 0;
+      const avgProcessingTime = totalSearches > 0 
+        ? sessions.reduce((sum, session) => sum + session.processing_time_ms, 0) / totalSearches 
+        : 0;
       
-      const sourcesResult = await this.env.DB.prepare(sourcesQuery).bind(...searchParams).all();
-      const popularSources = this.extractPopularSources(sourcesResult.results?.map((r: any) => r.content_sources) || []);
-
-      const totalSearches = searchStats.total_searches || 0;
-      const successfulSearches = searchStats.successful_searches || 0;
+      // Get search queries for popular topics
+      let queriesQuery = supabase
+        .from('search_sessions')
+        .select('search_query, content_sources')
+        .eq('user_id', userId)
+        .gte('created_at', cutoffDate.toISOString());
+      
+      if (conversationId) {
+        queriesQuery = queriesQuery.eq('conversation_id', conversationId);
+      }
+      
+      const { data: queries, error: queriesError } = await queriesQuery;
+      
+      if (queriesError) {
+        console.error('Error getting search queries:', queriesError);
+        throw queriesError;
+      }
+      
+      // Extract popular topics and sources
+      const popularTopics = this.extractPopularTopics(queries.map(q => q.search_query));
+      const popularSources = this.extractPopularSources(queries.map(q => q.content_sources));
+      
+      const successRate = totalSearches > 0 ? successfulSearches / totalSearches : 0;
       
       return {
         total_searches: totalSearches,
-        average_results: searchStats.avg_results || 0,
+        average_results: avgResults,
         popular_sources: popularSources,
         search_frequency: {}, // Could be enhanced with daily/weekly frequency
         period: {
           start: cutoffDate.toISOString(),
           end: new Date().toISOString()
         },
-        successRate: totalSearches > 0 ? successfulSearches / totalSearches : 0,
+        successRate,
         popularTopics,
-        averageResults: searchStats.avg_results || 0,
+        averageResults: avgResults,
         topSources: popularSources
       };
     } catch (error) {
@@ -461,26 +510,59 @@ export class SearchAnalyticsManager {
     topPerformingResults: SearchResult[];
   }> {
     try {
+      const supabase = getSupabase(this.env);
       const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
       
-      let query = `
-        SELECT 
-          sr.*,
-          ss.user_id
-        FROM search_results sr
-        JOIN search_sessions ss ON sr.search_session_id = ss.id
-        WHERE ss.user_id = ? AND sr.created_at >= ?
-      `;
+      // Get search results with session information
+      let resultsQuery = supabase
+        .from('search_results')
+        .select(`
+          id,
+          search_session_id,
+          reference_id,
+          result_title,
+          result_authors,
+          result_journal,
+          result_year,
+          result_doi,
+          result_url,
+          relevance_score,
+          confidence_score,
+          quality_score,
+          citation_count,
+          user_action,
+          user_feedback_rating,
+          user_feedback_comments,
+          added_to_library,
+          added_at,
+          created_at
+        `)
+        .gte('created_at', cutoffDate.toISOString());
       
-      const params = [userId, cutoffDate.toISOString()];
-      
+      // Join with search_sessions to filter by user and conversation
       if (conversationId) {
-        query += ' AND ss.conversation_id = ?';
-        params.push(conversationId);
+        resultsQuery = resultsQuery.eq('conversation_id', conversationId);
       }
-
-      const results = await this.env.DB.prepare(query).bind(...params).all();
-      const searchResults = results.results || [];
+      
+      // We need to join with search_sessions to get the user_id
+      const { data: searchResults, error: resultsError } = await supabase
+        .from('search_results')
+        .select(`
+          *,
+          search_session:user_sessions!inner(user_id)
+        `)
+        .gte('created_at', cutoffDate.toISOString())
+        .eq('search_session.user_id', userId);
+      
+      if (resultsError) {
+        console.error('Error getting search results:', resultsError);
+        throw resultsError;
+      }
+      
+      // Filter by conversationId if needed
+      const filteredResults = conversationId 
+        ? searchResults.filter(result => result.search_session?.conversation_id === conversationId)
+        : searchResults;
       
       // Calculate metrics
       const resultsByAction: Record<string, number> = {};
@@ -488,7 +570,7 @@ export class SearchAnalyticsManager {
       let totalQualityScore = 0;
       let scoredResults = 0;
 
-      searchResults.forEach((result: any) => {
+      filteredResults.forEach((result: any) => {
         if (result.user_action) {
           resultsByAction[result.user_action] = (resultsByAction[result.user_action] || 0) + 1;
         }
@@ -504,14 +586,14 @@ export class SearchAnalyticsManager {
       });
 
       // Get top performing results (highest relevance + quality scores)
-      const topPerformingResults = searchResults
+      const topPerformingResults = filteredResults
         .filter((r: any) => r.relevance_score && r.quality_score)
         .sort((a: any, b: any) => (b.relevance_score + b.quality_score) - (a.relevance_score + a.quality_score))
         .slice(0, 10)
         .map(this.mapDatabaseResultToSearchResult);
 
       return {
-        totalResults: searchResults.length,
+        totalResults: filteredResults.length,
         resultsByAction,
         averageRelevanceScore: scoredResults > 0 ? totalRelevanceScore / scoredResults : 0,
         averageQualityScore: scoredResults > 0 ? totalQualityScore / scoredResults : 0,
@@ -574,43 +656,74 @@ export class SearchAnalyticsManager {
     }
 
     try {
-      const tables = ['search_feedback', 'search_results', 'search_sessions', 'search_analytics'];
+      const supabase = getSupabase(this.env);
       
-      for (const table of tables) {
-        let query = `DELETE FROM ${table} WHERE `;
-        const params = [];
-        
-        if (table === 'search_sessions' || table === 'search_analytics') {
-          query += 'user_id = ?';
-          params.push(userId);
-          
-          if (conversationId) {
-            query += ' AND conversation_id = ?';
-            params.push(conversationId);
-          }
-        } else if (table === 'search_feedback') {
-          query += 'user_id = ?';
-          params.push(userId);
-          
-          if (conversationId) {
-            query += ` AND search_session_id IN (
-              SELECT id FROM search_sessions WHERE user_id = ? AND conversation_id = ?
-            )`;
-            params.push(userId, conversationId);
-          }
-        } else if (table === 'search_results') {
-          query += `search_session_id IN (
-            SELECT id FROM search_sessions WHERE user_id = ?
-          )`;
-          params.push(userId);
-          
-          if (conversationId) {
-            query = query.replace('user_id = ?', 'user_id = ? AND conversation_id = ?');
-            params.push(conversationId);
-          }
-        }
-        
-        await this.env.DB.prepare(query).bind(...params).run();
+      // Delete search feedback
+      let feedbackQuery = supabase
+        .from('search_feedback')
+        .delete()
+        .eq('user_id', userId);
+      
+      if (conversationId) {
+        feedbackQuery = feedbackQuery.eq('conversation_id', conversationId);
+      }
+      
+      const { error: feedbackError } = await feedbackQuery;
+      
+      if (feedbackError) {
+        console.error('Error clearing search feedback:', feedbackError);
+        throw feedbackError;
+      }
+      
+      // Delete search results
+      let resultsQuery = supabase
+        .from('search_results')
+        .delete()
+        .eq('user_id', userId);
+      
+      if (conversationId) {
+        resultsQuery = resultsQuery.eq('conversation_id', conversationId);
+      }
+      
+      const { error: resultsError } = await resultsQuery;
+      
+      if (resultsError) {
+        console.error('Error clearing search results:', resultsError);
+        throw resultsError;
+      }
+      
+      // Delete search sessions
+      let sessionsQuery = supabase
+        .from('search_sessions')
+        .delete()
+        .eq('user_id', userId);
+      
+      if (conversationId) {
+        sessionsQuery = sessionsQuery.eq('conversation_id', conversationId);
+      }
+      
+      const { error: sessionsError } = await sessionsQuery;
+      
+      if (sessionsError) {
+        console.error('Error clearing search sessions:', sessionsError);
+        throw sessionsError;
+      }
+      
+      // Delete search analytics
+      let analyticsQuery = supabase
+        .from('search_analytics')
+        .delete()
+        .eq('user_id', userId);
+      
+      if (conversationId) {
+        analyticsQuery = analyticsQuery.eq('conversation_id', conversationId);
+      }
+      
+      const { error: analyticsError } = await analyticsQuery;
+      
+      if (analyticsError) {
+        console.error('Error clearing search analytics:', analyticsError);
+        throw analyticsError;
       }
       
       console.log(`Analytics data cleared for user ${userId}${conversationId ? ` in conversation ${conversationId}` : ''}`);
@@ -674,7 +787,7 @@ export class SearchAnalyticsManager {
       searchSessionId: dbResult.search_session_id,
       referenceId: dbResult.reference_id,
       resultTitle: dbResult.result_title,
-      resultAuthors: JSON.parse(dbResult.result_authors || '[]'),
+      resultAuthors: dbResult.result_authors || [],
       resultJournal: dbResult.result_journal,
       resultYear: dbResult.result_year,
       resultDoi: dbResult.result_doi,
