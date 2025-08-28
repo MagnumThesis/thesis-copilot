@@ -195,7 +195,15 @@ export class SearchService {
     try {
       this.initializeServices(env);
 
-      const body = req as any as SearchRequest;
+      // Convert SearchServiceRequest to SearchRequest with proper mapping and type guards
+      const options = req.options ?? {};
+      const body: SearchRequest = {
+        query: req.query,
+        conversationId: req.conversationId,
+        contentSources: Array.isArray(options.contentSources) ? options.contentSources : [],
+        queryOptions: typeof options.queryOptions === 'object' && options.queryOptions !== null ? options.queryOptions : undefined,
+        filters: req.filters
+      };
 
       if (!body.conversationId) {
         throw new Error("conversationId is required");
