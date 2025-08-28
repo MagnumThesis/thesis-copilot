@@ -1,98 +1,97 @@
-# React + Vite + Hono + Cloudflare Workers
+# Thesis Copilot: Your AI-Powered Academic Writing Partner
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/cloudflare/templates/tree/main/vite-react-template)
+**Thesis Copilot** is an AI-powered academic writing assistant designed to help graduate students, researchers, and academic writers create well-structured thesis proposals and academic content. Our tool streamlines the writing process by integrating powerful AI features directly into a user-friendly markdown editor, allowing you to focus on what matters most—your research.
 
-This template provides a minimal setup for building a React application with TypeScript and Vite, designed to run on Cloudflare Workers. It features hot module replacement, ESLint integration, and the flexibility of Workers deployments.
+From generating ideas to ensuring your writing meets academic standards, Thesis Copilot provides the support you need to produce high-quality academic work with confidence.
 
-![React + TypeScript + Vite + Cloudflare Workers](https://imagedelivery.net/wSMYJvS3Xw-n339CbDyDIA/fc7b4b62-442b-4769-641b-ad4422d74300/public)
+## Table of Contents
 
-<!-- dash-content-start -->
+- [Features](#features)
+- [Getting Started](#getting-started)
+- [For Developers](#for-developers)
+- [Documentation](#documentation)
 
-🚀 Supercharge your web development with this powerful stack:
+## Features
 
-- [**React**](https://react.dev/) - A modern UI library for building interactive interfaces
-- [**Vite**](https://vite.dev/) - Lightning-fast build tooling and development server
-- [**Hono**](https://hono.dev/) - Ultralight, modern backend framework
-- [**Cloudflare Workers**](https://developers.cloudflare.com/workers/) - Edge computing platform for global deployment
-
-### ✨ Key Features
-
-- 🔥 Hot Module Replacement (HMR) for rapid development
-- 📦 TypeScript support out of the box
-- 🛠️ ESLint configuration included
-- ⚡ Zero-config deployment to Cloudflare's global network
-- 🎯 API routes with Hono's elegant routing
-- 🔄 Full-stack development setup
-- 🤖 **AI-Powered Builder Tool** - Advanced thesis proposal editor with AI assistance
-- 📝 **Multiple AI Modes** - Prompt generation, content continuation, and text modification
-- 🎓 **Academic Context Awareness** - AI understands thesis structure and academic tone
-- ♿ **Accessibility Compliant** - Full keyboard navigation and screen reader support
-
-Get started in minutes with local development or deploy directly via the Cloudflare dashboard. Perfect for building modern, performant web applications at the edge.
-
-<!-- dash-content-end -->
+- **AI Builder Tool**: A powerful markdown editor with integrated AI assistance to generate, continue, and modify academic content.
+- **Reference Management**: Find academic sources, format citations in various styles, and manage your bibliography with ease.
+- **AI Searcher**: Seamlessly search Google Scholar and other academic databases to find relevant research for your work.
+- **Proofreader**: Enhance your writing with advanced grammar checks and suggestions for maintaining a formal academic tone.
+- **Content Organization**: Structure your thesis proposal and other academic documents with intuitive organizational tools.
 
 ## Getting Started
 
-To start a new project with this template, run:
+Welcome to Thesis Copilot! This tool is designed for graduate students, researchers, and academic writers who want to enhance their writing process with AI-powered assistance.
 
-```bash
-npm create cloudflare@latest -- --template=cloudflare/templates/vite-react-template
-```
+### Quick Start
 
-A live deployment of this template is available at:
-[https://react-vite-template.templates.workers.dev](https://react-vite-template.templates.workers.dev)
+To get started right away, you can access the live deployment of our application:
 
-## Development
+- **[Try Thesis Copilot Now](https://react-vite-template.templates.workers.dev)**
 
-Install dependencies:
+## For Developers
 
-```bash
-npm install
-```
+This project is built with the following technologies:
 
-Start the development server with:
+- **React**: A modern UI library for building interactive interfaces.
+- **Vite**: Lightning-fast build tooling and development server.
+- **Hono**: Ultralight, modern backend framework.
+- **Cloudflare Workers**: Edge computing platform for global deployment.
 
-```bash
-npm run dev
-```
+### Development
 
-Your application will be available at [http://localhost:5173](http://localhost:5173).
+To get started with local development, follow these steps:
 
-## Production
+1.  **Install dependencies**:
 
-Build your project for production:
+    ```bash
+    npm install
+    ```
 
-```bash
-npm run build
-```
+2.  **Start the development server**:
 
-Preview your build locally:
+    ```bash
+    npm run dev
+    ```
 
-```bash
-npm run preview
-```
+    Your application will be available at [http://localhost:5173](http://localhost:5173).
 
-Deploy your project to Cloudflare Workers:
+### Production
 
-```bash
-npm run build && npm run deploy
-```
+To build and deploy the application, use the following commands:
 
-## Builder Tool Documentation
+1.  **Build for production**:
 
-The Builder tool is an AI-powered thesis proposal editor that helps users create academic content efficiently:
+    ```bash
+    npm run build
+    ```
 
-- **[BUILDER.md](./BUILDER.md)** - Complete technical documentation and API reference
-- **[AI Features User Guide](./docs/ai-features-user-guide.md)** - User-friendly guide for AI features
-- **[AI Integration Developer Guide](./docs/ai-integration-developer-guide.md)** - Developer documentation for AI integration
-- **[Modify Mode Feature Guide](./docs/modify-mode-prompt-feature.md)** - Specific guide for text modification features
+2.  **Preview the build locally**:
 
-## Additional Resources
+    ```bash
+    npm run preview
+    ```
 
-- [Cloudflare Workers Documentation](https://developers.cloudflare.com/workers/)
-- [Vite Documentation](https://vitejs.dev/guide/)
-- [React Documentation](https://reactjs.org/)
-- [Hono Documentation](https://hono.dev/)
+3.  **Deploy to Cloudflare Workers**:
+
+    ```bash
+    npm run build && npm run deploy
+    ```
+
+## Documentation
+
+We provide comprehensive documentation for both users and developers.
+
+### User Documentation
+
+- **[AI Features User Guide](./docs/ai-features-user-guide.md)**: Learn how to use the AI-powered features to their full potential.
+- **[Proofreader User Guide](./docs/proofreader-user-guide.md)**: A guide to our advanced grammar and tone analysis tool.
+- **[AI Reference Searcher User Guide](./docs/ai-reference-searcher-user-guide.md)**: Find out how to search for academic references seamlessly.
+
+### Developer Documentation
+
+- **[BUILDER.md](./BUILDER.md)**: Complete technical documentation and API reference for the AI Builder tool.
+- **[AI Integration Developer Guide](./docs/ai-integration-developer-guide.md)**: A guide for integrating AI features into the application.
+- **[Architecture Overview](./docs/architecture.md)**: An overview of the project's architecture.
 
 
