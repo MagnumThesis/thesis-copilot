@@ -117,43 +117,43 @@
   - Write integration tests to verify the composed hook behavior matches the original
   - _Requirements: 1.3, 1.4, 7.1, 7.2_
 
-- [ ] 5. Refactor ai-searcher-api.ts into focused route handlers and services
+- [x] 5. Refactor ai-searcher-api.ts into focused route handlers and services
   - Break down the 2,714-line API handler into focused route handlers and service layers
   - Create modular API architecture with clear separation of concerns
   - _Requirements: 2.1, 2.2, 2.3, 2.4_
 
-- [ ] 5.1 Extract search route handlers
+- [x] 5.1 Extract search route handlers
   - Create `src/worker/routes/search-routes.ts` with search and extract endpoint handlers
   - Implement focused route handlers for `/search` and `/extract` endpoints
   - Write unit tests for route handler logic and request/response validation
   - _Requirements: 2.1, 2.2_
 
-- [ ] 5.2 Extract query route handlers
+- [x] 5.2 Extract query route handlers
   - Create `src/worker/routes/query-routes.ts` with query generation and refinement handlers
   - Implement route handlers for `/generate-query`, `/validate-query`, `/combine-queries`, and `/refine-query`
   - Write unit tests for query route handlers and validation logic
   - _Requirements: 2.1, 2.2_
 
-- [ ] 5.3 Extract history and analytics route handlers
+- [x] 5.3 Extract history and analytics route handlers
   - Create `src/worker/routes/history-routes.ts` with history management endpoints
   - Create `src/worker/routes/analytics-routes.ts` with analytics and tracking endpoints
   - Write unit tests for history and analytics route handlers
   - _Requirements: 2.1, 2.2_
 
-- [ ] 5.4 Extract service layer modules
+- [x] 5.4 Extract service layer modules
   - Create `src/worker/services/search-service.ts` with search orchestration logic
   - Create `src/worker/services/query-service.ts` with query generation and refinement logic
   - Create `src/worker/services/analytics-service.ts` with analytics processing logic
   - Write unit tests for service layer modules and business logic
   - _Requirements: 2.3, 2.4_
 
-- [ ] 5.5 Create middleware modules
+- [x] 5.5 Create middleware modules
   - Create `src/worker/middleware/validation-middleware.ts` with request validation logic
   - Create `src/worker/middleware/error-middleware.ts` with error handling middleware
   - Write unit tests for middleware functionality and error scenarios
   - _Requirements: 2.3, 2.4_
 
-- [ ] 5.6 Refactor main ai-searcher-api.ts to use extracted modules
+- [x] 5.6 Refactor main ai-searcher-api.ts to use extracted modules
   - Update `ai-searcher-api.ts` to use extracted route handlers and services
   - Maintain existing route structure and response formats
   - Ensure all API endpoints continue to work with the new modular architecture
