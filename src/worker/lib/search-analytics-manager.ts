@@ -106,6 +106,14 @@ export class SearchAnalyticsManager {
   private env: any; // Cloudflare environment with database binding
 
   constructor(env: any) {
+    if (!env) {
+      throw new Error('Environment object is required for SearchAnalyticsManager');
+    }
+    
+    if (!env.DB) {
+      console.warn('Database binding (DB) not found in environment - some features may be limited');
+    }
+    
     this.env = env;
   }
 
@@ -117,9 +125,22 @@ export class SearchAnalyticsManager {
   }
 
   /**
+   * Check if database is available
+   */
+  protected isDatabaseAvailable(): boolean {
+    return !!(this.env && this.env.DB);
+  }
+
+  /**
    * Record a new search session
    */
   async recordSearchSession(sessionData: Omit<SearchSession, 'id' | 'createdAt'>): Promise<string> {
+    // Check if DB is available
+    if (!this.isDatabaseAvailable()) {
+      console.warn('Database not available, cannot record search session');
+      return 'temp-session-id';
+    }
+    
     const sessionId = crypto.randomUUID();
     
     try {
@@ -548,6 +569,12 @@ export class SearchAnalyticsManager {
    * Clear analytics data for a user
    */
   async clearAnalyticsData(userId: string, conversationId?: string): Promise<void> {
+    // Check if DB is available
+    if (!this.isDatabaseAvailable()) {
+      console.warn('Database not available, cannot clear analytics data');
+      return;
+    }
+
     try {
       const tables = ['search_feedback', 'search_results', 'search_sessions', 'search_analytics'];
       

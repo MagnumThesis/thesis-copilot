@@ -1,17 +1,33 @@
-import { Hono } from 'hono';
+import { Hono, Context } from 'hono';
 import { PrivacyManager, PrivacySettings } from '../lib/privacy-manager';
+import { Env } from '../types/env';
+import { D1Database } from '../types/d1';
 
-const app = new Hono();
+// Define SupabaseEnv type locally since it's not exported from supabase.ts
+type SupabaseEnv = {
+  SUPABASE_URL: string;
+  SUPABASE_ANON: string;
+};
+
+// Type for the Hono context
+type PrivacyManagementContext = {
+  Bindings: Env & SupabaseEnv & {
+    DB?: D1Database; // Optional to support both D1 and Supabase
+  };
+};
+
+const app = new Hono<PrivacyManagementContext>();
 
 /**
  * Get privacy settings for a user
  */
-app.get('/settings', async (c) => {
+app.get('/settings', async (c: Context<PrivacyManagementContext>) => {
   try {
     const userId = c.req.header('x-user-id');
     const conversationId = c.req.query('conversationId');
 
-    if (!userId) {
+    if (!userId) { 
+      console.error('User ID is required', userId, conversationId);
       return c.json({ 
         success: false, 
         error: 'User ID is required' 
@@ -37,7 +53,7 @@ app.get('/settings', async (c) => {
 /**
  * Update privacy settings for a user
  */
-app.post('/settings', async (c) => {
+app.post('/settings', async (c: Context<PrivacyManagementContext>) => {
   try {
     const userId = c.req.header('x-user-id');
     const body = await c.req.json();
@@ -90,7 +106,7 @@ app.post('/settings', async (c) => {
 /**
  * Get data summary for a user
  */
-app.get('/data-summary', async (c) => {
+app.get('/data-summary', async (c: Context<PrivacyManagementContext>) => {
   try {
     const userId = c.req.header('x-user-id');
     const conversationId = c.req.query('conversationId');
@@ -121,7 +137,7 @@ app.get('/data-summary', async (c) => {
 /**
  * Clear user data
  */
-app.delete('/clear-data', async (c) => {
+app.delete('/clear-data', async (c: Context<PrivacyManagementContext>) => {
   try {
     const userId = c.req.header('x-user-id');
     const body = await c.req.json();
@@ -165,7 +181,7 @@ app.delete('/clear-data', async (c) => {
 /**
  * Export user data
  */
-app.post('/export-data', async (c) => {
+app.post('/export-data', async (c: Context<PrivacyManagementContext>) => {
   try {
     const userId = c.req.header('x-user-id');
     const body = await c.req.json();
@@ -207,7 +223,7 @@ app.post('/export-data', async (c) => {
 /**
  * Check user consent status
  */
-app.get('/consent-status', async (c) => {
+app.get('/consent-status', async (c: Context<PrivacyManagementContext>) => {
   try {
     const userId = c.req.header('x-user-id');
     const conversationId = c.req.query('conversationId');
@@ -238,7 +254,7 @@ app.get('/consent-status', async (c) => {
 /**
  * Anonymize user data (GDPR right to be forgotten)
  */
-app.post('/anonymize', async (c) => {
+app.post('/anonymize', async (c: Context<PrivacyManagementContext>) => {
   try {
     const userId = c.req.header('x-user-id');
 
@@ -269,7 +285,7 @@ app.post('/anonymize', async (c) => {
 /**
  * Run automatic cleanup (admin endpoint)
  */
-app.post('/admin/cleanup', async (c) => {
+app.post('/admin/cleanup', async (c: Context<PrivacyManagementContext>) => {
   try {
     // This should be protected by admin authentication in production
     const adminKey = c.req.header('x-admin-key');
@@ -302,7 +318,7 @@ app.post('/admin/cleanup', async (c) => {
 /**
  * Get privacy compliance report (admin endpoint)
  */
-app.get('/admin/compliance-report', async (c) => {
+app.get('/admin/compliance-report', async (c: Context<PrivacyManagementContext>) => {
   try {
     // This should be protected by admin authentication in production
     const adminKey = c.req.header('x-admin-key');

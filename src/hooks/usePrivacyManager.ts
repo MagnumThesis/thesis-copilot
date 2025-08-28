@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { PrivacySettings, DataSummary } from '../worker/lib/privacy-manager';
+import { getClientId } from '../utils/client-id-manager';
 
 interface UsePrivacyManagerReturn {
   // State
@@ -52,13 +53,20 @@ export const usePrivacyManager = (conversationId?: string): UsePrivacyManagerRet
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Get client ID for all API calls
+  const clientId = getClientId();
+
   const loadSettings = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
 
       const url = `/api/ai-searcher/privacy/settings${conversationId ? `?conversationId=${conversationId}` : ''}`;
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        headers: {
+          'x-user-id': clientId
+        }
+      });
 
       if (!response.ok) {
         throw new Error(`Failed to load privacy settings: ${response.statusText}`);
@@ -78,7 +86,7 @@ export const usePrivacyManager = (conversationId?: string): UsePrivacyManagerRet
     } finally {
       setIsLoading(false);
     }
-  }, [conversationId]);
+  }, [conversationId, clientId]);
 
   const updateSettings = useCallback(async (newSettings: Partial<PrivacySettings>) => {
     try {
@@ -91,6 +99,7 @@ export const usePrivacyManager = (conversationId?: string): UsePrivacyManagerRet
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-user-id': clientId
         },
         body: JSON.stringify({
           settings: updatedSettings,
@@ -118,7 +127,7 @@ export const usePrivacyManager = (conversationId?: string): UsePrivacyManagerRet
     } finally {
       setIsLoading(false);
     }
-  }, [settings, conversationId, loadSettings]);
+  }, [settings, conversationId, loadSettings, clientId]);
 
   const loadDataSummary = useCallback(async () => {
     try {
@@ -126,7 +135,11 @@ export const usePrivacyManager = (conversationId?: string): UsePrivacyManagerRet
       setError(null);
 
       const url = `/api/ai-searcher/privacy/data-summary${conversationId ? `?conversationId=${conversationId}` : ''}`;
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        headers: {
+          'x-user-id': clientId
+        }
+      });
 
       if (!response.ok) {
         throw new Error(`Failed to load data summary: ${response.statusText}`);
@@ -146,7 +159,7 @@ export const usePrivacyManager = (conversationId?: string): UsePrivacyManagerRet
     } finally {
       setIsLoading(false);
     }
-  }, [conversationId]);
+  }, [conversationId, clientId]);
 
   const clearAllData = useCallback(async (): Promise<{ deletedCount: number }> => {
     try {
@@ -157,6 +170,7 @@ export const usePrivacyManager = (conversationId?: string): UsePrivacyManagerRet
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
+          'x-user-id': clientId
         },
         body: JSON.stringify({
           conversationId,
@@ -186,7 +200,7 @@ export const usePrivacyManager = (conversationId?: string): UsePrivacyManagerRet
     } finally {
       setIsLoading(false);
     }
-  }, [conversationId, loadDataSummary]);
+  }, [conversationId, loadDataSummary, clientId]);
 
   const clearOldData = useCallback(async (retentionDays: number): Promise<{ deletedCount: number }> => {
     try {
@@ -197,6 +211,7 @@ export const usePrivacyManager = (conversationId?: string): UsePrivacyManagerRet
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
+          'x-user-id': clientId
         },
         body: JSON.stringify({
           conversationId,
@@ -226,7 +241,7 @@ export const usePrivacyManager = (conversationId?: string): UsePrivacyManagerRet
     } finally {
       setIsLoading(false);
     }
-  }, [conversationId, loadDataSummary]);
+  }, [conversationId, loadDataSummary, clientId]);
 
   const exportData = useCallback(async (format: 'json' | 'csv'): Promise<{ exportData: string; recordCount: number }> => {
     try {
@@ -237,6 +252,7 @@ export const usePrivacyManager = (conversationId?: string): UsePrivacyManagerRet
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-user-id': clientId
         },
         body: JSON.stringify({
           conversationId,
@@ -266,12 +282,16 @@ export const usePrivacyManager = (conversationId?: string): UsePrivacyManagerRet
     } finally {
       setIsLoading(false);
     }
-  }, [conversationId]);
+  }, [conversationId, clientId]);
 
   const checkConsentStatus = useCallback(async (): Promise<boolean> => {
     try {
       const url = `/api/ai-searcher/privacy/consent-status${conversationId ? `?conversationId=${conversationId}` : ''}`;
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        headers: {
+          'x-user-id': clientId
+        }
+      });
 
       if (!response.ok) {
         throw new Error(`Failed to check consent status: ${response.statusText}`);
@@ -288,7 +308,7 @@ export const usePrivacyManager = (conversationId?: string): UsePrivacyManagerRet
       console.error('Check consent status error:', err);
       return false;
     }
-  }, [conversationId]);
+  }, [conversationId, clientId]);
 
   const anonymizeData = useCallback(async (): Promise<{ recordsAnonymized: number }> => {
     try {
@@ -299,6 +319,7 @@ export const usePrivacyManager = (conversationId?: string): UsePrivacyManagerRet
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-user-id': clientId
         }
       });
 
@@ -325,7 +346,7 @@ export const usePrivacyManager = (conversationId?: string): UsePrivacyManagerRet
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [clientId]);
 
   // Load initial data
   useEffect(() => {

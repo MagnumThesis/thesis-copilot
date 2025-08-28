@@ -11,6 +11,7 @@ import { Separator } from "./shadcn/separator"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "./shadcn/alert-dialog"
 import { Shield, Trash2, Download, Settings, Clock, Database, AlertTriangle, CheckCircle, Info } from "lucide-react"
 import { useToast } from "../../hooks/use-toast"
+import { getClientId } from "../../utils/client-id-manager"
 
 export interface PrivacySettings {
   dataRetentionDays: number
@@ -69,6 +70,9 @@ export const PrivacyControls: React.FC<PrivacyControlsProps> = ({
   const [clearingData, setClearingData] = useState(false)
   const [exportingData, setExportingData] = useState(false)
 
+  // Get client ID for all API calls
+  const clientId = getClientId()
+
   useEffect(() => {
     loadPrivacySettings()
     loadDataSummary()
@@ -76,7 +80,11 @@ export const PrivacyControls: React.FC<PrivacyControlsProps> = ({
 
   const loadPrivacySettings = async () => {
     try {
-      const response = await fetch(`/api/ai-searcher/privacy/settings${conversationId ? `?conversationId=${conversationId}` : ''}`)
+      const response = await fetch(`/api/ai-searcher/privacy/settings${conversationId ? `?conversationId=${conversationId}` : ''}`, {
+        headers: {
+          'x-user-id': clientId
+        }
+      })
       
       if (response.ok) {
         const data = await response.json()
@@ -94,7 +102,11 @@ export const PrivacyControls: React.FC<PrivacyControlsProps> = ({
 
   const loadDataSummary = async () => {
     try {
-      const response = await fetch(`/api/ai-searcher/privacy/data-summary${conversationId ? `?conversationId=${conversationId}` : ''}`)
+      const response = await fetch(`/api/ai-searcher/privacy/data-summary${conversationId ? `?conversationId=${conversationId}` : ''}`, {
+        headers: {
+          'x-user-id': clientId
+        }
+      })
       
       if (response.ok) {
         const data = await response.json()
@@ -121,6 +133,7 @@ export const PrivacyControls: React.FC<PrivacyControlsProps> = ({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-user-id': clientId
         },
         body: JSON.stringify({
           settings: updatedSettings,
@@ -173,6 +186,7 @@ export const PrivacyControls: React.FC<PrivacyControlsProps> = ({
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
+          'x-user-id': clientId
         },
         body: JSON.stringify({
           conversationId,
@@ -216,6 +230,7 @@ export const PrivacyControls: React.FC<PrivacyControlsProps> = ({
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
+          'x-user-id': clientId
         },
         body: JSON.stringify({
           conversationId,
@@ -258,6 +273,7 @@ export const PrivacyControls: React.FC<PrivacyControlsProps> = ({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-user-id': clientId
         },
         body: JSON.stringify({
           conversationId,

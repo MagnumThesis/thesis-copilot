@@ -50,6 +50,14 @@ export class PrivacyManager {
   private learningSystem: FeedbackLearningSystem;
 
   constructor(private env: any) {
+    if (!env) {
+      throw new Error('Environment object is required for PrivacyManager');
+    }
+    
+    if (!env.DB) {
+      console.warn('Database binding (DB) not found in environment - some features may be limited');
+    }
+    
     this.analyticsManager = new SearchAnalyticsManager(env);
     this.learningSystem = new FeedbackLearningSystem(env);
   }
@@ -59,6 +67,22 @@ export class PrivacyManager {
    */
   async getPrivacySettings(userId: string, conversationId?: string): Promise<PrivacySettings | null> {
     try {
+      // Check if DB is available
+      if (!this.env || !this.env.DB) {
+        console.warn('Database not available, returning default privacy settings');
+        return {
+          userId,
+          conversationId,
+          dataRetentionDays: 365,
+          autoDeleteEnabled: false,
+          analyticsEnabled: true,
+          learningEnabled: true,
+          exportFormat: 'json',
+          consentGiven: false,
+          lastUpdated: new Date()
+        };
+      }
+
       let whereClause = 'WHERE user_id = ?';
       const params = [userId];
 
@@ -113,6 +137,12 @@ export class PrivacyManager {
    * Update privacy settings for a user
    */
   async updatePrivacySettings(settings: PrivacySettings): Promise<void> {
+    // Check if DB is available
+    if (!this.env || !this.env.DB) {
+      console.warn('Database not available, cannot update privacy settings');
+      return;
+    }
+
     try {
       const query = `
         INSERT INTO privacy_settings (
@@ -155,6 +185,18 @@ export class PrivacyManager {
    * Get data summary for a user
    */
   async getDataSummary(userId: string, conversationId?: string): Promise<DataSummary> {
+    // Check if DB is available
+    if (!this.env || !this.env.DB) {
+      console.warn('Database not available, returning empty data summary');
+      return {
+        searchSessions: 0,
+        searchResults: 0,
+        feedbackEntries: 0,
+        learningData: 0,
+        totalSize: '0 KB'
+      };
+    }
+
     try {
       let whereClause = 'WHERE user_id = ?';
       const params = [userId];
@@ -227,6 +269,12 @@ export class PrivacyManager {
    * Clear all data for a user
    */
   async clearAllData(userId: string, conversationId?: string): Promise<{ deletedCount: number }> {
+    // Check if DB is available
+    if (!this.env || !this.env.DB) {
+      console.warn('Database not available, cannot clear data');
+      return { deletedCount: 0 };
+    }
+
     try {
       let whereClause = 'WHERE user_id = ?';
       const params = [userId];
@@ -274,6 +322,12 @@ export class PrivacyManager {
    * Clear old data based on retention policy
    */
   async clearOldData(userId: string, retentionDays: number, conversationId?: string): Promise<{ deletedCount: number }> {
+    // Check if DB is available
+    if (!this.env || !this.env.DB) {
+      console.warn('Database not available, cannot clear old data');
+      return { deletedCount: 0 };
+    }
+
     try {
       const cutoffDate = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
       
@@ -318,6 +372,18 @@ export class PrivacyManager {
    * Export user data
    */
   async exportData(userId: string, format: 'json' | 'csv', conversationId?: string): Promise<{ exportData: string; recordCount: number }> {
+    // Check if DB is available
+    if (!this.env || !this.env.DB) {
+      console.warn('Database not available, cannot export data');
+      return { 
+        exportData: JSON.stringify({ 
+          error: 'Database not available', 
+          message: 'Data export is not available at this time' 
+        }, null, 2), 
+        recordCount: 0 
+      };
+    }
+
     try {
       let whereClause = 'WHERE user_id = ?';
       const params = [userId];
@@ -483,6 +549,12 @@ export class PrivacyManager {
    */
   async hasUserConsent(userId: string, conversationId?: string): Promise<boolean> {
     try {
+      // If DB is not available, assume no consent
+      if (!this.env || !this.env.DB) {
+        console.warn('Database not available, assuming no user consent');
+        return false;
+      }
+
       const settings = await this.getPrivacySettings(userId, conversationId);
       return settings?.consentGiven || false;
     } catch (error) {
@@ -495,6 +567,12 @@ export class PrivacyManager {
    * Run automatic cleanup based on retention policies
    */
   async runAutomaticCleanup(): Promise<{ usersProcessed: number; recordsDeleted: number }> {
+    // Check if DB is available
+    if (!this.env || !this.env.DB) {
+      console.warn('Database not available, cannot run automatic cleanup');
+      return { usersProcessed: 0, recordsDeleted: 0 };
+    }
+
     try {
       // Get all users with auto-delete enabled
       const query = `
@@ -539,6 +617,12 @@ export class PrivacyManager {
    * Anonymize user data (for GDPR compliance)
    */
   async anonymizeUserData(userId: string): Promise<{ recordsAnonymized: number }> {
+    // Check if DB is available
+    if (!this.env || !this.env.DB) {
+      console.warn('Database not available, cannot anonymize user data');
+      return { recordsAnonymized: 0 };
+    }
+
     try {
       const anonymizedUserId = `anon_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       let totalAnonymized = 0;

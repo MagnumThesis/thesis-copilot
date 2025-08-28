@@ -44,7 +44,22 @@ export class FeedbackLearningSystem {
   private env: any;
 
   constructor(env: any) {
+    if (!env) {
+      throw new Error('Environment object is required for FeedbackLearningSystem');
+    }
+    
+    if (!env.DB) {
+      console.warn('Database binding (DB) not found in environment - some features may be limited');
+    }
+    
     this.env = env;
+  }
+
+  /**
+   * Check if database is available
+   */
+  private isDatabaseAvailable(): boolean {
+    return !!(this.env && this.env.DB);
   }
 
   /**
@@ -68,6 +83,12 @@ export class FeedbackLearningSystem {
       };
     }
   ): Promise<void> {
+    // Check if DB is available
+    if (!this.isDatabaseAvailable()) {
+      console.warn('Database not available, cannot store feedback for learning');
+      return;
+    }
+
     try {
       // Store the detailed feedback for learning
       await this.env.DB.prepare(`
@@ -157,6 +178,27 @@ export class FeedbackLearningSystem {
    * Get user preference patterns
    */
   async getUserPreferencePatterns(userId: string): Promise<UserPreferencePattern> {
+    // Check if DB is available
+    if (!this.isDatabaseAvailable()) {
+      console.warn('Database not available, returning default user preference patterns');
+      return {
+        userId,
+        preferredAuthors: [],
+        preferredJournals: [],
+        preferredYearRange: { min: 2010, max: new Date().getFullYear() },
+        preferredCitationRange: { min: 0, max: 10000 },
+        topicPreferences: {},
+        qualityThreshold: 0.5,
+        relevanceThreshold: 0.5,
+        rejectionPatterns: {
+          authors: [],
+          journals: [],
+          keywords: []
+        },
+        lastUpdated: new Date()
+      };
+    }
+
     try {
       const result = await this.env.DB.prepare(`
         SELECT * FROM user_preference_patterns WHERE user_id = ?
@@ -298,6 +340,12 @@ export class FeedbackLearningSystem {
     userId: string,
     searchResults: SearchResult[]
   ): Promise<SearchResult[]> {
+    // Check if DB is available
+    if (!this.isDatabaseAvailable()) {
+      console.warn('Database not available, returning original search results without learning adjustments');
+      return searchResults;
+    }
+
     try {
       const userPatterns = await this.getUserPreferencePatterns(userId);
       const adaptiveFilters = await this.generateAdaptiveFilters(userId);
@@ -363,6 +411,12 @@ export class FeedbackLearningSystem {
    * Generate adaptive search filters based on user patterns
    */
   async generateAdaptiveFilters(userId: string): Promise<AdaptiveFilter[]> {
+    // Check if DB is available
+    if (!this.isDatabaseAvailable()) {
+      console.warn('Database not available, returning empty adaptive filters');
+      return [];
+    }
+
     try {
       const userPatterns = await this.getUserPreferencePatterns(userId);
       const learningMetrics = await this.getLearningMetrics(userId);
@@ -439,6 +493,19 @@ export class FeedbackLearningSystem {
    * Get learning metrics for a user
    */
   async getLearningMetrics(userId: string): Promise<LearningMetrics> {
+    // Check if DB is available
+    if (!this.isDatabaseAvailable()) {
+      console.warn('Database not available, returning default learning metrics');
+      return {
+        totalFeedbackCount: 0,
+        positiveRatings: 0,
+        negativeRatings: 0,
+        averageRating: 0,
+        improvementTrend: 0,
+        confidenceLevel: 0
+      };
+    }
+
     try {
       const result = await this.env.DB.prepare(`
         SELECT 
@@ -566,6 +633,12 @@ export class FeedbackLearningSystem {
    * Clear learning data for a user (privacy compliance)
    */
   async clearUserLearningData(userId: string): Promise<void> {
+    // Check if DB is available
+    if (!this.isDatabaseAvailable()) {
+      console.warn('Database not available, cannot clear user learning data');
+      return;
+    }
+
     try {
       await this.env.DB.prepare(`DELETE FROM user_feedback_learning WHERE user_id = ?`).bind(userId).run();
       await this.env.DB.prepare(`DELETE FROM user_preference_patterns WHERE user_id = ?`).bind(userId).run();

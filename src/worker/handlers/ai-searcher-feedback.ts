@@ -1,4 +1,4 @@
-             import { Hono, Context } from 'hono'
+import { Hono, Context } from 'hono'
 import { SearchAnalyticsManager } from '../lib/search-analytics-manager'
 import { Env } from '../types/env'
 import { D1Database } from '../types/d1'
@@ -26,19 +26,19 @@ app.post('/result', async (c: Context<AISearcherFeedbackContext>) => {
     const { searchSessionId, resultId, feedback } = await c.req.json()
 
     if (!searchSessionId || !resultId || !feedback) {
-      return c.json({ 
-        success: false, 
-        error: 'Missing required fields: searchSessionId, resultId, feedback' 
+      return c.json({
+        success: false,
+        error: 'Missing required fields: searchSessionId, resultId, feedback'
       }, 400)
     }
 
     // Validate feedback structure
-    if (typeof feedback.isRelevant !== 'boolean' || 
-        typeof feedback.qualityRating !== 'number' ||
-        feedback.qualityRating < 1 || feedback.qualityRating > 5) {
-      return c.json({ 
-        success: false, 
-        error: 'Invalid feedback format. isRelevant must be boolean, qualityRating must be 1-5' 
+    if (typeof feedback.isRelevant !== 'boolean' ||
+      typeof feedback.qualityRating !== 'number' ||
+      feedback.qualityRating < 1 || feedback.qualityRating > 5) {
+      return c.json({
+        success: false,
+        error: 'Invalid feedback format. isRelevant must be boolean, qualityRating must be 1-5'
       }, 400)
     }
 
@@ -73,16 +73,16 @@ app.post('/result', async (c: Context<AISearcherFeedbackContext>) => {
       // Don't fail the request if tracking fails
     }
 
-    return c.json({ 
-      success: true, 
-      message: 'Result feedback submitted successfully' 
+    return c.json({
+      success: true,
+      message: 'Result feedback submitted successfully'
     })
 
   } catch (error) {
     console.error('Error submitting result feedback:', error)
-    return c.json({ 
-      success: false, 
-      error: 'Internal server error' 
+    return c.json({
+      success: false,
+      error: 'Internal server error'
     }, 500)
   }
 })
@@ -95,28 +95,28 @@ app.post('/session', async (c: Context<AISearcherFeedbackContext>) => {
     const { searchSessionId, conversationId, feedback } = await c.req.json()
 
     if (!searchSessionId || !conversationId || !feedback) {
-      return c.json({ 
-        success: false, 
-        error: 'Missing required fields: searchSessionId, conversationId, feedback' 
+      return c.json({
+        success: false,
+        error: 'Missing required fields: searchSessionId, conversationId, feedback'
       }, 400)
     }
 
     // Validate feedback structure
     const requiredRatings = ['overallSatisfaction', 'relevanceRating', 'qualityRating', 'easeOfUseRating']
     for (const rating of requiredRatings) {
-      if (typeof feedback[rating] !== 'number' || 
-          feedback[rating] < 1 || feedback[rating] > 5) {
-        return c.json({ 
-          success: false, 
-          error: `Invalid ${rating}. Must be a number between 1 and 5` 
+      if (typeof feedback[rating] !== 'number' ||
+        feedback[rating] < 1 || feedback[rating] > 5) {
+        return c.json({
+          success: false,
+          error: `Invalid ${rating}. Must be a number between 1 and 5`
         }, 400)
       }
     }
 
     if (typeof feedback.wouldRecommend !== 'boolean') {
-      return c.json({ 
-        success: false, 
-        error: 'wouldRecommend must be a boolean' 
+      return c.json({
+        success: false,
+        error: 'wouldRecommend must be a boolean'
       }, 400)
     }
 
@@ -128,9 +128,9 @@ app.post('/session', async (c: Context<AISearcherFeedbackContext>) => {
     `).bind(searchSessionId).first<{ user_id: string }>()
 
     if (!sessionResult) {
-      return c.json({ 
-        success: false, 
-        error: 'Search session not found' 
+      return c.json({
+        success: false,
+        error: 'Search session not found'
       }, 404)
     }
 
@@ -147,17 +147,17 @@ app.post('/session', async (c: Context<AISearcherFeedbackContext>) => {
       improvementSuggestions: feedback.improvementSuggestions || undefined
     })
 
-    return c.json({ 
-      success: true, 
+    return c.json({
+      success: true,
       feedbackId,
-      message: 'Session feedback submitted successfully' 
+      message: 'Session feedback submitted successfully'
     })
 
   } catch (error) {
     console.error('Error submitting session feedback:', error)
-    return c.json({ 
-      success: false, 
-      error: 'Internal server error' 
+    return c.json({
+      success: false,
+      error: 'Internal server error'
     }, 500)
   }
 })
@@ -172,9 +172,9 @@ app.post('/analytics', async (c: Context<AISearcherFeedbackContext>) => {
     const days = parseInt(c.req.query('days') || '30')
 
     if (!conversationId && !userId) {
-      return c.json({ 
-        success: false, 
-        error: 'Either conversationId or userId is required' 
+      return c.json({
+        success: false,
+        error: 'Either conversationId or userId is required'
       }, 400)
     }
 
@@ -209,9 +209,9 @@ app.post('/analytics', async (c: Context<AISearcherFeedbackContext>) => {
 
   } catch (error) {
     console.error('Error getting feedback analytics:', error)
-    return c.json({ 
-      success: false, 
-      error: 'Internal server error' 
+    return c.json({
+      success: false,
+      error: 'Internal server error'
     }, 500)
   }
 })
@@ -224,9 +224,9 @@ app.get('/session/:sessionId', async (c: Context<AISearcherFeedbackContext>) => 
     const sessionId = c.req.param('sessionId')
 
     if (!sessionId) {
-      return c.json({ 
-        success: false, 
-        error: 'Session ID is required' 
+      return c.json({
+        success: false,
+        error: 'Session ID is required'
       }, 400)
     }
 
@@ -258,9 +258,9 @@ app.get('/session/:sessionId', async (c: Context<AISearcherFeedbackContext>) => 
 
   } catch (error) {
     console.error('Error getting session feedback:', error)
-    return c.json({ 
-      success: false, 
-      error: 'Internal server error' 
+    return c.json({
+      success: false,
+      error: 'Internal server error'
     }, 500)
   }
 })
