@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { DuplicateDetectionEngine } from "../worker/lib/duplicate-detection-engine";
-import { ScholarSearchResult } from "../lib/ai-types";
+import { ScholarSearchResult } from "../lib/types/search-types/search-results";
+import { DuplicateDetectionOptions } from "../lib/types/shared/common";
 
 /**
  * Custom hook for duplicate detection functionality

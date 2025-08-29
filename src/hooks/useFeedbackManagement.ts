@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { submitResultFeedback, submitSessionFeedback } from "../lib/api/ai-searcher-api";
-import { SearchResultFeedback, SearchSessionFeedback } from "../lib/ai-types";
+import { SearchResultFeedback, SearchSessionFeedback } from "../lib/types/search-types/search-analytics";
 
 /**
  * Custom hook for feedback management functionality
@@ -29,9 +29,9 @@ export const useFeedbackManagement = () => {
 
       try {
         const response = await submitResultFeedback(currentSessionId, resultId, {
-          isRelevant: feedback.isRelevant,
-          qualityRating: feedback.qualityRating,
-          comments: feedback.comments,
+          isRelevant: feedback.isRelevant ?? false,
+          qualityRating: feedback.qualityRating ?? 0,
+          comments: feedback.comments ?? '',
           timestamp: feedback.timestamp
         });
 
@@ -69,13 +69,13 @@ export const useFeedbackManagement = () => {
 
       try {
         const response = await submitSessionFeedback(currentSessionId, conversationId, {
-          overallSatisfaction: feedback.overallSatisfaction,
-          relevanceRating: feedback.relevanceRating,
-          qualityRating: feedback.qualityRating,
-          easeOfUseRating: feedback.easeOfUseRating,
-          feedbackComments: feedback.feedbackComments,
-          wouldRecommend: feedback.wouldRecommend,
-          improvementSuggestions: feedback.improvementSuggestions,
+          overallSatisfaction: feedback.overallSatisfaction ?? 0,
+          relevanceRating: feedback.relevanceRating ?? 0,
+          qualityRating: feedback.qualityRating ?? 0,
+          easeOfUseRating: feedback.easeOfUseRating ?? 0,
+          feedbackComments: feedback.feedbackComments ?? '',
+          wouldRecommend: feedback.wouldRecommend ?? false,
+          improvementSuggestions: feedback.improvementSuggestions?.join(', ') ?? '',
           timestamp: feedback.timestamp
         });
 

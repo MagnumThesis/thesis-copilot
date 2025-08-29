@@ -4,11 +4,14 @@
  */
 
 import { AIResponse } from './ai-interfaces';
-import { AIMode, ModificationType } from './ai-types';
+import { AIMode, ModificationType } from './types/ai-types/ai-modes';
 import { CacheManager } from './performance/cache-manager';
 import { DebounceManager } from './performance/debounce-manager';
 import { MetricsCollector, PerformanceMetrics } from './performance/metrics-collector';
 import { simpleHash } from './utils/text-utils';
+
+// Re-export PerformanceMetrics for external use
+export type { PerformanceMetrics } from './performance/metrics-collector';
 
 // Optimistic update interface
 export interface OptimisticUpdate {
