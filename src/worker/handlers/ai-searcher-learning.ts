@@ -1,7 +1,7 @@
 import { Hono, Context } from 'hono'
 import { FeedbackLearningSystem } from '../lib/feedback-learning-system'
 import { Env } from '../types/env'
-import { SupabaseEnv } from '../lib/supabase'
+import { SupabaseEnv, getSupabase } from '../lib/supabase'
 
 // Type for the Hono context
 type AISearcherLearningContext = {
@@ -303,31 +303,49 @@ app.post('/batch-update', async (c) => {
  */
 app.get('/status', async (c: Context<AISearcherLearningContext>) => {
   try {
-    // Get basic statistics about the learning system
-    const totalUsers = await c.env.DB.prepare(`
-      SELECT COUNT(DISTINCT user_id) as count FROM user_preference_patterns
-    `).first<{ count: number }>()
+    const supabase = getSupabase(c.env as any)
 
-    const totalFeedback = await c.env.DB.prepare(`
-      SELECT COUNT(*) as count FROM user_feedback_learning 
-      WHERE created_at >= datetime('now', '-30 days')
-    `).first<{ count: number }>()
+    // Total users (distinct user_id count)
+    const { error: usersError, count: usersCount } = await supabase
+      .from('user_preference_patterns')
+      .select('user_id', { count: 'exact' })
 
-    const activeFilters = await c.env.DB.prepare(`
-      SELECT COUNT(*) as count FROM adaptive_filters WHERE is_active = true
-    `).first<{ count: number }>()
+    if (usersError) throw usersError
 
-    const avgConfidence = await c.env.DB.prepare(`
-      SELECT AVG(confidence_level) as avg_confidence FROM learning_metrics
-    `).first<{ avg_confidence: number }>()
+    // Total feedback in last 30 days
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+    const { error: feedbackError, count: feedbackCount } = await supabase
+      .from('user_feedback_learning')
+      .select('*', { count: 'exact' })
+      .gte('created_at', thirtyDaysAgo)
+
+    if (feedbackError) throw feedbackError
+
+    // Active adaptive filters count
+    const { error: filtersError, count: filtersCount } = await supabase
+      .from('adaptive_filters')
+      .select('*', { count: 'exact' })
+      .eq('is_active', true)
+
+    if (filtersError) throw filtersError
+
+    // Average confidence from learning_metrics (compute in JS)
+    const { data: metricsData, error: metricsError } = await supabase
+      .from('learning_metrics')
+      .select('confidence_level')
+
+    if (metricsError) throw metricsError
+
+    const confidenceValues = Array.isArray(metricsData) ? metricsData.map((r: any) => Number(r.confidence_level || 0)) : []
+    const avgConfidenceValue = confidenceValues.length > 0 ? (confidenceValues.reduce((a, b) => a + b, 0) / confidenceValues.length) : 0
 
     return c.json({
       status: 'healthy',
       stats: {
-        totalUsers: totalUsers?.count || 0,
-        totalFeedback: totalFeedback?.count || 0,
-        activeFilters: activeFilters?.count || 0,
-        avgConfidence: avgConfidence?.avg_confidence ? Number(avgConfidence.avg_confidence.toFixed(2)) : 0
+        totalUsers: usersCount || 0,
+        totalFeedback: feedbackCount || 0,
+        activeFilters: filtersCount || 0,
+        avgConfidence: Number(avgConfidenceValue.toFixed(2))
       }
     })
   } catch (error) {
@@ -335,7 +353,6 @@ app.get('/status', async (c: Context<AISearcherLearningContext>) => {
     return c.json({ status: 'error', message: 'System health check failed' }, 500)
   }
 })
-
     
 
 export default app

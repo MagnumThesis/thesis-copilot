@@ -1,7 +1,7 @@
 import { Hono, Context } from 'hono'
 import { SearchAnalyticsManager } from '../lib/search-analytics-manager'
 import { Env } from '../types/env'
-import { SupabaseEnv } from '../lib/supabase'
+import { SupabaseEnv, getSupabase } from '../lib/supabase'
 
 // Type for the Hono context
 type AISearcherFeedbackContext = {
@@ -35,25 +35,35 @@ app.post('/result', async (c: Context<AISearcherFeedbackContext>) => {
     }
 
     const analyticsManager = new SearchAnalyticsManager(c.env)
+    const supabase = getSupabase(c.env as any)
 
-    // Update the search result with user feedback
-    await c.env.DB.prepare(`
-      UPDATE search_results 
-      SET user_feedback_rating = ?, 
-          user_feedback_comments = ?,
-          user_action = CASE 
-            WHEN user_action IS NULL THEN ?
-            ELSE user_action 
-          END
-      WHERE search_session_id = ? AND result_title = ?
-    `).bind(
-      feedback.qualityRating,
-      feedback.comments || null,
-      feedback.isRelevant ? 'viewed' : 'rejected',
-      searchSessionId,
-      resultId.split('-')[0] // Extract title from resultId
-    ).run()
+    // Update the search result with user feedback using Supabase
+    const title = resultId.split('-')[0]
 
+    // Fetch existing row to preserve user_action if present
+    const { data: existingRow, error: fetchError } = await supabase
+      .from('search_results')
+      .select('user_action')
+      .match({ search_session_id: searchSessionId, result_title: title })
+      .maybeSingle()
+
+    if (fetchError) {
+      console.warn('Failed to fetch existing search result row:', fetchError)
+
+  }
+
+  const userAction = (existingRow as any)?.user_action || (feedback.isRelevant ? 'viewed' : 'rejected')
+
+    const { error: updateError } = await supabase
+      .from('search_results')
+      .update({
+        user_feedback_rating: feedback.qualityRating,
+        user_feedback_comments: feedback.comments || null,
+        user_action: userAction
+      })
+      .match({ search_session_id: searchSessionId, result_title: title })
+
+    if (updateError) throw updateError
     // Track the feedback for analytics
     try {
       await analyticsManager.updateSearchResultAction(
@@ -113,13 +123,16 @@ app.post('/session', async (c: Context<AISearcherFeedbackContext>) => {
     }
 
     const analyticsManager = new SearchAnalyticsManager(c.env)
+    const supabase = getSupabase(c.env as any)
 
-    // Get user ID from the search session
-    const sessionResult = await c.env.DB.prepare(`
-      SELECT user_id FROM search_sessions WHERE id = ?
-    `).bind(searchSessionId).first<{ user_id: string }>()
+    // Get user ID from the search session via Supabase
+    const { data: sessionData, error: sessionError } = await supabase
+      .from('search_sessions')
+      .select('user_id')
+      .eq('id', searchSessionId)
+      .maybeSingle()
 
-    if (!sessionResult) {
+    if (sessionError || !sessionData) {
       return c.json({
         success: false,
         error: 'Search session not found'
@@ -129,7 +142,7 @@ app.post('/session', async (c: Context<AISearcherFeedbackContext>) => {
     // Submit the session feedback
     const feedbackId = await analyticsManager.recordSearchFeedback({
       searchSessionId,
-      userId: sessionResult.user_id,
+      userId: sessionData.user_id,
       overallSatisfaction: feedback.overallSatisfaction,
       relevanceRating: feedback.relevanceRating,
       qualityRating: feedback.qualityRating,
@@ -222,29 +235,33 @@ app.get('/session/:sessionId', async (c: Context<AISearcherFeedbackContext>) => 
       }, 400)
     }
 
+    const supabase = getSupabase(c.env as any)
+
     // Get session feedback
-    const sessionFeedback = await c.env.DB.prepare(`
-      SELECT * FROM search_feedback WHERE search_session_id = ?
-    `).bind(sessionId).first()
+    const { data: sessionFeedback, error: sessionFeedbackError } = await supabase
+      .from('search_feedback')
+      .select('*')
+      .eq('search_session_id', sessionId)
+      .maybeSingle()
+
+    if (sessionFeedbackError) throw sessionFeedbackError
 
     // Get result feedback
-    const resultFeedback = await c.env.DB.prepare(`
-      SELECT 
-        result_title,
-        user_feedback_rating,
-        user_feedback_comments,
-        user_action,
-        relevance_score,
-        quality_score
-      FROM search_results 
-      WHERE search_session_id = ? AND user_feedback_rating IS NOT NULL
-    `).bind(sessionId).all()
+    const { data: resultFeedbackData, error: resultFeedbackError } = await supabase
+      .from('search_results')
+      .select(
+        'result_title,user_feedback_rating,user_feedback_comments,user_action,relevance_score,quality_score'
+      )
+      .eq('search_session_id', sessionId)
+      .not('user_feedback_rating', 'is', null)
+
+    if (resultFeedbackError) throw resultFeedbackError
 
     return c.json({
       success: true,
       feedback: {
         session: sessionFeedback,
-        results: resultFeedback.results || []
+        results: resultFeedbackData || []
       }
     })
 
