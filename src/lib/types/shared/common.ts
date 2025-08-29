@@ -279,8 +279,8 @@ export interface DocumentContext {
 export interface AcademicContext {
   /** @property {ThesisStructure} thesisStructure - The thesis structure. */
   thesisStructure: ThesisStructure;
-  /** @property {import('../shared/validation').CitationFormat} citationFormat - The citation format. */
-  citationFormat: import('../shared/validation').CitationFormat;
+  /** @property {import('../citation-types/citation-styles').CitationFormat} citationFormat - The citation format. */
+  citationFormat: import('../citation-types/citation-styles').CitationFormat;
   /** @property {object} academicTone - The academic tone details. */
   academicTone: {
     /** @property {'undergraduate' | 'graduate' | 'doctoral'} level - The academic level. */
