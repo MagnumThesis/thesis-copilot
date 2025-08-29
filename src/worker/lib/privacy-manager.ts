@@ -166,107 +166,150 @@ export class PrivacyManager {
     try {
       const supabase = getSupabase(this.env);
 
-      // Build query conditions
-      const userFilter = `user_id.eq.${userId}`;
-      
-      let sessionFilter = userFilter;
-      let resultFilter = `search_session_id.in.(${sessionFilter})`;
-      let feedbackFilter = `search_session_id.in.(${sessionFilter})`;
-      let learningFilter = userFilter;
-      
-      if (conversationId) {
-        sessionFilter += `,conversation_id.eq.${conversationId}`;
-        resultFilter = `search_session_id.in.(${sessionFilter})`;
-        feedbackFilter = `search_session_id.in.(${sessionFilter})`;
-        learningFilter += `,conversation_id.eq.${conversationId}`;
-      }
-
-      // Get search sessions count and date range
-      const { data: sessionsData, error: sessionsError } = await supabase
+      // Build queries for all count operations
+      let sessionsCountQuery = supabase
         .from('search_sessions')
-        .select('count(), min(created_at), max(created_at)')
-        .eq('user_id', userId)
-        .maybeSingle();
-
-      if (sessionsError) {
-        console.error('Error getting search sessions data:', sessionsError);
-        throw sessionsError;
-      }
-
-      // Get search results count
-      // First get session IDs for the user/conversation
-      const { data: sessionIds, error: sessionIdsError } = await supabase
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId);
+      
+      let sessionIdsQuery = supabase
         .from('search_sessions')
         .select('id')
         .eq('user_id', userId);
       
-      if (sessionIdsError) {
-        console.error('Error getting session IDs:', sessionIdsError);
-        throw sessionIdsError;
-      }
-
-      let resultsCount = 0;
-      if (sessionIds && sessionIds.length > 0) {
-        const sessionIdList = sessionIds.map(s => s.id);
-        const { count: resultsCountResult, error: resultsCountError } = await supabase
-          .from('search_results')
-          .select('*', { count: 'exact', head: true })
-          .in('search_session_id', sessionIdList);
-        
-        if (resultsCountError) {
-          console.error('Error getting search results count:', resultsCountError);
-          throw resultsCountError;
-        }
-        
-        resultsCount = resultsCountResult || 0;
-      }
-
-      // Get feedback count
-      let feedbackCount = 0;
-      if (sessionIds && sessionIds.length > 0) {
-        const sessionIdList = sessionIds.map(s => s.id);
-        const { count: feedbackCountResult, error: feedbackCountError } = await supabase
-          .from('search_feedback')
-          .select('*', { count: 'exact', head: true })
-          .in('search_session_id', sessionIdList);
-        
-        if (feedbackCountError) {
-          console.error('Error getting feedback count:', feedbackCountError);
-          throw feedbackCountError;
-        }
-        
-        feedbackCount = feedbackCountResult || 0;
-      }
-
-      // Get learning data count
-      const { count: learningCount, error: learningCountError } = await supabase
+      let learningDataQuery = supabase
         .from('user_feedback_learning')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId);
       
-      if (learningCountError) {
-        console.error('Error getting learning data count:', learningCountError);
-        throw learningCountError;
+      if (conversationId) {
+        sessionsCountQuery = sessionsCountQuery.eq('conversation_id', conversationId);
+        sessionIdsQuery = sessionIdsQuery.eq('conversation_id', conversationId);
+        learningDataQuery = learningDataQuery.eq('conversation_id', conversationId);
+      }
+
+      // Execute main count queries in parallel
+      const [sessionsResult, sessionIdsResult, learningResult] = await Promise.all([
+        sessionsCountQuery,
+        sessionIdsQuery,
+        learningDataQuery
+      ]);
+
+      // Check for errors in main queries
+      if (sessionsResult.error) {
+        console.error('Error getting search sessions count:', sessionsResult.error);
+        throw sessionsResult.error;
+      }
+
+      if (sessionIdsResult.error) {
+        console.error('Error getting session IDs:', sessionIdsResult.error);
+        throw sessionIdsResult.error;
+      }
+
+      if (learningResult.error) {
+        console.error('Error getting learning data count:', learningResult.error);
+        throw learningResult.error;
+      }
+
+      const sessionsCount = sessionsResult.count || 0;
+      const sessionIds = sessionIdsResult.data || [];
+      const learningCount = learningResult.count || 0;
+
+      // Get results and feedback counts (if we have sessions)
+      let resultsCount = 0;
+      let feedbackCount = 0;
+      
+      if (sessionIds.length > 0) {
+        const sessionIdList = sessionIds.map(s => s.id);
+        
+        const [resultsResult, feedbackResult] = await Promise.all([
+          supabase
+            .from('search_results')
+            .select('*', { count: 'exact', head: true })
+            .in('search_session_id', sessionIdList),
+          supabase
+            .from('search_feedback')
+            .select('*', { count: 'exact', head: true })
+            .in('search_session_id', sessionIdList)
+        ]);
+
+        if (resultsResult.error) {
+          console.error('Error getting search results count:', resultsResult.error);
+          // Continue without results count rather than failing completely
+        } else {
+          resultsCount = resultsResult.count || 0;
+        }
+
+        if (feedbackResult.error) {
+          console.error('Error getting feedback count:', feedbackResult.error);
+          // Continue without feedback count rather than failing completely
+        } else {
+          feedbackCount = feedbackResult.count || 0;
+        }
+      }
+
+      // Get oldest and newest entries only if records exist
+      let oldestEntry: Date | undefined;
+      let newestEntry: Date | undefined;
+      
+      if (sessionsCount > 0) {
+        // Build date range queries
+        let oldestQueryBuilder = supabase
+          .from('search_sessions')
+          .select('created_at')
+          .eq('user_id', userId);
+        
+        let newestQueryBuilder = supabase
+          .from('search_sessions')
+          .select('created_at')
+          .eq('user_id', userId);
+        
+        if (conversationId) {
+          oldestQueryBuilder = oldestQueryBuilder.eq('conversation_id', conversationId);
+          newestQueryBuilder = newestQueryBuilder.eq('conversation_id', conversationId);
+        }
+        
+        const [oldestResult, newestResult] = await Promise.all([
+          oldestQueryBuilder
+            .order('created_at', { ascending: true })
+            .limit(1)
+            .maybeSingle(),
+          newestQueryBuilder
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle()
+        ]);
+
+        if (oldestResult.error) {
+          console.error('Error getting oldest entry:', oldestResult.error);
+          // Continue without date range rather than failing completely
+        } else if (oldestResult.data?.created_at) {
+          oldestEntry = new Date(oldestResult.data.created_at);
+        }
+
+        if (newestResult.error) {
+          console.error('Error getting newest entry:', newestResult.error);
+          // Continue without date range rather than failing completely
+        } else if (newestResult.data?.created_at) {
+          newestEntry = new Date(newestResult.data.created_at);
+        }
       }
 
       // Calculate approximate storage size (rough estimate)
-      const totalRecords = (sessionsData?.count || 0) + 
-                          resultsCount + 
-                          feedbackCount + 
-                          (learningCount || 0);
+      const totalRecords = sessionsCount + resultsCount + feedbackCount + learningCount;
       const estimatedSizeKB = Math.round(totalRecords * 2.5); // Rough estimate: 2.5KB per record
       const totalSize = estimatedSizeKB > 1024 
         ? `${(estimatedSizeKB / 1024).toFixed(1)} MB`
         : `${estimatedSizeKB} KB`;
 
       return {
-        searchSessions: sessionsData?.count || 0,
+        searchSessions: sessionsCount,
         searchResults: resultsCount,
         feedbackEntries: feedbackCount,
-        learningData: learningCount || 0,
+        learningData: learningCount,
         totalSize,
-        oldestEntry: sessionsData?.min ? new Date(sessionsData.min) : undefined,
-        newestEntry: sessionsData?.max ? new Date(sessionsData.max) : undefined
+        oldestEntry,
+        newestEntry
       };
     } catch (error) {
       console.error('Error getting data summary:', error);

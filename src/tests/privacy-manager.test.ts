@@ -1,11 +1,32 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { PrivacyManager, PrivacySettings } from '../worker/lib/privacy-manager';
 
+// Mock Supabase
+const mockSupabaseClient = {
+  from: vi.fn()
+};
+
+// Mock the getSupabase function
+vi.mock('../worker/lib/supabase', () => ({
+  getSupabase: vi.fn(() => mockSupabaseClient)
+}));
+
+// Mock SearchAnalyticsManager
+vi.mock('../worker/lib/search-analytics-manager', () => ({
+  SearchAnalyticsManager: vi.fn().mockImplementation(() => ({
+    clearAnalyticsData: vi.fn()
+  }))
+}));
+
+// Mock FeedbackLearningSystem
+vi.mock('../worker/lib/feedback-learning-system', () => ({
+  FeedbackLearningSystem: vi.fn().mockImplementation(() => ({}))
+}));
+
 // Mock environment
 const mockEnv = {
-  DB: {
-    prepare: vi.fn(),
-  }
+  SUPABASE_URL: 'https://test.supabase.co',
+  SUPABASE_ANON: 'test-anon-key'
 };
 
 describe('PrivacyManager', () => {
@@ -123,23 +144,52 @@ describe('PrivacyManager', () => {
   });
 
   describe('getDataSummary', () => {
-    it('should return data summary', async () => {
-      const mockResults = [
-        { count: 5, oldest: '2024-01-01T00:00:00Z', newest: '2024-01-05T00:00:00Z' },
-        { count: 15 },
-        { count: 3 },
-        { count: 8 }
+    it('should return data summary with new PostgREST queries', async () => {
+      // Mock Supabase query chains for the new implementation
+      const mockQueryBuilder = {
+        eq: vi.fn().mockReturnThis(),
+        select: vi.fn().mockReturnThis(),
+        order: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockReturnThis(),
+        maybeSingle: vi.fn(),
+        in: vi.fn().mockReturnThis()
+      };
+
+      mockSupabaseClient.from.mockReturnValue(mockQueryBuilder);
+
+      // Mock the responses for the parallel queries in order:
+      // 1. Sessions count query
+      // 2. Session IDs query  
+      // 3. Learning data count query
+      let callCount = 0;
+      const mockResponses = [
+        // Sessions count
+        { count: 5, error: null },
+        // Session IDs
+        { data: [{ id: 'session1' }, { id: 'session2' }], error: null },
+        // Learning data count
+        { count: 8, error: null },
+        // Results count (from Promise.all)
+        { count: 15, error: null },
+        // Feedback count (from Promise.all)
+        { count: 3, error: null },
+        // Oldest entry (from Promise.all)
+        { data: { created_at: '2024-01-01T00:00:00Z' }, error: null },
+        // Newest entry (from Promise.all)
+        { data: { created_at: '2024-01-05T00:00:00Z' }, error: null }
       ];
 
-      let callIndex = 0;
-      const mockChain = {
-        bind: vi.fn().mockReturnValue({
-          first: vi.fn().mockImplementation(() => {
-            return Promise.resolve(mockResults[callIndex++]);
-          })
-        })
-      };
-      mockEnv.DB.prepare.mockReturnValue(mockChain);
+      // Mock the query execution to return responses in sequence
+      const mockExecution = vi.fn().mockImplementation(() => {
+        return Promise.resolve(mockResponses[callCount++]);
+      });
+
+      // Replace the query builder with our mock execution
+      Object.defineProperty(mockQueryBuilder, 'then', {
+        get: () => mockExecution
+      });
+
+      mockQueryBuilder.maybeSingle.mockImplementation(() => mockQueryBuilder);
 
       const summary = await privacyManager.getDataSummary(mockUserId);
 
@@ -151,6 +201,139 @@ describe('PrivacyManager', () => {
         totalSize: '78 KB', // (5+15+3+8) * 2.5 = 77.5 KB rounded up
         oldestEntry: new Date('2024-01-01T00:00:00Z'),
         newestEntry: new Date('2024-01-05T00:00:00Z')
+      });
+
+      // Verify that the correct tables were queried
+      expect(mockSupabaseClient.from).toHaveBeenCalledWith('search_sessions');
+      expect(mockSupabaseClient.from).toHaveBeenCalledWith('search_results');
+      expect(mockSupabaseClient.from).toHaveBeenCalledWith('search_feedback');
+      expect(mockSupabaseClient.from).toHaveBeenCalledWith('user_feedback_learning');
+    });
+
+    it('should handle conversation ID filtering', async () => {
+      const mockQueryBuilder = {
+        eq: vi.fn().mockReturnThis(),
+        select: vi.fn().mockReturnThis(),
+        order: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockReturnThis(),
+        maybeSingle: vi.fn(),
+        in: vi.fn().mockReturnThis()
+      };
+
+      mockSupabaseClient.from.mockReturnValue(mockQueryBuilder);
+
+      // Mock responses for conversation filtering test
+      let callCount = 0;
+      const mockResponses = [
+        { count: 2, error: null },  // Sessions count with conversation filter
+        { data: [{ id: 'session1' }], error: null },  // Session IDs with filter
+        { count: 4, error: null },  // Learning data with filter
+        { count: 6, error: null },  // Results count
+        { count: 1, error: null },  // Feedback count
+        { data: { created_at: '2024-01-01T00:00:00Z' }, error: null },  // Oldest
+        { data: { created_at: '2024-01-03T00:00:00Z' }, error: null }   // Newest
+      ];
+
+      const mockExecution = vi.fn().mockImplementation(() => {
+        return Promise.resolve(mockResponses[callCount++]);
+      });
+
+      Object.defineProperty(mockQueryBuilder, 'then', {
+        get: () => mockExecution
+      });
+
+      mockQueryBuilder.maybeSingle.mockImplementation(() => mockQueryBuilder);
+
+      const summary = await privacyManager.getDataSummary(mockUserId, mockConversationId);
+
+      expect(summary).toEqual({
+        searchSessions: 2,
+        searchResults: 6,
+        feedbackEntries: 1,
+        learningData: 4,
+        totalSize: '33 KB', // (2+6+1+4) * 2.5 = 32.5 KB rounded up
+        oldestEntry: new Date('2024-01-01T00:00:00Z'),
+        newestEntry: new Date('2024-01-03T00:00:00Z')
+      });
+
+      // Verify conversation ID was passed to eq() calls
+      expect(mockQueryBuilder.eq).toHaveBeenCalledWith('conversation_id', mockConversationId);
+    });
+
+    it('should handle errors gracefully', async () => {
+      const mockQueryBuilder = {
+        eq: vi.fn().mockReturnThis(),
+        select: vi.fn().mockReturnThis(),
+        order: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockReturnThis(),
+        maybeSingle: vi.fn(),
+        in: vi.fn().mockReturnThis()
+      };
+
+      mockSupabaseClient.from.mockReturnValue(mockQueryBuilder);
+
+      // Mock error responses - main query fails
+      let callCount = 0;
+      const mockResponses = [
+        { count: null, error: new Error('Database connection failed') },
+      ];
+
+      const mockExecution = vi.fn().mockImplementation(() => {
+        return Promise.resolve(mockResponses[callCount++]);
+      });
+
+      Object.defineProperty(mockQueryBuilder, 'then', {
+        get: () => mockExecution
+      });
+
+      // Should throw error for main query failures
+      await expect(privacyManager.getDataSummary(mockUserId)).rejects.toThrow('Database connection failed');
+    });
+
+    it('should handle graceful degradation for date queries', async () => {
+      const mockQueryBuilder = {
+        eq: vi.fn().mockReturnThis(),
+        select: vi.fn().mockReturnThis(),
+        order: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockReturnThis(),
+        maybeSingle: vi.fn(),
+        in: vi.fn().mockReturnThis()
+      };
+
+      mockSupabaseClient.from.mockReturnValue(mockQueryBuilder);
+
+      // Mock responses where date queries fail but counts succeed
+      let callCount = 0;
+      const mockResponses = [
+        { count: 5, error: null },  // Sessions count
+        { data: [{ id: 'session1' }], error: null },  // Session IDs
+        { count: 8, error: null },  // Learning data count
+        { count: 15, error: null }, // Results count
+        { count: 3, error: null },  // Feedback count
+        { data: null, error: new Error('Date query failed') },  // Oldest - fails
+        { data: null, error: new Error('Date query failed') }   // Newest - fails
+      ];
+
+      const mockExecution = vi.fn().mockImplementation(() => {
+        return Promise.resolve(mockResponses[callCount++]);
+      });
+
+      Object.defineProperty(mockQueryBuilder, 'then', {
+        get: () => mockExecution
+      });
+
+      mockQueryBuilder.maybeSingle.mockImplementation(() => mockQueryBuilder);
+
+      const summary = await privacyManager.getDataSummary(mockUserId);
+
+      expect(summary).toEqual({
+        searchSessions: 5,
+        searchResults: 15,
+        feedbackEntries: 3,
+        learningData: 8,
+        totalSize: '78 KB',
+        oldestEntry: undefined,  // Should be undefined due to error
+        newestEntry: undefined   // Should be undefined due to error
       });
     });
   });
