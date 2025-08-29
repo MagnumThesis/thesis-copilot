@@ -7,10 +7,17 @@
   - Comprehensive unit tests written and passing (17/17 tests)
   - Backward compatibility layer implemented with deprecation warnings
   
-- **Service Layer Refactoring (Tasks 2.1-4.4)**: 🟡 **PENDING**
-  - Citation engine refactoring
-  - Google Scholar client refactoring  
-  - UI component refactoring
+- **Citation Formatter Modules (Task 2.1)**: ✅ **COMPLETED**
+  - AuthorFormatter, DateFormatter, and TitleFormatter modules created
+  - All formatters support MLA, Chicago, Harvard, and APA styles
+  - Comprehensive unit tests written and passing (93/93 tests)
+  
+- **Service Layer Refactoring (Tasks 2.2-4.4)**: 🟡 **PENDING**
+  - Citation style modules (Task 2.2)
+  - Citation validation modules (Task 2.3)
+  - Citation engine modules (Task 2.4)
+  - Google Scholar client refactoring (Tasks 3.1-3.4)
+  - UI component refactoring (Tasks 4.1-4.4)
   
 - **Import Updates & Integration (Tasks 5.2-8.2)**: 🟡 **READY TO START**
   - Component import updates
@@ -18,7 +25,7 @@
   - Testing and performance validation
 
 ## Next Priority
-**Task 2.1**: Create citation formatter modules - Extract AuthorFormatter class into separate modules
+**Task 2.2**: Create citation style modules - Split citation styles into separate files (apa-style.ts, mla-style.ts, etc.)
 
 ---
 
@@ -63,7 +70,7 @@
   - Implement proper separation of concerns for citation formatting
   - _Requirements: 1.1, 1.2, 3.1, 3.2_
 
-- [ ] 2.1 Create citation formatter modules
+- [x] 2.1 Create citation formatter modules
   - Extract AuthorFormatter class into `src/lib/citation/formatters/author-formatter.ts`
   - Create date-formatter.ts and title-formatter.ts modules with formatting utilities
   - Write unit tests for each formatter module
