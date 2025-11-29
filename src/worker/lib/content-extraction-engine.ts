@@ -404,8 +404,8 @@ class IdeaApi {
         return {
           id: idea.id,
           title: idea.title,
-          description: idea.description || idea.content || '',
-          content: idea.description || idea.content || '',
+          description: idea.description || '',
+          content: idea.description || '',
           type: idea.type || 'concept',
           tags: Array.isArray(idea.tags) ? idea.tags : [],
           confidence: typeof idea.confidence === 'number' ? idea.confidence : 0.8,
@@ -470,8 +470,8 @@ class IdeaApi {
         return (data as any).ideas.map((idea: any) => ({
           id: idea.id,
           title: idea.title,
-          description: idea.description || idea.content || '',
-          content: idea.description || idea.content || '',
+          description: idea.description || '',
+          content: idea.description || '',
           type: idea.type || 'concept',
           tags: Array.isArray(idea.tags) ? idea.tags : [],
           confidence: typeof idea.confidence === 'number' ? idea.confidence : 0.8,

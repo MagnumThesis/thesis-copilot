@@ -255,7 +255,7 @@ Generate the content:`;
     try {
       const result = await Promise.race([
         generateText({
-          model: google("gemini-1.5-flash-latest"),
+          model: google("gemini-2.0-flash-exp"),
           prompt: aiPrompt,
         }),
         new Promise<never>((_, reject) => {
@@ -303,7 +303,7 @@ Generate the content:`;
       metadata: {
         tokensUsed: usage?.totalTokens || 0,
         processingTime,
-        model: "gemini-1.5-flash-latest",
+        model: "gemini-2.0-flash-exp",
         academicValidation: formatAcademicValidation(academicValidation)
       }
     };
@@ -433,7 +433,7 @@ export async function builderAIContinueHandler(
     try {
       const result = await Promise.race([
         generateText({
-          model: google("gemini-1.5-flash-latest"),
+          model: google("gemini-2.0-flash-exp"),
           prompt: aiPrompt,
         }),
         new Promise<never>((_, reject) => {
@@ -481,7 +481,7 @@ export async function builderAIContinueHandler(
       metadata: {
         tokensUsed: usage?.totalTokens || 0,
         processingTime,
-        model: "gemini-1.5-flash-latest",
+        model: "gemini-2.0-flash-exp",
         contextSufficiency: contextSufficiency.sufficient,
         styleAnalysis: styleAnalysis.summary,
         academicValidation: formatAcademicValidation(academicValidation)
@@ -627,7 +627,7 @@ Modified content:`;
     try {
       const result = await Promise.race([
         generateText({
-          model: google("gemini-1.5-flash-latest"),
+          model: google("gemini-2.0-flash-exp"),
           prompt: aiPrompt,
         }),
         new Promise<never>((_, reject) => {
@@ -675,7 +675,7 @@ Modified content:`;
       metadata: {
         tokensUsed: usage?.totalTokens || 0,
         processingTime,
-        model: "gemini-1.5-flash-latest",
+        model: "gemini-2.0-flash-exp",
         academicValidation: formatAcademicValidation(academicValidation)
       }
     };
@@ -956,3 +956,4 @@ ${selectedText ? `**Selected text for context:** ${selectedText}` : ''}
 
 Continue the content:`;
 }
+
