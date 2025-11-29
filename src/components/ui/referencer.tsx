@@ -89,6 +89,7 @@ export const Referencer: React.FC<ReferencerProps> = ({ isOpen, onClose, current
   
   const [prefilledReferenceData, setPrefilledReferenceData] = useState<Partial<Reference> | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [refreshKey, setRefreshKey] = useState(0)
 
   // Load saved citation style preference
   useEffect(() => {
@@ -222,55 +223,8 @@ export const Referencer: React.FC<ReferencerProps> = ({ isOpen, onClose, current
 
   const handleAddReferenceFromAI = async (reference: Partial<Reference>) => {
     try {
-      // Validate required fields
-      if (!reference.title || !reference.authors || reference.authors.length === 0) {
-        throw new Error('Reference must have a title and at least one author')
-      }
-
-      // Check for duplicates first
-      const duplicateReference = await checkForDuplicateReference(reference)
-      
-      if (duplicateReference) {
-        const shouldProceed = confirm(
-          `A similar reference already exists in your library:\n\n"${duplicateReference.title}"\n\nDo you want to add this reference anyway?`
-        )
-        
-        if (!shouldProceed) {
-          return // User chose not to add duplicate
-        }
-      }
-
-      // Prepare reference data for API
-      const referenceData = {
-        conversationId: currentConversation.id,
-        type: reference.type || 'journal_article',
-        title: reference.title,
-        authors: reference.authors || [],
-        publication_date: reference.publication_date,
-        journal: reference.journal,
-        volume: reference.volume,
-        issue: reference.issue,
-        pages: reference.pages,
-        publisher: reference.publisher,
-        doi: reference.doi,
-        url: reference.url,
-        isbn: reference.isbn,
-        edition: reference.edition,
-        chapter: reference.chapter,
-        editor: reference.editor,
-        access_date: reference.access_date,
-        notes: reference.notes,
-        tags: reference.tags || [],
-        ai_search_source: 'ai-searcher',
-        ai_confidence: reference.ai_confidence || reference.metadata_confidence || 0.8,
-        ai_relevance_score: reference.ai_relevance_score || 0.8,
-        ai_search_query: reference.ai_search_query,
-        ai_search_timestamp: new Date().toISOString(),
-        extractMetadata: false // Don't extract metadata since we already have it from AI search
-      }
-
-      // Create the reference with retry logic
-      const result = await createReferenceWithRetry(referenceData)
+      // Reference is already added to DB by addReferenceFromSearch API
+      // This callback just handles UI updates
       
       // Successfully added reference, switch to references tab to show it
       setState(prev => ({
@@ -280,10 +234,13 @@ export const Referencer: React.FC<ReferencerProps> = ({ isOpen, onClose, current
         editingReference: null
       }))
       
+      // Trigger refresh of reference list
+      setRefreshKey(prev => prev + 1)
+      
       // Show success feedback
       setSuccessMessage(`Reference "${reference.title}" added successfully!`)
       setTimeout(() => setSuccessMessage(null), 5000) // Clear after 5 seconds
-      console.log('Reference added successfully:', result.reference)
+      console.log('Reference added successfully:', reference)
       
     } catch (error) {
       console.error('Error adding reference from AI searcher:', error)
@@ -353,6 +310,7 @@ export const Referencer: React.FC<ReferencerProps> = ({ isOpen, onClose, current
               </div>
             ) : (
               <ReferenceList
+                key={refreshKey}
                 conversationId={currentConversation.id}
                 searchQuery={state.searchQuery}
                 filterType={state.filterType}

@@ -67,9 +67,11 @@ export const useReferenceManagement = () => {
 
         const data = response.data!;
 
-        // Successfully added reference
+        // Successfully added reference - just notify parent (no need to add again)
+        // The reference is already in the database from addReferenceFromSearch
         if (onAddReference) {
-          await onAddReference(data.reference);
+          // Just pass the reference for UI updates, don't add it again
+          onAddReference(data.reference);
         }
 
         // Track reference addition for analytics

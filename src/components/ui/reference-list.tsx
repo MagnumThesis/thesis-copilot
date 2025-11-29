@@ -83,12 +83,17 @@ export const ReferenceList: React.FC<ReferenceListProps> = ({
   const loadReferences = async () => {
     setLoading(true)
     try {
-      // In a real app, this would fetch from your API/database
-      // For now, we'll simulate loading from localStorage
-      const stored = localStorage.getItem(`references_${conversationId}`)
-      const refs = stored ? JSON.parse(stored) : []
+      // Fetch from API
+      const response = await fetch(`/api/referencer/references/${conversationId}`)
+      
+      if (!response.ok) {
+        throw new Error(`Failed to load references: ${response.statusText}`)
+      }
 
-      // Add formatted citations (simplified for demo)
+      const data = await response.json()
+      const refs = data.success && data.references ? data.references : []
+
+      // Add formatted citations
       const refsWithCitations = refs.map((ref: Reference) => ({
         ...ref,
         formattedCitation: formatCitation(ref, citationStyle)
@@ -97,6 +102,8 @@ export const ReferenceList: React.FC<ReferenceListProps> = ({
       setReferences(refsWithCitations)
     } catch (error) {
       console.error('Error loading references:', error)
+      // Fallback to empty array on error
+      setReferences([])
     } finally {
       setLoading(false)
     }
@@ -132,14 +139,20 @@ export const ReferenceList: React.FC<ReferenceListProps> = ({
   const handleDelete = async (referenceId: string) => {
     if (confirm('Are you sure you want to delete this reference?')) {
       try {
-        // Remove from local state
-        setReferences(prev => prev.filter(ref => ref.id !== referenceId))
+        // Delete via API
+        const response = await fetch(`/api/referencer/references/${referenceId}`, {
+          method: 'DELETE'
+        })
 
-        // Update localStorage
-        const updatedRefs = references.filter(ref => ref.id !== referenceId)
-        localStorage.setItem(`references_${conversationId}`, JSON.stringify(updatedRefs))
+        if (!response.ok) {
+          throw new Error(`Failed to delete reference: ${response.statusText}`)
+        }
+
+        // Reload references from server to ensure sync
+        await loadReferences()
       } catch (error) {
         console.error('Error deleting reference:', error)
+        alert('Failed to delete reference. Please try again.')
       }
     }
   }

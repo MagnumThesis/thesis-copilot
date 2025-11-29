@@ -391,7 +391,11 @@ export const ContentSourceSelector: React.FC<ContentSourceSelectorProps> = ({
         
         // Also pass the extracted content if available
         if (data.extractedContent) {
-          onContentSelected(data.extractedContent)
+          // Ensure it's always an array
+          const contentArray = Array.isArray(data.extractedContent) 
+            ? data.extractedContent 
+            : [data.extractedContent]
+          onContentSelected(contentArray)
         }
       } else {
         throw new Error(data.error || 'Failed to generate search query')
