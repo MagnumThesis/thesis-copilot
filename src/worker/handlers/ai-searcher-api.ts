@@ -77,7 +77,11 @@ function convertContext(honoContext: Context<AISearcherContext>): any {
 // Search and Extract routes (modular)
 app.post("/search", async (c) => {
   try {
-    const ctx = convertContext(c);
+    const body = await c.req.json();
+    const ctx = {
+      request: { body },
+      env: c.env
+    };
     const response = await handleSearchRoute(ctx);
     return c.json(response);
   } catch (error) {
@@ -88,7 +92,11 @@ app.post("/search", async (c) => {
 
 app.post("/extract", async (c) => {
   try {
-    const ctx = convertContext(c);
+    const body = await c.req.json();
+    const ctx = {
+      request: { body },
+      env: c.env
+    };
     const response = await handleExtractRoute(ctx);
     return c.json(response);
   } catch (error) {
@@ -100,7 +108,11 @@ app.post("/extract", async (c) => {
 // Query routes (modular)
 app.post("/generate-query", async (c) => {
   try {
-    const ctx = convertContext(c);
+    const body = await c.req.json();
+    const ctx = {
+      request: { body },
+      env: c.env
+    };
     const response = await handleGenerateQueryRoute(ctx);
     return c.json(response);
   } catch (error) {
@@ -111,7 +123,11 @@ app.post("/generate-query", async (c) => {
 
 app.post("/extract-content", async (c) => {
   try {
-    const ctx = convertContext(c);
+    const body = await c.req.json();
+    const ctx = {
+      request: { body },
+      env: c.env
+    };
     const response = await handleExtractContentRoute(ctx);
     return c.json(response);
   } catch (error) {
@@ -122,9 +138,19 @@ app.post("/extract-content", async (c) => {
 
 app.post("/content-preview", async (c) => {
   try {
-    const ctx = convertContext(c);
+    const body = await c.req.json();
+    const ctx = {
+      request: { body },
+      env: c.env
+    };
     const response = await handleContentPreviewRoute(ctx);
-    return c.json(response);
+    // Transform response to include success flag at top level
+    return c.json({
+      success: response.metadata?.success !== false,
+      extractedContent: response.extractedContent,
+      preview: response.preview,
+      error: response.metadata?.error
+    });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return c.json({ success: false, error: errorMessage }, 500);
@@ -133,7 +159,11 @@ app.post("/content-preview", async (c) => {
 
 app.post("/validate-query", async (c) => {
   try {
-    const ctx = convertContext(c);
+    const body = await c.req.json();
+    const ctx = {
+      request: { body },
+      env: c.env
+    };
     const response = await handleValidateQueryRoute(ctx);
     return c.json(response);
   } catch (error) {
@@ -144,7 +174,11 @@ app.post("/validate-query", async (c) => {
 
 app.post("/combine-queries", async (c) => {
   try {
-    const ctx = convertContext(c);
+    const body = await c.req.json();
+    const ctx = {
+      request: { body },
+      env: c.env
+    };
     const response = await handleCombineQueriesRoute(ctx);
     return c.json(response);
   } catch (error) {
@@ -155,7 +189,11 @@ app.post("/combine-queries", async (c) => {
 
 app.post("/refine-query", async (c) => {
   try {
-    const ctx = convertContext(c);
+    const body = await c.req.json();
+    const ctx = {
+      request: { body },
+      env: c.env
+    };
     const response = await handleRefineQueryRoute(ctx);
     return c.json(response);
   } catch (error) {

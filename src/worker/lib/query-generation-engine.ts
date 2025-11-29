@@ -101,6 +101,8 @@ export interface QueryGenerationOptions {
   maxKeywords?: number;
   maxTopics?: number;
   includeAlternatives?: boolean;
+  includeKeywords?: boolean;
+  includeTopics?: boolean;
   optimizeForAcademic?: boolean;
   combineStrategy?: 'union' | 'intersection' | 'weighted';
 }

@@ -20,7 +20,8 @@ export async function handleGenerateQueryRoute(ctx: Context): Promise<QueryServi
   const req: QueryServiceRequest = {
     conversationId: body.conversationId,
     prompt: body.prompt,
-    context: body.context,
+    contentSources: body.contentSources,
+    context: { env: ctx.env },
     options: body.options,
   };
   
@@ -113,8 +114,9 @@ export async function handleExtractContentRoute(ctx: Context): Promise<QueryServ
   
   const req: QueryServiceRequest = {
     conversationId: body.conversationId,
+    contentSources: body.contentSources,
+    context: { env: ctx.env },
     options: body.options || {},
-    metadata: { operation: 'extract-content' }
   };
   
   // Delegate to service layer
@@ -135,8 +137,10 @@ export async function handleContentPreviewRoute(ctx: Context): Promise<QueryServ
   
   const req: QueryServiceRequest = {
     conversationId: body.conversationId,
+    source: body.source,
+    id: body.id,
+    context: { env: ctx.env },
     options: body.options || {},
-    metadata: { operation: 'content-preview' }
   };
   
   // Delegate to service layer
