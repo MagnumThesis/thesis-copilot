@@ -135,6 +135,11 @@ export const usePrivacyManager = (conversationId?: string): UsePrivacyManagerRet
       setError(null);
 
       const url = `/api/ai-searcher/privacy/data-summary${conversationId ? `?conversationId=${conversationId}` : ''}`;
+      console.log("[ANALYTICS DEBUG] Loading data summary with:", {
+        conversationId,
+        clientId,
+        url
+      });
       const response = await fetch(url, {
         headers: {
           'x-user-id': clientId
@@ -146,6 +151,7 @@ export const usePrivacyManager = (conversationId?: string): UsePrivacyManagerRet
       }
 
       const data = await response.json();
+      console.log("[ANALYTICS DEBUG] Data summary response:", data);
 
       if (!data.success) {
         throw new Error(data.error || 'Failed to load data summary');

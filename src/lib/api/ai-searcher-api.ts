@@ -18,6 +18,7 @@ export interface ApiResponse<T> {
 interface SearchRequest {
   query: string;
   conversationId: string;
+  userId?: string;
   filters: SearchFilters;
 }
 
@@ -69,14 +70,19 @@ interface SessionFeedbackRequest {
  * @param query - The search query
  * @param conversationId - The conversation ID for context
  * @param filters - Search filters to apply
+ * @param userId - Optional user ID for analytics (defaults to client ID)
  * @returns Promise with search results or error
  */
 export async function search(
   query: string,
   conversationId: string,
-  filters: SearchFilters
+  filters: SearchFilters,
+  userId?: string
 ): Promise<ApiResponse<{ results: ScholarSearchResult[]; sessionId: string }>> {
   try {
+    // Import dynamically to avoid issues with client-id-manager
+    const { getClientId } = await import('../../utils/client-id-manager');
+    
     const response = await fetch('/api/ai-searcher/search', {
       method: 'POST',
       headers: {
@@ -85,6 +91,7 @@ export async function search(
       body: JSON.stringify({
         query,
         conversationId,
+        userId: userId || getClientId(),
         filters
       } as SearchRequest)
     });

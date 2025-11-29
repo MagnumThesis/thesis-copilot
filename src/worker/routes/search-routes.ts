@@ -20,6 +20,7 @@ export async function handleSearchRoute(ctx: Context): Promise<SearchServiceResp
   const req: SearchServiceRequest = {
     query: body.query,
     conversationId: body.conversationId,
+    userId: body.userId,
     filters: body.filters,
     options: body.options,
   };

@@ -18,6 +18,7 @@ import { AISearcherMonitoringService } from '../../lib/ai-searcher-monitoring';
 interface SearchRequest {
   query?: string;
   conversationId: string;
+  userId?: string;
   contentSources?: Array<{
     source: "ideas" | "builder";
     id: string;
@@ -64,6 +65,7 @@ interface SearchResult {
 export interface SearchServiceRequest {
   query: string;
   conversationId: string;
+  userId?: string;
   filters?: Record<string, any>;
   options?: Record<string, any>;
 }
@@ -200,6 +202,7 @@ export class SearchService {
       const body: SearchRequest = {
         query: req.query,
         conversationId: req.conversationId,
+        userId: req.userId,
         contentSources: Array.isArray(options.contentSources) ? options.contentSources : [],
         queryOptions: typeof options.queryOptions === 'object' && options.queryOptions !== null ? options.queryOptions : undefined,
         filters: req.filters
@@ -281,9 +284,16 @@ export class SearchService {
         if (env) {
           const analyticsManager = this.getAnalyticsManager(env);
           const contentSources = body.contentSources?.map((cs) => cs.source) || [];
+          const effectiveUserId = body.userId || body.conversationId;
+          console.log("[ANALYTICS DEBUG] Recording search session:", {
+            conversationId: body.conversationId,
+            userId: effectiveUserId,
+            providedUserId: body.userId,
+            searchQuery
+          });
           sessionId = await analyticsManager.recordSearchSession({
             conversationId: body.conversationId,
-            userId: body.conversationId,
+            userId: effectiveUserId,
             searchQuery,
             contentSources,
             searchFilters: body.filters || {},
@@ -293,6 +303,7 @@ export class SearchService {
             searchSuccess: false,
             processingTimeMs: 0,
           });
+          console.log("[ANALYTICS DEBUG] Recorded session with ID:", sessionId);
         }
       } catch (analyticsError) {
         console.error("Error recording search session:", analyticsError);

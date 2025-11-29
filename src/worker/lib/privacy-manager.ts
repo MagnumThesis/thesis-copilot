@@ -166,6 +166,16 @@ export class PrivacyManager {
     try {
       const supabase = getSupabase(this.env);
 
+      console.log("[ANALYTICS DEBUG] Querying data summary for:", { userId, conversationId });
+
+      // First, let's see ALL sessions in the database for debugging
+      const allSessionsDebug = await supabase
+        .from('search_sessions')
+        .select('id, user_id, conversation_id, search_query, created_at')
+        .limit(10);
+      
+      console.log("[ANALYTICS DEBUG] Recent sessions in DB:", allSessionsDebug.data);
+
       // Build queries for all count operations
       let sessionsCountQuery = supabase
         .from('search_sessions')

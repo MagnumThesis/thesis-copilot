@@ -103,6 +103,11 @@ app.get('/data-summary', async (c: Context<PrivacyManagementContext>) => {
     const userId = c.req.header('x-user-id');
     const conversationId = c.req.query('conversationId');
 
+    console.log("[ANALYTICS DEBUG] Data summary request:", {
+      userId,
+      conversationId
+    });
+
     if (!userId) {
       return c.json({ 
         success: false, 
@@ -112,6 +117,8 @@ app.get('/data-summary', async (c: Context<PrivacyManagementContext>) => {
 
     const privacyManager = new PrivacyManager(c.env);
     const summary = await privacyManager.getDataSummary(userId, conversationId);
+
+    console.log("[ANALYTICS DEBUG] Data summary result:", summary);
 
     return c.json({ 
       success: true, 
