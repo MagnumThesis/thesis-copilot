@@ -64,6 +64,7 @@ export class EnhancedGoogleScholarClient {
 
   /**
    * Enhanced search with comprehensive error handling and fallback mechanisms
+   * NOW USES FREE APIs (Semantic Scholar, CrossRef, arXiv) AS PRIMARY SOURCES
    */
   async search(
     query: string,
@@ -83,8 +84,52 @@ export class EnhancedGoogleScholarClient {
       searchFilters: options
     };
 
+    // NEW: Try free APIs first (no rate limits!)
     try {
-      // Primary search attempt with retry logic
+      console.log('[Enhanced Search] Using free APIs (Semantic Scholar + CrossRef + arXiv)');
+      
+      // Search all three APIs in parallel
+      const [semanticResults, crossrefResults, arxivResults] = await Promise.allSettled([
+        this.executeSemanticScholarSearch(query, options).catch(() => []),
+        this.executeCrossRefSearch(query, options).catch(() => []),
+        this.executeArXivSearch(query, options).catch(() => [])
+      ]);
+
+      // Combine results
+      let combinedResults: ScholarSearchResult[] = [];
+      
+      if (semanticResults.status === 'fulfilled') {
+        combinedResults.push(...semanticResults.value);
+      }
+      if (crossrefResults.status === 'fulfilled') {
+        combinedResults.push(...crossrefResults.value);
+      }
+      if (arxivResults.status === 'fulfilled') {
+        combinedResults.push(...arxivResults.value);
+      }
+
+      // If we got results from free APIs, return them
+      if (combinedResults.length > 0) {
+        // Deduplicate by title and sort by confidence
+        combinedResults = this.deduplicateResults(combinedResults);
+        
+        return {
+          results: combinedResults.slice(0, options.maxResults || 20),
+          source: 'semantic_scholar', // Primary source indicator
+          success: true,
+          fallbackUsed: false,
+          degradedMode: false,
+          processingTime: Date.now() - startTime,
+          retryCount: 0
+        };
+      }
+      
+    } catch (freeApiError) {
+      console.warn('[Enhanced Search] Free APIs failed, trying Google Scholar:', freeApiError);
+    }
+
+    // FALLBACK: Try Google Scholar only if free APIs failed
+    try {
       const results = await this.errorHandler.executeWithRetry(
         async () => {
           retryCount++;
@@ -529,6 +574,31 @@ export class EnhancedGoogleScholarClient {
       relevance_score: result.relevance_score || 0.5,
       keywords: result.keywords || []
     }));
+  }
+
+  /**
+   * Deduplicate results by title similarity
+   */
+  private deduplicateResults(results: ScholarSearchResult[]): ScholarSearchResult[] {
+    const seen = new Map<string, ScholarSearchResult>();
+    
+    for (const result of results) {
+      const normalizedTitle = result.title.toLowerCase().replace(/[^\w\s]/g, '').trim();
+      
+      if (!seen.has(normalizedTitle)) {
+        seen.set(normalizedTitle, result);
+      } else {
+        // Keep the one with higher confidence or citation count
+        const existing = seen.get(normalizedTitle)!;
+        if ((result.confidence || 0) > (existing.confidence || 0) ||
+            (result.citation_count || 0) > (existing.citation_count || 0)) {
+          seen.set(normalizedTitle, result);
+        }
+      }
+    }
+    
+    return Array.from(seen.values())
+      .sort((a, b) => (b.citation_count || 0) - (a.citation_count || 0));
   }
 
   /**
