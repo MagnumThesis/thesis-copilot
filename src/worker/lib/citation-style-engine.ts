@@ -494,6 +494,19 @@ export class CitationStyleEngine {
   }
 
   /**
+   * Format inline citation for IEEE style
+   * IEEE uses numbered citations [1], [2], etc.
+   * @param reference - Reference object
+   * @returns Formatted inline citation
+   */
+  static formatInlineCitationIEEE(reference: Reference): string {
+    // IEEE uses numbered citations
+    // In a real implementation, you'd track the order of first appearance
+    // For now, we'll use a placeholder
+    return '[1]';
+  }
+
+  /**
    * Format bibliography entry for MLA style
    * @param reference - Reference object
    * @returns Formatted bibliography entry
@@ -596,6 +609,74 @@ export class CitationStyleEngine {
     }
     
     return entry.trim();
+  }
+
+  /**
+   * Format bibliography entry for IEEE style
+   * @param reference - Reference object
+   * @returns Formatted bibliography entry
+   */
+  static formatBibliographyEntryIEEE(reference: Reference): string {
+    const authors = normalizeAuthors(reference.authors);
+    let entry = '';
+    
+    // Authors: F. M. Last, F. M. Last, and F. M. Last
+    if (authors.length > 0) {
+      const authorNames = authors.map((author, index) => {
+        const initials = [
+          author.firstName?.charAt(0),
+          author.middleName?.charAt(0)
+        ].filter(Boolean).join('. ') + (author.firstName || author.middleName ? '. ' : '');
+        
+        return `${initials}${author.lastName}`;
+      });
+      
+      if (authorNames.length === 1) {
+        entry += authorNames[0];
+      } else if (authorNames.length === 2) {
+        entry += `${authorNames[0]} and ${authorNames[1]}`;
+      } else {
+        entry += authorNames.slice(0, -1).join(', ') + ', and ' + authorNames[authorNames.length - 1];
+      }
+      entry += ', ';
+    }
+    
+    // Title in quotes for articles, italics for books
+    if (reference.type === ReferenceType.JOURNAL_ARTICLE || reference.type === ReferenceType.CONFERENCE_PAPER) {
+      entry += `"${reference.title}," `;
+    } else {
+      entry += `${reference.title}, `;
+    }
+    
+    // Journal/Conference name in italics
+    if (reference.journal) {
+      entry += `${reference.journal}`;
+      if (reference.volume) {
+        entry += `, vol. ${reference.volume}`;
+      }
+      if (reference.issue) {
+        entry += `, no. ${reference.issue}`;
+      }
+      if (reference.pages) {
+        entry += `, pp. ${reference.pages}`;
+      }
+    } else if (reference.publisher) {
+      entry += `${reference.publisher}`;
+    }
+    
+    // Year
+    if (reference.publicationDate) {
+      entry += `, ${reference.publicationDate}`;
+    }
+    
+    // DOI or URL
+    if (reference.doi) {
+      entry += `, doi: ${reference.doi}`;
+    } else if (reference.url) {
+      entry += `. [Online]. Available: ${reference.url}`;
+    }
+    
+    return entry + '.';
   }
 
   /**
@@ -1450,6 +1531,8 @@ export class CitationStyleEngine {
         return this.formatInlineCitationChicago(reference);
       case CitationStyle.HARVARD:
         return this.formatInlineCitationHarvard(reference);
+      case CitationStyle.IEEE:
+        return this.formatInlineCitationIEEE(reference);
       default:
         throw new Error(`Citation style ${style} not yet implemented`);
     }
@@ -1471,6 +1554,8 @@ export class CitationStyleEngine {
         return this.formatBibliographyEntryChicago(reference);
       case CitationStyle.HARVARD:
         return this.formatBibliographyEntryHarvard(reference);
+      case CitationStyle.IEEE:
+        return this.formatBibliographyEntryIEEE(reference);
       default:
         throw new Error(`Citation style ${style} not yet implemented`);
     }
@@ -1492,6 +1577,8 @@ export class CitationStyleEngine {
         return this.validateChicagoRequirements(reference);
       case CitationStyle.HARVARD:
         return this.validateHarvardRequirements(reference);
+      case CitationStyle.IEEE:
+        return this.validateIEEERequirements(reference);
       default:
         const errors: ValidationError[] = [{
           field: 'style',
@@ -1505,6 +1592,106 @@ export class CitationStyleEngine {
           missingFields: []
         };
     }
+  }
+
+  /**
+   * Validate IEEE style requirements
+   */
+  private static validateIEEERequirements(reference: Reference): ValidationResult {
+    const errors: ValidationError[] = [];
+    const warnings: ValidationError[] = [];
+    const missingFields: string[] = [];
+
+    // Title is always required
+    if (!reference.title?.trim()) {
+      errors.push({
+        field: 'title',
+        message: 'Title is required for IEEE citations',
+        severity: 'error'
+      });
+      missingFields.push('title');
+    }
+
+    // Authors required
+    if (!reference.authors || reference.authors.length === 0) {
+      errors.push({
+        field: 'authors',
+        message: 'Author information is required for IEEE citations',
+        severity: 'error'
+      });
+      missingFields.push('authors');
+    }
+
+    // Publication date required
+    if (!reference.publicationDate) {
+      warnings.push({
+        field: 'publicationDate',
+        message: 'Publication date is recommended for IEEE citations',
+        severity: 'warning'
+      });
+      missingFields.push('publicationDate');
+    }
+
+    // Type-specific validations
+    switch (reference.type) {
+      case ReferenceType.JOURNAL_ARTICLE:
+        if (!reference.journal) {
+          errors.push({
+            field: 'journal',
+            message: 'Journal name is required for journal articles',
+            severity: 'error'
+          });
+          missingFields.push('journal');
+        }
+        if (!reference.volume) {
+          warnings.push({
+            field: 'volume',
+            message: 'Volume is recommended for journal articles',
+            severity: 'warning'
+          });
+          missingFields.push('volume');
+        }
+        break;
+
+      case ReferenceType.CONFERENCE_PAPER:
+        if (!reference.journal) { // conference name stored in journal field
+          errors.push({
+            field: 'journal',
+            message: 'Conference name is required for conference papers',
+            severity: 'error'
+          });
+          missingFields.push('journal');
+        }
+        break;
+
+      case ReferenceType.BOOK:
+        if (!reference.publisher) {
+          warnings.push({
+            field: 'publisher',
+            message: 'Publisher is recommended for books',
+            severity: 'warning'
+          });
+          missingFields.push('publisher');
+        }
+        break;
+    }
+
+    // DOI or URL recommended for online sources
+    if (!reference.doi && !reference.url) {
+      warnings.push({
+        field: 'doi',
+        message: 'DOI or URL is recommended for IEEE citations',
+        severity: 'warning'
+      });
+      missingFields.push('doi');
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      warnings,
+      missingFields
+    };
   }
 
   /**

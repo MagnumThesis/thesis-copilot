@@ -115,7 +115,8 @@ export const CitationFormatter: React.FC<CitationFormatterProps> = ({
     { value: CitationStyle.APA, label: 'APA (7th Edition)', description: 'American Psychological Association' },
     { value: CitationStyle.MLA, label: 'MLA (9th Edition)', description: 'Modern Language Association' },
     { value: CitationStyle.CHICAGO, label: 'Chicago (17th Edition)', description: 'Chicago Manual of Style' },
-    { value: CitationStyle.HARVARD, label: 'Harvard', description: 'Harvard Referencing Style' }
+    { value: CitationStyle.HARVARD, label: 'Harvard', description: 'Harvard Referencing Style' },
+    { value: CitationStyle.IEEE, label: 'IEEE', description: 'Institute of Electrical and Electronics Engineers' }
   ];
 
   // Reference types with icons

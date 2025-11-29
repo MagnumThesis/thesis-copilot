@@ -90,6 +90,7 @@ export const Referencer: React.FC<ReferencerProps> = ({ isOpen, onClose, current
   const [prefilledReferenceData, setPrefilledReferenceData] = useState<Partial<Reference> | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [references, setReferences] = useState<Reference[]>([])
 
   // Load saved citation style preference
   useEffect(() => {
@@ -103,6 +104,25 @@ export const Referencer: React.FC<ReferencerProps> = ({ isOpen, onClose, current
   useEffect(() => {
     localStorage.setItem('referencer-citation-style', state.selectedStyle)
   }, [state.selectedStyle])
+
+  // Load references when component mounts or refreshKey changes
+  useEffect(() => {
+    const loadReferences = async () => {
+      try {
+        const response = await fetch(`/api/referencer/references/${currentConversation.id}`)
+        if (response.ok) {
+          const data = await response.json()
+          if (data.success && data.references) {
+            setReferences(data.references)
+          }
+        }
+      } catch (error) {
+        console.error('Error loading references:', error)
+      }
+    }
+    
+    loadReferences()
+  }, [currentConversation.id, refreshKey])
 
   const handleTabChange = (tab: ReferencerTab) => {
     setState(prev => ({ ...prev, activeTab: tab }))
@@ -324,21 +344,13 @@ export const Referencer: React.FC<ReferencerProps> = ({ isOpen, onClose, current
       case 'citations':
         return (
           <div className="space-y-4">
-            <div className="border rounded-lg p-4">
-              <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
-                <Quote className="h-5 w-5" />
-                Citation Formatter
-              </h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Format citations and insert them into your document
-              </p>
-              <div className="text-center py-8">
-                <Quote className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-sm text-muted-foreground">
-                  Citation formatting features will be implemented here
-                </p>
-              </div>
-            </div>
+            <CitationFormatter
+              references={references}
+              onFormattedCitations={(citations) => {
+                console.log('Formatted citations:', citations)
+                // Could add functionality to insert into document here
+              }}
+            />
           </div>
         )
 
