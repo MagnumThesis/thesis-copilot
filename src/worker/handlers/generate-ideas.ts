@@ -65,7 +65,7 @@ ${JSON.stringify(modelMessages)}
 Please provide ideas with titles and detailed descriptions. Each idea should be unique and not overlap with the existing ideas. Focus on the user's main interests as shown in the conversation. Each idea should be specific, well-defined, and suitable for a thesis topic.`;
     
     const { object } = await generateObject({
-      model: google("gemini-1.5-flash-latest"),
+      model: google("gemini-2.0-flash-exp"),
       schema: z.object({
         ideas: z.array(z.object({
           title: z.string().min(1, "Title is required"),
