@@ -162,6 +162,35 @@ export const MilkdownEditor: FC<MilkdownEditorProps> = ({
 
   // ... (rest of your code remains the same)
   // Track text selection changes
+  // Helper function to calculate absolute position in document
+  const getAbsolutePosition = useCallback((node: Node, offset: number): number => {
+    const editor = get();
+    if (!editor) return 0;
+
+    const editorElement = document.querySelector('.milkdown');
+    if (!editorElement) return 0;
+
+    // Get the markdown content to calculate position
+    const content = editor.action(getMarkdown());
+    
+    // For simplicity, use the current markdown content length calculation
+    // This walks through the DOM to find the text position
+    let position = 0;
+    const walker = document.createTreeWalker(
+      editorElement,
+      NodeFilter.SHOW_TEXT,
+      null
+    );
+
+    let currentNode = walker.nextNode();
+    while (currentNode && currentNode !== node) {
+      position += currentNode.textContent?.length || 0;
+      currentNode = walker.nextNode();
+    }
+
+    return position + offset;
+  }, [get]);
+
   const handleSelectionChange = useCallback(() => {
     // Clear existing timeout
     if (selectionTimeoutRef.current) {
@@ -185,10 +214,14 @@ export const MilkdownEditor: FC<MilkdownEditorProps> = ({
         const range = selection.getRangeAt(0);
         const selectedText = selection.toString();
 
+        // Calculate absolute positions
+        const absoluteStart = getAbsolutePosition(range.startContainer, range.startOffset);
+        const absoluteEnd = getAbsolutePosition(range.endContainer, range.endOffset);
+
         if (selectedText.length > 0) {
           const textSelection: TextSelection = {
-            start: range.startOffset,
-            end: range.endOffset,
+            start: absoluteStart,
+            end: absoluteEnd,
             text: selectedText,
           };
 
@@ -199,15 +232,14 @@ export const MilkdownEditor: FC<MilkdownEditorProps> = ({
           onSelectionChange?.(null);
         }
 
-        // Update cursor position
-        const newCursorPosition = range.startOffset || 0;
-        setCursorPosition(newCursorPosition);
-        onCursorPositionChange?.(newCursorPosition);
+        // Update cursor position with absolute position
+        setCursorPosition(absoluteStart);
+        onCursorPositionChange?.(absoluteStart);
       } catch (error) {
         console.warn("Error tracking selection:", error);
       }
     }, 100);
-  }, [get, onSelectionChange, onCursorPositionChange]);
+  }, [get, onSelectionChange, onCursorPositionChange, getAbsolutePosition]);
 
   // Set up selection tracking
   useEffect(() => {
@@ -246,6 +278,13 @@ export const MilkdownEditor: FC<MilkdownEditorProps> = ({
       if (!editor) return;
       const content = editor.action(getMarkdown());
 
+      console.log('[MilkdownEditor] Inserting content:', {
+        contentLength: content.length,
+        insertAt: options.insertAt,
+        replaceRange: options.replaceRange,
+        newContentPreview: newContent.substring(0, 100) + '...'
+      });
+
       try {
         if (options.replaceRange) {
           // Replace selected text
@@ -255,6 +294,7 @@ export const MilkdownEditor: FC<MilkdownEditorProps> = ({
           const afterSelection = currentContent.substring(end);
           const updatedContent = beforeSelection + newContent + afterSelection;
 
+          console.log('[MilkdownEditor] Replacing range:', { start, end, resultLength: updatedContent.length });
           editor.action(replaceAll(updatedContent));
           handleContentChange(updatedContent);
         } else {
@@ -265,6 +305,12 @@ export const MilkdownEditor: FC<MilkdownEditorProps> = ({
           const afterCursor = currentContent.substring(insertAt);
           const updatedContent = beforeCursor + newContent + afterCursor;
 
+          console.log('[MilkdownEditor] Inserting at position:', { 
+            insertAt, 
+            beforeLength: beforeCursor.length, 
+            afterLength: afterCursor.length,
+            resultLength: updatedContent.length 
+          });
           editor.action(replaceAll(updatedContent));
           handleContentChange(updatedContent);
         }

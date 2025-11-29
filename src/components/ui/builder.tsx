@@ -254,7 +254,11 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
   // Handle continue mode activation with enhanced error handling
   const handleContinueMode = useCallback(async () => {
     try {
-      const response = await aiModeManager.processContinue(cursorPosition, currentSelection?.text);
+      // Get fresh cursor position right before processing
+      const currentCursorPos = editorMethodsRef.current?.getCurrentCursorPosition?.() ?? cursorPosition;
+      console.log('[Builder] Continue mode - cursor position:', currentCursorPos);
+      
+      const response = await aiModeManager.processContinue(currentCursorPos, currentSelection?.text);
 
       if (response.success && response.content) {
         setAIGeneratedContent(response.content);
@@ -262,9 +266,10 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
 
         // Set up insertion options for cursor position
         const insertionOptions: ContentInsertionOptions = {
-          insertAt: cursorPosition,
+          insertAt: currentCursorPos,
           preserveFormatting: true
         };
+        console.log('[Builder] Setting insertion options:', insertionOptions);
         setPendingInsertionOptions(insertionOptions);
         setShowContentConfirmation(true);
       } else {
@@ -277,7 +282,7 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
       // Error is already handled by the AI mode manager
       console.error("Error processing continue mode:", error);
     }
-  }, [aiModeManager, cursorPosition, currentSelection]);
+  }, [aiModeManager, cursorPosition, currentSelection, editorMethodsRef]);
 
   // Handle modification type selection with enhanced error handling
   const handleModificationTypeSelect = useCallback(async (modificationType: ModificationType) => {

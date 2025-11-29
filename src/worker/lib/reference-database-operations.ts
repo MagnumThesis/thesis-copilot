@@ -145,80 +145,113 @@ export class ReferenceDatabaseOperations {
     conversationId: string, 
     options: ReferenceSearchOptions = {}
   ): Promise<ReferenceListResponse> {
-    let query = this.supabase
-      .from('references')
-      .select('*')
-      .eq('conversation_id', conversationId);
+    try {
+      let query = this.supabase
+        .from('references')
+        .select('*')
+        .eq('conversation_id', conversationId);
 
-    // Apply filters
-    if (options.type && options.type !== 'all') {
-      query = query.eq('type', options.type);
-    }
+      // Apply filters
+      if (options.type && options.type !== 'all') {
+        query = query.eq('type', options.type);
+      }
 
-    if (options.query) {
-      // Search in title, authors, and journal
-      query = query.or(`title.ilike.%${options.query}%,journal.ilike.%${options.query}%,authors.ilike.%${options.query}%`);
-    }
+      if (options.query) {
+        // Search in title, authors, and journal
+        query = query.or(`title.ilike.%${options.query}%,journal.ilike.%${options.query}%,authors.ilike.%${options.query}%`);
+      }
 
-    if (options.author) {
-      query = query.ilike('authors', `%${options.author}%`);
-    }
+      if (options.author) {
+        query = query.ilike('authors', `%${options.author}%`);
+      }
 
-    if (options.year) {
-      query = query.gte('publication_date', `${options.year}-01-01`)
-                   .lt('publication_date', `${options.year + 1}-01-01`);
-    }
+      if (options.year) {
+        query = query.gte('publication_date', `${options.year}-01-01`)
+                     .lt('publication_date', `${options.year + 1}-01-01`);
+      }
 
-    if (options.tags && options.tags.length > 0) {
-      query = query.overlaps('tags', options.tags);
-    }
+      if (options.tags && options.tags.length > 0) {
+        query = query.overlaps('tags', options.tags);
+      }
 
-    // Apply sorting
-    const sortBy = options.sortBy || 'created_at';
-    const sortOrder = options.sortOrder || 'desc';
-    
-    switch (sortBy) {
-      case 'title':
-        query = query.order('title', { ascending: sortOrder === 'asc' });
-        break;
-      case 'author':
-        query = query.order('authors', { ascending: sortOrder === 'asc' });
-        break;
-      case 'date':
-        query = query.order('publication_date', { ascending: sortOrder === 'asc', nullsFirst: false });
-        break;
-      case 'created':
-      default:
-        query = query.order('created_at', { ascending: sortOrder === 'asc' });
-        break;
-    }
+      // Apply sorting
+      const sortBy = options.sortBy || 'created_at';
+      const sortOrder = options.sortOrder || 'desc';
+      
+      switch (sortBy) {
+        case 'title':
+          query = query.order('title', { ascending: sortOrder === 'asc' });
+          break;
+        case 'author':
+          query = query.order('authors', { ascending: sortOrder === 'asc' });
+          break;
+        case 'date':
+          query = query.order('publication_date', { ascending: sortOrder === 'asc', nullsFirst: false });
+          break;
+        case 'created':
+        default:
+          query = query.order('created_at', { ascending: sortOrder === 'asc' });
+          break;
+      }
 
-    // Apply pagination
-    if (options.limit) {
-      query = query.limit(options.limit);
-    }
-    if (options.offset) {
-      query = query.range(options.offset, options.offset + (options.limit || 50) - 1);
-    }
+      // Apply pagination
+      if (options.limit) {
+        query = query.limit(options.limit);
+      }
+      if (options.offset) {
+        query = query.range(options.offset, options.offset + (options.limit || 50) - 1);
+      }
 
-    const { data, error, count } = await query;
+      // Add timeout to prevent hanging
+      const queryPromise = query;
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Query timeout')), 10000); // 10 second timeout
+      });
 
-    if (error) {
+      const { data, error, count } = await Promise.race([queryPromise, timeoutPromise]) as any;
+
+      if (error) {
+        console.error('Error fetching references:', error);
+        return {
+          success: false,
+          error: `Failed to get references: ${error.message}`
+        };
+      }
+
+      const references = data?.map((item: any) => this.mapDatabaseToReference(item)) || [];
+      
+      // Get statistics with its own timeout
+      let statistics: ReferenceStatistics;
+      try {
+        const statsPromise = this.getConversationStatistics(conversationId);
+        const statsTimeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Statistics timeout')), 5000); // 5 second timeout
+        });
+        statistics = await Promise.race([statsPromise, statsTimeoutPromise]) as ReferenceStatistics;
+      } catch (statsError) {
+        console.error('Error fetching statistics, using defaults:', statsError);
+        statistics = {
+          totalReferences: references.length,
+          referencesByType: {} as Record<ReferenceType, number>,
+          recentlyAdded: 0,
+          averageConfidence: 0,
+          topTags: []
+        };
+      }
+
+      return {
+        success: true,
+        references,
+        total: count || references.length,
+        statistics
+      };
+    } catch (error) {
+      console.error('Fatal error in getReferencesForConversation:', error);
       return {
         success: false,
-        error: `Failed to get references: ${error.message}`
+        error: error instanceof Error ? error.message : 'Unknown error fetching references'
       };
     }
-
-    const references = data?.map(item => this.mapDatabaseToReference(item)) || [];
-    const statistics = await this.getConversationStatistics(conversationId);
-
-    return {
-      success: true,
-      references,
-      total: count || references.length,
-      statistics
-    };
   }
 
   /**
@@ -301,71 +334,88 @@ export class ReferenceDatabaseOperations {
    * Get statistics for references in a conversation
    */
   async getConversationStatistics(conversationId: string): Promise<ReferenceStatistics> {
-    const { data, error } = await this.supabase
-      .from('references')
-      .select('type, publication_date, doi, url, metadata_confidence, created_at, tags')
-      .eq('conversation_id', conversationId);
+    try {
+      const { data, error } = await this.supabase
+        .from('references')
+        .select('type, publication_date, doi, url, metadata_confidence, created_at, tags')
+        .eq('conversation_id', conversationId);
 
-    if (error) {
-      throw new Error(`Failed to get statistics: ${error.message}`);
-    }
+      if (error) {
+        console.error('Error in getConversationStatistics:', error);
+        throw new Error(`Failed to get statistics: ${error.message}`);
+      }
 
-    // Initialize stats with proper structure to satisfy ReferenceStatistics interface
-    const stats: ReferenceStatistics = {
-      totalReferences: data.length,
-      referencesByType: {} as Record<ReferenceType, number>,
-      recentlyAdded: 0, // Will calculate this based on recent references
-      averageConfidence: 0,
-      topTags: [] // Will populate with most common tags
-    };
+      if (!data) {
+        throw new Error('No data returned from statistics query');
+      }
 
-    // Initialize type counts
-    Object.values(ReferenceType).forEach(type => {
-      stats.referencesByType[type] = 0;
-    });
+      // Initialize stats with proper structure to satisfy ReferenceStatistics interface
+      const stats: ReferenceStatistics = {
+        totalReferences: data.length,
+        referencesByType: {} as Record<ReferenceType, number>,
+        recentlyAdded: 0, // Will calculate this based on recent references
+        averageConfidence: 0,
+        topTags: [] // Will populate with most common tags
+      };
 
-    let totalConfidence = 0;
-    const tagCounts: Record<string, number> = {};
-    let recentCount = 0;
-    const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000; // 7 days ago
+      // Initialize type counts
+      Object.values(ReferenceType).forEach(type => {
+        stats.referencesByType[type] = 0;
+      });
 
-    data.forEach((ref: any) => {
-      // Count by type
-      stats.referencesByType[ref.type as ReferenceType]++;
+      let totalConfidence = 0;
+      const tagCounts: Record<string, number> = {};
+      let recentCount = 0;
+      const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000; // 7 days ago
 
-      // Count DOI and URL
-      if (ref.doi) (stats as any).withDoi = ((stats as any).withDoi || 0) + 1;
-      if (ref.url) (stats as any).withUrl = ((stats as any).withUrl || 0) + 1;
+      data.forEach((ref: any) => {
+        // Count by type
+        stats.referencesByType[ref.type as ReferenceType]++;
 
-      // Sum confidence
-      totalConfidence += ref.metadata_confidence || 1.0;
+        // Count DOI and URL
+        if (ref.doi) (stats as any).withDoi = ((stats as any).withDoi || 0) + 1;
+        if (ref.url) (stats as any).withUrl = ((stats as any).withUrl || 0) + 1;
 
-      // Check if recently added (within last 7 days)
-      if (ref.created_at) {
-        const createdDate = new Date(ref.created_at as string | number | Date);
-        if (createdDate.getTime() > oneWeekAgo) {
-          recentCount++;
+        // Sum confidence
+        totalConfidence += ref.metadata_confidence || 1.0;
+
+        // Check if recently added (within last 7 days)
+        if (ref.created_at) {
+          const createdDate = new Date(ref.created_at as string | number | Date);
+          if (createdDate.getTime() > oneWeekAgo) {
+            recentCount++;
+          }
         }
-      }
 
-      // Count tags
-      if (Array.isArray(ref.tags)) {
-        ref.tags.forEach((tag: string) => {
-          tagCounts[tag] = (tagCounts[tag] || 0) + 1;
-        });
-      }
-    });
+        // Count tags
+        if (Array.isArray(ref.tags)) {
+          ref.tags.forEach((tag: string) => {
+            tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+          });
+        }
+      });
 
-    stats.averageConfidence = data.length > 0 ? totalConfidence / data.length : 0;
-    stats.recentlyAdded = recentCount;
+      stats.averageConfidence = data.length > 0 ? totalConfidence / data.length : 0;
+      stats.recentlyAdded = recentCount;
 
-    // Get top 5 tags
-    stats.topTags = Object.entries(tagCounts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
-      .map(([tag]) => tag);
+      // Get top 5 tags
+      stats.topTags = Object.entries(tagCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([tag]) => tag);
 
-    return stats;
+      return stats;
+    } catch (error) {
+      console.error('Fatal error in getConversationStatistics:', error);
+      // Return default stats on error
+      return {
+        totalReferences: 0,
+        referencesByType: {} as Record<ReferenceType, number>,
+        recentlyAdded: 0,
+        averageConfidence: 0,
+        topTags: []
+      };
+    }
   }
 
   /**
