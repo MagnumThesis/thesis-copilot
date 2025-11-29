@@ -10,14 +10,22 @@ import tailwindcss from "@tailwindcss/vite"
 import { visualizer } from "rollup-plugin-visualizer";
 
 
-export default defineConfig({
-  plugins: [react(), cloudflare(), tailwindcss(), visualizer({
-    open: false,
-    filename: "dist/stats.html",
-  })],
+export default defineConfig(({ mode }) => ({
+  plugins: [
+    react(), 
+    cloudflare({
+      persist: { path: ".wrangler/state" },
+      configPath: 'wrangler.json',
+    }), 
+    tailwindcss(), 
+    visualizer({
+      open: false,
+      filename: "dist/stats.html",
+    })
+  ],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
   },
-});
+}));
