@@ -10,13 +10,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Separator } from "./shadcn/separator"
 import { CitationStyle, Reference, ReferenceType } from "../../lib/ai-types"
 import { BibliographyControls } from "./bibliography-controls"
-import { ExportOptionsComponent } from "./export-options"
+import { ExportOptionsComponent, ExportOptions } from "./export-options"
 import { ReferenceList } from "./reference-list"
 import { ReferenceForm } from "./reference-form"
 import { CitationFormatter } from "./citation-formatter"
 import { BibliographyGenerator } from "./bibliography-generator"
 import { BookOpen, FileText, Quote, Settings, Search, Plus, Filter, Sparkles } from "lucide-react"
 import { AISearcher } from "./ai-searcher"
+import { CitationStyleEngine } from "../../worker/lib/citation-style-engine"
 
 /**
  * Props for the Referencer component
@@ -289,6 +290,110 @@ export const Referencer: React.FC<ReferencerProps> = ({ isOpen, onClose, current
     }))
   }
 
+  const generateBibliographyContent = (format: string, options?: ExportOptions) => {
+    const style = options?.citationStyle || state.selectedStyle
+    
+    switch (format) {
+      case 'bibtex':
+        return references.map(ref => {
+          const authors = ref.authors.map(a => typeof a === 'string' ? a : `${a.firstName} ${a.lastName}`).join(' and ')
+          return `@article{${ref.id},
+  author = {${authors}},
+  title = {${ref.title}},
+  journal = {${ref.journal || ''}},
+  year = {${ref.publicationDate || ''}},
+  doi = {${ref.doi || ''}},
+  url = {${ref.url || ''}}
+}`
+        }).join('\n\n')
+      
+      case 'ris':
+        return references.map(ref => {
+          const type = ref.type === ReferenceType.JOURNAL_ARTICLE ? 'JOUR' : 'GEN'
+          const authors = ref.authors.map(a => typeof a === 'string' ? a : `${a.lastName}, ${a.firstName}`)
+          return `TY  - ${type}
+${authors.map(a => `AU  - ${a}`).join('\n')}
+TI  - ${ref.title}
+JO  - ${ref.journal || ''}
+PY  - ${ref.publicationDate || ''}
+DO  - ${ref.doi || ''}
+UR  - ${ref.url || ''}
+ER  -`
+        }).join('\n\n')
+      
+      case 'json':
+        return JSON.stringify(references, null, 2)
+      
+      case 'csv':
+        const headers = ['Title', 'Authors', 'Journal', 'Year', 'DOI', 'URL']
+        const rows = references.map(ref => [
+          ref.title,
+          ref.authors.map(a => typeof a === 'string' ? a : `${a.firstName} ${a.lastName}`).join('; '),
+          ref.journal || '',
+          ref.publicationDate || '',
+          ref.doi || '',
+          ref.url || ''
+        ])
+        return [headers.join(','), ...rows.map(row => row.map(cell => `"${cell}"`).join(','))].join('\n')
+      
+      default:
+        // Plain text bibliography
+        return CitationStyleEngine.generateBibliography(references, style, 'alphabetical')
+    }
+  }
+
+  const downloadFile = (content: string, filename: string, mimeType: string) => {
+    const blob = new Blob([content], { type: mimeType })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
+
+  const handleQuickExport = (format: 'bibtex' | 'ris' | 'json' | 'csv') => {
+    if (references.length === 0) {
+      alert('No references to export. Please add references first.')
+      return
+    }
+
+    const content = generateBibliographyContent(format)
+    const filename = `bibliography-${currentConversation.id}.${format}`
+    const mimeTypes = {
+      'bibtex': 'application/x-bibtex',
+      'ris': 'application/x-research-info-systems',
+      'json': 'application/json',
+      'csv': 'text/csv'
+    }
+    
+    downloadFile(content, filename, mimeTypes[format])
+    setSuccessMessage(`Bibliography exported as ${format.toUpperCase()}`)
+    setTimeout(() => setSuccessMessage(null), 3000)
+  }
+
+  const handleDetailedExport = (options: ExportOptions) => {
+    if (references.length === 0) {
+      alert('No references to export. Please add references first.')
+      return
+    }
+
+    const content = generateBibliographyContent(options.format, options)
+    const filename = `bibliography-${currentConversation.id}.${options.format}`
+    const mimeTypes = {
+      'bibtex': 'application/x-bibtex',
+      'ris': 'application/x-research-info-systems',
+      'json': 'application/json',
+      'csv': 'text/csv'
+    }
+    
+    downloadFile(content, filename, mimeTypes[options.format])
+    setSuccessMessage(`Bibliography exported as ${options.format.toUpperCase()}`)
+    setTimeout(() => setSuccessMessage(null), 3000)
+  }
+
   const handleFormClose = () => {
     setState(prev => ({
       ...prev,
@@ -366,9 +471,16 @@ export const Referencer: React.FC<ReferencerProps> = ({ isOpen, onClose, current
                 Generate and export bibliographies in different formats
               </p>
               <div className="space-y-6">
-                <BibliographyControls />
+                <BibliographyControls 
+                  citationStyle={state.selectedStyle}
+                  onStyleChange={handleStyleChange}
+                  onExport={handleQuickExport}
+                />
                 <Separator />
-                <ExportOptionsComponent />
+                <ExportOptionsComponent 
+                  citationStyle={state.selectedStyle}
+                  onExport={handleDetailedExport}
+                />
               </div>
             </div>
           </div>
