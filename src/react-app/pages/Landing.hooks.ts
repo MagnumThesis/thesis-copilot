@@ -1,7 +1,34 @@
 
+
 import { UIMessage } from "ai";
 import IdeaSidebarItem from "@/react-app/models/idea";
 import { NavigateFunction, Location } from "react-router-dom";
+
+// Get auth token from localStorage
+const getAuthToken = () => {
+  try {
+    const authState = localStorage.getItem('authState');
+    if (authState) {
+      const state = JSON.parse(authState);
+      return state.session?.accessToken || null;
+    }
+  } catch (error) {
+    console.error('Failed to get auth token:', error);
+  }
+  return null;
+};
+
+// Get headers with auth token
+const getHeaders = () => {
+  const token = getAuthToken();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  return headers;
+};
 
 export const fetchChats = async (
   setItems: React.Dispatch<React.SetStateAction<IdeaSidebarItem[]>>,
@@ -11,7 +38,9 @@ export const fetchChats = async (
 ) => {
   if(location.pathname == "/" || items.length > 0) return; 
   try {
-    const response = await fetch("/api/chats");
+    const response = await fetch("/api/chats", {
+      headers: getHeaders(),
+    });
     if (!response.ok) { 
       throw new Error("Failed to fetch chats");
     }
@@ -21,7 +50,7 @@ export const fetchChats = async (
     );
     setItems(newItems);
     const selected = newItems.find(
-      (item: IdeaSidebarItem) => item.id === location.pathname.slice(1)
+      (item: IdeaSidebarItem) => item.id === location.pathname.slice(5) // Remove "/app/" prefix
     );
     if (selected) {
       setSelectedItem(selected);
@@ -29,37 +58,36 @@ export const fetchChats = async (
   } catch (error) {
     console.error(error);
   }
-};
-
-export const createNewChat = async (
+};export const createNewChat = async (
   selectedItem: IdeaSidebarItem,
   location: Location<unknown>,
   navigate: NavigateFunction,
   setSelectedItem: React.Dispatch<React.SetStateAction<IdeaSidebarItem>>,
   setItems: React.Dispatch<React.SetStateAction<IdeaSidebarItem[]>>
 ) => {
-  if (selectedItem?.id === "" && location.pathname === "/") {
-    try {
-      const response = await fetch("/api/chats", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ name: "New Idea" }),
-      });
-      if (!response.ok) {
-        throw new Error("Failed to create a new chat");
-      }
-      const newChat = await response.json();
-      if (newChat && newChat.id) {
-        const newItem = new IdeaSidebarItem(newChat.name, newChat.id);
-        setSelectedItem(newItem);
-        setItems((prevItems) => [...prevItems, newItem]);
-        navigate(`/${newChat.id}`);
-      }
-    } catch (error) {
-      console.error("Error creating new chat:", error);
+  try {
+    console.log('Creating new chat...');
+    const response = await fetch("/api/chats", {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify({ name: "New Idea" }),
+    });
+    console.log('Create response status:', response.status);
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('Create chat error:', errorData);
+      throw new Error("Failed to create a new chat");
     }
+    const newChat = await response.json();
+    console.log('New chat created:', newChat);
+    if (newChat && newChat.id) {
+      const newItem = new IdeaSidebarItem(newChat.name, newChat.id);
+      setSelectedItem(newItem);
+      setItems((prevItems) => [...prevItems, newItem]);
+      navigate(`/${newChat.id}`);
+    }
+  } catch (error) {
+    console.error("Error creating new chat:", error);
   }
 };
 
@@ -113,9 +141,7 @@ export const handleMessagesLengthChange = async (
       // 1. Generate title
       const genTitleResponse = await fetch(`/api/generate-title`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: getHeaders(),
         body: JSON.stringify({ chatId: selectedItem.id }),
       });
 
@@ -127,9 +153,7 @@ export const handleMessagesLengthChange = async (
       // 2. Update chat name in the database
       await fetch(`/api/chats/${selectedItem.id}`, {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: getHeaders(),
         body: JSON.stringify({ name: newTitle }),
       });
 
@@ -159,6 +183,7 @@ export const handleDelete = async (
   try {
     const response = await fetch(`/api/chats/${id}`, {
       method: "DELETE",
+      headers: getHeaders(),
     });
     if (!response.ok) {
       throw new Error("Failed to delete chat");

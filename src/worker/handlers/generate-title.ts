@@ -37,7 +37,7 @@ export async function generateTitleHandler(
     }
     const google = createGoogleGenerativeAI({ apiKey: apiKey });
     const { object } = await generateObject({
-      model: google("gemini-1.5-flash-latest"),
+      model: google("gemini-2.0-flash"),
       schema: z.object({ title: z.string() }),
       prompt:
         "Generate a short, concise title for the following conversation that is less than 5 words. The title should be based on the main topic of the conversation. \n Here is the conversation:" +

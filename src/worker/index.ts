@@ -13,6 +13,7 @@ import ideasApi from './handlers/ideas';
 import builderContentApi from './handlers/builder-content';
 import { builderAIPromptHandler, builderAIContinueHandler, builderAIModifyHandler } from './handlers/builder-ai';
 import { proofreaderAnalysisHandler, getConcernsHandler, updateConcernStatusHandler, getConcernStatisticsHandler } from './handlers/proofreader-ai';
+import authApi from './routes/auth-routes';
 
 const app = new Hono();
 
@@ -58,12 +59,13 @@ app.use('*', async (c, next) => {
     }
   });
 
-// CORS middleware
+// CORS middleware - Apply to all /api/* routes
 app.use('/api/*', cors({
-  origin: ['http://localhost:3000', 'http://localhost:5173'], // Add your frontend URLs
-  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
+  origin: '*',
+  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin'],
+  credentials: false,
+  maxAge: 600
 }));
 
 // Health check endpoint
@@ -91,6 +93,7 @@ builderApi.post('/ai/continue', builderAIContinueHandler);
 builderApi.post('/ai/modify', builderAIModifyHandler);
 
 // API routes
+app.route('/api/auth', authApi);
 app.route('/api/referencer', referencerApi);
 app.route('/api/ai-searcher', aiSearcherApi);
 app.route('/api/ai-searcher/privacy', privacyManagementApi);
@@ -208,55 +211,64 @@ app.onError((err, c) => {
   }, 500);
 });
 
-// 404 handler
+// 404 handler - Serve index.html for SPA routing in dev mode
 app.notFound((c) => {
-  return c.json({
-    success: false,
-    error: 'Endpoint not found',
-    availableEndpoints: {
-      chatEndpoints: [
-        'GET /api/chats',
-        'POST /api/chats',
-        'DELETE /api/chats/:id',
-        'PATCH /api/chats/:id',
-        'GET /api/chats/:id/messages',
-        'POST /api/generate-title'
-      ],
-      aiSearcherEndpoints: [
-        'POST /api/ai-searcher/search',
-        'POST /api/ai-searcher/extract',
-        'GET /api/ai-searcher/history',
-        'GET /api/ai-searcher/analytics',
-        'GET /api/ai-searcher/trending',
-        'GET /api/ai-searcher/statistics',
-        'DELETE /api/ai-searcher/history',
-        'GET /api/ai-searcher/health'
-      ],
-      ideasEndpoints: [
-        'GET /api/ideas',
-        'POST /api/ideas',
-        'GET /api/ideas/:id',
-        'PATCH /api/ideas/:id',
-        'DELETE /api/ideas/:id'
-      ],
-      builderEndpoints: [
-        'POST /api/builder/ai/prompt',
-        'POST /api/builder/ai/continue',
-        'POST /api/builder/ai/modify'
-      ],
-      proofreaderEndpoints: [
-        'POST /api/proofreader/analyze',
-        'GET /api/proofreader/concerns/:conversationId',
-        'PUT /api/proofreader/concerns/:concernId/status',
-        'GET /api/proofreader/concerns/:conversationId/statistics'
-      ],
-      generalEndpoints: [
-        'GET /',
-        'GET /health',
-        'GET /api/health'
-      ]
-    }
-  }, 404);
+  const path = c.req.path;
+  
+  // For API routes, return 404 JSON
+  if (path.startsWith('/api/')) {
+    return c.json({
+      success: false,
+      error: 'Endpoint not found',
+      availableEndpoints: {
+        chatEndpoints: [
+          'GET /api/chats',
+          'POST /api/chats',
+          'DELETE /api/chats/:id',
+          'PATCH /api/chats/:id',
+          'GET /api/chats/:id/messages',
+          'POST /api/generate-title'
+        ],
+        aiSearcherEndpoints: [
+          'POST /api/ai-searcher/search',
+          'POST /api/ai-searcher/extract',
+          'GET /api/ai-searcher/history',
+          'GET /api/ai-searcher/analytics',
+          'GET /api/ai-searcher/trending',
+          'GET /api/ai-searcher/statistics',
+          'DELETE /api/ai-searcher/history',
+          'GET /api/ai-searcher/health'
+        ],
+        ideasEndpoints: [
+          'GET /api/ideas',
+          'POST /api/ideas',
+          'GET /api/ideas/:id',
+          'PATCH /api/ideas/:id',
+          'DELETE /api/ideas/:id'
+        ],
+        builderEndpoints: [
+          'POST /api/builder/ai/prompt',
+          'POST /api/builder/ai/continue',
+          'POST /api/builder/ai/modify'
+        ],
+        proofreaderEndpoints: [
+          'POST /api/proofreader/analyze',
+          'GET /api/proofreader/concerns/:conversationId',
+          'PUT /api/proofreader/concerns/:concernId/status',
+          'GET /api/proofreader/concerns/:conversationId/statistics'
+        ],
+        generalEndpoints: [
+          'GET /',
+          'GET /health',
+          'GET /api/health'
+        ]
+      }
+    }, 404);
+  }
+  
+  // For frontend routes (not API), redirect to root for SPA to handle
+  // This allows React Router to manage the routing
+  return c.redirect('/', 301);
 });
 
 export default app;

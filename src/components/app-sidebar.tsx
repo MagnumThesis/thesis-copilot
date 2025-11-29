@@ -1,5 +1,5 @@
 import type * as React from "react"
-import { Plus, Trash } from "lucide-react"
+import { Plus, Trash, Settings, LogOut, User } from "lucide-react"
 
 import { SearchForm } from "@/components/search-form"
 import { Button } from "@/components/ui/shadcn/button"
@@ -14,9 +14,11 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  SidebarFooter,
 } from "@/components/ui/sidebar"
 import IdeaSidebarItem from "@/react-app/models/idea"
 import { Link } from "react-router-dom"
+import { useAuth } from "@/hooks/useAuth"
 
 
 
@@ -38,15 +40,26 @@ import { Link } from "react-router-dom"
  * ```
  */
 export function AppSidebar({onNew, items, onDelete, setSelectedItem, ...props }: React.ComponentProps<typeof Sidebar> & {items: IdeaSidebarItem[], onNew : () => void, onDelete: (id: string) => void, setSelectedItem: (item: IdeaSidebarItem) => void}) {
+  const { user, logout } = useAuth();
+  
   const data = {
-  navMain: [
-    {
-      title: "Ideas",
-      url: "#",
-      items: items,
-    },
-  ],
-}
+    navMain: [
+      {
+        title: "Ideas",
+        url: "#",
+        items: items,
+      },
+    ],
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
+
   return (
     <Sidebar {...props}>
       <SidebarHeader>
@@ -70,7 +83,7 @@ export function AppSidebar({onNew, items, onDelete, setSelectedItem, ...props }:
                   <SidebarMenuItem key={item.id} className="group flex items-center justify-between">
                     <SidebarMenuButton asChild isActive={item.isActive}>
                       {/* <a href={item.url}>{item.title}</a> */}
-                      <Link to={`/${item.id}`} onClick={() => setSelectedItem(item)}>{item.title}</Link>
+                      <Link to={`/app/${item.id}`} onClick={() => setSelectedItem(item)}>{item.title}</Link>
                     </SidebarMenuButton>
                     <Button
                       variant="ghost"
@@ -88,6 +101,28 @@ export function AppSidebar({onNew, items, onDelete, setSelectedItem, ...props }:
           </SidebarGroup>
         ))}
       </SidebarContent>
+      <SidebarFooter>
+        <div className="flex items-center gap-2 border-t pt-4">
+          <div className="flex flex-1 flex-col gap-1 truncate">
+            <p className="text-sm font-medium truncate">{user?.email}</p>
+            <p className="text-xs text-muted-foreground truncate">{user?.fullName}</p>
+          </div>
+        </div>
+        <div className="flex gap-2 mt-2">
+          <Button variant="ghost" size="icon" className="h-8 w-8" title="Profile">
+            <User className="h-4 w-4" />
+            <span className="sr-only">Profile</span>
+          </Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8" title="Settings">
+            <Settings className="h-4 w-4" />
+            <span className="sr-only">Settings</span>
+          </Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleLogout} title="Logout">
+            <LogOut className="h-4 w-4" />
+            <span className="sr-only">Logout</span>
+          </Button>
+        </div>
+      </SidebarFooter>
       <SidebarRail />
     </Sidebar>
   )

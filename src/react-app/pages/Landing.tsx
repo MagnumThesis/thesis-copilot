@@ -15,7 +15,7 @@ import {
 import { ToolsPanel } from "@/components/ui/tools-panel";
 import IdeaSidebarItem from "@/react-app/models/idea";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Chatbot from "./Chatbot";
 import { UIMessage } from "ai";
 import {
@@ -41,15 +41,16 @@ function Landing() {
   //chat messages
   const [initialMessages, setInitialMessages] = useState<UIMessage[]>([]);
 
-  //fetch chats
-  useEffect(() => {
-    fetchChats(setItems, setSelectedItem, location, items);
-  }, [location, items]);
+  // Track if chats have been loaded to prevent refetching
+  const hasLoadedChatsRef = useRef(false);
 
-  //create new chat when user clicks on new chat(it navigates to root page to trigger new chat)
+  //fetch chats only once on component mount
   useEffect(() => {
-    createNewChat(selectedItem, location, navigate, setSelectedItem, setItems);
-  }, [location.pathname, navigate, selectedItem, location]);
+    if (!hasLoadedChatsRef.current) {
+      hasLoadedChatsRef.current = true;
+      fetchChats(setItems, setSelectedItem, location, items);
+    }
+  }, []);
 
   // fetch messages when user clicks on a chat
   useEffect(() => {
@@ -73,6 +74,46 @@ function Landing() {
     handleDelete(id, setItems, selectedItem, navigate, setSelectedItem);
   };
 
+  const handleNewChat = async () => {
+    try {
+      // Get auth token
+      const authState = localStorage.getItem('authState');
+      const token = authState ? JSON.parse(authState).session?.accessToken : null;
+      
+      if (!token) {
+        console.error('No auth token found');
+        return;
+      }
+
+      const response = await fetch("/api/chats", {
+        method: "POST",
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ name: "New Idea" }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Create chat error:', errorData);
+        throw new Error("Failed to create a new chat");
+      }
+
+      const newChat = await response.json();
+      console.log('New chat created:', newChat);
+
+      if (newChat && newChat.id) {
+        const newItem = new IdeaSidebarItem(newChat.name, newChat.id);
+        setSelectedItem(newItem);
+        setItems((prevItems) => [...prevItems, newItem]);
+        navigate(`/app/${newChat.id}`);
+      }
+    } catch (error) {
+      console.error("Error creating new chat:", error);
+    }
+  };
+
   return !selectedItem ? (
     <></>
   ) : (
@@ -80,10 +121,7 @@ function Landing() {
       <Toaster />
       <AppSidebar
         items={items}
-        onNew={() => {
-          navigate("/");
-          setSelectedItem(new IdeaSidebarItem("New", ""));
-        }}
+        onNew={handleNewChat}
         onDelete={onDelete}
         setSelectedItem={setSelectedItem}
       />
