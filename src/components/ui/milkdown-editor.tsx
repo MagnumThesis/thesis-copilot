@@ -162,33 +162,51 @@ export const MilkdownEditor: FC<MilkdownEditorProps> = ({
 
   // ... (rest of your code remains the same)
   // Track text selection changes
-  // Helper function to calculate absolute position in document
+  // Helper function to calculate absolute position in document based on markdown content
   const getAbsolutePosition = useCallback((node: Node, offset: number): number => {
     const editor = get();
     if (!editor) return 0;
 
-    const editorElement = document.querySelector('.milkdown');
-    if (!editorElement) return 0;
+    try {
+      // Get the markdown content
+      const markdownContent = editor.action(getMarkdown());
+      
+      // Use the Milkdown selection to get proper positions
+      // First, we need to find the text within the selected node
+      let textBeforeSelection = '';
+      
+      // Walk through DOM to find all text before the selection point
+      const treeWalker = document.createTreeWalker(
+        document.querySelector('.milkdown') || document.body,
+        NodeFilter.SHOW_TEXT,
+        null
+      );
 
-    // Get the markdown content to calculate position
-    const content = editor.action(getMarkdown());
-    
-    // For simplicity, use the current markdown content length calculation
-    // This walks through the DOM to find the text position
-    let position = 0;
-    const walker = document.createTreeWalker(
-      editorElement,
-      NodeFilter.SHOW_TEXT,
-      null
-    );
+      let currentNode = treeWalker.nextNode();
+      let foundNode = false;
 
-    let currentNode = walker.nextNode();
-    while (currentNode && currentNode !== node) {
-      position += currentNode.textContent?.length || 0;
-      currentNode = walker.nextNode();
+      while (currentNode) {
+        if (currentNode === node) {
+          // We found the node, add only the offset within it
+          foundNode = true;
+          const textContent = currentNode.textContent || '';
+          textBeforeSelection += textContent.substring(0, offset);
+          break;
+        } else {
+          // Add all text from this node
+          textBeforeSelection += currentNode.textContent || '';
+        }
+        currentNode = treeWalker.nextNode();
+      }
+
+      // Find the position in markdown that matches this text
+      const position = markdownContent.indexOf(textBeforeSelection.trim()) + textBeforeSelection.trim().length;
+      
+      return Math.max(0, Math.min(position, markdownContent.length));
+    } catch (error) {
+      console.error('Error calculating absolute position:', error);
+      return 0;
     }
-
-    return position + offset;
   }, [get]);
 
   const handleSelectionChange = useCallback(() => {
@@ -214,14 +232,88 @@ export const MilkdownEditor: FC<MilkdownEditorProps> = ({
         const range = selection.getRangeAt(0);
         const selectedText = selection.toString();
 
-        // Calculate absolute positions
-        const absoluteStart = getAbsolutePosition(range.startContainer, range.startOffset);
-        const absoluteEnd = getAbsolutePosition(range.endContainer, range.endOffset);
+        if (selectedText.length === 0) {
+          setCurrentSelection(null);
+          onSelectionChange?.(null);
+          return;
+        }
 
-        if (selectedText.length > 0) {
+        // Get the actual markdown content
+        const editor = get();
+        const markdownContent = editor ? editor.action(getMarkdown()) : '';
+        
+        // Normalize the selected text for better matching
+        const normalizeText = (text: string) => {
+          return text
+            .replace(/\n/g, ' ')  // Replace newlines with spaces
+            .replace(/\s+/g, ' ')  // Replace multiple spaces with single space
+            .trim();
+        };
+
+        const normalizedSelected = normalizeText(selectedText);
+        const normalizedMarkdown = normalizeText(markdownContent);
+
+        let start = -1;
+        
+        // Try exact match first
+        start = markdownContent.indexOf(selectedText);
+        
+        // Try normalized match if exact fails
+        if (start === -1) {
+          const normalizedStart = normalizedMarkdown.indexOf(normalizedSelected);
+          if (normalizedStart !== -1) {
+            // Find the corresponding position in original markdown
+            // Count characters up to this position, accounting for whitespace differences
+            let originalPos = 0;
+            let normalizedPos = 0;
+            const normalizedMarkdownArray = normalizedMarkdown.split('');
+            
+            for (let i = 0; i < markdownContent.length && normalizedPos < normalizedStart; i++) {
+              const char = markdownContent[i];
+              if (/\s/.test(char)) {
+                // Skip whitespace in original, but check if normalized would skip it too
+                while (i < markdownContent.length && /\s/.test(markdownContent[i])) {
+                  i++;
+                }
+                i--; // Back up one since loop will increment
+                normalizedPos++;
+              } else {
+                if (normalizedMarkdownArray[normalizedPos] === char) {
+                  normalizedPos++;
+                }
+              }
+              originalPos = i;
+            }
+            start = originalPos;
+          }
+        }
+
+        // If still not found, try searching for first few words
+        if (start === -1) {
+          const firstWords = selectedText.split(/\s+/).slice(0, 3).join(' ');
+          if (firstWords.length > 5) {
+            start = markdownContent.indexOf(firstWords);
+          }
+        }
+
+        const end = start >= 0 ? start + selectedText.length : 0;
+
+        console.log("Selection Change Debug:", {
+          selectedText: selectedText.substring(0, 50),
+          normalizedSelected: normalizedSelected.substring(0, 50),
+          start,
+          end,
+          selectedTextLength: selectedText.length,
+          markdownLength: markdownContent.length,
+          found: start !== -1,
+          markdownPreview: start >= 0 ? markdownContent.substring(Math.max(0, start), Math.min(markdownContent.length, start + 100)) : "NOT FOUND",
+          normalizedMarkdownPreview: normalizedMarkdown.substring(Math.max(0, normalizedMarkdown.indexOf(normalizedSelected)), Math.min(normalizedMarkdown.length, normalizedMarkdown.indexOf(normalizedSelected) + 50))
+        });
+
+        if (selectedText.length > 0 && start >= 0) {
           const textSelection: TextSelection = {
-            start: absoluteStart,
-            end: absoluteEnd,
+            start: start,
+            end: end,
             text: selectedText,
           };
 
@@ -232,9 +324,9 @@ export const MilkdownEditor: FC<MilkdownEditorProps> = ({
           onSelectionChange?.(null);
         }
 
-        // Update cursor position with absolute position
-        setCursorPosition(absoluteStart);
-        onCursorPositionChange?.(absoluteStart);
+        // Update cursor position
+        setCursorPosition(start >= 0 ? start : 0);
+        onCursorPositionChange?.(start >= 0 ? start : 0);
       } catch (error) {
         console.warn("Error tracking selection:", error);
       }

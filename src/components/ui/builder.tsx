@@ -300,6 +300,13 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
   // Handle modification acceptance
   const handleAcceptModification = useCallback(() => {
     if (editorMethodsRef.current && aiModeManager.modificationPreviewContent && aiModeManager.selectedText) {
+      console.log("Accepting modification:", {
+        selectedText: aiModeManager.selectedText.text.substring(0, 50),
+        start: aiModeManager.selectedText.start,
+        end: aiModeManager.selectedText.end,
+        previewContent: aiModeManager.modificationPreviewContent.substring(0, 50)
+      });
+
       const insertionOptions: ContentInsertionOptions = {
         insertAt: aiModeManager.selectedText.start,
         replaceRange: {

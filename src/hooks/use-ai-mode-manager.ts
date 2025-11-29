@@ -152,16 +152,6 @@ export function useAIModeManager(
     modeState,
     modeState.setMode
   );
-  const modifyModeState: AIModifyModeState = useAIModifyModeState(
-    modeState.currentMode,
-    modeState.selectedText,
-    modeState,
-    errorState,
-    modeState.setMode,
-    modeState.resetMode,
-    errorState.handleError,
-    modeState.validateTextSelection
-  );
   const aiOperations: AIOperations & AIOperationsState = useAIOperations(
     conversationId,
     documentContent,
@@ -171,26 +161,17 @@ export function useAIModeManager(
     errorState.handleError,
     errorState.clearError
   );
-  const selectionManager: AISelectionManager = useAISelectionManager(
+  const modifyModeState: AIModifyModeState = useAIModifyModeState(
     modeState.currentMode,
+    modeState.selectedText,
     modeState,
+    errorState,
     modeState.setMode,
-    modeState.resetMode
+    modeState.resetMode,
+    errorState.handleError,
+    modeState.validateTextSelection,
+    aiOperations.processModify
   );
-
-  // Additional state that wasn't extracted to separate hooks
-  const [showModificationTypeSelector, setShowModificationTypeSelector] =
-    useState(false);
-  const [showModificationPreview, setShowModificationPreview] = useState(false);
-  const [showCustomPromptInput, setShowCustomPromptInput] = useState(false);
-  const [currentModificationType, setCurrentModificationType] =
-    useState<ModificationType | null>(null);
-  const [modificationPreviewContent, setModificationPreviewContent] = useState<
-    string | null
-  >(null);
-  const [originalTextForModification, setOriginalTextForModification] =
-    useState<string | null>(null);
-  const [customPrompt, setCustomPrompt] = useState<string | null>(null);
 
   // Performance optimization state
   const [optimisticUpdate, setOptimisticUpdate] = useState<OptimisticUpdate | null>(null);
@@ -317,18 +298,18 @@ export function useAIModeManager(
     clearError: errorState.clearError,
     handleGracefulDegradation: errorState.handleGracefulDegradation,
 
-    // Selection management
-    updateSelection: selectionManager.updateSelection,
-    validateTextSelection: selectionManager.validateTextSelection,
+    // Selection management - use modeState's selection management directly
+    updateSelection: modeState.updateSelection,
+    validateTextSelection: modeState.validateTextSelection,
 
-    // Modify mode specific
-    showModificationTypeSelector,
-    showModificationPreview,
-    showCustomPromptInput,
-    currentModificationType,
-    modificationPreviewContent,
-    originalTextForModification,
-    customPrompt,
+    // Modify mode specific - use state from modifyModeState
+    showModificationTypeSelector: modifyModeState.showModificationTypeSelector,
+    showModificationPreview: modifyModeState.showModificationPreview,
+    showCustomPromptInput: modifyModeState.showCustomPromptInput,
+    currentModificationType: modifyModeState.currentModificationType,
+    modificationPreviewContent: modifyModeState.modificationPreviewContent,
+    originalTextForModification: modifyModeState.originalTextForModification,
+    customPrompt: modifyModeState.customPrompt,
 
     // Modify mode actions
     startModifyMode: modifyModeState.startModifyMode,

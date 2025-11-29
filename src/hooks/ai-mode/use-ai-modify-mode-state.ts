@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { 
+  AIMode,
   ModificationType,
   TextSelection,
   AIError,
@@ -48,6 +49,7 @@ export interface AIModifyModeState extends ModifyModeState, ModifyModeActions {
  * @param {import("../ai-mode/use-ai-mode-state").resetMode} resetMode - Function to reset the AI mode.
  * @param {import("../ai-mode/use-ai-error-state").handleError} handleError - Function to handle errors.
  * @param {import("../ai-mode/use-ai-selection-manager").validateTextSelection} validateTextSelection - Function to validate text selection.
+ * @param {import("./use-ai-operations").processModify} processModify - Function to process modify requests.
  * @returns {AIModifyModeState} An object containing modify mode state and actions.
  */
 export function useAIModifyModeState(
@@ -58,7 +60,8 @@ export function useAIModifyModeState(
   setMode: (mode: any) => void, // This will be replaced with proper type when we have the mode state hook
   resetMode: () => void,
   handleError: (error: any, context: any) => void, // This will be replaced with proper type when we have the error state hook
-  validateTextSelection: (selection: TextSelection | null) => boolean
+  validateTextSelection: (selection: TextSelection | null) => boolean,
+  processModify: (selectedText: string, modificationType: ModificationType, customPrompt?: string) => Promise<any>
 ): AIModifyModeState {
   // Modify mode specific state
   const [showModificationTypeSelector, setShowModificationTypeSelector] = useState(false);
@@ -82,7 +85,7 @@ export function useAIModifyModeState(
       return;
     }
 
-    setMode("MODIFY"); // This will be replaced with proper type when we have the mode state hook
+    setMode(AIMode.MODIFY);
     setShowModificationTypeSelector(true);
     setShowModificationPreview(false);
     setShowCustomPromptInput(false);
@@ -121,13 +124,21 @@ export function useAIModifyModeState(
 
       try {
         // Process the modification for predefined types
-        // Note: This will be implemented in the AI operations hook
-        // For now, we'll just set up the UI state
         console.info(`Processing modification type: ${type}`);
         
-        // Set preview content (this would come from the API in the real implementation)
-        setModificationPreviewContent(`Preview content for ${type} modification`);
-        setShowModificationPreview(true);
+        const response = await processModify(selectedText.text, type);
+        
+        if (response.success && response.content) {
+          setModificationPreviewContent(response.content);
+          setShowModificationPreview(true);
+        } else {
+          throw new AIError(
+            response.error || "Failed to process modification",
+            AIErrorType.API_ERROR,
+            "MODIFICATION_FAILED",
+            true
+          );
+        }
       } catch (error) {
         // Reset state on error
         setShowModificationTypeSelector(true);
@@ -136,7 +147,7 @@ export function useAIModifyModeState(
         throw error;
       }
     },
-    [selectedText, validateTextSelection]
+    [selectedText, validateTextSelection, processModify]
   );
 
   /**
@@ -170,13 +181,21 @@ export function useAIModifyModeState(
         setShowCustomPromptInput(false);
 
         // Process the modification with custom prompt
-        // Note: This will be implemented in the AI operations hook
-        // For now, we'll just set up the UI state
         console.info(`Processing custom prompt: ${prompt}`);
         
-        // Set preview content (this would come from the API in the real implementation)
-        setModificationPreviewContent(`Preview content for custom prompt: ${prompt}`);
-        setShowModificationPreview(true);
+        const response = await processModify(selectedText.text, ModificationType.PROMPT, prompt);
+        
+        if (response.success && response.content) {
+          setModificationPreviewContent(response.content);
+          setShowModificationPreview(true);
+        } else {
+          throw new AIError(
+            response.error || "Failed to process modification",
+            AIErrorType.API_ERROR,
+            "MODIFICATION_FAILED",
+            true
+          );
+        }
       } catch (error) {
         // Reset state on error
         setShowCustomPromptInput(true);
@@ -184,7 +203,7 @@ export function useAIModifyModeState(
         throw error;
       }
     },
-    [selectedText, validateTextSelection]
+    [selectedText, validateTextSelection, processModify]
   );
 
   /**
@@ -220,7 +239,7 @@ export function useAIModifyModeState(
     // The editor should replace the selected text with the modified content
 
     // Reset modify mode state
-    setMode("NONE"); // This will be replaced with proper type when we have the mode state hook
+    setMode(AIMode.NONE);
     setShowModificationTypeSelector(false);
     setShowModificationPreview(false);
     setShowCustomPromptInput(false);
@@ -280,12 +299,24 @@ export function useAIModifyModeState(
 
     try {
       // Process the modification again with the same type and prompt (if applicable)
-      // Note: This will be implemented in the AI operations hook
-      // For now, we'll just set up the UI state
       console.info(`Regenerating modification type: ${currentModificationType}`);
       
-      // Set preview content (this would come from the API in the real implementation)
-      setModificationPreviewContent(`Regenerated preview content for ${currentModificationType} modification`);
+      const response = await processModify(
+        selectedText.text,
+        currentModificationType,
+        customPrompt || undefined
+      );
+      
+      if (response.success && response.content) {
+        setModificationPreviewContent(response.content);
+      } else {
+        throw new AIError(
+          response.error || "Failed to regenerate modification",
+          AIErrorType.API_ERROR,
+          "REGENERATION_FAILED",
+          true
+        );
+      }
     } catch (error) {
       console.error("Failed to regenerate modification:", error);
       throw error;
@@ -294,6 +325,8 @@ export function useAIModifyModeState(
     currentModificationType,
     selectedText,
     validateTextSelection,
+    customPrompt,
+    processModify
   ]);
 
   return {
