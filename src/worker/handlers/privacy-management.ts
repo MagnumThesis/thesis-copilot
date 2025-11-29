@@ -117,11 +117,18 @@ app.get('/data-summary', async (c: Context<PrivacyManagementContext>) => {
       success: true, 
       summary 
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error getting data summary:', error);
+    console.error('Error details:', {
+      message: error?.message,
+      code: error?.code,
+      details: error?.details,
+      hint: error?.hint
+    });
     return c.json({ 
       success: false, 
-      error: 'Failed to get data summary' 
+      error: 'Failed to get data summary',
+      details: error?.message || 'Unknown error'
     }, 500);
   }
 });

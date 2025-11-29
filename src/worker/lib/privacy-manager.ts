@@ -195,25 +195,31 @@ export class PrivacyManager {
         learningDataQuery
       ]);
 
-      // Check for errors in main queries
+      // Check for errors in main queries - gracefully handle missing tables
+      let sessionsCount = 0;
+      let sessionIds: any[] = [];
+      let learningCount = 0;
+
       if (sessionsResult.error) {
         console.error('Error getting search sessions count:', sessionsResult.error);
-        throw sessionsResult.error;
+        // Table might not exist yet - continue with 0
+      } else {
+        sessionsCount = sessionsResult.count || 0;
       }
 
       if (sessionIdsResult.error) {
         console.error('Error getting session IDs:', sessionIdsResult.error);
-        throw sessionIdsResult.error;
+        // Table might not exist yet - continue with empty array
+      } else {
+        sessionIds = sessionIdsResult.data || [];
       }
 
       if (learningResult.error) {
         console.error('Error getting learning data count:', learningResult.error);
-        throw learningResult.error;
+        // Table might not exist yet - continue with 0
+      } else {
+        learningCount = learningResult.count || 0;
       }
-
-      const sessionsCount = sessionsResult.count || 0;
-      const sessionIds = sessionIdsResult.data || [];
-      const learningCount = learningResult.count || 0;
 
       // Get results and feedback counts (if we have sessions)
       let resultsCount = 0;
