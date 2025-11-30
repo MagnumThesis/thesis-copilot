@@ -132,6 +132,7 @@ class ConcernAnalysisEngineImpl implements ConcernAnalysisEngine {
       relatedIdeas: [],
       position: { start: 0, end: 0 },
       explanation: `(AI-generated) ${it.description || it.title}`,
+      aiGenerated: true,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       createdAt: new Date().toISOString(),
@@ -223,15 +224,15 @@ class ConcernAnalysisEngineImpl implements ConcernAnalysisEngine {
 
     const introKeywords = [
       'purpose', 'aim', 'objective', 'objectives', 'motivation', 'research question',
-      'this study', 'this paper', 'this thesis', 'we propose', 'we investigate', 'the focus of this'
+      'this study', 'this paper', 'this proposal', 'we propose', 'we investigate', 'the focus of this'
     ];
 
     for (const p of leadParas) {
       const pLower = p.toLowerCase();
 
-      // If paragraph is long enough (>= 80 words) and appears at the start, treat as intro
+      // If paragraph is long enough (>= 40 words) and appears at the start, treat as intro
       const wordCount = p.split(/\s+/).filter(w => w.length > 0).length;
-      if (wordCount >= 80) return true;
+      if (wordCount >= 40) return true;
 
       // If paragraph contains multiple intro keywords, treat as intro
       const found = introKeywords.filter(k => pLower.includes(k));
@@ -505,56 +506,56 @@ class ConcernAnalysisEngineImpl implements ConcernAnalysisEngine {
    * Enhanced document completeness analysis with detailed feedback
    */
   private analyzeCompleteness(content: string): CompletenessAnalysis {
-    // Comprehensive required sections for thesis proposals with detailed requirements
+    // Recommended sections for a research proposal (relaxed thresholds vs full thesis)
     const requiredSections = [
       { 
         name: 'introduction', 
         aliases: ['intro', 'background', 'overview'], 
         critical: true,
-        minWords: 200,
+        minWords: 100,
         description: 'Should establish context, problem statement, and objectives'
       },
       {
         name: 'literature review',
         aliases: ['related work', 'prior research', 'theoretical framework'],
-        critical: true,
-        minWords: 400,
-        description: 'Should synthesize existing research and identify gaps'
+        critical: false,
+        minWords: 250,
+        description: 'Should summarize relevant research and identify gaps (concise for proposals)'
       },
       {
         name: 'methodology',
         aliases: ['methods', 'approach', 'research design'],
         critical: true,
-        minWords: 300,
-        description: 'Should detail research approach, data collection, and analysis methods'
+        minWords: 200,
+        description: 'Should outline the research approach, data collection, and analysis plan (concise)'
       },
       {
         name: 'research questions',
         aliases: ['research problem', 'objectives', 'aims'],
         critical: true,
-        minWords: 100,
+        minWords: 50,
         description: 'Should clearly state specific research questions or hypotheses'
       },
       {
         name: 'significance',
         aliases: ['importance', 'contribution', 'impact'],
         critical: false,
-        minWords: 150,
+        minWords: 100,
         description: 'Should explain the importance and potential impact of the research'
       },
       {
         name: 'timeline',
         aliases: ['schedule', 'plan', 'milestones'],
         critical: false,
-        minWords: 100,
-        description: 'Should provide realistic timeline for research completion'
+        minWords: 50,
+        description: 'A brief timeline or plan for the proposed research'
       },
       {
         name: 'limitations',
         aliases: ['constraints', 'scope'],
         critical: false,
-        minWords: 100,
-        description: 'Should acknowledge research limitations and scope boundaries'
+        minWords: 50,
+        description: 'A short acknowledgement of scope and limitations'
       }
     ];
 
@@ -892,7 +893,7 @@ class ConcernAnalysisEngineImpl implements ConcernAnalysisEngine {
         severity: ConcernSeverity.HIGH,
         title: 'Missing Required Sections',
         description: `The following required sections are missing: ${completeness.missingSections?.join(', ')}`,
-        suggestions: ['Add the missing sections to complete the thesis structure', 'Ensure all required components are addressed']
+        suggestions: ['Add the missing sections to complete the proposal structure', 'Ensure all required components are addressed for a proposal']
       }));
     }
 
@@ -903,7 +904,7 @@ class ConcernAnalysisEngineImpl implements ConcernAnalysisEngine {
         severity: ConcernSeverity.MEDIUM,
         title: 'Insufficient Detail in Sections',
         description: `The following sections need more development: ${completeness.insufficientDetail?.join(', ')}`,
-        suggestions: ['Expand these sections with more detailed content', 'Provide more examples and explanations']
+        suggestions: ['Expand these sections with more detailed content appropriate for a proposal', 'Provide concise examples or planned approaches']
       }));
     }
 
@@ -914,7 +915,7 @@ class ConcernAnalysisEngineImpl implements ConcernAnalysisEngine {
         severity: ConcernSeverity.HIGH,
         title: 'Overall Completeness Issues',
         description: 'The document appears to be incomplete and needs significant development.',
-        suggestions: ['Review thesis requirements and ensure all components are addressed', 'Develop existing sections more thoroughly']
+        suggestions: ['Review proposal requirements and ensure all components are addressed', 'Develop existing sections to clarify the planned work']
       }));
     }
 

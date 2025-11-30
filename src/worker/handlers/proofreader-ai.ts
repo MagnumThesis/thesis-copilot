@@ -316,6 +316,7 @@ export async function getConcernsHandler(
       text: concern.text || '',
       position: concern.position || { start: 0, end: 0 },
       explanation: concern.explanation || '',
+      aiGenerated: concern.ai_generated === true || concern.aiGenerated === true || (typeof concern.explanation === 'string' && concern.explanation.startsWith('(AI-generated)')),
       created_at: concern.created_at,
       updated_at: concern.updated_at
     }));
@@ -396,6 +397,7 @@ export async function updateConcernStatusHandler(
       text: data.text || '',
       position: data.position || { start: 0, end: 0 },
       explanation: data.explanation || '',
+      aiGenerated: data.ai_generated === true || data.aiGenerated === true || (typeof data.explanation === 'string' && data.explanation.startsWith('(AI-generated)')),
       created_at: data.created_at,
       updated_at: data.updated_at
     };
@@ -494,6 +496,7 @@ async function storeConcernsInDatabase(supabase: any, concerns: ProofreadingConc
     suggestions: concern.suggestions,
     related_ideas: concern.relatedIdeas,
     status: concern.status,
+    ai_generated: (concern as any).aiGenerated === true || (typeof concern.explanation === 'string' && concern.explanation.startsWith('(AI-generated)')),
     created_at: concern.createdAt || new Date().toISOString(),
     updated_at: concern.updatedAt || new Date().toISOString()
   }));

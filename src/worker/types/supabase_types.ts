@@ -334,6 +334,7 @@ export type Database = {
           conversation_id: string
           created_at: string | null
           description: string
+          ai_generated: boolean
           id: string
           location: Json | null
           related_ideas: string[] | null
@@ -348,6 +349,7 @@ export type Database = {
           conversation_id: string
           created_at?: string | null
           description: string
+          ai_generated?: boolean
           id?: string
           location?: Json | null
           related_ideas?: string[] | null
@@ -362,6 +364,7 @@ export type Database = {
           conversation_id?: string
           created_at?: string | null
           description?: string
+          ai_generated?: boolean
           id?: string
           location?: Json | null
           related_ideas?: string[] | null
