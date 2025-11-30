@@ -33,7 +33,7 @@ createRoot(document.getElementById("root")!).render(
           path="/"
           element={
             <Suspense fallback={<LandingPageSkeleton />}>
-              <PublicRoute>
+              <PublicRoute skeleton={<LandingPageSkeleton />}>
                 <PublicLanding />
               </PublicRoute>
             </Suspense>
@@ -43,7 +43,7 @@ createRoot(document.getElementById("root")!).render(
           path="/login"
           element={
             <Suspense fallback={<LoginPageSkeleton />}>
-              <PublicRoute>
+              <PublicRoute skeleton={<LoginPageSkeleton />}>
                 <Login />
               </PublicRoute>
             </Suspense>
@@ -53,7 +53,7 @@ createRoot(document.getElementById("root")!).render(
           path="/register"
           element={
             <Suspense fallback={<LoginPageSkeleton />}>
-              <PublicRoute>
+              <PublicRoute skeleton={<LoginPageSkeleton />}>
                 <Register />
               </PublicRoute>
             </Suspense>
@@ -63,7 +63,7 @@ createRoot(document.getElementById("root")!).render(
           path="/app/:ideaId?"
           element={
             <Suspense fallback={<MainSkeleton />}>
-              <ProtectedRoute>
+              <ProtectedRoute skeleton={<MainSkeleton />}>
                 <Landing />
               </ProtectedRoute>
             </Suspense>
@@ -73,7 +73,7 @@ createRoot(document.getElementById("root")!).render(
           path="/profile"
           element={
             <Suspense fallback={<ProfilePageSkeleton />}>
-              <ProtectedRoute>
+              <ProtectedRoute skeleton={<ProfilePageSkeleton />}>
                 <Profile />
               </ProtectedRoute>
             </Suspense>
@@ -83,7 +83,7 @@ createRoot(document.getElementById("root")!).render(
           path="/settings"
           element={
             <Suspense fallback={<FormSkeleton />}>
-              <ProtectedRoute>
+              <ProtectedRoute skeleton={<FormSkeleton />}>
                 <Settings />
               </ProtectedRoute>
             </Suspense>
@@ -93,7 +93,7 @@ createRoot(document.getElementById("root")!).render(
           path="/billing/success"
           element={
             <Suspense fallback={<FormSkeleton />}>
-              <ProtectedRoute>
+              <ProtectedRoute skeleton={<FormSkeleton />}>
                 <BillingSuccess />
               </ProtectedRoute>
             </Suspense>
@@ -103,7 +103,7 @@ createRoot(document.getElementById("root")!).render(
           path="/billing/plan"
           element={
             <Suspense fallback={<GridSkeleton />}>
-              <ProtectedRoute>
+              <ProtectedRoute skeleton={<GridSkeleton />}>
                 <BillingPlan />
               </ProtectedRoute>
             </Suspense>
@@ -113,7 +113,7 @@ createRoot(document.getElementById("root")!).render(
           path="/billing/topup"
           element={
             <Suspense fallback={<FormSkeleton />}>
-              <ProtectedRoute>
+              <ProtectedRoute skeleton={<FormSkeleton />}>
                 <BillingTopUp />
               </ProtectedRoute>
             </Suspense>
@@ -123,7 +123,7 @@ createRoot(document.getElementById("root")!).render(
           path="/billing/methods"
           element={
             <Suspense fallback={<FormSkeleton />}>
-              <ProtectedRoute>
+              <ProtectedRoute skeleton={<FormSkeleton />}>
                 <BillingMethods />
               </ProtectedRoute>
             </Suspense>

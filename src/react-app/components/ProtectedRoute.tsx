@@ -1,11 +1,22 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useEffect, useState, useRef } from 'react';
+import {
+  MainSkeleton,
+  LandingPageSkeleton,
+  LoginPageSkeleton,
+} from '@/components/ui/shadcn/skeletons';
 
 /**
  * ProtectedRoute - Wraps routes that require authentication
  */
-export function ProtectedRoute({ children }: { children: React.ReactNode }) {
+export function ProtectedRoute({
+  children,
+  skeleton,
+}: {
+  children: React.ReactNode;
+  skeleton?: React.ReactNode;
+}) {
   const { user, loadAuthState } = useAuth();
   const location = useLocation();
   const [isLoading, setIsLoading] = useState(true);
@@ -16,14 +27,14 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     if (!hasLoadedRef.current) {
       hasLoadedRef.current = true;
       loadAuthState();
-      // Give React time to process the state update
-      setTimeout(() => setIsLoading(false), 50);
+      // loadAuthState reads from localStorage synchronously, so we can stop loading immediately
+      setIsLoading(false);
     }
   }, [loadAuthState]);
 
   // While loading, show nothing or a spinner
   if (isLoading) {
-    return null;
+    return <>{skeleton ?? <MainSkeleton />}</>;
   }
 
   // If no user is logged in, redirect to login
@@ -37,8 +48,15 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
 /**
  * PublicRoute - Redirects authenticated users away from public pages
  */
-export function PublicRoute({ children }: { children: React.ReactNode }) {
+export function PublicRoute({
+  children,
+  skeleton,
+}: {
+  children: React.ReactNode;
+  skeleton?: React.ReactNode;
+}) {
   const { user, loadAuthState } = useAuth();
+  const location = useLocation();
   const [isLoading, setIsLoading] = useState(true);
   const hasLoadedRef = useRef(false);
 
@@ -46,13 +64,19 @@ export function PublicRoute({ children }: { children: React.ReactNode }) {
     if (!hasLoadedRef.current) {
       hasLoadedRef.current = true;
       loadAuthState();
-      setTimeout(() => setIsLoading(false), 50);
+      setIsLoading(false);
     }
   }, [loadAuthState]);
 
   // While loading, show nothing
   if (isLoading) {
-    return null;
+    if (skeleton) return <>{skeleton}</>;
+    // Show different skeletons depending on the public path so navigation feels immediate
+    const path = location.pathname || '';
+    if (path.startsWith('/login') || path.startsWith('/register')) {
+      return <LoginPageSkeleton />;
+    }
+    return <LandingPageSkeleton />;
   }
 
   // If user is logged in, redirect to app
