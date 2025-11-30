@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const API_URL = (import.meta as any).env.VITE_API_URL || 'http://localhost:8787/api';
@@ -320,4 +320,19 @@ export function useAuth() {
     loadAuthState,
     saveAuthState,
   };
+}
+
+// Auto-load auth state when this hook is used so components receive `user` synchronously
+// without requiring each consumer to call `loadAuthState()` manually.
+export function useAuthAutoLoad() {
+  const auth = useAuth();
+
+  useEffect(() => {
+    if (!auth.user) {
+      auth.loadAuthState();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return auth;
 }

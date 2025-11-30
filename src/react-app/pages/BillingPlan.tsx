@@ -2,9 +2,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/shadcn/button';
 import { useNavigate } from 'react-router-dom';
 import { createCheckoutSession } from '@/utils/billing';
+import { useAuthAutoLoad as useAuth } from '@/hooks/useAuth';
 
 export default function BillingPlan() {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const handleChoosePro = async () => {
     try {
@@ -16,7 +18,7 @@ export default function BillingPlan() {
         return;
       }
 
-      const data = await createCheckoutSession({ mode: 'subscription', priceId, metadata: { plan: 'Pro' } });
+      const data = await createCheckoutSession({ mode: 'subscription', priceId, metadata: { plan: 'Pro', user_id: user?.id ?? null, email: (user as any)?.email ?? null } });
       if (data?.url) window.location.href = data.url;
     } catch (e) {
       console.error(e);
@@ -57,7 +59,7 @@ export default function BillingPlan() {
                 <li>• Increased credits</li>
                 <li>• Priority support</li>
               </ul>
-              <Button onClick={handleChoosePro}>Upgrade to Pro</Button>
+              <Button onClick={handleChoosePro} disabled={!user}>Upgrade to Pro</Button>
             </CardContent>
           </Card>
         </div>

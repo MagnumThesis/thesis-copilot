@@ -30,7 +30,7 @@ export default function BillingSuccess() {
         // Attempt to read metadata or display_items
         const metadata = session.metadata || {};
 
-        // Basic handling: if metadata.credits we top up; if metadata.plan we set plan
+        // Basic handling: prefer metadata.credits if present, otherwise compute from line_items
         const billing = loadAuthState?.()?.billing ?? { plan: 'Free', credits: 0 };
         let newPlan = billing.plan ?? 'Free';
         let newCredits = billing.credits ?? 0;
@@ -39,14 +39,49 @@ export default function BillingSuccess() {
           newPlan = metadata.plan;
         }
 
+        // Determine credits to add: prefer metadata, else inspect expanded line_items
+        let creditsToAdd = 0;
         if (metadata.credits) {
-          const amt = parseInt(metadata.credits, 10) || 0;
-          newCredits = (newCredits || 0) + amt;
+          creditsToAdd = parseInt(metadata.credits, 10) || 0;
+        } else if (session.line_items && Array.isArray(session.line_items.data)) {
+          for (const item of session.line_items.data) {
+            const qty = (item.quantity) ? Number(item.quantity) : 1;
+            // price may be expanded with metadata
+            const price = item.price || item.price?.data || {};
+            const priceMeta = price.metadata || {};
+            if (priceMeta && priceMeta.credits) {
+              creditsToAdd += (Number(priceMeta.credits) || 0) * qty;
+            } else if (price.nickname) {
+              // try to parse nickname like "100 credits"
+              const m = String(price.nickname).match(/(\d+)\s*credits?/i);
+              if (m) {
+                creditsToAdd += Number(m[1]) * qty;
+              }
+            }
+          }
         }
 
-        // Persist locally
-        const newState = { ...(loadAuthState?.() ?? {}), billing: { plan: newPlan, credits: newCredits, nextBilling: metadata.next_billing ?? null } };
-        saveAuthState?.(newState);
+        newCredits = (newCredits || 0) + creditsToAdd;
+
+        // Prevent double-processing: record processed session IDs in localStorage
+        const processedKey = 'processed_checkout_sessions';
+        let processed: string[] = [];
+        try {
+          const raw = localStorage.getItem(processedKey);
+          if (raw) processed = JSON.parse(raw) as string[];
+        } catch (e) {}
+
+        if (!processed.includes(sessionId)) {
+          // Persist locally
+          const newState = { ...(loadAuthState?.() ?? {}), billing: { plan: newPlan, credits: newCredits, nextBilling: metadata.next_billing ?? null } };
+          saveAuthState?.(newState);
+
+          // mark processed
+          processed.push(sessionId);
+          try { localStorage.setItem(processedKey, JSON.stringify(processed)); } catch (e) {}
+        } else {
+          console.debug('Session already processed, skipping local credit application', sessionId);
+        }
 
         setStatus('Payment successful — billing updated. Redirecting...');
         setTimeout(() => navigate('/profile'), 1500);

@@ -2,9 +2,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/shadcn/button';
 import { createCheckoutSession } from '@/utils/billing';
 import { useNavigate } from 'react-router-dom';
+import { useAuthAutoLoad as useAuth } from '@/hooks/useAuth';
 
 export default function BillingTopUp() {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const handleBuy = async (amount: number) => {
     try {
@@ -15,7 +17,7 @@ export default function BillingTopUp() {
         navigate('/profile');
         return;
       }
-      const data = await createCheckoutSession({ mode: 'payment', priceId, quantity: 1, metadata: { credits: String(amount) } });
+      const data = await createCheckoutSession({ mode: 'payment', priceId, quantity: 1, metadata: { credits: String(amount), user_id: user?.id ?? null, email: (user as any)?.email ?? null } });
       if (data?.url) window.location.href = data.url;
     } catch (e) {
       console.error(e);
@@ -37,7 +39,7 @@ export default function BillingTopUp() {
             </CardHeader>
             <CardContent>
               <div className="mb-4 text-sm">Good for casual use</div>
-              <Button onClick={() => handleBuy(100)}>Buy 100</Button>
+              <Button onClick={() => handleBuy(100)} disabled={!user}>Buy 100</Button>
             </CardContent>
           </Card>
 
@@ -48,7 +50,7 @@ export default function BillingTopUp() {
             </CardHeader>
             <CardContent>
               <div className="mb-4 text-sm">Save more per credit</div>
-              <Button onClick={() => handleBuy(500)}>Buy 500</Button>
+              <Button onClick={() => handleBuy(500)} disabled={!user}>Buy 500</Button>
             </CardContent>
           </Card>
         </div>
