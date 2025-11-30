@@ -28,6 +28,9 @@ export default function Register() {
     feedback: string;
   }>({ score: 0, feedback: "" });
 
+  const [googleHover, setGoogleHover] = useState(false);
+  const [githubHover, setGithubHover] = useState(false);
+
   const checkPasswordStrength = (pwd: string) => {
     let score = 0;
     let feedback = "";
@@ -109,12 +112,12 @@ export default function Register() {
 
   if (isSuccess) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white flex items-center justify-center px-4 py-8">
-        <Card className="bg-slate-800 border-slate-700 max-w-md text-center">
+      <div className="min-h-screen flex items-center justify-center px-4 py-8" style={{ background: 'var(--background)', color: 'var(--foreground)' }}>
+        <Card style={{ background: 'var(--card)', color: 'var(--card-foreground)', borderColor: 'var(--border)' }} className="max-w-md text-center">
           <CardContent className="pt-8">
             <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
             <h2 className="text-2xl font-bold mb-2">Account Created!</h2>
-            <p className="text-slate-400 mb-4">
+            <p style={{ color: 'var(--muted-foreground)' }} className="mb-4">
               Your account has been successfully created. Redirecting to login...
             </p>
           </CardContent>
@@ -124,22 +127,23 @@ export default function Register() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white flex items-center justify-center px-4 py-8">
+    <div className="min-h-screen flex items-center justify-center px-4 py-8" style={{ background: 'var(--background)', color: 'var(--foreground)' }}>
       <div className="w-full max-w-md">
         {/* Back Button */}
         <button
           onClick={() => navigate("/")}
-          className="flex items-center gap-2 text-slate-400 hover:text-white mb-8 transition"
+          className="flex items-center gap-2 mb-8 transition"
+          style={{ color: 'var(--muted-foreground)' }}
         >
           <ArrowLeft className="h-4 w-4" />
           Back to Home
         </button>
 
         {/* Card */}
-        <Card className="bg-slate-800 border-slate-700">
+        <Card style={{ background: 'var(--card)', color: 'var(--card-foreground)', borderColor: 'var(--border)' }}>
           <CardHeader className="space-y-2">
             <CardTitle className="text-2xl">Create Account</CardTitle>
-            <CardDescription className="text-slate-400">
+            <CardDescription style={{ color: 'var(--muted-foreground)' }}>
               Join Thesis Copilot today and start researching smarter
             </CardDescription>
           </CardHeader>
@@ -154,7 +158,7 @@ export default function Register() {
             <form onSubmit={handleRegister} className="space-y-4">
               {/* Full Name Field */}
               <div className="space-y-2">
-                <Label htmlFor="fullName" className="text-slate-200">
+                <Label htmlFor="fullName" style={{ color: 'var(--muted-foreground)' }}>
                   Full Name
                 </Label>
                 <Input
@@ -164,7 +168,7 @@ export default function Register() {
                   placeholder="John Doe"
                   value={formData.fullName}
                   onChange={handleInputChange}
-                  className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
+                  style={{ background: 'var(--input)', color: 'var(--card-foreground)', borderColor: 'var(--border)' }}
                   disabled={isLoading}
                   required
                 />
@@ -172,7 +176,7 @@ export default function Register() {
 
               {/* Email Field */}
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-slate-200">
+                <Label htmlFor="email" style={{ color: 'var(--muted-foreground)' }}>
                   Email Address
                 </Label>
                 <Input
@@ -182,7 +186,7 @@ export default function Register() {
                   placeholder="you@example.com"
                   value={formData.email}
                   onChange={handleInputChange}
-                  className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
+                  style={{ background: 'var(--input)', color: 'var(--card-foreground)', borderColor: 'var(--border)' }}
                   disabled={isLoading}
                   required
                 />
@@ -190,7 +194,7 @@ export default function Register() {
 
               {/* Password Field */}
               <div className="space-y-2">
-                <Label htmlFor="password" className="text-slate-200">
+                <Label htmlFor="password" style={{ color: 'var(--muted-foreground)' }}>
                   Password
                 </Label>
                 <div className="relative">
@@ -201,7 +205,7 @@ export default function Register() {
                     placeholder="••••••••"
                     value={formData.password}
                     onChange={handleInputChange}
-                    className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-500 pr-10"
+                    style={{ background: 'var(--input)', color: 'var(--card-foreground)', borderColor: 'var(--border)', paddingRight: '2.5rem' }}
                     disabled={isLoading}
                     required
                   />
@@ -254,7 +258,7 @@ export default function Register() {
 
               {/* Confirm Password Field */}
               <div className="space-y-2">
-                <Label htmlFor="confirmPassword" className="text-slate-200">
+                <Label htmlFor="confirmPassword" style={{ color: 'var(--muted-foreground)' }}>
                   Confirm Password
                 </Label>
                 <div className="relative">
@@ -265,7 +269,7 @@ export default function Register() {
                     placeholder="••••••••"
                     value={formData.confirmPassword}
                     onChange={handleInputChange}
-                    className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-500 pr-10"
+                    style={{ background: 'var(--input)', color: 'var(--card-foreground)', borderColor: 'var(--border)', paddingRight: '2.5rem' }}
                     disabled={isLoading}
                     required
                   />
@@ -284,13 +288,14 @@ export default function Register() {
               </div>
 
               {/* Terms Checkbox */}
-              <label className="flex items-start gap-3 text-sm text-slate-300 cursor-pointer">
+              <label className="flex items-start gap-3 text-sm cursor-pointer" style={{ color: 'var(--muted-foreground)' }}>
                 <input
                   type="checkbox"
                   name="agreedToTerms"
                   checked={formData.agreedToTerms}
                   onChange={handleInputChange}
-                  className="rounded border-slate-600 bg-slate-700 mt-0.5"
+                  className="rounded mt-0.5"
+                  style={{ borderColor: 'var(--border)', background: 'var(--input)' }}
                 />
                 <span>
                   I agree to the{" "}
@@ -307,7 +312,8 @@ export default function Register() {
               {/* Submit Button */}
               <Button
                 type="submit"
-                className="w-full bg-blue-600 hover:bg-blue-700 mt-6"
+                className="w-full mt-6"
+                style={{ background: 'var(--primary)', color: 'var(--primary-foreground)' }}
                 disabled={isLoading}
               >
                 {isLoading ? "Creating Account..." : "Create Account"}
@@ -315,11 +321,12 @@ export default function Register() {
             </form>
 
             {/* Login Link */}
-            <div className="mt-6 text-center text-sm text-slate-400">
+            <div className="mt-6 text-center text-sm" style={{ color: 'var(--muted-foreground)' }}>
               Already have an account?{" "}
               <button
                 onClick={() => navigate("/login")}
-                className="text-blue-400 hover:text-blue-300 transition font-medium"
+                className="transition font-medium"
+                style={{ color: 'var(--secondary)' }}
               >
                 Sign in here
               </button>
@@ -331,22 +338,26 @@ export default function Register() {
         <div className="mt-8">
           <div className="relative mb-6">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-slate-700"></div>
+              <div className="w-full" style={{ borderTop: '1px solid var(--border)' }}></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-slate-900 text-slate-400">Or sign up with</span>
+              <span style={{ padding: '0.25rem 0.75rem', background: 'var(--secondary)', color: 'var(--primary-foreground)', borderRadius: '9999px' }}>Or sign up with</span>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <Button
               variant="outline"
-              className="border-slate-600 text-slate-300 hover:bg-slate-700"
+              onMouseEnter={() => setGoogleHover(true)}
+              onMouseLeave={() => setGoogleHover(false)}
+              style={{ borderColor: 'var(--border)', color: googleHover ? 'var(--primary-foreground)' : 'var(--muted-foreground)', background: googleHover ? 'var(--secondary)' : 'transparent' }}
             >
               Google
             </Button>
             <Button
               variant="outline"
-              className="border-slate-600 text-slate-300 hover:bg-slate-700"
+              onMouseEnter={() => setGithubHover(true)}
+              onMouseLeave={() => setGithubHover(false)}
+              style={{ borderColor: 'var(--border)', color: githubHover ? 'var(--primary-foreground)' : 'var(--muted-foreground)', background: githubHover ? 'var(--secondary)' : 'transparent' }}
             >
               GitHub
             </Button>

@@ -29,23 +29,27 @@ export default function Login() {
 
   const displayError = error || localError;
 
+  const [googleHover, setGoogleHover] = useState(false);
+  const [githubHover, setGithubHover] = useState(false);
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white flex items-center justify-center px-4 py-8">
+    <div className="min-h-screen flex items-center justify-center px-4 py-8" style={{ background: 'var(--background)', color: 'var(--foreground)' }}>
       <div className="w-full max-w-md">
         {/* Back Button */}
         <button
           onClick={() => navigate("/")}
-          className="flex items-center gap-2 text-slate-400 hover:text-white mb-8 transition"
+          className="flex items-center gap-2 mb-8 transition"
+          style={{ color: 'var(--muted-foreground)' }}
         >
           <ArrowLeft className="h-4 w-4" />
           Back to Home
         </button>
 
         {/* Card */}
-        <Card className="bg-slate-800 border-slate-700">
+        <Card style={{ background: 'var(--card)', color: 'var(--card-foreground)', borderColor: 'var(--border)' }}>
           <CardHeader className="space-y-2">
             <CardTitle className="text-2xl">Welcome Back</CardTitle>
-            <CardDescription className="text-slate-400">
+            <CardDescription style={{ color: 'var(--muted-foreground)' }}>
               Sign in to your Thesis Copilot account
             </CardDescription>
           </CardHeader>
@@ -60,7 +64,7 @@ export default function Login() {
             <form onSubmit={handleLogin} className="space-y-4">
               {/* Email Field */}
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-slate-200">
+                <Label htmlFor="email" style={{ color: 'var(--muted-foreground)' }}>
                   Email Address
                 </Label>
                 <Input
@@ -69,7 +73,7 @@ export default function Login() {
                   placeholder="you@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
+                  style={{ background: 'var(--input)', color: 'var(--card-foreground)', borderColor: 'var(--border)' }}
                   disabled={isLoading}
                   required
                 />
@@ -87,7 +91,7 @@ export default function Login() {
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-500 pr-10"
+                    style={{ background: 'var(--input)', color: 'var(--card-foreground)', borderColor: 'var(--border)' }}
                     disabled={isLoading}
                     required
                   />
@@ -107,7 +111,7 @@ export default function Login() {
 
               {/* Remember Me & Forgot Password */}
               <div className="flex items-center justify-between text-sm">
-                <label className="flex items-center gap-2 text-slate-300 cursor-pointer">
+                <label className="flex items-center gap-2 cursor-pointer" style={{ color: 'var(--muted-foreground)' }}>
                   <input
                     type="checkbox"
                     className="rounded border-slate-600 bg-slate-700"
@@ -117,7 +121,8 @@ export default function Login() {
                 <button
                   type="button"
                   onClick={() => navigate("/forgot-password")}
-                  className="text-blue-400 hover:text-blue-300 transition"
+                  className="transition"
+                  style={{ color: 'var(--secondary)' }}
                 >
                   Forgot password?
                 </button>
@@ -126,7 +131,8 @@ export default function Login() {
               {/* Submit Button */}
               <Button
                 type="submit"
-                className="w-full bg-blue-600 hover:bg-blue-700 mt-6"
+                className="w-full mt-6"
+                style={{ background: 'var(--primary)', color: 'var(--primary-foreground)' }}
                 disabled={isLoading}
               >
                 {isLoading ? "Signing in..." : "Sign In"}
@@ -134,11 +140,12 @@ export default function Login() {
             </form>
 
             {/* Sign Up Link */}
-            <div className="mt-6 text-center text-sm text-slate-400">
+            <div className="mt-6 text-center text-sm" style={{ color: 'var(--muted-foreground)' }}>
               Don't have an account?{" "}
               <button
                 onClick={() => navigate("/register")}
-                className="text-blue-400 hover:text-blue-300 transition font-medium"
+                className="transition font-medium"
+                style={{ color: 'var(--secondary)' }}
               >
                 Sign up here
               </button>
@@ -150,22 +157,26 @@ export default function Login() {
         <div className="mt-8">
           <div className="relative mb-6">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-slate-700"></div>
+              <div className="w-full" style={{ borderTop: '1px solid var(--border)' }}></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-slate-900 text-slate-400">Or continue with</span>
+              <span style={{ padding: '0.25rem 0.75rem', background: 'var(--secondary)', color: 'var(--primary-foreground)', borderRadius: '9999px' }}>Or continue with</span>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <Button
               variant="outline"
-              className="border-slate-600 text-slate-300 hover:bg-slate-700"
+              onMouseEnter={() => setGoogleHover(true)}
+              onMouseLeave={() => setGoogleHover(false)}
+              style={{ borderColor: 'var(--border)', color: googleHover ? 'var(--primary-foreground)' : 'var(--muted-foreground)', background: googleHover ? 'var(--secondary)' : 'transparent' }}
             >
               Google
             </Button>
             <Button
               variant="outline"
-              className="border-slate-600 text-slate-300 hover:bg-slate-700"
+              onMouseEnter={() => setGithubHover(true)}
+              onMouseLeave={() => setGithubHover(false)}
+              style={{ borderColor: 'var(--border)', color: githubHover ? 'var(--primary-foreground)' : 'var(--muted-foreground)', background: githubHover ? 'var(--secondary)' : 'transparent' }}
             >
               GitHub
             </Button>
