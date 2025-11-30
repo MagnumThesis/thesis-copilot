@@ -109,14 +109,18 @@ export function AppSidebar({onNew, items, onDelete, setSelectedItem, ...props }:
           </div>
         </div>
         <div className="flex gap-2 mt-2">
-          <Button variant="ghost" size="icon" className="h-8 w-8" title="Profile">
-            <User className="h-4 w-4" />
-            <span className="sr-only">Profile</span>
-          </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8" title="Settings">
-            <Settings className="h-4 w-4" />
-            <span className="sr-only">Settings</span>
-          </Button>
+          <Link to="/profile" title="Profile">
+            <Button variant="ghost" size="icon" className="h-8 w-8">
+              <User className="h-4 w-4" />
+              <span className="sr-only">Profile</span>
+            </Button>
+          </Link>
+          <Link to="/settings" title="Settings">
+            <Button variant="ghost" size="icon" className="h-8 w-8">
+              <Settings className="h-4 w-4" />
+              <span className="sr-only">Settings</span>
+            </Button>
+          </Link>
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleLogout} title="Logout">
             <LogOut className="h-4 w-4" />
             <span className="sr-only">Logout</span>

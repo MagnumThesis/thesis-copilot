@@ -14,6 +14,7 @@ import builderContentApi from './handlers/builder-content';
 import { builderAIPromptHandler, builderAIContinueHandler, builderAIModifyHandler } from './handlers/builder-ai';
 import { proofreaderAnalysisHandler, getConcernsHandler, updateConcernStatusHandler, getConcernStatisticsHandler } from './handlers/proofreader-ai';
 import authApi from './routes/auth-routes';
+import billingApi from './routes/billing-routes';
 
 const app = new Hono();
 
@@ -101,6 +102,7 @@ app.route('/api/search-result-management', searchResultManagementApi);
 app.route('/api/ideas', ideasApi);
 app.route('/api/builder', builderApi);
 app.route('/api/builder-content', builderContentApi);
+app.route('/api/billing', billingApi);
 
 // Chat API routes
 app.get('/api/chats', getChatsHandler);
