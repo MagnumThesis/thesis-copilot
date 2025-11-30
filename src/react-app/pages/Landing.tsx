@@ -12,11 +12,13 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { ToolsPanel } from "@/components/ui/tools-panel";
 import IdeaSidebarItem from "@/react-app/models/idea";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useEffect, useState, useRef } from "react";
-import Chatbot from "./Chatbot";
+import { useEffect, useState, useRef, Suspense, lazy } from "react";
+import Skeleton from "@/components/ui/shadcn/skeleton";
+import { DetailContentSkeleton } from "@/components/ui/shadcn/skeletons";
+const Chatbot = lazy(() => import("./Chatbot"));
+const ToolsPanel = lazy(() => import("@/components/ui/tools-panel").then(m => ({ default: m.ToolsPanel })));
 import { UIMessage } from "ai";
 import {
   createNewChat,
@@ -142,13 +144,17 @@ function Landing() {
         </header>
         {selectedItem.id != "" && (
           <div className="flex flex-1">
-          <Chatbot
-            chatId={selectedItem.id}
-            initialMessages={initialMessages}
-            onMessagesLengthChange={onMessagesLengthChange}
-          />
-        <ToolsPanel currentConversation={{ title: selectedItem.title, id: selectedItem.id }} />
-      </div>
+            <Suspense fallback={<div className="w-full"><DetailContentSkeleton /></div>}>
+              <Chatbot
+                chatId={selectedItem.id}
+                initialMessages={initialMessages}
+                onMessagesLengthChange={onMessagesLengthChange}
+              />
+            </Suspense>
+            <Suspense fallback={<div></div>}>
+              <ToolsPanel currentConversation={{ title: selectedItem.title, id: selectedItem.id }} />
+            </Suspense>
+          </div>
         )}
       </SidebarInset>
     </SidebarProvider>

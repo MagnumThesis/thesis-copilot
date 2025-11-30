@@ -1,32 +1,25 @@
-import { cn } from "@/lib/utils"
+import React from "react";
+import { cn } from "@/lib/utils";
 
-/**
- * A skeleton component for displaying loading states.
- * 
- * @param {React.ComponentProps<"div">} props - The props for the Skeleton component
- * @param {string} [props.className] - Additional CSS classes to apply to the skeleton
- * @param {React.ReactNode} props.children - The content to display inside the skeleton
- * 
- * @example
- * ```tsx
- * // Basic skeleton
- * <Skeleton className="h-4 w-32" />
- * 
- * // Skeleton with custom height and width
- * <Skeleton className="h-8 w-64" />
- * 
- * // Skeleton with rounded corners
- * <Skeleton className="h-16 w-16 rounded-full" />
- * ```
- */
-function Skeleton({ className, ...props }: React.ComponentProps<"div">) {
+interface SkeletonProps {
+  className?: string;
+  width?: string;
+  height?: string;
+  rounded?: string;
+}
+
+type Props = SkeletonProps & React.ComponentProps<"div">;
+
+function Skeleton({ className = "", width = "w-full", height = "h-4", rounded = "rounded-md", ...props }: Props) {
   return (
     <div
       data-slot="skeleton"
-      className={cn("bg-accent animate-pulse rounded-md", className)}
+      className={cn(width, height, rounded, "bg-slate-200 dark:bg-slate-700/40 animate-pulse", className)}
+      aria-hidden
       {...props}
     />
-  )
+  );
 }
 
-export { Skeleton }
+export default Skeleton;
+export { Skeleton };

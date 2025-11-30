@@ -16,6 +16,15 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   
   return {
+    // Pre-bundle common/heavy deps to reduce many small dev requests
+    optimizeDeps: {
+      include: [
+        "framer-motion",
+        "@milkdown/kit",
+        "@milkdown/react",
+        "shiki"
+      ]
+    },
     plugins: [
       react(), 
       cloudflare({
