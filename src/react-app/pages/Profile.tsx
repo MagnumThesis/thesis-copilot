@@ -139,7 +139,7 @@ export default function Profile() {
             <p className="text-sm text-muted-foreground">View and manage your profile</p>
           </div>
           <div className="flex gap-2">
-            <Button onClick={() => navigate('/settings')}>Settings</Button>
+            <Button onClick={() => navigate('/settings', { state: { from: '/profile' } })}>Settings</Button>
             <Button variant="ghost" onClick={() => navigate('/app')}>Back to App</Button>
           </div>
         </div>

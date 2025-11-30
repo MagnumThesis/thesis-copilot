@@ -1,9 +1,12 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/shadcn/card";
 import { PrivacyControls } from "@/components/ui/privacy-controls";
 
 export default function Settings() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const from = (location.state as any)?.from as string | undefined;
+  const backLabel = from === '/profile' ? 'Back to Profile' : 'Back to App';
 
   return (
     <div className="min-h-screen px-4 py-8" style={{ background: 'var(--background)', color: 'var(--foreground)' }}>
@@ -14,7 +17,12 @@ export default function Settings() {
             <p className="text-sm text-muted-foreground">Manage privacy & data settings for your account</p>
           </div>
           <div>
-            <button className="text-sm text-muted-foreground" onClick={() => navigate('/profile')}>Back to Profile</button>
+            <button
+              className="text-sm text-muted-foreground"
+              onClick={() => navigate(from === '/profile' ? '/profile' : '/app')}
+            >
+              {backLabel}
+            </button>
           </div>
         </div>
 
