@@ -4,7 +4,7 @@ import Skeleton from "./skeleton";
 // Replace MainSkeleton with a structured composition matching the provided layout
 export function SidebarSkeleton() {
   return (
-    <aside className="w-64 border-r border-border bg-background flex flex-col">
+    <aside className="w-64 border-r border-border bg-background flex flex-col animate-pulse">
       <div className="p-4 border-b border-border">
         <div className="flex items-center justify-between gap-2 mb-4">
           <div className="h-6 bg-muted rounded w-24" />
@@ -37,7 +37,7 @@ export function SidebarSkeleton() {
 
 export function ContentAreaSkeleton() {
   return (
-    <div className="flex-1 overflow-y-auto">
+    <div className="flex-1 overflow-y-auto animate-pulse">
       <div className="border-b border-border bg-background sticky top-0 p-6 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="h-10 w-10 rounded-lg bg-muted" />
@@ -115,7 +115,7 @@ export function ContentAreaSkeleton() {
 
 export function ChatPromptSkeleton() {
   return (
-    <div className="border-t border-border bg-background p-4 sm:p-6">
+    <div className="border-t border-border bg-background p-4 sm:p-6 animate-pulse">
       <div className="max-w-4xl flex gap-3">
         <div className="flex-1 h-10 bg-muted rounded-lg" />
         <div className="h-10 w-10 flex-shrink-0 rounded-lg bg-muted" />
@@ -127,7 +127,7 @@ export function ChatPromptSkeleton() {
 
 export function DetailContentSkeleton() {
   return (
-    <div className="flex flex-col h-screen max-h-[calc(100vh-64px)] bg-background">
+    <div className="flex flex-col h-screen max-h-[calc(100vh-64px)] bg-background animate-pulse">
       {/* Chat Messages Area */}
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
         {/* AI Message Card */}
@@ -192,7 +192,7 @@ export function DetailContentSkeleton() {
 
 export function LandingPageSkeleton() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background animate-pulse">
       {/* Header skeleton */}
       <div className="flex items-center justify-between px-8 py-6 border-b border-border">
         <div className="h-8 w-48 bg-muted rounded" />
@@ -256,7 +256,7 @@ export function LandingPageSkeleton() {
 
 export function LoginPageSkeleton() {
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4">
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4 animate-pulse">
       {/* Back to Home link */}
       <div className="w-full max-w-md mb-8">
         <div className="h-4 w-24 bg-muted rounded"></div>
@@ -332,7 +332,7 @@ export function LoginPageSkeleton() {
 
 export function ProfilePageSkeleton() {
   return (
-    <div className="min-h-screen bg-background p-8">
+    <div className="min-h-screen bg-background p-8 animate-pulse">
       {/* Header */}
       <div className="mb-8 flex items-start justify-between">
         <div>
