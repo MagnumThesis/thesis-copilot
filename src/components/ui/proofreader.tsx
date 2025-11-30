@@ -336,6 +336,8 @@ export const Proofreader: React.FC<ProofreaderProps> = ({
     try {
       setState(prev => ({
         ...prev,
+        // Clear previous concerns to avoid showing stale results during re-analysis
+        concerns: [],
         isAnalyzing: true,
         error: null,
         analysisProgress: 0,
@@ -409,36 +411,16 @@ export const Proofreader: React.FC<ProofreaderProps> = ({
         analysisStatusMessage: state.recoveryState.isOnline ? 'Analyzing content with AI...' : 'Performing offline analysis...'
       }))
 
-      // Check cache first for faster results
-      const cachedResult = proofreaderPerformanceOptimizer.getCachedAnalysis(analysisRequest);
-      if (cachedResult && !abortControllerRef.current?.signal.aborted) {
-        setState(prev => ({
-          ...prev,
-          analysisProgress: 100,
-          analysisStatusMessage: 'Analysis completed from cache!',
-          concerns: cachedResult.concerns || [],
-          isAnalyzing: false,
-          lastAnalyzed: new Date(),
-          recoveryState: {
-            ...prev.recoveryState,
-            cacheUsed: true
-          }
-        }));
-
-        toast.success(`Analysis completed from cache! Found ${cachedResult.concerns?.length || 0} concerns.`);
-        return;
-      }
-
-      // Perform optimized analysis with recovery fallback
+      // Skip cache and force fresh analysis
       const analysisResult = await proofreaderPerformanceOptimizer.optimizedAnalysis(
         analysisRequest,
         async (request) => {
-          return await proofreaderRecoveryService.performAnalysisWithRecovery(request);
+          return await proofreaderRecoveryService.performAnalysisWithRecovery(request, { forceRefresh: true });
         },
         {
           enableCaching: true,
           enableOptimization: true,
-          forceRefresh: false
+          forceRefresh: true // Force fresh analysis on button click (optimizer cache)
         }
       );
 

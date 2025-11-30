@@ -204,22 +204,28 @@ export class ProofreaderRecoveryService {
    * Intelligent analysis with fallback mechanisms
    */
   public async performAnalysisWithRecovery(
-    request: ProofreaderAnalysisRequest
+    request: ProofreaderAnalysisRequest,
+    options?: { forceRefresh?: boolean }
   ): Promise<ProofreaderAnalysisResponse> {
+    const { forceRefresh = false } = options || {};
     const contentHash = this.generateContentHash(request.documentContent);
-    
-    // Check cache first
-    const cachedResult = this.getCachedAnalysis(contentHash);
-    if (cachedResult && this.isCacheValid(contentHash)) {
-      console.log('Using cached analysis result');
-      return cachedResult;
+
+    // Check cache first (unless forceRefresh requested)
+    if (!forceRefresh) {
+      const cachedResult = this.getCachedAnalysis(contentHash);
+      if (cachedResult && this.isCacheValid(contentHash)) {
+        console.log('Using cached analysis result');
+        return cachedResult;
+      }
+    } else {
+      console.log('Force refresh requested - bypassing cached analysis');
     }
 
     // Attempt online analysis
     if (this.recoveryState.isOnline && this.recoveryState.recoveryMode !== RecoveryMode.OFFLINE) {
       try {
         const result = await this.performOnlineAnalysis(request);
-        this.cacheAnalysisResult(contentHash, result);
+        this.cacheAnalysisResult(contentHash, result, request.conversationId);
         return result;
       } catch (error) {
         console.warn('Online analysis failed, attempting recovery:', error);
@@ -869,9 +875,15 @@ export class ProofreaderRecoveryService {
     return age < this.CACHE_EXPIRY_MS;
   }
 
-  private cacheAnalysisResult(contentHash: string, result: ProofreaderAnalysisResponse): void {
+  private cacheAnalysisResult(contentHash: string, result: ProofreaderAnalysisResponse, conversationId?: string): void {
     this.recoveryState.cachedData.analysisResults.set(contentHash, result);
     this.recoveryState.cachedData.lastUpdated.set(contentHash, new Date());
+
+    // Map conversationId -> contentHash so we can invalidate by conversation later
+    if (conversationId) {
+      this.recoveryState.cachedData.contentHashes.set(conversationId, contentHash);
+    }
+
     this.saveCachedData();
   }
 
@@ -997,6 +1009,28 @@ export class ProofreaderRecoveryService {
 
   public getPendingOperationsCount(): number {
     return this.recoveryState.pendingOperations.length;
+  }
+
+  /**
+   * Invalidate cached analysis and concerns for a given conversation
+   */
+  public invalidateAnalysisForConversation(conversationId: string): void {
+    try {
+      const contentHash = this.recoveryState.cachedData.contentHashes.get(conversationId);
+      if (contentHash) {
+        this.recoveryState.cachedData.analysisResults.delete(contentHash);
+        this.recoveryState.cachedData.lastUpdated.delete(contentHash);
+      }
+
+      // Remove mapping and cached concerns
+      this.recoveryState.cachedData.contentHashes.delete(conversationId);
+      this.recoveryState.cachedData.concerns.delete(conversationId);
+
+      this.saveCachedData();
+      console.log(`Invalidated proofreader cache for conversation ${conversationId}`);
+    } catch (error) {
+      console.error('Failed to invalidate analysis for conversation:', error);
+    }
   }
 
   /**

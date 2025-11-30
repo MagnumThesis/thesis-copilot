@@ -498,11 +498,13 @@ async function storeConcernsInDatabase(supabase: any, concerns: ProofreadingConc
     updated_at: concern.updatedAt || new Date().toISOString()
   }));
   
-  // Delete existing concerns for this conversation to avoid duplicates
+  // Delete existing 'to_be_done' concerns for this conversation before inserting new analysis results
+  // This preserves concerns that were addressed/rejected by the user.
   await supabase
     .from('proofreading_concerns')
     .delete()
-    .eq('conversation_id', concerns[0].conversationId);
+    .eq('conversation_id', concerns[0].conversationId)
+    .eq('status', ConcernStatus.TO_BE_DONE);
   
   // Insert new concerns
   const { error } = await supabase

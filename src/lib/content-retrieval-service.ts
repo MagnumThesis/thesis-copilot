@@ -7,6 +7,7 @@
  */
 
 import { IdeaDefinition } from "./ai-types";
+import { proofreaderRecoveryService } from './proofreader-recovery-service';
 
 export interface BuilderContent {
   content: string;
@@ -341,6 +342,13 @@ export class ContentRetrievalService {
       }
     } catch (error) {
       console.error('Failed to save Builder content to database:', error);
+    }
+
+    // Invalidate proofreader cached analysis for this conversation so re-analyze runs fresh
+    try {
+      proofreaderRecoveryService.invalidateAnalysisForConversation(conversationId);
+    } catch (error) {
+      console.warn('Failed to invalidate proofreader cache after storing builder content:', error);
     }
   }
 

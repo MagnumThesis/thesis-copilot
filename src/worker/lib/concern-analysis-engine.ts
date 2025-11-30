@@ -3,7 +3,10 @@
  * AI-powered content analysis engine for identifying proofreading concerns
  */
 
-// AI imports removed as they're not used in this implementation
+// AI imports (used for optional AI-powered analysis)
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { generateObject } from 'ai';
+import { z } from 'zod';
 import { 
   ProofreadingConcern,
   ConcernCategory,
@@ -36,8 +39,20 @@ export interface ConcernAnalysisEngine {
  * Implementation of the concern analysis engine
  */
 class ConcernAnalysisEngineImpl implements ConcernAnalysisEngine {
+  private apiKey?: string;
+  private googleClient?: ReturnType<typeof createGoogleGenerativeAI>;
+
   constructor(_apiKey: string) {
-    // API key stored for future AI integration
+    // Store API key and initialize Google generative client when available
+    this.apiKey = _apiKey;
+    try {
+      if (this.apiKey) {
+        this.googleClient = createGoogleGenerativeAI({ apiKey: this.apiKey });
+      }
+    } catch (err) {
+      console.warn('Failed to initialize Google Generative AI client:', err);
+      this.googleClient = undefined;
+    }
   }
 
   /**
@@ -47,23 +62,87 @@ class ConcernAnalysisEngineImpl implements ConcernAnalysisEngine {
     try {
       // Record performance metric
       proofreaderPerformanceMonitor.startMeasure('content-analysis');
-      
-      // Perform comprehensive content analysis
+
+      // Attempt AI-powered analysis (non-fatal). We'll merge AI and rule-based concerns.
+      let aiConcerns: ProofreadingConcern[] = [];
+      if (this.googleClient) {
+        try {
+          aiConcerns = await this.generateConcernsWithAI(content, conversationId) || [];
+        } catch (aiError) {
+          console.warn('AI-based analysis failed, continuing with rule-based analysis:', aiError);
+          aiConcerns = [];
+        }
+      }
+
+      // Perform comprehensive content analysis (rule-based)
       const analysis = await this.performContentAnalysis(content);
-      
-      // Generate concerns based on analysis
-      const concerns = this.generateConcerns(analysis, conversationId);
-      
-      // Prioritize and deduplicate concerns
-      const finalConcerns = this.prioritizeAndDeduplicateConcerns(concerns);
-      
+      const ruleConcerns = this.generateConcerns(analysis, conversationId);
+
+      // Merge AI and rule-based concerns, giving a union to prioritization/deduplication
+      const combined = [...(aiConcerns || []), ...(ruleConcerns || [])];
+      const finalConcerns = this.prioritizeAndDeduplicateConcerns(combined);
+
       proofreaderPerformanceMonitor.endMeasure('content-analysis');
-      
+
       return finalConcerns;
     } catch (error) {
       console.error('Error in concern analysis:', error);
       return [];
     }
+  }
+
+  /**
+   * Use the Google Generative AI to produce structured concerns.
+   * Returns an array of ProofreadingConcern with an AI marker in the explanation.
+   */
+  private async generateConcernsWithAI(content: string, conversationId: string): Promise<ProofreadingConcern[]> {
+    if (!this.googleClient) throw new Error('AI client not initialized');
+
+    // Define a simple schema for the expected response
+    const ConcernItemSchema = z.object({
+      title: z.string(),
+      description: z.string(),
+      category: z.string(),
+      severity: z.string(),
+      suggestions: z.array(z.string()).optional()
+    });
+
+    const ResponseSchema = z.object({
+      concerns: z.array(ConcernItemSchema)
+    });
+
+    const prompt = `You are an academic writing assistant. Analyze the following document and return a JSON object with a 'concerns' array. Each concern should include: title (short), description (detailed), category (one of structure, clarity, coherence, style, academic_tone, citation, completeness, terminology), severity (low, medium, high, critical), and suggestions (array of short action items). Return ONLY valid JSON that matches the schema. Document:\n\n${content}`;
+
+    const { object } = await generateObject({
+      model: this.googleClient('gemini-2.0-flash'),
+      schema: ResponseSchema,
+      prompt
+    });
+
+    const parsed = object as any;
+    const items = parsed.concerns || [];
+
+    const mapped: ProofreadingConcern[] = items.map((it: any) => ({
+      id: crypto.randomUUID(),
+      text: it.description || it.title,
+      category: (it.category || 'structure') as any,
+      severity: (it.severity || 'medium') as any,
+      status: ConcernStatus.TO_BE_DONE,
+      suggestions: it.suggestions || [],
+      relatedIdeas: [],
+      position: { start: 0, end: 0 },
+      explanation: `(AI-generated) ${it.description || it.title}`,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      title: it.title,
+      description: it.description,
+      location: {},
+      conversationId
+    }));
+
+    return mapped;
   }
 
   /**
@@ -131,8 +210,35 @@ class ConcernAnalysisEngineImpl implements ConcernAnalysisEngine {
       /^\s*this\s+(paper|document|thesis|proposal)/im,
       /^\s*the\s+purpose\s+of\s+this/im
     ];
-    
-    return introIndicators.some(pattern => pattern.test(content));
+
+    // If any explicit heading or phrase matches, we have an introduction
+    if (introIndicators.some(pattern => pattern.test(content))) {
+      return true;
+    }
+
+    // Otherwise, detect a lead paragraph that functions as an introduction.
+    // Look at the first two paragraphs and check for keywords or sufficient length.
+    const paragraphs = content.split(/\n\s*\n/).map(p => p.trim()).filter(p => p.length > 0);
+    const leadParas = paragraphs.slice(0, 2);
+
+    const introKeywords = [
+      'purpose', 'aim', 'objective', 'objectives', 'motivation', 'research question',
+      'this study', 'this paper', 'this thesis', 'we propose', 'we investigate', 'the focus of this'
+    ];
+
+    for (const p of leadParas) {
+      const pLower = p.toLowerCase();
+
+      // If paragraph is long enough (>= 80 words) and appears at the start, treat as intro
+      const wordCount = p.split(/\s+/).filter(w => w.length > 0).length;
+      if (wordCount >= 80) return true;
+
+      // If paragraph contains multiple intro keywords, treat as intro
+      const found = introKeywords.filter(k => pLower.includes(k));
+      if (found.length >= 1) return true; // one strong keyword is enough
+    }
+
+    return false;
   }
 
   /**
