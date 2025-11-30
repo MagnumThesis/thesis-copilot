@@ -83,11 +83,11 @@ export const ToolsPanel: React.FC<ToolsPanelProps> = ({
             <span className="font-medium">Tools</span>
           </div>
           {/* Display current conversation title if available */}
-          {currentConversation && (
+          {/* {currentConversation && (
             <div className="px-4 py-2 border-b">
               <h3 className="text-sm font-semibold">{currentConversation.title}</h3>
             </div>
-          )}
+          )} */}
 
           {/* Content */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4"> {/* Added space-y-4 for spacing between cards */}

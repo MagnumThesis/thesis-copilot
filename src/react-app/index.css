@@ -409,3 +409,102 @@ html{
     display: block !important;
   }
 }
+
+/* Cursor improvements: ensure interactive elements show appropriate cursors */
+/* Make clickable elements show pointer by default */
+button,
+a,
+[role="button"],
+input[type="button"],
+input[type="submit"],
+.clickable,
+.cursor-pointer {
+  cursor: pointer;
+}
+
+/* Disabled/readonly controls show not-allowed when appropriate */
+[disabled],
+button:disabled,
+.is-disabled,
+.disabled,
+.opacity-50[disabled] {
+  cursor: not-allowed !important;
+}
+
+/* Draggable items use grab/grabbing */
+[draggable="true"] {
+  cursor: grab;
+}
+
+[draggable="true"].dragging,
+[draggable="true"][aria-grabbed="true"] {
+  cursor: grabbing;
+}
+
+/* Text inputs and contenteditable show text cursor */
+input[type="text"],
+input[type="search"],
+textarea,
+[contenteditable="true"] {
+  cursor: text;
+}
+
+/* Explicit default cursor helper */
+.cursor-default {
+  cursor: default;
+}
+
+/* Hover & transition enhancements for interactive elements */
+button,
+a,
+[role="button"],
+.clickable,
+.cursor-pointer,
+.card,
+.Card {
+  transition: background-color 150ms ease, box-shadow 150ms ease, transform 150ms ease, opacity 120ms ease;
+}
+
+/* Subtle elevation and lift for cards and clickable items */
+.card:hover,
+.Card:hover,
+.clickable:hover,
+button:hover,
+a:hover,
+[role="button"]:hover {
+  box-shadow: 0 8px 20px rgba(16,24,40,0.06);
+  transform: translateY(-2px);
+  opacity: 0.98;
+}
+
+/* Make primary focus visible while keeping hover subtle */
+button:focus,
+[role="button"]:focus,
+.card:focus {
+  transform: none;
+}
+
+/* Separator / resizer subtle hover */
+.cursor-col-resize {
+  transition: background-color 120ms ease, width 120ms ease;
+}
+
+.cursor-col-resize:hover {
+  background-color: var(--muted);
+}
+
+/* Respect reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  button,
+  a,
+  [role="button"],
+  .clickable,
+  .card {
+    transition: none !important;
+  }
+
+  .card:hover,
+  .clickable:hover {
+    transform: none !important;
+  }
+}

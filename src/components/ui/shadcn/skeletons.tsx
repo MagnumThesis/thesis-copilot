@@ -129,7 +129,7 @@ export function DetailContentSkeleton() {
   return (
     <div className="flex flex-col h-screen max-h-[calc(100vh-64px)] bg-background">
       {/* Chat Messages Area */}
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
         {/* AI Message Card */}
         <div className="flex justify-start">
           <div className="w-[70%] bg-muted rounded-2xl rounded-tl-sm p-4 space-y-2">
