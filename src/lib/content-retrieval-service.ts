@@ -181,15 +181,34 @@ export class ContentRetrievalService {
    */
   private async fetchBuilderContentFromAPI(conversationId: string): Promise<BuilderContent | null> {
     try {
-      // First check if we have cached content from Builder component
+      // Return valid cache if present
       const cachedContent = this.builderContentCache.get(conversationId);
       if (cachedContent && this.isCacheValid(cachedContent.lastModified)) {
         return cachedContent;
       }
 
-      // Try to get content from localStorage (Builder tool stores content here)
+      // First, try to fetch the authoritative copy from the server API
+      try {
+        const res = await fetch(`/api/builder-content/${encodeURIComponent(conversationId)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.success && data.content != null) {
+            const builderContent: BuilderContent = {
+              content: data.content,
+              lastModified: data.updated_at ? new Date(data.updated_at) : new Date(),
+              conversationId
+            };
+            this.builderContentCache.set(conversationId, builderContent);
+            return builderContent;
+          }
+        }
+      } catch (e) {
+        // Ignore server fetch failure and fall back to local options
+        console.warn('Failed to fetch builder content from server:', e);
+      }
+
+      // Next, try to get content from localStorage (Builder tool stores content here)
       const storedContent = localStorage.getItem(`builder-content-${conversationId}`);
-      
       if (storedContent) {
         try {
           const parsed = JSON.parse(storedContent);
@@ -198,8 +217,6 @@ export class ContentRetrievalService {
             lastModified: new Date(parsed.lastModified || Date.now()),
             conversationId
           };
-          
-          // Cache the retrieved content
           this.builderContentCache.set(conversationId, builderContent);
           return builderContent;
         } catch (parseError) {
@@ -207,7 +224,7 @@ export class ContentRetrievalService {
         }
       }
 
-      // Try to get content from conversation messages as fallback
+      // Finally, try to get content from conversation messages as fallback
       const messageContent = await this.fetchContentFromMessages(conversationId);
       if (messageContent) {
         const builderContent: BuilderContent = {
@@ -215,14 +232,17 @@ export class ContentRetrievalService {
           lastModified: new Date(),
           conversationId
         };
-        
-        // Cache and store the content
         this.builderContentCache.set(conversationId, builderContent);
-        this.storeBuilderContent(conversationId, messageContent);
+        // Store the discovered content so it becomes available later
+        try {
+          // best-effort store (do not await to avoid recursion issues)
+          void this.storeBuilderContent(conversationId, messageContent);
+        } catch (e) {
+          // ignore
+        }
         return builderContent;
       }
 
-      // Return null if no content is available
       return null;
     } catch (error) {
       console.error("Error fetching Builder content:", error);
@@ -249,7 +269,7 @@ export class ContentRetrievalService {
       const messages = data.messages || [];
 
       interface Message {
-        role: string;
+        return savedToDb;
         content: string;
         created_at: string;
       }
@@ -304,14 +324,35 @@ export class ContentRetrievalService {
    * @param conversationId - The conversation ID
    * @param content - The content to store
    */
-  public async storeBuilderContent(conversationId: string, content: string): Promise<void> {
+  public async storeBuilderContent(conversationId: string, content: string): Promise<boolean> {
     const builderContent: BuilderContent = {
       content,
       lastModified: new Date(),
       conversationId
     };
 
-    // Store in cache
+    // If cache is missing or expired, try to load latest server copy first to avoid overwriting newer content
+    const cached = this.builderContentCache.get(conversationId);
+    if (!cached || !this.isCacheValid(cached.lastModified)) {
+      try {
+        const res = await fetch(`/api/builder-content/${encodeURIComponent(conversationId)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.success && data.content != null) {
+            const serverCopy: BuilderContent = {
+              content: data.content,
+              lastModified: data.updated_at ? new Date(data.updated_at) : new Date(),
+              conversationId
+            };
+            this.builderContentCache.set(conversationId, serverCopy);
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to fetch latest Builder content from server before saving:', e);
+      }
+    }
+
+    // Store/update cache with the new content
     this.builderContentCache.set(conversationId, builderContent);
 
     // Store in localStorage as backup
@@ -325,6 +366,7 @@ export class ContentRetrievalService {
     }
 
     // Store in database
+    let savedToDb = false;
     try {
       const response = await fetch('/api/builder-content', {
         method: 'POST',
@@ -339,9 +381,13 @@ export class ContentRetrievalService {
 
       if (!response.ok) {
         console.error('Failed to save Builder content to database:', response.statusText);
+        savedToDb = false;
+      } else {
+        savedToDb = true;
       }
     } catch (error) {
       console.error('Failed to save Builder content to database:', error);
+      savedToDb = false;
     }
 
     // Invalidate proofreader cached analysis for this conversation so re-analyze runs fresh
@@ -350,6 +396,8 @@ export class ContentRetrievalService {
     } catch (error) {
       console.warn('Failed to invalidate proofreader cache after storing builder content:', error);
     }
+
+    return savedToDb;
   }
 
   /**

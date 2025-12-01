@@ -114,6 +114,13 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
     model?: string;
     academicValidation?: any;
   } | undefined>(undefined);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
+  // Debounce refs for saving
+  const saveTimeoutRef = useRef<number | null>(null);
+  const pendingContentRef = useRef<string | null>(null);
+  const isSavingRef = useRef<boolean>(false);
+  const SAVE_DEBOUNCE_MS = 800;
   const [originalTextForModification, setOriginalTextForModification] = useState<string>("");
   const [currentModificationType, setCurrentModificationType] = useState<ModificationType | null>(null);
 
@@ -158,19 +165,87 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
     loadSavedContent();
   }, [currentConversation.id]);
 
-  // Handle content changes from editor
-  const handleContentChange = useCallback(async (content: string) => {
-    
-    setDocumentContent(content);
-    // Store content in retrieval service for other tools to access
+  // Debounced save function - flushes pending content to the server
+  const doSave = useCallback(async (forceContent?: string) => {
+    const contentToSave = typeof forceContent === 'string' ? forceContent : pendingContentRef.current;
+    if (contentToSave == null) return false;
+
+    // mark saving
+    isSavingRef.current = true;
+    setSaveStatus('saving');
+
     try {
-      await contentRetrievalService.storeBuilderContent(currentConversation.id, content);
+      const saved = await contentRetrievalService.storeBuilderContent(currentConversation.id, contentToSave);
       // Invalidate cache to ensure other tools get fresh content
       contentRetrievalService.invalidateCache(currentConversation.id, 'builder');
+
+      if (saved) {
+        // fetch server timestamp for display
+        try {
+          const res = await fetch(`/api/builder-content/${encodeURIComponent(currentConversation.id)}`);
+          if (res.ok) {
+            const data = await res.json();
+            const updatedAt = data.updated_at || data.updatedAt || null;
+            if (updatedAt) setLastSavedAt(new Date(updatedAt).toLocaleString());
+          }
+        } catch (e) {
+          // ignore timestamp fetch errors
+        }
+
+        setSaveStatus('saved');
+        pendingContentRef.current = null;
+        return true;
+      } else {
+        setSaveStatus('error');
+        return false;
+      }
     } catch (error) {
       console.error('Failed to save Builder content:', error);
+      setSaveStatus('error');
+      return false;
+    } finally {
+      isSavingRef.current = false;
     }
   }, [currentConversation.id]);
+
+  // Handle content changes from editor (debounced)
+  const handleContentChange = useCallback((content: string) => {
+    setDocumentContent(content);
+
+    // store pending content and schedule save
+    pendingContentRef.current = content;
+
+    if (saveTimeoutRef.current) {
+      window.clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+    }
+
+    saveTimeoutRef.current = window.setTimeout(() => {
+      // perform save
+      void doSave();
+      saveTimeoutRef.current = null;
+    }, SAVE_DEBOUNCE_MS);
+  }, [doSave]);
+
+  // Flush pending save when sheet is closed or component unmounts
+  useEffect(() => {
+    if (!isOpen) {
+      if (saveTimeoutRef.current) {
+        window.clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = null;
+      }
+      if (pendingContentRef.current) {
+        void doSave(pendingContentRef.current);
+      }
+    }
+    // flush on unmount
+    return () => {
+      if (saveTimeoutRef.current) {
+        window.clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = null;
+      }
+    };
+  }, [isOpen, doSave]);
 
   // Handle selection changes from editor
   const handleSelectionChange = useCallback((selection: TextSelection | null) => {
@@ -409,6 +484,17 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
           <SheetDescription>
             Build and manage your thesis components for "{currentConversation.title}"
           </SheetDescription>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span className="inline-flex items-center gap-2">
+              <span className={`h-2 w-2 rounded-full ${saveStatus === 'saving' ? 'bg-yellow-400' : saveStatus === 'saved' ? 'bg-green-500' : saveStatus === 'error' ? 'bg-red-500' : 'bg-gray-300'}`} aria-hidden></span>
+              <span>
+                {saveStatus === 'saving' && 'Saving...'}
+                {saveStatus === 'saved' && (lastSavedAt ? `Saved to server • ${lastSavedAt}` : 'Saved to server')}
+                {saveStatus === 'error' && 'Save failed'}
+                {saveStatus === 'idle' && 'Saved locally'}
+              </span>
+            </span>
+          </div>
         </SheetHeader>
 
         <div className="flex flex-col h-[calc(100vh-150px)] gap-4">
