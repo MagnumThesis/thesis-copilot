@@ -508,3 +508,27 @@ button:focus,
     transform: none !important;
   }
 }
+
+/* Sonner toast styles - ensure proper z-index and interactivity */
+[data-sonner-toaster] {
+  z-index: 2147483647 !important; /* Maximum z-index value */
+  position: fixed !important;
+}
+
+[data-sonner-toaster] * {
+  pointer-events: auto !important;
+}
+
+[data-sonner-toast] {
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+/* Prevent toast clicks from propagating to overlays */
+[data-sonner-toast],
+[data-sonner-toast] * {
+  isolation: isolate;
+}

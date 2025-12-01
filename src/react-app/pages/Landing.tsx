@@ -119,14 +119,15 @@ function Landing() {
   return !selectedItem ? (
     <></>
   ) : (
-    <SidebarProvider className="h-screen">
+    <>
       <Toaster />
-      <AppSidebar
-        items={items}
-        onNew={handleNewChat}
-        onDelete={onDelete}
-        setSelectedItem={setSelectedItem}
-      />
+      <SidebarProvider className="h-screen">
+        <AppSidebar
+          items={items}
+          onNew={handleNewChat}
+          onDelete={onDelete}
+          setSelectedItem={setSelectedItem}
+        />
       <SidebarInset className="h-screen overflow-hidden">
         <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
           <SidebarTrigger className="-ml-1" />
@@ -158,6 +159,7 @@ function Landing() {
         )}
       </SidebarInset>
     </SidebarProvider>
+    </>
   );
 }
 

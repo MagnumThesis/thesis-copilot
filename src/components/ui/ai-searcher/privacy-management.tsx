@@ -1,7 +1,6 @@
 import React from "react";
 import { ConsentBanner } from "../consent-banner";
 import { PrivacyControls } from "../privacy-controls";
-import { usePrivacyManager } from "../../../hooks/usePrivacyManager";
 
 /**
  * Props for the PrivacyManagement component
@@ -15,6 +14,11 @@ export interface PrivacyManagementProps {
    * Whether privacy controls are currently visible
    */
   showPrivacyControls: boolean;
+  /**
+   * Callback function to reload privacy settings in the parent component
+   * when consent is granted or settings are changed
+   */
+  onConsentChange?: () => void;
 }
 
 /**
@@ -23,18 +27,17 @@ export interface PrivacyManagementProps {
  */
 export const PrivacyManagement: React.FC<PrivacyManagementProps> = ({
   conversationId,
-  showPrivacyControls
+  showPrivacyControls,
+  onConsentChange
 }) => {
-  const privacyManager = usePrivacyManager(conversationId);
-
   return (
     <>
       {/* Consent Banner */}
       <ConsentBanner 
         conversationId={conversationId}
         onConsentChange={(granted) => {
-          if (granted) {
-            privacyManager.loadSettings();
+          if (granted && onConsentChange) {
+            onConsentChange();
           }
         }}
       />
@@ -44,10 +47,12 @@ export const PrivacyManagement: React.FC<PrivacyManagementProps> = ({
         <PrivacyControls
           conversationId={conversationId}
           onSettingsChange={(settings) => {
-            privacyManager.loadSettings();
+            if (onConsentChange) {
+              onConsentChange();
+            }
           }}
           onDataCleared={() => {
-            privacyManager.loadDataSummary();
+            // Data cleared, but no need to reload settings
           }}
           onDataExported={(data) => {
             console.log('Data exported:', data);

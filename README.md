@@ -1,8 +1,12 @@
-# Thesis Copilot: Your AI-Powered Academic Writing Partner
+# MindScribe: Your Partner in Every Chapter
 
-**Thesis Copilot** is an AI-powered academic writing assistant designed to help graduate students, researchers, and academic writers create well-structured thesis proposals and academic content. Our tool streamlines the writing process by integrating powerful AI features directly into a user-friendly markdown editor, allowing you to focus on what matters most—your research.
+**MindScribe** is an AI-powered academic writing assistant designed to help graduate students, researchers, and academic writers create well-structured thesis proposals and academic content. Writing a thesis, research paper, or academic document can be overwhelming. MindScribe is your all-in-one AI assistant, designed to help you:
 
-From generating ideas to ensuring your writing meets academic standards, Thesis Copilot provides the support you need to produce high-quality academic work with confidence.
+- **Generate ideas** and overcome writer's block.
+- **Search for and manage research** effortlessly.
+- **Edit and format your work** with confidence.
+
+Our tool streamlines the writing process by integrating powerful AI features directly into a user-friendly markdown editor, allowing you to focus on what matters most—your research.
 
 ## Table of Contents
 
@@ -21,7 +25,7 @@ From generating ideas to ensuring your writing meets academic standards, Thesis 
 
 ## Getting Started
 
-Welcome to Thesis Copilot! This tool is designed for graduate students, researchers, and academic writers who want to enhance their writing process with AI-powered assistance.
+Welcome to MindScribe! This tool is designed for graduate students, researchers, and academic writers who want to enhance their writing process with AI-powered assistance.
 
 ### Quick Start
 

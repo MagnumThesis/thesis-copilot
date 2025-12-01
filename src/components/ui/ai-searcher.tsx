@@ -223,6 +223,10 @@ export const AISearcher: React.FC<AISearcherProps> = ({
       <PrivacyManagement
         conversationId={conversationId}
         showPrivacyControls={showPrivacyControls}
+        onConsentChange={() => {
+          // Reload privacy settings when consent is granted or settings change
+          privacyManager.loadSettings()
+        }}
       />
       
       <ContentSourceManagement

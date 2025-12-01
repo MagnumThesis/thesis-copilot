@@ -20,7 +20,7 @@ export default function PublicLanding() {
       <nav className="flex justify-between items-center px-6 py-4" style={{ borderBottom: '1px solid var(--border)' }}>
         <div className="text-2xl font-bold">
           <span style={{ color: 'var(--primary)' }}>
-            Thesis Copilot
+            MindScribe
           </span>
         </div>
         <div className="flex gap-4">
@@ -46,10 +46,10 @@ export default function PublicLanding() {
         <div className="grid md:grid-cols-2 gap-12 items-center">
           <div>
             <h1 className="text-5xl md:text-6xl font-bold mb-6 leading-tight">
-              Revolutionize Your <span style={{ color: 'var(--secondary)' }}>Research</span> Process
+              Your Partner in Every <span style={{ color: 'var(--secondary)' }}>Chapter</span>
             </h1>
             <p className="text-xl mb-8" style={{ color: 'var(--muted-foreground)' }}>
-              Thesis Copilot is your intelligent companion for academic research. Find, organize, and cite references effortlessly with AI-powered assistance.
+              Writing a thesis, research paper, or academic document can be overwhelming. <span style={{ color: 'var(--primary)', fontWeight: 600 }}>MindScribe</span> is your all-in-one AI assistant, designed to help you generate ideas and overcome writer's block, search for and manage research effortlessly, and edit and format your work with confidence.
             </p>
             <div className="flex gap-4">
               <Button
@@ -73,11 +73,32 @@ export default function PublicLanding() {
           <div className="hidden md:block">
             <div className="relative">
               <div className="absolute inset-0 rounded-lg blur-3xl opacity-20" style={{ background: 'linear-gradient(90deg,var(--primary),var(--secondary))' }}></div>
-              <div className="relative rounded-lg p-8" style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
-                <div className="space-y-4">
-                  <div className="h-12 rounded animate-pulse" style={{ background: 'var(--muted)' }}></div>
-                  <div className="h-4 rounded animate-pulse w-3/4" style={{ background: 'var(--muted)' }}></div>
-                  <div className="h-4 rounded animate-pulse w-1/2" style={{ background: 'var(--muted)' }}></div>
+              <div className="relative rounded-2xl p-6" style={{ background: 'var(--card)', border: '1px solid var(--border)', boxShadow: '0 4px 24px rgba(0,0,0,0.08)' }}>
+                {/* Chat messages */}
+                <div className="space-y-4 mb-6">
+                  <div className="flex justify-end">
+                    <div className="rounded-2xl rounded-br-md px-4 py-2 max-w-[80%]" style={{ background: 'var(--primary)', color: 'var(--primary-foreground)' }}>
+                      <p className="text-sm">Help me write an introduction for my thesis on climate change</p>
+                    </div>
+                  </div>
+                  <div className="flex justify-start">
+                    <div className="rounded-2xl rounded-bl-md px-4 py-2 max-w-[80%]" style={{ background: 'var(--muted)' }}>
+                      <p className="text-sm" style={{ color: 'var(--foreground)' }}>Here's a compelling introduction that establishes the urgency of climate research...</p>
+                    </div>
+                  </div>
+                </div>
+                {/* Message input */}
+                <div className="flex items-center gap-3 p-3 rounded-xl" style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}>
+                  <input
+                    type="text"
+                    placeholder="Ask MindScribe anything..."
+                    className="flex-1 bg-transparent text-sm outline-none"
+                    style={{ color: 'var(--foreground)' }}
+                    disabled
+                  />
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'var(--primary)' }}>
+                    <ArrowRight className="w-4 h-4" style={{ color: 'var(--primary-foreground)' }} />
+                  </div>
                 </div>
               </div>
             </div>
@@ -89,7 +110,7 @@ export default function PublicLanding() {
       <section className="px-6 py-20" style={{ background: 'rgba(243,244,246,0.6)' }}>
         <div className="max-w-6xl mx-auto">
           <h2 className="text-4xl font-bold text-center mb-16">
-            Why Choose Thesis Copilot?
+            Why Choose <span style={{ color: 'var(--primary)' }}>MindScribe</span>?
           </h2>
           <div className="grid md:grid-cols-3 gap-8">
             {[
@@ -132,7 +153,7 @@ export default function PublicLanding() {
           Ready to Transform Your Research?
         </h2>
         <p className="text-xl mb-8 max-w-2xl mx-auto" style={{ color: 'var(--muted-foreground)' }}>
-          Join thousands of researchers who are already using Thesis Copilot to accelerate their academic work.
+          Join thousands of researchers who are already using <span style={{ color: 'var(--primary)', fontWeight: 600 }}>MindScribe</span> to accelerate their academic work.
         </p>
         <Button
           size="lg"
@@ -146,7 +167,7 @@ export default function PublicLanding() {
 
       {/* Footer */}
       <footer className="px-6 py-8 text-center" style={{ borderTop: '1px solid var(--border)', color: 'var(--muted-foreground)' }}>
-        <p>&copy; 2024 Thesis Copilot. All rights reserved.</p>
+        <p>&copy; 2024 <span style={{ color: 'var(--primary)' }}>MindScribe</span>. All rights reserved.</p>
       </footer>
     </div>
   );
