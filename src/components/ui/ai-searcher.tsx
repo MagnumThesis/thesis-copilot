@@ -14,6 +14,27 @@ import { PrivacyManagement } from "./ai-searcher/privacy-management"
 import { ContentSourceManagement } from "./ai-searcher/content-source-management"
 import { QueryManagement } from "./ai-searcher/query-management"
 import { ResultsManagement } from "./ai-searcher/results-management"
+import { Badge } from "./shadcn/badge"
+
+// Import official SVG files from the logos folder
+// Use Vite URL import to get asset paths (works with Vite / bundlers that support ?url)
+// Resolve SVG asset URLs using import.meta (works with Vite)
+const crossrefLogo = new URL('./logos/crossref.svg', import.meta.url).href
+const arxivLogo = new URL('./logos/arxiv.svg', import.meta.url).href
+const semanticScholarLogo = new URL('./logos/semantic_scholar.svg', import.meta.url).href
+
+// Logo components
+const SemanticScholarLogo = ({ className = 'h-4 w-4', alt = 'Semantic Scholar' }: { className?: string, alt?: string }) => (
+  <img src={semanticScholarLogo} alt={alt} className={className} />
+)
+
+const CrossRefLogo = ({ className = 'h-4 w-4', alt = 'CrossRef' }: { className?: string, alt?: string }) => (
+  <img src={crossrefLogo} alt={alt} className={className} />
+)
+
+const ArxivLogo = ({ className = 'h-4 w-4', alt = 'arXiv' }: { className?: string, alt?: string }) => (
+  <img src={arxivLogo} alt={alt} className={className} />
+)
 
 // Import our extracted hooks
 import { useSearchExecution } from "../../hooks/useSearchExecution"
@@ -267,6 +288,31 @@ export const AISearcher: React.FC<AISearcherProps> = ({
         showQueryRefinement={queryRefinement.showQueryRefinement}
         onToggleQueryRefinement={() => queryRefinement.setShowQueryRefinement(false)}
       />
+
+      {/* Powered by indicator */}
+      <div className="pt-3 border-t mt-4">
+        <div className="flex items-center justify-end gap-2 text-xs text-muted-foreground">
+          <span className="mr-2">Powered by</span>
+          <a href="https://www.semanticscholar.org/" target="_blank" rel="noopener noreferrer" aria-label="Semantic Scholar" className="inline-flex">
+            <Badge variant="outline" className="text-[10px] flex items-center gap-2">
+              <SemanticScholarLogo />
+              <span>Semantic Scholar</span>
+            </Badge>
+          </a>
+          <a href="https://www.crossref.org/" target="_blank" rel="noopener noreferrer" aria-label="CrossRef" className="inline-flex">
+            <Badge variant="outline" className="text-[10px] flex items-center gap-2">
+              <CrossRefLogo />
+              <span>CrossRef</span>
+            </Badge>
+          </a>
+          <a href="https://arxiv.org/" target="_blank" rel="noopener noreferrer" aria-label="arXiv" className="inline-flex">
+            <Badge variant="outline" className="text-[10px] flex items-center gap-2">
+              <ArxivLogo />
+              <span>arXiv</span>
+            </Badge>
+          </a>
+        </div>
+      </div>
     </div>
   )
 }
