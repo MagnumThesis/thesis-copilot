@@ -55,7 +55,7 @@ export const useReferenceManagement = () => {
         });
 
         if (!response.success) {
-          if (response.data?.isDuplicate && response.data?.mergeOptions) {
+          if (response.data?.isDuplicate && (response.data as any)?.mergeOptions) {
             // Handle duplicate reference - for now, show error
             // In a full implementation, this would show a merge dialog
             console.warn('Duplicate reference detected:', response.data.duplicateReference);

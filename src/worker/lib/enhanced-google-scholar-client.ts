@@ -166,14 +166,14 @@ export class EnhancedGoogleScholarClient {
             context
           );
           
-          if (fallbackResult.results.length > 0) {
+          if (fallbackResult.results && fallbackResult.results.length > 0) {
             return {
               ...fallbackResult,
               success: true,
               fallbackUsed: true,
               processingTime: Date.now() - startTime,
               retryCount
-            };
+            } as any;
           }
         } catch (fallbackError) {
           console.warn('Fallback search failed:', fallbackError);
@@ -410,9 +410,9 @@ export class EnhancedGoogleScholarClient {
       throw new Error(`Semantic Scholar API error: ${response.status}`);
     }
 
-    const data = await response.json();
+    const data = (await response.json()) as any;
     
-    if (!data.data || !Array.isArray(data.data)) {
+    if (!data?.data || !Array.isArray(data.data)) {
       return [];
     }
 
@@ -454,9 +454,9 @@ export class EnhancedGoogleScholarClient {
       throw new Error(`CrossRef API error: ${response.status}`);
     }
 
-    const data = await response.json();
+    const data = (await response.json()) as any;
     
-    if (!data.message?.items || !Array.isArray(data.message.items)) {
+    if (!data?.message?.items || !Array.isArray(data.message.items)) {
       return [];
     }
 

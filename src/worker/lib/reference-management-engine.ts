@@ -31,9 +31,11 @@ import {
 export class ReferenceManagementEngine {
   private dbOps: ReferenceDatabaseOperations;
   private metadataEngine: MetadataExtractionEngine;
+  private env?: any;
 
-  constructor() {
-    this.dbOps = new ReferenceDatabaseOperations();
+  constructor(env?: any) {
+    this.env = env;
+    this.dbOps = new ReferenceDatabaseOperations(env);
     this.metadataEngine = new MetadataExtractionEngine();
   }
 

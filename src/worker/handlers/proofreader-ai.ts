@@ -267,9 +267,13 @@ export async function getConcernsHandler(
     }
     
     // Get query parameters for filtering
-    const status = c.req.query('status') as ConcernStatus | undefined;
-    const category = c.req.query('category') as ConcernCategory | undefined;
-    const severity = c.req.query('severity') as ConcernSeverity | undefined;
+    const statusParam = c.req.query('status') as string | undefined;
+    const categoryParam = c.req.query('category') as string | undefined;
+    const severityParam = c.req.query('severity') as string | undefined;
+    
+    const status = statusParam as ConcernStatus | undefined;
+    const category = categoryParam as ConcernCategory | undefined;
+    const severity = severityParam as ConcernSeverity | undefined;
     
     const supabase = getSupabase(c.env);
     
@@ -281,11 +285,11 @@ export async function getConcernsHandler(
       .order('created_at', { ascending: false });
     
     if (status) {
-      query = query.eq('status', status);
+      query = query.eq('status', (status as any));
     }
     
     if (category) {
-      query = query.eq('category', category);
+      query = query.eq('category', (category as any));
     }
     
     if (severity) {
@@ -307,18 +311,17 @@ export async function getConcernsHandler(
       severity: concern.severity as ConcernSeverity,
       title: concern.title,
       description: concern.description,
-      location: concern.location,
+      location: concern.location ? (typeof concern.location === 'string' ? JSON.parse(concern.location) : concern.location) : undefined,
       suggestions: concern.suggestions || [],
       relatedIdeas: concern.related_ideas || [],
       status: concern.status as ConcernStatus,
-      createdAt: concern.created_at,
-      updatedAt: concern.updated_at,
-      text: concern.text || '',
-      position: concern.position || { start: 0, end: 0 },
-      explanation: concern.explanation || '',
-      aiGenerated: concern.ai_generated === true || concern.aiGenerated === true || (typeof concern.explanation === 'string' && concern.explanation.startsWith('(AI-generated)')),
-      created_at: concern.created_at,
-      updated_at: concern.updated_at
+      createdAt: concern.created_at || undefined,
+      updatedAt: concern.updated_at || undefined,
+      text: '', // Database doesn't provide this
+      position: { start: 0, end: 0 }, // Database doesn't provide this
+      explanation: '', // Database doesn't provide this
+      created_at: concern.created_at || '',
+      updated_at: concern.updated_at || ''
     }));
     
     return c.json({
@@ -364,7 +367,7 @@ export async function updateConcernStatusHandler(
     const { data, error } = await supabase
       .from('proofreading_concerns')
       .update({
-        status,
+        status: (status as any),
         updated_at: new Date().toISOString()
       })
       .eq('id', concernId)
@@ -388,18 +391,17 @@ export async function updateConcernStatusHandler(
       severity: data.severity as ConcernSeverity,
       title: data.title,
       description: data.description,
-      location: data.location,
+      location: data.location ? (typeof data.location === 'string' ? JSON.parse(data.location) : data.location) : undefined,
       suggestions: data.suggestions || [],
       relatedIdeas: data.related_ideas || [],
       status: data.status as ConcernStatus,
-      createdAt: data.created_at,
-      updatedAt: data.updated_at,
-      text: data.text || '',
-      position: data.position || { start: 0, end: 0 },
-      explanation: data.explanation || '',
-      aiGenerated: data.ai_generated === true || data.aiGenerated === true || (typeof data.explanation === 'string' && data.explanation.startsWith('(AI-generated)')),
-      created_at: data.created_at,
-      updated_at: data.updated_at
+      createdAt: data.created_at || undefined,
+      updatedAt: data.updated_at || undefined,
+      text: '', // Database doesn't provide this
+      position: { start: 0, end: 0 }, // Database doesn't provide this
+      explanation: '', // Database doesn't provide this
+      created_at: data.created_at || '',
+      updated_at: data.updated_at || ''
     };
     
     return c.json({

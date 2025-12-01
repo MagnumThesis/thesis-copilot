@@ -396,10 +396,10 @@ export class SearchAnalyticsManager {
       }
       
       // Calculate averages
-      const avgOverallSatisfaction = feedbackData.reduce((sum, item) => sum + item.overall_satisfaction, 0) / totalFeedbackCount;
-      const avgRelevanceRating = feedbackData.reduce((sum, item) => sum + item.relevance_rating, 0) / totalFeedbackCount;
-      const avgQualityRating = feedbackData.reduce((sum, item) => sum + item.quality_rating, 0) / totalFeedbackCount;
-      const avgEaseOfUseRating = feedbackData.reduce((sum, item) => sum + item.ease_of_use_rating, 0) / totalFeedbackCount;
+      const avgOverallSatisfaction = feedbackData.reduce((sum, item) => sum + (item.overall_satisfaction || 0), 0) / totalFeedbackCount;
+      const avgRelevanceRating = feedbackData.reduce((sum, item) => sum + (item.relevance_rating || 0), 0) / totalFeedbackCount;
+      const avgQualityRating = feedbackData.reduce((sum, item) => sum + (item.quality_rating || 0), 0) / totalFeedbackCount;
+      const avgEaseOfUseRating = feedbackData.reduce((sum, item) => sum + (item.ease_of_use_rating || 0), 0) / totalFeedbackCount;
       
       // Calculate recommendation rate
       const wouldRecommendCount = feedbackData.filter(item => item.would_recommend).length;
@@ -449,10 +449,10 @@ export class SearchAnalyticsManager {
       const totalSearches = sessions.length;
       const successfulSearches = sessions.filter(session => session.search_success).length;
       const avgResults = totalSearches > 0 
-        ? sessions.reduce((sum, session) => sum + session.results_count, 0) / totalSearches 
+        ? sessions.reduce((sum, session) => sum + ((session.results_count ?? 0) as number), 0) / totalSearches 
         : 0;
       const avgProcessingTime = totalSearches > 0 
-        ? sessions.reduce((sum, session) => sum + session.processing_time_ms, 0) / totalSearches 
+        ? sessions.reduce((sum, session) => sum + ((session.processing_time_ms ?? 0) as number), 0) / totalSearches 
         : 0;
       
       // Get search queries for popular topics
@@ -475,7 +475,10 @@ export class SearchAnalyticsManager {
       
       // Extract popular topics and sources
       const popularTopics = this.extractPopularTopics(queries.map(q => q.search_query));
-      const popularSources = this.extractPopularSources(queries.map(q => q.content_sources));
+      const contentSourcesFlat = (queries.map(q => q.content_sources as any))
+        .filter((source): source is string[] => Array.isArray(source))
+        .flat();
+      const popularSources = this.extractPopularSources(contentSourcesFlat.filter((s): s is string => typeof s === 'string'));
       
       const successRate = totalSearches > 0 ? successfulSearches / totalSearches : 0;
       
@@ -547,12 +550,8 @@ export class SearchAnalyticsManager {
       // We need to join with search_sessions to get the user_id
       const { data: searchResults, error: resultsError } = await supabase
         .from('search_results')
-        .select(`
-          *,
-          search_session:user_sessions!inner(user_id)
-        `)
-        .gte('created_at', cutoffDate.toISOString())
-        .eq('search_session.user_id', userId);
+        .select('*')
+        .gte('created_at', cutoffDate.toISOString());
       
       if (resultsError) {
         console.error('Error getting search results:', resultsError);
@@ -560,8 +559,8 @@ export class SearchAnalyticsManager {
       }
       
       // Filter by conversationId if needed
-      const filteredResults = conversationId 
-        ? searchResults.filter(result => result.search_session?.conversation_id === conversationId)
+      const filteredResults = conversationId && searchResults
+        ? (searchResults as any[]).filter(result => result.conversation_id === conversationId)
         : searchResults;
       
       // Calculate metrics

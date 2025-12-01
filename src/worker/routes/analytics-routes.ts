@@ -285,7 +285,7 @@ export async function handleTrackResultActionRoute(ctx: Context): Promise<Analyt
   
   const req: AnalyticsServiceRequest = {
     conversationId: body.conversationId,
-    data: body,
+    eventData: body,
     metadata: { operation: 'track-result-action' }
   };
   
@@ -307,7 +307,7 @@ export async function handleRecordFeedbackRoute(ctx: Context): Promise<Analytics
   
   const req: AnalyticsServiceRequest = {
     conversationId: body.conversationId,
-    data: body,
+    eventData: body,
     metadata: { operation: 'record-feedback' }
   };
   

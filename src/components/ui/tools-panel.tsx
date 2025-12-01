@@ -1,15 +1,17 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, lazy, Suspense } from "react"
 import { motion } from "framer-motion"
 import { ChevronLeft, ChevronRight, Wrench } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/shadcn/button"
 import { ToolCard } from "./tool-card"
-import { Idealist } from "./idealist" // Import the new Idealist component
-import { Builder } from "./builder" // Import the new Builder component
-import { Proofreader } from "./proofreader" // Import the new Proofreader component
-import { Referencer } from "./referencer" // Import the new Referencer component
+
+// Dynamically import heavy components to reduce initial bundle size
+const Idealist = lazy(() => import("./idealist").then(m => ({ default: m.Idealist })))
+const Builder = lazy(() => import("./builder").then(m => ({ default: m.Builder })))
+const Proofreader = lazy(() => import("./proofreader").then(m => ({ default: m.Proofreader })))
+const Referencer = lazy(() => import("./referencer").then(m => ({ default: m.Referencer })))
 
 interface ToolsPanelProps {
   className?: string
@@ -116,13 +118,21 @@ export const ToolsPanel: React.FC<ToolsPanelProps> = ({
       </motion.div>
 
       {/* Idealist Sheet */}
-      <Idealist isOpen={isIdealistSheetOpen} onClose={() => setIsIdealistSheetOpen(false)} currentConversation={currentConversation} />
+      <Suspense fallback={null}>
+        <Idealist isOpen={isIdealistSheetOpen} onClose={() => setIsIdealistSheetOpen(false)} currentConversation={currentConversation} />
+      </Suspense>
       {/* Builder Sheet */}
-      <Builder isOpen={isBuilderSheetOpen} onClose={() => setIsBuilderSheetOpen(false)} currentConversation={currentConversation} />
+      <Suspense fallback={null}>
+        <Builder isOpen={isBuilderSheetOpen} onClose={() => setIsBuilderSheetOpen(false)} currentConversation={currentConversation} />
+      </Suspense>
       {/* Proofreader Sheet */}
-      <Proofreader isOpen={isProofreaderSheetOpen} onClose={() => setIsProofreaderSheetOpen(false)} currentConversation={currentConversation} />
+      <Suspense fallback={null}>
+        <Proofreader isOpen={isProofreaderSheetOpen} onClose={() => setIsProofreaderSheetOpen(false)} currentConversation={currentConversation} />
+      </Suspense>
       {/* Referencer Sheet */}
-      <Referencer isOpen={isReferencerSheetOpen} onClose={() => setIsReferencerSheetOpen(false)} currentConversation={currentConversation} />
+      <Suspense fallback={null}>
+        <Referencer isOpen={isReferencerSheetOpen} onClose={() => setIsReferencerSheetOpen(false)} currentConversation={currentConversation} />
+      </Suspense>
     </div>
   )
 }

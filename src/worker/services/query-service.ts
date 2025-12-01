@@ -1,7 +1,8 @@
 // src/worker/services/query-service.ts
 // Service for query generation and refinement operations (modular refactor)
 
-import { QueryGenerationEngine, ExtractedContent } from '../lib/query-generation-engine';
+import { QueryGenerationEngine } from '../lib/query-generation-engine';
+import { ExtractedContent } from '../../lib/ai-types';
 import { getSupabase } from '../lib/supabase';
 
 export interface QueryServiceRequest {
@@ -292,18 +293,18 @@ export class QueryService {
       const extractedContent = {
         source: content.source,
         title: content.title || 'Untitled',
-        content: content.text || '',
+        content: content.content || '',
         keywords: content.keywords || [],
-        keyPhrases: [],
-        topics: [],
-        confidence: 0.85
+        keyPhrases: content.keyPhrases || [],
+        topics: content.topics || [],
+        confidence: content.confidence || 0.85
       };
       
       return {
         extractedContent,
         preview: {
           title: content.title || 'Untitled',
-          text: (content.text || '').substring(0, 200) + (content.text?.length > 200 ? '...' : ''),
+          text: (content.content || '').substring(0, 200) + ((content.content?.length || 0) > 200 ? '...' : ''),
           keywords: content.keywords || [],
           source: content.source
         },
@@ -376,10 +377,11 @@ export class QueryService {
       const supabase = getSupabase(env);
       
       if (source === 'ideas') {
+        const numId = parseInt(id as string, 10);
         const { data, error } = await supabase
           .from('ideas')
           .select('*')
-          .eq('id', id)
+          .eq('id', numId)
           .single();
         
         if (error || !data) return null;
@@ -392,15 +394,13 @@ export class QueryService {
           source: 'ideas',
           id: data.id,
           title,
-          text,
+          content: text,
           keywords,
-          metadata: {
-            createdAt: data.created_at
-          }
+          confidence: 0.9
         };
       }
       
-      if (source === 'messages') {
+      if (source === 'builder') {
         const { data, error } = await supabase
           .from('messages')
           .select('*')
@@ -416,15 +416,12 @@ export class QueryService {
         const keywords = this.extractKeywordsFromText(content);
         
         return {
-          source: 'messages',
+          source: 'builder',
           id: data.message_id,
           title: `Message`,
-          text: content,
+          content: content,
           keywords,
-          metadata: {
-            createdAt: data.created_at,
-            role: data.role
-          }
+          confidence: 0.85
         };
       }
       

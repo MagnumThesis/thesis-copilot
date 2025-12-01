@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useRef } from "react"
+import React, { useState, useEffect, useRef, lazy, Suspense } from "react"
 import { toast } from "sonner"
 import { ScrollArea } from "@/components/ui/shadcn/scroll-area"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/shadcn/sheet"
@@ -8,8 +8,8 @@ import { Button } from "@/components/ui/shadcn/button"
 import { Skeleton } from "@/components/ui/shadcn/skeleton"
 import { Badge } from "@/components/ui/shadcn/badge"
 import { AlertCircle, Wifi, WifiOff, RefreshCw } from "lucide-react"
-import { ConcernList } from "./concern-list"
-import { AnalysisProgress } from "./analysis-progress"
+const ConcernList = lazy(() => import("./concern-list").then(m => ({ default: m.ConcernList })))
+const AnalysisProgress = lazy(() => import("./analysis-progress").then(m => ({ default: m.AnalysisProgress })))
 import { ProofreadingConcern, ConcernStatus, ProofreaderAnalysisRequest, ProofreaderAnalysisResponse } from "@/lib/ai-types"
 import { contentRetrievalService } from "@/lib/content-retrieval-service"
 import { proofreaderErrorHandler, ErrorType } from "@/lib/proofreader-error-handling"
@@ -770,32 +770,34 @@ export const Proofreader: React.FC<ProofreaderProps> = ({
           ) : (
             <div className="py-4 space-y-4">
               {/* Analysis Progress */}
-              <AnalysisProgress
-                isAnalyzing={state.isAnalyzing}
-                progress={state.analysisProgress}
-                statusMessage={state.analysisStatusMessage}
-                onCancel={handleCancelAnalysis}
-                error={state.error}
-                success={state.analysisProgress === 100 && !state.isAnalyzing}
-                onRetry={handleAnalyze}
-                onDismissError={() => setState(prev => ({ ...prev, error: null }))}
-                isOnline={state.recoveryState.isOnline}
-                fallbackUsed={state.recoveryState.recoveryMode === RecoveryMode.DEGRADED || state.recoveryState.recoveryMode === RecoveryMode.OFFLINE}
-                cacheUsed={state.recoveryState.cacheUsed}
-                errorType={state.errorHistory.length > 0 ? state.errorHistory[0].type : undefined}
-                recoveryOptions={[
-                  ...(state.error && !state.recoveryState.isOnline ? [{
-                    label: 'Try Offline Analysis',
-                    action: handleAnalyze,
-                    variant: 'secondary' as const
-                  }] : []),
-                  ...(state.errorHistory.length > 0 ? [{
-                    label: 'Clear Error History',
-                    action: () => setState(prev => ({ ...prev, errorHistory: [] })),
-                    variant: 'outline' as const
-                  }] : [])
-                ]}
-              />
+              <Suspense fallback={<Skeleton className="h-12 w-full" />}>
+                <AnalysisProgress
+                  isAnalyzing={state.isAnalyzing}
+                  progress={state.analysisProgress}
+                  statusMessage={state.analysisStatusMessage}
+                  onCancel={handleCancelAnalysis}
+                  error={state.error}
+                  success={state.analysisProgress === 100 && !state.isAnalyzing}
+                  onRetry={handleAnalyze}
+                  onDismissError={() => setState(prev => ({ ...prev, error: null }))}
+                  isOnline={state.recoveryState.isOnline}
+                  fallbackUsed={state.recoveryState.recoveryMode === RecoveryMode.DEGRADED || state.recoveryState.recoveryMode === RecoveryMode.OFFLINE}
+                  cacheUsed={state.recoveryState.cacheUsed}
+                  errorType={state.errorHistory.length > 0 ? state.errorHistory[0].type : undefined}
+                  recoveryOptions={[
+                    ...(state.error && !state.recoveryState.isOnline ? [{
+                      label: 'Try Offline Analysis',
+                      action: handleAnalyze,
+                      variant: 'secondary' as const
+                    }] : []),
+                    ...(state.errorHistory.length > 0 ? [{
+                      label: 'Clear Error History',
+                      action: () => setState(prev => ({ ...prev, errorHistory: [] })),
+                      variant: 'outline' as const
+                    }] : [])
+                  ]}
+                />
+              </Suspense>
 
               {/* Integration Status */}
               {state.integrationStatus && (
@@ -842,12 +844,14 @@ export const Proofreader: React.FC<ProofreaderProps> = ({
               )}
 
               {/* Concerns List */}
-              <ConcernList
-                concerns={state.concerns}
-                onStatusChange={handleStatusChange}
-                statusFilter={state.statusFilter}
-                onFilterChange={handleFilterChange}
-              />
+              <Suspense fallback={<Skeleton className="h-48 w-full" />}>
+                <ConcernList
+                  concerns={state.concerns}
+                  onStatusChange={handleStatusChange}
+                  statusFilter={state.statusFilter}
+                  onFilterChange={handleFilterChange}
+                />
+              </Suspense>
             </div>
           )}
         </ScrollArea>

@@ -78,14 +78,17 @@ function convertContext(honoContext: Context<AISearcherContext>): any {
 app.post("/search", async (c) => {
   try {
     const body = await c.req.json();
+    console.log('Search API received:', { query: body.query, conversationId: body.conversationId });
     const ctx = {
       request: { body },
       env: c.env
     };
     const response = await handleSearchRoute(ctx);
+    console.log('Search API response:', { resultsCount: response.results?.length });
     return c.json(response);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Search API error:', errorMessage, error);
     return c.json({ success: false, error: errorMessage }, 500);
   }
 });
@@ -101,6 +104,7 @@ app.post("/extract", async (c) => {
     return c.json(response);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Extract error:', error);
     return c.json({ success: false, error: errorMessage }, 500);
   }
 });
@@ -117,6 +121,7 @@ app.post("/generate-query", async (c) => {
     return c.json(response);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Generate query error:', error);
     return c.json({ success: false, error: errorMessage }, 500);
   }
 });
@@ -132,6 +137,7 @@ app.post("/extract-content", async (c) => {
     return c.json(response);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Extract content error:', error);
     return c.json({ success: false, error: errorMessage }, 500);
   }
 });

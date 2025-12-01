@@ -28,7 +28,6 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(), 
       cloudflare({
-        persist: { path: ".wrangler/state" },
         configPath: 'wrangler.json',
       }), 
       tailwindcss(), 

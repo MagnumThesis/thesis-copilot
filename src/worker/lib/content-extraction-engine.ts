@@ -35,8 +35,8 @@ export class ContentExtractionEngine {
     const startTime = Date.now();
     const { source, id, conversationId } = request;
 
-    // Check cache first
-    const cached = aiSearcherPerformanceOptimizer.getCachedContentExtraction(conversationId, source, id);
+    // Check cache first (only if id is provided)
+    const cached = id ? aiSearcherPerformanceOptimizer.getCachedContentExtraction(conversationId, source, id) : undefined;
     if (cached) {
       console.log(`Using cached content extraction for ${source}:${id}`);
       return cached;
@@ -110,8 +110,10 @@ export class ContentExtractionEngine {
 
       console.log(`Content extraction completed for ${source}:${id} in ${Date.now() - startTime}ms`);
 
-      // Cache the result
-      aiSearcherPerformanceOptimizer.cacheContentExtraction(conversationId, source, id, extractedContent);
+      // Cache the result (only if id is provided)
+      if (id) {
+        aiSearcherPerformanceOptimizer.cacheContentExtraction(conversationId, source, id, extractedContent);
+      }
 
       return extractedContent;
 

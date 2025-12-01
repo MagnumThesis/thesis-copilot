@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, lazy, Suspense } from "react"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "./shadcn/sheet"
 import { ScrollArea } from "./shadcn/scroll-area"
 import { Badge } from "./shadcn/badge"
@@ -8,15 +8,17 @@ import { Button } from "./shadcn/button"
 import { Input } from "./shadcn/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./shadcn/select"
 import { Separator } from "./shadcn/separator"
+import { Skeleton } from "./shadcn/skeleton"
 import { CitationStyle, Reference, ReferenceType } from "../../lib/ai-types"
-import { BibliographyControls } from "./bibliography-controls"
-import { ExportOptionsComponent, ExportOptions } from "./export-options"
-import { ReferenceList } from "./reference-list"
-import { ReferenceForm } from "./reference-form"
-import { CitationFormatter } from "./citation-formatter"
-import { BibliographyGenerator } from "./bibliography-generator"
+import { ExportOptions } from "./export-options"
+const BibliographyControls = lazy(() => import("./bibliography-controls").then(m => ({ default: m.BibliographyControls })))
+const ExportOptionsComponent = lazy(() => import("./export-options").then(m => ({ default: m.ExportOptionsComponent })))
+const ReferenceList = lazy(() => import("./reference-list").then(m => ({ default: m.ReferenceList })))
+const ReferenceForm = lazy(() => import("./reference-form").then(m => ({ default: m.ReferenceForm })))
+const CitationFormatter = lazy(() => import("./citation-formatter").then(m => ({ default: m.CitationFormatter })))
+const BibliographyGenerator = lazy(() => import("./bibliography-generator").then(m => ({ default: m.BibliographyGenerator })))
 import { BookOpen, FileText, Quote, Settings, Search, Plus, Filter, Sparkles } from "lucide-react"
-import { AISearcher } from "./ai-searcher"
+const AISearcher = lazy(() => import("./ai-searcher").then(m => ({ default: m.AISearcher })))
 import { CitationStyleEngine } from "../../worker/lib/citation-style-engine"
 
 /**
@@ -425,23 +427,27 @@ ER  -`
           <div className="space-y-4">
             {state.showForm ? (
               <div className="border rounded-lg p-4">
-                <ReferenceForm
-                  conversationId={currentConversation.id}
-                  referenceId={state.editingReference || undefined}
-                  onClose={handleFormClose}
-                  citationStyle={state.selectedStyle}
-                  prefilledData={prefilledReferenceData || undefined}
-                />
+                <Suspense fallback={<Skeleton className="h-64 w-full" />}>
+                  <ReferenceForm
+                    conversationId={currentConversation.id}
+                    referenceId={state.editingReference || undefined}
+                    onClose={handleFormClose}
+                    citationStyle={state.selectedStyle}
+                    prefilledData={prefilledReferenceData || undefined}
+                  />
+                </Suspense>
               </div>
             ) : (
-              <ReferenceList
-                key={refreshKey}
-                conversationId={currentConversation.id}
-                searchQuery={state.searchQuery}
-                filterType={state.filterType}
-                onEdit={handleEditReference}
-                citationStyle={state.selectedStyle}
-              />
+              <Suspense fallback={<Skeleton className="h-48 w-full" />}>
+                <ReferenceList
+                  key={refreshKey}
+                  conversationId={currentConversation.id}
+                  searchQuery={state.searchQuery}
+                  filterType={state.filterType}
+                  onEdit={handleEditReference}
+                  citationStyle={state.selectedStyle}
+                />
+              </Suspense>
             )}
           </div>
         )
@@ -449,13 +455,15 @@ ER  -`
       case 'citations':
         return (
           <div className="space-y-4">
-            <CitationFormatter
-              references={references}
-              onFormattedCitations={(citations) => {
-                console.log('Formatted citations:', citations)
-                // Could add functionality to insert into document here
-              }}
-            />
+            <Suspense fallback={<Skeleton className="h-32 w-full" />}>
+              <CitationFormatter
+                references={references}
+                onFormattedCitations={(citations) => {
+                  console.log('Formatted citations:', citations)
+                  // Could add functionality to insert into document here
+                }}
+              />
+            </Suspense>
           </div>
         )
 
@@ -471,16 +479,20 @@ ER  -`
                 Generate and export bibliographies in different formats
               </p>
               <div className="space-y-6">
-                <BibliographyControls 
-                  citationStyle={state.selectedStyle}
-                  onStyleChange={handleStyleChange}
-                  onExport={handleQuickExport}
-                />
+                <Suspense fallback={<Skeleton className="h-16 w-full" />}>
+                  <BibliographyControls 
+                    citationStyle={state.selectedStyle}
+                    onStyleChange={handleStyleChange}
+                    onExport={handleQuickExport}
+                  />
+                </Suspense>
                 <Separator />
-                <ExportOptionsComponent 
-                  citationStyle={state.selectedStyle}
-                  onExport={handleDetailedExport}
-                />
+                <Suspense fallback={<Skeleton className="h-20 w-full" />}>
+                  <ExportOptionsComponent 
+                    citationStyle={state.selectedStyle}
+                    onExport={handleDetailedExport}
+                  />
+                </Suspense>
               </div>
             </div>
           </div>
@@ -489,10 +501,12 @@ ER  -`
       case 'ai-searcher':
         return (
           <div className="space-y-4">
-            <AISearcher
-              conversationId={currentConversation.id}
-              onAddReference={handleAddReferenceFromAI}
-            />
+            <Suspense fallback={<Skeleton className="h-80 w-full" />}>
+              <AISearcher
+                conversationId={currentConversation.id}
+                onAddReference={handleAddReferenceFromAI}
+              />
+            </Suspense>
           </div>
         )
 

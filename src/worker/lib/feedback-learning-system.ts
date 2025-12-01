@@ -231,19 +231,19 @@ export class FeedbackLearningSystem {
 
       return {
         userId: data.user_id,
-        preferredAuthors: data.preferred_authors || [],
-        preferredJournals: data.preferred_journals || [],
-        preferredYearRange: data.preferred_year_range || { min: 2010, max: new Date().getFullYear() },
-        preferredCitationRange: data.preferred_citation_range || { min: 0, max: 10000 },
-        topicPreferences: data.topic_preferences || {},
-        qualityThreshold: data.quality_threshold || 0.5,
-        relevanceThreshold: data.relevance_threshold || 0.5,
-        rejectionPatterns: data.rejection_patterns || {
+        preferredAuthors: (typeof data.preferred_authors === 'object' && Array.isArray(data.preferred_authors) ? data.preferred_authors : []) as string[],
+        preferredJournals: (typeof data.preferred_journals === 'object' && Array.isArray(data.preferred_journals) ? data.preferred_journals : []) as string[],
+        preferredYearRange: (typeof data.preferred_year_range === 'object' && data.preferred_year_range !== null && typeof (data.preferred_year_range as any).min === 'number' ? data.preferred_year_range : { min: 2010, max: new Date().getFullYear() }) as { min: number; max: number; },
+        preferredCitationRange: (typeof data.preferred_citation_range === 'object' && data.preferred_citation_range !== null && typeof (data.preferred_citation_range as any).min === 'number' ? data.preferred_citation_range : { min: 0, max: 10000 }) as { min: number; max: number; },
+        topicPreferences: (typeof data.topic_preferences === 'object' && data.topic_preferences !== null ? data.topic_preferences : {}) as Record<string, number>,
+        qualityThreshold: typeof data.quality_threshold === 'number' ? data.quality_threshold : 0.5,
+        relevanceThreshold: typeof data.relevance_threshold === 'number' ? data.relevance_threshold : 0.5,
+        rejectionPatterns: (typeof data.rejection_patterns === 'object' && data.rejection_patterns !== null ? data.rejection_patterns : {
           authors: [],
           journals: [],
           keywords: []
-        },
-        lastUpdated: new Date(data.last_updated)
+        }) as { authors: string[]; journals: string[]; keywords: string[]; },
+        lastUpdated: new Date(data.last_updated || new Date().toISOString())
       };
     } catch (error) {
       console.error('Error getting user preference patterns:', error);

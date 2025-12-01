@@ -72,7 +72,8 @@ app.get("/", async (c) => {
 app.get("/:id", async (c) => {
   const id = c.req.param("id");
 
-  const { data, error } = await supabase.from("ideas").select("*").eq("id", id).single(); // Use single() for a single row
+  const numId = parseInt(id, 10);
+  const { data, error } = await supabase.from("ideas").select("*").eq("id", numId).single(); // Use single() for a single row
 
   if (error) {
     console.error(`Error fetching idea with id ${id}:`, error);
@@ -100,10 +101,11 @@ app.patch("/:id", async (c) => {
     return c.json({ error: "No update fields provided" }, 400);
   }
 
+  const numId = parseInt(id, 10);
   const { data, error } = await supabase
     .from("ideas")
     .update(updates)
-    .eq("id", id)
+    .eq("id", numId)
     .select("*");
 
   if (error) {
@@ -122,7 +124,8 @@ app.patch("/:id", async (c) => {
 app.delete("/:id", async (c) => {
   const id = c.req.param("id");
 
-  const { error } = await supabase.from("ideas").delete().eq("id", id);
+  const numId = parseInt(id, 10);
+  const { error } = await supabase.from("ideas").delete().eq("id", numId);
 
   if (error) {
     console.error(`Error deleting idea with id ${id}:`, error);

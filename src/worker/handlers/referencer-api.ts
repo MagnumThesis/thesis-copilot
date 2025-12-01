@@ -87,12 +87,26 @@ function validateRequiredFields(data: Record<string, unknown>, requiredFields: s
  * Handles all reference management operations
  */
 export class ReferencerAPIHandler {
-  private engine: ReferenceManagementEngine;
-  private aiSearchManager: AISearchReferenceManager;
+  private engine: ReferenceManagementEngine | null = null;
+  private aiSearchManager: AISearchReferenceManager | null = null;
+  private env?: any;
 
-  constructor() {
-    this.engine = new ReferenceManagementEngine();
-    this.aiSearchManager = new AISearchReferenceManager();
+  constructor(env?: any) {
+    this.env = env;
+  }
+
+  private getEngine(): ReferenceManagementEngine {
+    if (!this.engine) {
+      this.engine = new ReferenceManagementEngine(this.env);
+    }
+    return this.engine;
+  }
+
+  private getAISearchManager(): AISearchReferenceManager {
+    if (!this.aiSearchManager) {
+      this.aiSearchManager = new AISearchReferenceManager();
+    }
+    return this.aiSearchManager;
   }
 
   /**
@@ -105,6 +119,7 @@ export class ReferencerAPIHandler {
 
     try {
       const body = await c.req.json();
+      const engine = this.getEngine();
       
       // Validate required fields
       const validationError = validateRequiredFields(body, ['conversationId', 'type', 'title']);
@@ -127,7 +142,7 @@ export class ReferencerAPIHandler {
         }, 400);
       }
 
-      const reference = await this.engine.createReference(
+      const reference = await engine.createReference(
         { ...referenceData, conversationId },
         extractMetadata
       );
@@ -161,6 +176,7 @@ export class ReferencerAPIHandler {
   async getReferencesForConversation(c: Context<ReferencerContext>) {
     const startTime = Date.now();
     const requestId = crypto.randomUUID();
+    const engine = this.getEngine();
 
     try {
       const conversationId = c.req.param('conversationId');
@@ -220,7 +236,7 @@ export class ReferencerAPIHandler {
         if (!isNaN(offsetNum) && offsetNum >= 0) searchOptions.offset = offsetNum;
       }
 
-      const result = await this.engine.getReferencesForConversation(conversationId, searchOptions);
+      const result = await this.getEngine().getReferencesForConversation(conversationId, searchOptions);
 
       return c.json({
         ...result,
@@ -274,7 +290,7 @@ export class ReferencerAPIHandler {
         }, 400);
       }
 
-      const reference = await this.engine.updateReference(referenceId, updateData, extractMetadata);
+      const reference = await this.getEngine().updateReference(referenceId, updateData, extractMetadata);
 
       return c.json({
         success: true,
@@ -318,7 +334,7 @@ export class ReferencerAPIHandler {
         }, 400);
       }
 
-      await this.engine.deleteReference(referenceId);
+      await this.getEngine().deleteReference(referenceId);
 
       return c.json({
         success: true,
@@ -381,7 +397,7 @@ export class ReferencerAPIHandler {
         conversationId
       };
 
-      const result = await this.engine.extractMetadata(request);
+      const result = await this.getEngine().extractMetadata(request);
 
       return c.json({
         ...result,
@@ -452,7 +468,7 @@ export class ReferencerAPIHandler {
         context
       };
 
-      const result = await this.engine.formatCitation(request);
+      const result = await this.getEngine().formatCitation(request);
 
       return c.json({
         ...result,
@@ -524,7 +540,7 @@ export class ReferencerAPIHandler {
         includeUrls
       };
 
-      const result = await this.engine.generateBibliography(request);
+      const result = await this.getEngine().generateBibliography(request);
 
       return c.json({
         ...result,
@@ -566,7 +582,7 @@ export class ReferencerAPIHandler {
         }, 400);
       }
 
-      const reference = await this.engine.getReferenceById(referenceId);
+      const reference = await this.getEngine().getReferenceById(referenceId);
 
       if (!reference) {
         return c.json({
@@ -618,7 +634,7 @@ export class ReferencerAPIHandler {
         }, 400);
       }
 
-      const result = await this.aiSearchManager.addReferenceFromSearchResult(
+      const result = await this.getAISearchManager().addReferenceFromSearchResult(
         searchResult,
         conversationId,
         options || {}
@@ -679,7 +695,7 @@ export class ReferencerAPIHandler {
         }, 400);
       }
 
-      const results = await this.aiSearchManager.addMultipleReferencesFromSearchResults(
+      const results = await this.getAISearchManager().addMultipleReferencesFromSearchResults(
         searchResults,
         conversationId,
         options || {}
@@ -738,7 +754,7 @@ export class ReferencerAPIHandler {
       }
 
       // Get the existing reference
-      const existingReference = await this.engine.getReferenceById(existingReferenceId);
+      const existingReference = await this.getEngine().getReferenceById(existingReferenceId);
       if (!existingReference) {
         return c.json({
           success: false,
@@ -769,7 +785,7 @@ export class ReferencerAPIHandler {
         });
       }
 
-      const updatedReference = await this.engine.updateReference(existingReferenceId, updateData);
+      const updatedReference = await this.getEngine().updateReference(existingReferenceId, updateData);
 
       return c.json({
         success: true,
@@ -795,23 +811,27 @@ export class ReferencerAPIHandler {
 }
 
 // Create Hono app instance
+// Create Hono app instance
 const app = new Hono<ReferencerContext>();
 
-// Create handler instance
-const referencerAPIHandler = new ReferencerAPIHandler();
+// Lazy handler initialization - create a new instance per request if needed
+// This ensures env is available when Supabase client is initialized
+function createHandler(env?: any): ReferencerAPIHandler {
+  return new ReferencerAPIHandler(env);
+}
 
 // Routes
-app.post('/references', (c) => referencerAPIHandler.createReference(c));
-app.get('/references/:conversationId', (c) => referencerAPIHandler.getReferencesForConversation(c));
-app.get('/references/:referenceId', (c) => referencerAPIHandler.getReferenceById(c));
-app.put('/references/:referenceId', (c) => referencerAPIHandler.updateReference(c));
-app.delete('/references/:referenceId', (c) => referencerAPIHandler.deleteReference(c));
-app.post('/extract-metadata', (c) => referencerAPIHandler.extractMetadata(c));
-app.post('/format-citation', (c) => referencerAPIHandler.formatCitation(c));
-app.post('/generate-bibliography', (c) => referencerAPIHandler.generateBibliography(c));
-app.post('/add-from-search', (c) => referencerAPIHandler.addReferenceFromSearch(c));
-app.post('/add-multiple-from-search', (c) => referencerAPIHandler.addMultipleReferencesFromSearch(c));
-app.post('/merge-duplicate', (c) => referencerAPIHandler.mergeDuplicateReference(c));
+app.post('/references', (c) => createHandler(c.env as any).createReference(c));
+app.get('/references/:conversationId', (c) => createHandler(c.env as any).getReferencesForConversation(c));
+app.get('/references/:referenceId', (c) => createHandler(c.env as any).getReferenceById(c));
+app.put('/references/:referenceId', (c) => createHandler(c.env as any).updateReference(c));
+app.delete('/references/:referenceId', (c) => createHandler(c.env as any).deleteReference(c));
+app.post('/extract-metadata', (c) => createHandler(c.env as any).extractMetadata(c));
+app.post('/format-citation', (c) => createHandler(c.env as any).formatCitation(c));
+app.post('/generate-bibliography', (c) => createHandler(c.env as any).generateBibliography(c));
+app.post('/add-from-search', (c) => createHandler(c.env as any).addReferenceFromSearch(c));
+app.post('/add-multiple-from-search', (c) => createHandler(c.env as any).addMultipleReferencesFromSearch(c));
+app.post('/merge-duplicate', (c) => createHandler(c.env as any).mergeDuplicateReference(c));
 
 // Export Hono app as default
 export default app;

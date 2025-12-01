@@ -15,10 +15,18 @@ import { ReferenceType } from '../../lib/ai-types';
  * Handles all database operations for references and citation instances
  */
 export class ReferenceDatabaseOperations {
-  private supabase;
+  private supabase: any = null;
+  private env?: any;
 
-  constructor() {
-    this.supabase = getSupabase();
+  constructor(env?: any) {
+    this.env = env;
+  }
+
+  private getSupabaseClient() {
+    if (!this.supabase) {
+      this.supabase = getSupabase(this.env);
+    }
+    return this.supabase;
   }
 
   /**
@@ -42,17 +50,19 @@ export class ReferenceDatabaseOperations {
       edition: data.edition || null,
       chapter: data.chapter || null,
       editor: data.editor || null,
-      access_date: data.accessDate ? new Date(data.accessDate) : null,
+      access_date: data.accessDate ? (typeof data.accessDate === 'string' ? data.accessDate : new Date(data.accessDate).toISOString()) : null,
       notes: data.notes || null,
       tags: data.tags || [],
       metadata_confidence: 1.0 // Default confidence for manual entries
-    };
+    } as any;
 
-    const { data: result, error } = await this.supabase
+    const response: any = await this.getSupabaseClient()
       .from('references')
-      .insert([referenceData])
-      .select('*')
-      .single();
+      .insert([referenceData] as any)
+      .select('*');
+      
+    const result = response.data?.[0];
+    const error = response.error;
 
     if (error) {
       throw new Error(`Failed to create reference: ${error.message}`);
@@ -65,7 +75,7 @@ export class ReferenceDatabaseOperations {
    * Get a reference by ID
    */
   async getReferenceById(id: string): Promise<Reference | null> {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.getSupabaseClient()
       .from('references')
       .select('*')
       .eq('id', id)
@@ -110,7 +120,7 @@ export class ReferenceDatabaseOperations {
     if (data.notes !== undefined) updateData.notes = data.notes || null;
     if (data.tags !== undefined) updateData.tags = data.tags || [];
 
-    const { data: result, error } = await this.supabase
+    const { data: result, error } = await this.getSupabaseClient()
       .from('references')
       .update(updateData)
       .eq('id', id)
@@ -128,7 +138,7 @@ export class ReferenceDatabaseOperations {
    * Delete a reference
    */
   async deleteReference(id: string): Promise<void> {
-    const { error } = await this.supabase
+    const { error } = await this.getSupabaseClient()
       .from('references')
       .delete()
       .eq('id', id);
@@ -146,7 +156,7 @@ export class ReferenceDatabaseOperations {
     options: ReferenceSearchOptions = {}
   ): Promise<ReferenceListResponse> {
     try {
-      let query = this.supabase
+      let query = this.getSupabaseClient()
         .from('references')
         .select('*')
         .eq('conversation_id', conversationId);
@@ -258,7 +268,7 @@ export class ReferenceDatabaseOperations {
    * Search references across all conversations (for reference sharing)
    */
   async searchReferences(options: ReferenceSearchOptions = {}): Promise<ReferenceListResponse> {
-    let query = this.supabase
+    let query = this.getSupabaseClient()
       .from('references')
       .select('*');
 
@@ -321,9 +331,7 @@ export class ReferenceDatabaseOperations {
       };
     }
 
-    const references = data?.map(item => this.mapDatabaseToReference(item)) || [];
-
-    return {
+      const references = data?.map((item: any) => this.mapDatabaseToReference(item)) || [];    return {
       success: true,
       references,
       total: count || references.length
@@ -335,7 +343,7 @@ export class ReferenceDatabaseOperations {
    */
   async getConversationStatistics(conversationId: string): Promise<ReferenceStatistics> {
     try {
-      const { data, error } = await this.supabase
+      const { data, error } = await this.getSupabaseClient()
         .from('references')
         .select('type, publication_date, doi, url, metadata_confidence, created_at, tags')
         .eq('conversation_id', conversationId);
@@ -429,7 +437,7 @@ export class ReferenceDatabaseOperations {
     documentPosition?: number;
     context?: string;
   }): Promise<CitationInstance> {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.getSupabaseClient()
       .from('citation_instances')
       .insert([{
         reference_id: citationData.referenceId,
@@ -453,7 +461,7 @@ export class ReferenceDatabaseOperations {
    * Get citation instances for a conversation
    */
   async getCitationInstancesForConversation(conversationId: string): Promise<CitationInstance[]> {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.getSupabaseClient()
       .from('citation_instances')
       .select('*')
       .eq('conversation_id', conversationId)
@@ -463,14 +471,14 @@ export class ReferenceDatabaseOperations {
       throw new Error(`Failed to get citation instances: ${error.message}`);
     }
 
-    return data?.map(item => this.mapDatabaseToCitationInstance(item)) || [];
+    return data?.map((item: any) => this.mapDatabaseToCitationInstance(item)) || [];
   }
 
   /**
    * Delete citation instances for a reference
    */
   async deleteCitationInstancesForReference(referenceId: string): Promise<void> {
-    const { error } = await this.supabase
+    const { error } = await this.getSupabaseClient()
       .from('citation_instances')
       .delete()
       .eq('reference_id', referenceId);

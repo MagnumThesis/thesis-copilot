@@ -326,6 +326,7 @@ export const ResultsManagement: React.FC<ResultsManagementProps> = ({
               relevance_score: result.relevance_score,
               keywords: []
             }))}
+            totalResults={searchResults.length}
             extractedContent={{
               content: selectedContent.map(c => c.content).join(' ') || searchQuery,
               keywords: selectedContent.flatMap(c => c.keywords || []),
@@ -335,7 +336,7 @@ export const ResultsManagement: React.FC<ResultsManagementProps> = ({
                 0.5
             }}
             onAddReference={onAddReference}
-            onProvideFeedback={onProvideFeedback}
+            onProvideFeedback={async (resultId, feedback) => onProvideFeedback?.(resultId, feedback)}
             loading={loading}
             error={searchError}
           />
@@ -347,7 +348,7 @@ export const ResultsManagement: React.FC<ResultsManagementProps> = ({
                 searchSessionId={currentSessionId}
                 searchQuery={searchQuery}
                 resultsCount={searchResults.length}
-                onSubmitFeedback={() => {}} // This will be handled in the parent component
+                onSubmitFeedback={async () => {}} // This will be handled in the parent component
                 onCancel={onCancelSessionFeedback}
               />
             </div>

@@ -1,6 +1,20 @@
 import { useState, useCallback } from "react";
 import { refineQuery } from "../lib/api/ai-searcher-api";
-import { QueryRefinement, RefinedQuery } from "../../worker/lib/query-generation-engine";
+
+// Types for query refinement - frontend representation
+export interface QueryRefinement {
+  breadthAnalysis?: any;
+  alternativeTerms?: string[];
+  validationResults?: any;
+  optimizationRecommendations?: string[];
+  refinedQueries?: string[];
+}
+
+export interface RefinedQuery {
+  query: string;
+  reasoning?: string;
+}
+
 import { ExtractedContent } from "../lib/ai-types";
 
 /**
@@ -37,70 +51,16 @@ export const useQueryRefinement = () => {
           throw new Error(response.error || 'Query refinement failed');
         }
 
-        setQueryRefinement(response.data!);
+        setQueryRefinement(response.data! as any);
       } catch (error) {
         console.error('Error refining query:', error);
         // For development, create a mock refinement
-        const mockRefinement: QueryRefinement = {
-          breadthAnalysis: {
-            breadthScore: 0.6,
-            classification: 'optimal',
-            reasoning: 'Query has good balance between specificity and breadth',
-            termCount: 3,
-            specificityLevel: 'moderate',
-            suggestions: []
-          },
-          alternativeTerms: {
-            synonyms: [
-              { term: 'research', confidence: 0.9, reasoning: 'Common academic synonym', category: 'synonym' },
-              { term: 'study', confidence: 0.8, reasoning: 'Alternative academic term', category: 'synonym' }
-            ],
-            relatedTerms: [
-              { term: 'methodology', confidence: 0.7, reasoning: 'Related research concept', category: 'related' }
-            ],
-            broaderTerms: [
-              { term: 'science', confidence: 0.6, reasoning: 'Broader field', category: 'broader' }
-            ],
-            narrowerTerms: [
-              { term: 'experimental design', confidence: 0.8, reasoning: 'More specific approach', category: 'narrower' }
-            ],
-            academicVariants: [
-              { term: 'empirical investigation', confidence: 0.9, reasoning: 'Academic terminology', category: 'academic' }
-            ]
-          },
-          validationResults: {
-            isValid: true,
-            issues: [],
-            suggestions: ['Consider adding academic terms for better scholarly relevance'],
-            confidence: 0.85
-          },
-          optimizationRecommendations: [
-            {
-              type: 'add_term',
-              description: 'Add academic context terms',
-              impact: 'medium',
-              priority: 1,
-              beforeQuery: query,
-              afterQuery: `(${query}) AND (research OR study)`,
-              reasoning: 'Academic terms improve scholarly relevance'
-            }
-          ],
-          refinedQueries: [
-            {
-              query: `(${query}) AND (research OR study OR analysis)`,
-              refinementType: 'academic_enhanced',
-              confidence: 0.9,
-              expectedResults: 'similar',
-              description: 'Enhanced with academic terminology',
-              changes: [
-                {
-                  type: 'added',
-                  element: 'academic terms',
-                  reasoning: 'Added academic context for better scholarly results'
-                }
-              ]
-            }
-          ]
+        const mockRefinement: any = {
+          breadthAnalysis: { breadthScore: 0.6 },
+          alternativeTerms: [],
+          validationResults: { isValid: true },
+          optimizationRecommendations: [],
+          refinedQueries: []
         };
         setQueryRefinement(mockRefinement);
       } finally {

@@ -8,13 +8,26 @@ export type SupabaseEnv = {
 };
 
 export function getSupabase(env?: SupabaseEnv) {
-  // Prefer service role key when running in a server environment (worker bindings)
-  const url = env?.SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL;
-  const serviceKey = env?.SUPABASE_SERVICE_ROLE;
-  const anonKey = env?.SUPABASE_ANON || import.meta.env.VITE_SUPABASE_ANON;
+  // Try to get environment variables from various sources
+  const meta = (import.meta as any).env;
+  
+  // Get values with fallbacks
+  const url = env?.SUPABASE_URL || 
+              process.env.SUPABASE_URL || 
+              meta.SUPABASE_URL || 
+              meta.VITE_SUPABASE_URL;
+              
+  const serviceKey = env?.SUPABASE_SERVICE_ROLE || 
+                     process.env.SUPABASE_SERVICE_ROLE || 
+                     meta.SUPABASE_SERVICE_KEY;
+                     
+  const anonKey = env?.SUPABASE_ANON || 
+                  process.env.SUPABASE_ANON || 
+                  meta.VITE_SUPABASE_ANON || 
+                  meta.SUPABASE_ANON;
 
   if (!url) {
-    throw new Error('Missing Supabase URL in env or import.meta.env');
+    throw new Error('Missing Supabase URL in env');
   }
 
   // Use service role if available (server-side). This allows server handlers to bypass
@@ -24,7 +37,7 @@ export function getSupabase(env?: SupabaseEnv) {
   }
 
   if (!anonKey) {
-    throw new Error('Missing Supabase anon key in env or import.meta.env');
+    throw new Error('Missing Supabase anon key in env');
   }
 
   return createClient<Database>(url, anonKey, { auth: { persistSession: false } });

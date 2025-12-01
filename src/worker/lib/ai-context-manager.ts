@@ -100,7 +100,17 @@ export class AIContextManagerImpl implements AIContextManager {
         return [];
       }
 
-      return data || [];
+      return (data || []).map((item: any) => ({
+        id: item.id,
+        title: item.title,
+        description: item.description,
+        content: item.content || '',
+        type: item.type || 'text',
+        tags: Array.isArray(item.tags) ? item.tags : [],
+        confidence: item.confidence || 1,
+        created_at: item.created_at,
+        updated_at: item.updated_at
+      }));
     } catch (error) {
       console.error('Error in getIdeaDefinitions:', error);
       return [];

@@ -269,7 +269,7 @@ export class ContentRetrievalService {
       const messages = data.messages || [];
 
       interface Message {
-        return savedToDb;
+        role: string;
         content: string;
         created_at: string;
       }

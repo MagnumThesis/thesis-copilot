@@ -676,7 +676,7 @@ export class AISearcherMonitoringService {
       case 'warn':
         return event.type === 'error' || event.type === 'warning';
       case 'info':
-        return event.type !== 'debug';
+        return event.type === 'error' || event.type === 'warning' || event.type === 'info';
       case 'debug':
         return true;
       default:

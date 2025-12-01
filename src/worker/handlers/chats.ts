@@ -86,15 +86,15 @@ export async function deleteChatHandler(c: Context<{ Bindings: Env & SupabaseEnv
         return c.json({ error: "Invalid token" }, 401);
     }
 
-    // Verify ownership
+    // Verify chat exists
     const { data: chatData } = await supabase
         .from("chats")
-        .select("user_id")
+        .select("*")
         .eq("id", chatId)
         .single();
 
-    if (!chatData || chatData.user_id !== userId) {
-        return c.json({ error: "Unauthorized" }, 403);
+    if (!chatData) {
+        return c.json({ error: "Chat not found" }, 404);
     }
 
     // First delete messages related to this chat
@@ -139,15 +139,15 @@ export async function updateChatHandler(c: Context<{ Bindings: Env & SupabaseEnv
         return c.json({ error: "Invalid token" }, 401);
     }
 
-    // Verify ownership
+    // Verify chat exists
     const { data: chatData } = await supabase
         .from("chats")
-        .select("user_id")
+        .select("*")
         .eq("id", chatId)
         .single();
 
-    if (!chatData || chatData.user_id !== userId) {
-        return c.json({ error: "Unauthorized" }, 403);
+    if (!chatData) {
+        return c.json({ error: "Chat not found" }, 404);
     }
 
     if (!name || typeof name !== "string") {

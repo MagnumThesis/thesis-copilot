@@ -45,7 +45,7 @@ export class ConcernStatusManagerImpl implements ConcernStatusManager {
       const { error } = await supabase
         .from('proofreading_concerns')
         .update({ 
-          status,
+          status: (status as any),
           updated_at: new Date().toISOString()
         })
         .eq('id', concernId);
@@ -84,7 +84,7 @@ export class ConcernStatusManagerImpl implements ConcernStatusManager {
         if (!this.isValidStatus(status)) {
           throw new Error(`Invalid status filter: ${status}`);
         }
-        query = query.eq('status', status);
+        query = query.eq('status', (status as any));
       }
 
       const { data, error } = await query;
@@ -300,7 +300,7 @@ export class ConcernStatusManagerImpl implements ConcernStatusManager {
           supabase
             .from('proofreading_concerns')
             .update({ 
-              status: update.status,
+              status: (update.status as any),
               updated_at: new Date().toISOString()
             })
             .eq('id', update.concernId)
@@ -371,7 +371,7 @@ export class ConcernStatusManagerImpl implements ConcernStatusManager {
 
       const { error } = await supabase
         .from('proofreading_concerns')
-        .insert(dbConcerns);
+        .insert((dbConcerns as any));
 
       if (error) {
         throw new Error(`Failed to save concerns: ${error.message}`);

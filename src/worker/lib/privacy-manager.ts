@@ -107,15 +107,15 @@ export class PrivacyManager {
 
       return {
         userId: result.user_id,
-        conversationId: result.conversation_id,
+        conversationId: result.conversation_id || undefined,
         dataRetentionDays: result.data_retention_days,
         autoDeleteEnabled: result.auto_delete_enabled,
         analyticsEnabled: result.analytics_enabled,
         learningEnabled: result.learning_enabled,
         exportFormat: result.export_format as 'json' | 'csv',
         consentGiven: result.consent_given,
-        consentDate: result.consent_date ? new Date(result.consent_date) : undefined,
-        lastUpdated: new Date(result.last_updated)
+        consentDate: result.consent_date ? new Date(result.consent_date) : (undefined as any),
+        lastUpdated: new Date(result.last_updated || new Date().toISOString())
       };
     } catch (error) {
       console.error('Error getting privacy settings:', error);
@@ -741,9 +741,9 @@ export class PrivacyManager {
       for (const setting of settings || []) {
         try {
           const { deletedCount } = await this.clearOldData(
-            setting.user_id,
-            setting.data_retention_days,
-            setting.conversation_id
+            setting.user_id as string,
+            setting.data_retention_days as number,
+            setting.conversation_id as string | undefined
           );
           totalDeleted += deletedCount;
           usersProcessed++;

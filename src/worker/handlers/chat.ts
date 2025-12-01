@@ -20,9 +20,10 @@ export async function chatHandler(c: Context<{ Bindings: Env & SupabaseEnv }>) {
         if (chatId && messages.length > 0) {
             const lastMessage = messages[messages.length - 1];
             if (lastMessage.role === 'user') {
+                const contentStr = lastMessage.parts ? JSON.stringify(lastMessage.parts) : '';
                 const { error: insertError } = await supabase
                     .from("messages")
-                    .insert({ chat_id: chatId, role: lastMessage.role, content: lastMessage.parts, message_id: lastMessage.id });
+                    .insert({ chat_id: chatId, role: lastMessage.role, content: contentStr, message_id: lastMessage.id });
                 if (insertError) {
                     console.error("Failed to save user message:", insertError);
                 }
@@ -36,9 +37,9 @@ export async function chatHandler(c: Context<{ Bindings: Env & SupabaseEnv }>) {
         const result = streamText({
             model: google("gemini-2.5-flash-lite"),
             tools: {
-                google_search: google.tools.googleSearch({}),
-                url_context: google.tools.urlContext({}),
-
+                // Disable built-in tools to avoid configuration issues
+                // google_search: google.tools.googleSearch(),
+                // url_context: google.tools.urlContext(),
             },
             system: "You're an assitant that will help the user come up or suggest ideas for thesis proposal and provide steps to complete the user's desired proposal. Your idea suggestions must be a list, with very minimal descriptions. Only provide in-depth detail when the user is interested in a particular idea",
             messages: convertToModelMessages(messages),
@@ -48,9 +49,11 @@ export async function chatHandler(c: Context<{ Bindings: Env & SupabaseEnv }>) {
             onFinish: async (result) => {
                 // Save the assistant's response to the database if chatId is provided
                 if (chatId) {
+                    const responseContent = result.response.messages[0]?.content;
+                    const contentStr = typeof responseContent === 'string' ? responseContent : JSON.stringify(responseContent);
                     const { error: insertError } = await supabase
                         .from("messages")
-                        .insert({ chat_id: chatId, role: 'assistant', content: result.response.messages[0].content, message_id: result.response.id });
+                        .insert({ chat_id: chatId, role: 'assistant', content: contentStr, message_id: result.response.id });
                     if (insertError) {
                         console.error("Failed to save assistant message:", insertError);
                     }

@@ -18,18 +18,19 @@
  * @version 1.0.0
  */
 
-import React, { useState, useCallback, useRef, useEffect } from "react"
+import React, { useState, useCallback, useRef, useEffect, lazy, Suspense } from "react"
 import { ScrollArea } from "@/components/ui/shadcn/scroll-area"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/shadcn/sheet"
 import { Button } from "@/components/ui/shadcn/button"
-import { MilkdownEditor } from "@/components/ui/milkdown-editor"
-import { MilkdownProvider } from "@milkdown/react"
-import { AIActionToolbar } from "@/components/ui/ai-action-toolbar"
-import { AIPromptInput } from "@/components/ui/ai-prompt-input"
-import { AIContentConfirmation } from "@/components/ui/ai-content-confirmation"
-import { ModificationTypeSelector } from "@/components/ui/modification-type-selector"
-import { AIContentPreview } from "@/components/ui/ai-content-preview"
-import { CustomPromptInput } from "@/components/ui/custom-prompt-input"
+import { Skeleton } from "@/components/ui/shadcn/skeleton"
+const MilkdownEditor = lazy(() => import("@/components/ui/milkdown-editor").then(m => ({ default: m.MilkdownEditor })))
+const MilkdownProvider = lazy(() => import("@milkdown/react").then(m => ({ default: m.MilkdownProvider })))
+const AIActionToolbar = lazy(() => import("@/components/ui/ai-action-toolbar").then(m => ({ default: m.AIActionToolbar })))
+const AIPromptInput = lazy(() => import("@/components/ui/ai-prompt-input").then(m => ({ default: m.AIPromptInput })))
+const AIContentConfirmation = lazy(() => import("@/components/ui/ai-content-confirmation").then(m => ({ default: m.AIContentConfirmation })))
+const ModificationTypeSelector = lazy(() => import("@/components/ui/modification-type-selector").then(m => ({ default: m.ModificationTypeSelector })))
+const AIContentPreview = lazy(() => import("@/components/ui/ai-content-preview").then(m => ({ default: m.AIContentPreview })))
+const CustomPromptInput = lazy(() => import("@/components/ui/custom-prompt-input").then(m => ({ default: m.CustomPromptInput })))
 import { useAIModeManager } from "@/hooks/use-ai-mode-manager"
 import { AIMode, TextSelection, ContentInsertionOptions, ModificationType } from "@/lib/ai-types"
 import { contentRetrievalService } from "@/lib/content-retrieval-service"
@@ -330,7 +331,7 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
   const handleContinueMode = useCallback(async () => {
     try {
       // Get fresh cursor position right before processing
-      const currentCursorPos = editorMethodsRef.current?.getCurrentCursorPosition?.() ?? cursorPosition;
+      const currentCursorPos = (editorMethodsRef.current as any)?.getCurrentCursorPosition?.() ?? cursorPosition;
       console.log('[Builder] Continue mode - cursor position:', currentCursorPos);
       
       const response = await aiModeManager.processContinue(currentCursorPos, currentSelection?.text);
@@ -499,32 +500,36 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
 
         <div className="flex flex-col h-[calc(100vh-150px)] gap-4">
           {/* AI Action Toolbar with Error Handling */}
-          <AIActionToolbar
-            currentMode={aiModeManager.currentMode}
-            onModeChange={(mode) => {
-              if (mode === AIMode.MODIFY) {
-                handleStartModifyMode();
-              } else {
-                aiModeManager.setMode(mode);
-              }
-            }}
-            hasSelectedText={aiModeManager.hasSelectedText}
-            isAIProcessing={aiModeManager.isProcessing}
-            error={aiModeManager.errorState.error}
-            canRetry={aiModeManager.errorState.canRetry}
-            retryCount={aiModeManager.errorState.retryCount}
-            onRetry={aiModeManager.retryLastOperation}
-            onClearError={aiModeManager.clearError}
-            onGracefulDegradation={aiModeManager.handleGracefulDegradation}
-          />
+          <Suspense fallback={<Skeleton className="h-10 w-full" />}>
+            <AIActionToolbar
+              currentMode={aiModeManager.currentMode}
+              onModeChange={(mode) => {
+                if (mode === AIMode.MODIFY) {
+                  handleStartModifyMode();
+                } else {
+                  aiModeManager.setMode(mode);
+                }
+              }}
+              hasSelectedText={aiModeManager.hasSelectedText}
+              isAIProcessing={aiModeManager.isProcessing}
+              error={aiModeManager.errorState.error}
+              canRetry={aiModeManager.errorState.canRetry}
+              retryCount={aiModeManager.errorState.retryCount}
+              onRetry={aiModeManager.retryLastOperation}
+              onClearError={aiModeManager.clearError}
+              onGracefulDegradation={aiModeManager.handleGracefulDegradation}
+            />
+          </Suspense>
 
           {/* Prompt Input (shown when in prompt mode) */}
           {aiModeManager.currentMode === AIMode.PROMPT && !showContentConfirmation && (
-            <AIPromptInput
-              onSubmit={handlePromptSubmit}
-              onCancel={handlePromptCancel}
-              isProcessing={aiModeManager.isProcessing}
-            />
+            <Suspense fallback={<Skeleton className="h-24 w-full" />}>
+              <AIPromptInput
+                onSubmit={handlePromptSubmit}
+                onCancel={handlePromptCancel}
+                isProcessing={aiModeManager.isProcessing}
+              />
+            </Suspense>
           )}
 
           {/* Continue Mode Activation (shown when in continue mode) */}
@@ -549,23 +554,27 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
 
           {/* Modification Type Selector (shown when selecting modification type) */}
           {aiModeManager.showModificationTypeSelector && aiModeManager.selectedText && (
-            <ModificationTypeSelector
-              selectedText={aiModeManager.selectedText.text}
-              onModificationTypeSelect={handleModificationTypeSelect}
-              onCancel={handlePromptCancel}
-              isProcessing={aiModeManager.isProcessing}
-            />
+            <Suspense fallback={<Skeleton className="h-32 w-full" />}>
+              <ModificationTypeSelector
+                selectedText={aiModeManager.selectedText.text}
+                onModificationTypeSelect={handleModificationTypeSelect}
+                onCancel={handlePromptCancel}
+                isProcessing={aiModeManager.isProcessing}
+              />
+            </Suspense>
           )}
 
           {/* Custom Prompt Input (shown when user selects prompt modification type) */}
           {aiModeManager.showCustomPromptInput && aiModeManager.selectedText && (
-            <CustomPromptInput
-              selectedText={aiModeManager.selectedText.text}
-              onSubmit={handleCustomPromptSubmit}
-              onCancel={handlePromptCancel}
-              onBack={handleBackToModificationTypes}
-              isProcessing={aiModeManager.isProcessing}
-            />
+            <Suspense fallback={<Skeleton className="h-28 w-full" />}>
+              <CustomPromptInput
+                selectedText={aiModeManager.selectedText.text}
+                onSubmit={handleCustomPromptSubmit}
+                onCancel={handlePromptCancel}
+                onBack={handleBackToModificationTypes}
+                isProcessing={aiModeManager.isProcessing}
+              />
+            </Suspense>
           )}
 
           {/* Modification Preview (shown when previewing modifications) */}
@@ -573,6 +582,7 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
             aiModeManager.modificationPreviewContent &&
             aiModeManager.originalTextForModification &&
             aiModeManager.currentModificationType && (
+            <Suspense fallback={<Skeleton className="h-40 w-full" />}>
               <AIContentPreview
                 originalText={aiModeManager.originalTextForModification}
                 modifiedText={aiModeManager.modificationPreviewContent}
@@ -583,32 +593,39 @@ export const Builder: React.FC<BuilderProps> = ({ isOpen, onClose, currentConver
                 isVisible={aiModeManager.showModificationPreview}
                 isRegenerating={aiModeManager.isProcessing}
               />
+            </Suspense>
             )}
 
           {/* AI Content Confirmation */}
           {showContentConfirmation && (
-            <AIContentConfirmation
-              content={aiGeneratedContent}
-              onAccept={handleAcceptAIContent}
-              onReject={handleRejectAIContent}
-              onRegenerate={handleRegenerateContent}
-              isVisible={showContentConfirmation}
-              metadata={aiMetadata}
-              originalText={originalTextForModification || undefined}
-              modificationType={currentModificationType || undefined}
-            />
+            <Suspense fallback={<Skeleton className="h-36 w-full" />}>
+              <AIContentConfirmation
+                content={aiGeneratedContent}
+                onAccept={handleAcceptAIContent}
+                onReject={handleRejectAIContent}
+                onRegenerate={handleRegenerateContent}
+                isVisible={showContentConfirmation}
+                metadata={aiMetadata}
+                originalText={originalTextForModification || undefined}
+                modificationType={currentModificationType || undefined}
+              />
+            </Suspense>
           )}
 
           {/* Editor */}
           <ScrollArea className="flex-1 pr-4">
-            <MilkdownProvider>
-              <MilkdownEditor
-                onContentChange={handleContentChange}
-                onSelectionChange={handleSelectionChange}
-                onCursorPositionChange={handleCursorPositionChange}
-                aiModeManager={aiModeManager}
-                onEditorMethodsReady={handleEditorMethodsReady} />
-            </MilkdownProvider>
+            <Suspense fallback={<Skeleton className="h-96 w-full" />}>
+              <MilkdownProvider>
+                <Suspense fallback={<Skeleton className="h-96 w-full" />}>
+                  <MilkdownEditor
+                    onContentChange={handleContentChange}
+                    onSelectionChange={handleSelectionChange}
+                    onCursorPositionChange={handleCursorPositionChange}
+                    aiModeManager={aiModeManager}
+                    onEditorMethodsReady={handleEditorMethodsReady} />
+                </Suspense>
+              </MilkdownProvider>
+            </Suspense>
           </ScrollArea>
         </div>
       </SheetContent>
