@@ -62,24 +62,21 @@ export class PrivacyManager {
 
   /**
    * Get privacy settings for a user
+   * Note: Privacy consent is account-level, not per-conversation
    */
   async getPrivacySettings(userId: string, conversationId?: string): Promise<PrivacySettings | null> {
     try {
       const supabase = getSupabase(this.env);
 
+      // Always fetch account-level settings (conversation_id IS NULL)
+      // This ensures consent is shared across all conversations
       let query = supabase
         .from('privacy_settings')
         .select('*')
         .eq('user_id', userId)
+        .is('conversation_id', null)
         .order('last_updated', { ascending: false })
         .limit(1);
-
-      if (conversationId) {
-        query = query.eq('conversation_id', conversationId);
-      } else {
-        // For global settings, we might want to handle null conversation_id differently
-        query = query.is('conversation_id', null);
-      }
 
       const { data, error } = await query;
 
@@ -125,16 +122,19 @@ export class PrivacyManager {
 
   /**
    * Update privacy settings for a user
+   * Note: Privacy consent is stored at account-level (conversation_id = null)
    */
   async updatePrivacySettings(settings: PrivacySettings): Promise<void> {
     try {
       const supabase = getSupabase(this.env);
 
+      // Always store consent at account-level (conversation_id = null)
+      // This ensures consent persists across all conversations
       const { error } = await supabase
         .from('privacy_settings')
         .upsert({
           user_id: settings.userId,
-          conversation_id: settings.conversationId || null,
+          conversation_id: null, // Account-level, not per-conversation
           data_retention_days: settings.dataRetentionDays,
           auto_delete_enabled: settings.autoDeleteEnabled,
           analytics_enabled: settings.analyticsEnabled,
@@ -699,6 +699,7 @@ export class PrivacyManager {
 
   /**
    * Check if user has given consent for data processing
+   * Note: Consent is checked at account-level, not per-conversation
    */
   async hasUserConsent(userId: string, conversationId?: string): Promise<boolean> {
     try {
@@ -708,7 +709,8 @@ export class PrivacyManager {
         return false;
       }
 
-      const settings = await this.getPrivacySettings(userId, conversationId);
+      // Always check account-level consent (no conversationId)
+      const settings = await this.getPrivacySettings(userId);
       return settings?.consentGiven || false;
     } catch (error) {
       console.error('Error checking user consent:', error);

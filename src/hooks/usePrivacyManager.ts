@@ -29,7 +29,8 @@ interface UsePrivacyManagerReturn {
  * @function usePrivacyManager
  * @description A hook for managing user privacy settings and data handling related to AI searcher features.
  * It provides functionalities to load, update, clear, export, and anonymize user data, as well as check consent status.
- * @param {string} [conversationId] - Optional conversation ID to filter privacy settings and data by.
+ * Privacy consent is now account-level (not per-conversation) to avoid asking users repeatedly.
+ * @param {string} [conversationId] - Optional conversation ID to filter data operations by (consent is account-level).
  * @returns {UsePrivacyManagerReturn}
  * - `settings`: The current privacy settings of the user.
  * - `dataSummary`: A summary of the user's data stored.
@@ -61,7 +62,9 @@ export const usePrivacyManager = (conversationId?: string): UsePrivacyManagerRet
       setIsLoading(true);
       setError(null);
 
-      const url = `/api/ai-searcher/privacy/settings${conversationId ? `?conversationId=${conversationId}` : ''}`;
+      // Load account-level settings (no conversationId) for consent
+      // This ensures consent is shared across all conversations
+      const url = `/api/ai-searcher/privacy/settings`;
       const response = await fetch(url, {
         headers: {
           'x-user-id': clientId
@@ -86,7 +89,7 @@ export const usePrivacyManager = (conversationId?: string): UsePrivacyManagerRet
     } finally {
       setIsLoading(false);
     }
-  }, [conversationId, clientId]);
+  }, [clientId]);
 
   const updateSettings = useCallback(async (newSettings: Partial<PrivacySettings>) => {
     try {
@@ -95,6 +98,7 @@ export const usePrivacyManager = (conversationId?: string): UsePrivacyManagerRet
 
       const updatedSettings = { ...settings, ...newSettings };
 
+      // Save settings at account level (no conversationId) so consent persists
       const response = await fetch('/api/ai-searcher/privacy/settings', {
         method: 'POST',
         headers: {
@@ -102,8 +106,8 @@ export const usePrivacyManager = (conversationId?: string): UsePrivacyManagerRet
           'x-user-id': clientId
         },
         body: JSON.stringify({
-          settings: updatedSettings,
-          conversationId
+          settings: updatedSettings
+          // Note: conversationId is intentionally omitted to make consent account-level
         })
       });
 
@@ -127,7 +131,7 @@ export const usePrivacyManager = (conversationId?: string): UsePrivacyManagerRet
     } finally {
       setIsLoading(false);
     }
-  }, [settings, conversationId, loadSettings, clientId]);
+  }, [settings, loadSettings, clientId]);
 
   const loadDataSummary = useCallback(async () => {
     try {
@@ -292,7 +296,8 @@ export const usePrivacyManager = (conversationId?: string): UsePrivacyManagerRet
 
   const checkConsentStatus = useCallback(async (): Promise<boolean> => {
     try {
-      const url = `/api/ai-searcher/privacy/consent-status${conversationId ? `?conversationId=${conversationId}` : ''}`;
+      // Check account-level consent (no conversationId)
+      const url = `/api/ai-searcher/privacy/consent-status`;
       const response = await fetch(url, {
         headers: {
           'x-user-id': clientId
@@ -314,7 +319,7 @@ export const usePrivacyManager = (conversationId?: string): UsePrivacyManagerRet
       console.error('Check consent status error:', err);
       return false;
     }
-  }, [conversationId, clientId]);
+  }, [clientId]);
 
   const anonymizeData = useCallback(async (): Promise<{ recordsAnonymized: number }> => {
     try {

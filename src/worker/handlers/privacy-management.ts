@@ -12,14 +12,15 @@ const app = new Hono<PrivacyManagementContext>();
 
 /**
  * Get privacy settings for a user
+ * Note: Privacy consent is fetched at account-level (not per-conversation)
  */
 app.get('/settings', async (c: Context<PrivacyManagementContext>) => {
   try {
     const userId = c.req.header('x-user-id');
-    const conversationId = c.req.query('conversationId');
+    // Note: conversationId is intentionally ignored - consent is account-level
 
     if (!userId) { 
-      console.error('User ID is required', userId, conversationId);
+      console.error('User ID is required', userId);
       return c.json({ 
         success: false, 
         error: 'User ID is required' 
@@ -27,7 +28,8 @@ app.get('/settings', async (c: Context<PrivacyManagementContext>) => {
     }
 
     const privacyManager = new PrivacyManager(c.env);
-    const settings = await privacyManager.getPrivacySettings(userId, conversationId);
+    // Always fetch account-level settings (no conversationId)
+    const settings = await privacyManager.getPrivacySettings(userId);
 
     return c.json({ 
       success: true, 
@@ -44,12 +46,15 @@ app.get('/settings', async (c: Context<PrivacyManagementContext>) => {
 
 /**
  * Update privacy settings for a user
+ * Note: Privacy consent is stored at account-level (not per-conversation)
  */
 app.post('/settings', async (c: Context<PrivacyManagementContext>) => {
   try {
     const userId = c.req.header('x-user-id');
     const body = await c.req.json();
-    const { settings, conversationId } = body;
+    const { settings } = body;
+    // Note: conversationId is intentionally ignored for consent settings
+    // Consent is account-level, not per-conversation
 
     if (!userId) {
       return c.json({ 
@@ -65,10 +70,10 @@ app.post('/settings', async (c: Context<PrivacyManagementContext>) => {
       }, 400);
     }
 
-    // Validate settings
+    // Validate settings - always store at account level (no conversationId)
     const validatedSettings: PrivacySettings = {
       userId,
-      conversationId: conversationId || undefined,
+      conversationId: undefined, // Always account-level for consent
       dataRetentionDays: Math.max(1, Math.min(3650, settings.dataRetentionDays || 365)),
       autoDeleteEnabled: Boolean(settings.autoDeleteEnabled),
       analyticsEnabled: Boolean(settings.analyticsEnabled),
@@ -228,11 +233,12 @@ app.post('/export-data', async (c: Context<PrivacyManagementContext>) => {
 
 /**
  * Check user consent status
+ * Note: Consent is checked at account-level (not per-conversation)
  */
 app.get('/consent-status', async (c: Context<PrivacyManagementContext>) => {
   try {
     const userId = c.req.header('x-user-id');
-    const conversationId = c.req.query('conversationId');
+    // Note: conversationId is intentionally ignored - consent is account-level
 
     if (!userId) {
       return c.json({ 
@@ -242,7 +248,8 @@ app.get('/consent-status', async (c: Context<PrivacyManagementContext>) => {
     }
 
     const privacyManager = new PrivacyManager(c.env);
-    const hasConsent = await privacyManager.hasUserConsent(userId, conversationId);
+    // Always check account-level consent (no conversationId)
+    const hasConsent = await privacyManager.hasUserConsent(userId);
 
     return c.json({ 
       success: true, 
