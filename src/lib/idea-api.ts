@@ -166,3 +166,36 @@ export async function generateIdeas(chatId: string, existingIdeas: Omit<IdeaDefi
   }
 }
 
+/**
+ * Regenerates a title for an existing idea using AI
+ * @param ideaId - The ID of the idea to regenerate title for
+ * @param description - The idea description to base the title on
+ * @param conversationId - Optional conversation ID for additional context
+ * @returns Promise resolving to the generated title
+ * @throws Error if the request fails
+ */
+export async function regenerateIdeaTitle(
+  ideaId: number,
+  description: string,
+  conversationId?: string
+): Promise<{ title: string; saved: boolean }> {
+  try {
+    const response = await fetch("/api/regenerate-idea-title", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ ideaId, description, conversationId }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to regenerate idea title: ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error regenerating idea title:", error);
+    throw error;
+  }
+}
+

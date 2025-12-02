@@ -270,6 +270,8 @@ export interface DocumentContext {
   academicContext?: AcademicContext;
   /** @property {string} content - The content of the document. */
   content: string;
+  /** @property {Array<{role: string; content: string; files?: Array<{name: string; type: string; content?: string}>}>} [conversationMessages] - Recent conversation messages for context. */
+  conversationMessages?: Array<{ role: string; content: string; files?: Array<{ name: string; type: string; content?: string }> }>;
 }
 
 /**

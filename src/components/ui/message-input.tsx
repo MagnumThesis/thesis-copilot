@@ -10,6 +10,8 @@ import { AudioVisualizer } from "@/components/ui/audio-visualizer"
 import { Button } from "@/components/ui/shadcn/button"
 import { FilePreview } from "@/components/ui/file-preview"
 import { InterruptPrompt } from "@/components/ui/interrupt-prompt"
+import { AttachmentMenu, AttachedItem } from "@/components/ui/attachment-menu"
+import { AttachedItemsPreview } from "@/components/ui/attached-items-preview"
 
 interface MessageInputBaseProps
   extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
@@ -19,6 +21,9 @@ interface MessageInputBaseProps
   isGenerating: boolean
   enableInterrupt?: boolean
   transcribeAudio?: (blob: Blob) => Promise<string>
+  conversationId?: string
+  attachedItems?: AttachedItem[]
+  onAttachedItemsChange?: (items: AttachedItem[]) => void
 }
 
 interface MessageInputWithoutAttachmentProps extends MessageInputBaseProps {
@@ -186,11 +191,14 @@ export function MessageInput({
   const showFileList =
     props.allowAttachments && props.files && props.files.length > 0
 
+  const showAttachedItems = 
+    props.attachedItems && props.attachedItems.length > 0
+
   useAutosizeTextArea({
     ref: textAreaRef,
     maxHeight: 240,
     borderWidth: 1,
-    dependencies: [props.value, showFileList],
+    dependencies: [props.value, showFileList, showAttachedItems],
   })
 
   return (
@@ -222,38 +230,54 @@ export function MessageInput({
             onKeyDown={onKeyDown}
             className={cn(
               "z-10 w-full grow resize-none rounded-xl border border-input bg-background p-3 pr-24 text-sm ring-offset-background transition-[border] placeholder:text-muted-foreground focus-visible:border-primary focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50",
-              showFileList && "pb-16",
+              (showFileList || showAttachedItems) && "pb-16",
               className
             )}
             {...(props.allowAttachments
-              ? omit(props, ["allowAttachments", "files", "setFiles"])
-              : omit(props, ["allowAttachments"]))}
+              ? omit(props, ["allowAttachments", "files", "setFiles", "conversationId", "attachedItems", "onAttachedItemsChange"])
+              : omit(props, ["allowAttachments", "conversationId", "attachedItems", "onAttachedItemsChange"]))}
           />
 
           {props.allowAttachments && (
             <div className="absolute inset-x-3 bottom-0 z-20 overflow-x-scroll py-3">
-              <div className="flex space-x-3">
-                <AnimatePresence mode="popLayout">
-                  {props.files?.map((file) => {
-                    return (
-                      <FilePreview
-                        key={file.name + String(file.lastModified)}
-                        file={file}
-                        onRemove={() => {
-                          props.setFiles((files) => {
-                            if (!files) return null
+              <div className="flex flex-col gap-2">
+                {/* Attached Items Preview */}
+                {props.attachedItems && props.attachedItems.length > 0 && props.onAttachedItemsChange && (
+                  <AttachedItemsPreview
+                    items={props.attachedItems}
+                    onRemove={(id, type) => {
+                      props.onAttachedItemsChange!(
+                        props.attachedItems!.filter(
+                          (item) => !(item.id === id && item.type === type)
+                        )
+                      )
+                    }}
+                  />
+                )}
+                {/* File Preview */}
+                <div className="flex space-x-3">
+                  <AnimatePresence mode="popLayout">
+                    {props.files?.map((file) => {
+                      return (
+                        <FilePreview
+                          key={file.name + String(file.lastModified)}
+                          file={file}
+                          onRemove={() => {
+                            props.setFiles((files) => {
+                              if (!files) return null
 
-                            const filtered = Array.from(files).filter(
-                              (f) => f !== file
-                            )
-                            if (filtered.length === 0) return null
-                            return filtered
-                          })
-                        }}
-                      />
-                    )
-                  })}
-                </AnimatePresence>
+                              const filtered = Array.from(files).filter(
+                                (f) => f !== file
+                              )
+                              if (filtered.length === 0) return null
+                              return filtered
+                            })
+                          }}
+                        />
+                      )
+                    })}
+                  </AnimatePresence>
+                </div>
               </div>
             </div>
           )}
@@ -261,7 +285,18 @@ export function MessageInput({
       </div>
 
       <div className="absolute right-3 top-3 z-20 flex gap-2">
-        {props.allowAttachments && (
+        {props.allowAttachments && props.conversationId && props.onAttachedItemsChange && (
+          <AttachmentMenu
+            conversationId={props.conversationId}
+            attachedItems={props.attachedItems || []}
+            onAttachedItemsChange={props.onAttachedItemsChange}
+            onFileUpload={async () => {
+              const files = await showFileUploadDialog()
+              addFiles(files)
+            }}
+          />
+        )}
+        {props.allowAttachments && !props.conversationId && (
           <Button
             type="button"
             size="icon"

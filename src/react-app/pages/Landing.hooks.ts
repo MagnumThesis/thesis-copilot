@@ -197,3 +197,85 @@ export const handleDelete = async (
     console.error("Error deleting chat:", error);
   }
 };
+
+export const handleUpdateTitle = async (
+  id: string,
+  title: string,
+  items: IdeaSidebarItem[],
+  setItems: React.Dispatch<React.SetStateAction<IdeaSidebarItem[]>>,
+  selectedItem: IdeaSidebarItem,
+  setSelectedItem: React.Dispatch<React.SetStateAction<IdeaSidebarItem>>
+) => {
+  try {
+    const response = await fetch(`/api/chats/${id}`, {
+      method: "PATCH",
+      headers: getHeaders(),
+      body: JSON.stringify({ name: title }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to update title");
+    }
+
+    // Update state
+    const updatedItems = items.map((item) =>
+      item.id === id ? new IdeaSidebarItem(title, item.id, item.isActive) : item
+    );
+    setItems(updatedItems);
+    
+    if (selectedItem.id === id) {
+      setSelectedItem(new IdeaSidebarItem(title, id, selectedItem.isActive));
+    }
+  } catch (error) {
+    console.error("Error updating title:", error);
+    throw error;
+  }
+};
+
+export const handleRegenerateTitle = async (
+  id: string,
+  items: IdeaSidebarItem[],
+  setItems: React.Dispatch<React.SetStateAction<IdeaSidebarItem[]>>,
+  selectedItem: IdeaSidebarItem,
+  setSelectedItem: React.Dispatch<React.SetStateAction<IdeaSidebarItem>>
+): Promise<string> => {
+  try {
+    // 1. Generate title using AI
+    const genTitleResponse = await fetch(`/api/generate-title`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify({ chatId: id }),
+    });
+
+    if (!genTitleResponse.ok) {
+      throw new Error("Failed to generate title");
+    }
+    const { title: newTitle } = await genTitleResponse.json();
+
+    // 2. Update chat name in the database
+    const updateResponse = await fetch(`/api/chats/${id}`, {
+      method: "PATCH",
+      headers: getHeaders(),
+      body: JSON.stringify({ name: newTitle }),
+    });
+
+    if (!updateResponse.ok) {
+      throw new Error("Failed to save generated title");
+    }
+
+    // 3. Update state
+    const updatedItems = items.map((item) =>
+      item.id === id ? new IdeaSidebarItem(newTitle, item.id, item.isActive) : item
+    );
+    setItems(updatedItems);
+    
+    if (selectedItem.id === id) {
+      setSelectedItem(new IdeaSidebarItem(newTitle, id, selectedItem.isActive));
+    }
+
+    return newTitle;
+  } catch (error) {
+    console.error("Error regenerating title:", error);
+    throw error;
+  }
+};

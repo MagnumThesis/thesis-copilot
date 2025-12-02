@@ -4,7 +4,6 @@
  */
 
 // AI imports (used for optional AI-powered analysis)
-import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { generateObject } from 'ai';
 import { z } from 'zod';
 import { 
@@ -27,6 +26,7 @@ import {
   HeadingAnalysis
 } from '../../lib/ai-types';
 import { proofreaderPerformanceMonitor } from '../../lib/proofreader-performance-monitor';
+import { withModelFallback } from './model-fallback';
 
 /**
  * Interface for the concern analysis engine
@@ -40,19 +40,10 @@ export interface ConcernAnalysisEngine {
  */
 class ConcernAnalysisEngineImpl implements ConcernAnalysisEngine {
   private apiKey?: string;
-  private googleClient?: ReturnType<typeof createGoogleGenerativeAI>;
 
   constructor(_apiKey: string) {
-    // Store API key and initialize Google generative client when available
+    // Store API key for model fallback usage
     this.apiKey = _apiKey;
-    try {
-      if (this.apiKey) {
-        this.googleClient = createGoogleGenerativeAI({ apiKey: this.apiKey });
-      }
-    } catch (err) {
-      console.warn('Failed to initialize Google Generative AI client:', err);
-      this.googleClient = undefined;
-    }
   }
 
   /**
@@ -65,7 +56,7 @@ class ConcernAnalysisEngineImpl implements ConcernAnalysisEngine {
 
       // Attempt AI-powered analysis (non-fatal). We'll merge AI and rule-based concerns.
       let aiConcerns: ProofreadingConcern[] = [];
-      if (this.googleClient) {
+      if (this.apiKey) {
         try {
           aiConcerns = await this.generateConcernsWithAI(content, conversationId) || [];
         } catch (aiError) {
@@ -96,7 +87,7 @@ class ConcernAnalysisEngineImpl implements ConcernAnalysisEngine {
    * Returns an array of ProofreadingConcern with an AI marker in the explanation.
    */
   private async generateConcernsWithAI(content: string, conversationId: string): Promise<ProofreadingConcern[]> {
-    if (!this.googleClient) throw new Error('AI client not initialized');
+    if (!this.apiKey) throw new Error('API key not available');
 
     // Define a simple schema for the expected response
     const ConcernItemSchema = z.object({
@@ -113,13 +104,18 @@ class ConcernAnalysisEngineImpl implements ConcernAnalysisEngine {
 
     const prompt = `You are an academic writing assistant. Analyze the following document and return a JSON object with a 'concerns' array. Each concern should include: title (short), description (detailed), category (one of structure, clarity, coherence, style, academic_tone, citation, completeness, terminology), severity (low, medium, high, critical), and suggestions (array of short action items). Return ONLY valid JSON that matches the schema. Document:\n\n${content}`;
 
-    const { object } = await generateObject({
-      model: this.googleClient('gemini-2.0-flash'),
-      schema: ResponseSchema,
-      prompt
-    });
+    const result = await withModelFallback(
+      this.apiKey,
+      async (google, modelName) => {
+        return await generateObject({
+          model: google(modelName),
+          schema: ResponseSchema,
+          prompt
+        });
+      }
+    );
 
-    const parsed = object as any;
+    const parsed = result.object as any;
     const items = parsed.concerns || [];
 
     const mapped: ProofreadingConcern[] = items.map((it: any) => ({

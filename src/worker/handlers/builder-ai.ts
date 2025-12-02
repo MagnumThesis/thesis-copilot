@@ -7,6 +7,7 @@ import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { getGoogleGenerativeAIKey } from "../lib/api-keys";
 import { createAIContextManager } from "../lib/ai-context-manager";
 import { AcademicContextAnalyzer } from "../lib/academic-context-analyzer";
+import { withModelFallback, type GeminiModel } from "../lib/model-fallback";
 import { 
   AIPromptRequest, 
   AIContinueRequest, 
@@ -248,20 +249,24 @@ ${prompt}
 
 Generate the content:`;
 
-    // Generate AI response with timeout and error handling
+    // Generate AI response with timeout and model fallback
     let text: string;
     let usage: { totalTokens?: number } | undefined;
+    let usedModel: GeminiModel = "gemini-2.0-flash-exp";
     
     try {
-      const result = await Promise.race([
-        generateText({
-          model: google("gemini-2.0-flash-exp"),
-          prompt: aiPrompt,
-        }),
-        new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error('AI generation timeout')), 45000);
-        })
-      ]);
+      const result = await withModelFallback(apiKey, async (google, modelName) => {
+        usedModel = modelName;
+        return await Promise.race([
+          generateText({
+            model: google(modelName),
+            prompt: aiPrompt,
+          }),
+          new Promise<never>((_, reject) => {
+            setTimeout(() => reject(new Error('AI generation timeout')), 45000);
+          })
+        ]);
+      });
       
       text = result.text;
       usage = result.usage;
@@ -303,7 +308,7 @@ Generate the content:`;
       metadata: {
         tokensUsed: usage?.totalTokens || 0,
         processingTime,
-        model: "gemini-2.0-flash-exp",
+        model: usedModel,
         academicValidation: formatAcademicValidation(academicValidation)
       }
     };
@@ -394,8 +399,6 @@ export async function builderAIContinueHandler(
       ), 503);
     }
     
-    const google = createGoogleGenerativeAI({ apiKey });
-    
     // Analyze content around cursor position for better continuation
     const beforeCursor = (documentContent || "").substring(0, cursorPosition);
     const afterCursor = (documentContent || "").substring(cursorPosition);
@@ -426,20 +429,24 @@ export async function builderAIContinueHandler(
       );
     }
 
-    // Generate AI response with timeout and error handling
+    // Generate AI response with timeout and model fallback
     let text: string;
     let usage: { totalTokens?: number } | undefined;
+    let usedModel: GeminiModel = "gemini-2.0-flash-exp";
     
     try {
-      const result = await Promise.race([
-        generateText({
-          model: google("gemini-2.0-flash-exp"),
-          prompt: aiPrompt,
-        }),
-        new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error('AI generation timeout')), 45000);
-        })
-      ]);
+      const result = await withModelFallback(apiKey, async (google, modelName) => {
+        usedModel = modelName;
+        return await Promise.race([
+          generateText({
+            model: google(modelName),
+            prompt: aiPrompt,
+          }),
+          new Promise<never>((_, reject) => {
+            setTimeout(() => reject(new Error('AI generation timeout')), 45000);
+          })
+        ]);
+      });
       
       text = result.text;
       usage = result.usage;
@@ -481,7 +488,7 @@ export async function builderAIContinueHandler(
       metadata: {
         tokensUsed: usage?.totalTokens || 0,
         processingTime,
-        model: "gemini-2.0-flash-exp",
+        model: usedModel,
         contextSufficiency: contextSufficiency.sufficient,
         styleAnalysis: styleAnalysis.summary,
         academicValidation: formatAcademicValidation(academicValidation)
@@ -620,20 +627,24 @@ ${modificationInstructions}
 
 Modified content:`;
 
-    // Generate AI response with timeout and error handling
+    // Generate AI response with timeout and model fallback
     let text: string;
     let usage: { totalTokens?: number } | undefined;
+    let usedModel: GeminiModel = "gemini-2.0-flash-exp";
     
     try {
-      const result = await Promise.race([
-        generateText({
-          model: google("gemini-2.0-flash-exp"),
-          prompt: aiPrompt,
-        }),
-        new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error('AI generation timeout')), 45000);
-        })
-      ]);
+      const result = await withModelFallback(apiKey, async (google, modelName) => {
+        usedModel = modelName;
+        return await Promise.race([
+          generateText({
+            model: google(modelName),
+            prompt: aiPrompt,
+          }),
+          new Promise<never>((_, reject) => {
+            setTimeout(() => reject(new Error('AI generation timeout')), 45000);
+          })
+        ]);
+      });
       
       text = result.text;
       usage = result.usage;
@@ -675,7 +686,7 @@ Modified content:`;
       metadata: {
         tokensUsed: usage?.totalTokens || 0,
         processingTime,
-        model: "gemini-2.0-flash-exp",
+        model: usedModel,
         academicValidation: formatAcademicValidation(academicValidation)
       }
     };

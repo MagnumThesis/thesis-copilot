@@ -58,7 +58,8 @@ export class AIContextManagerImpl implements AIContextManager {
         conversationTitle: conversationContext.title,
         documentStructure,
         academicContext,
-        content: documentContent
+        content: documentContent,
+        conversationMessages: conversationContext.messages
       };
 
       return documentContext;
@@ -120,7 +121,7 @@ export class AIContextManagerImpl implements AIContextManager {
   /**
    * Get conversation context including title and recent messages
    */
-  async getConversationContext(conversationId: string): Promise<{ title: string; messages: Array<{ role: string; content: string }> }> {
+  async getConversationContext(conversationId: string): Promise<{ title: string; messages: Array<{ role: string; content: string; files?: Array<{ name: string; type: string; content?: string }> }> }> {
     try {
       // Get conversation title and recent messages in parallel
       const [chatResult, messagesResult] = await Promise.all([
@@ -138,12 +139,78 @@ export class AIContextManagerImpl implements AIContextManager {
       ]);
 
       const title = chatResult.data?.name || 'Unknown Conversation';
-      const messages = messagesResult.data || [];
+      const rawMessages = messagesResult.data || [];
 
-      // Reverse messages to get chronological order
+      // Parse message content - it may be stored as JSON string from chat parts
+      const messages = rawMessages.reverse().map((msg: any) => {
+        let parsedContent = msg.content;
+        let files: Array<{ name: string; type: string; content?: string }> = [];
+        
+        // Try to parse if it's a JSON string (from chat parts)
+        if (typeof msg.content === 'string') {
+          try {
+            const parsed = JSON.parse(msg.content);
+            // If it's an array of parts, extract text and file content
+            if (Array.isArray(parsed)) {
+              // Extract text parts
+              const textParts = parsed
+                .filter((part: any) => part.type === 'text')
+                .map((part: any) => part.text);
+              parsedContent = textParts.join('');
+              
+              // Extract file parts
+              const fileParts = parsed.filter((part: any) => part.type === 'file');
+              files = fileParts.map((part: any) => {
+                const file: { name: string; type: string; content?: string } = {
+                  name: part.filename || part.name || 'Unknown file',
+                  type: part.mediaType || part.mimeType || 'unknown'
+                };
+                
+                // For text-based files, try to extract content from data URL
+                if (part.url && (
+                  part.mediaType?.startsWith('text/') || 
+                  part.mediaType?.includes('json') ||
+                  part.mediaType?.includes('xml') ||
+                  part.mediaType?.includes('javascript') ||
+                  part.mediaType?.includes('markdown')
+                )) {
+                  try {
+                    // Extract base64 content from data URL
+                    const base64Match = part.url.match(/^data:[^;]+;base64,(.+)$/);
+                    if (base64Match) {
+                      // Decode base64 to text
+                      const decoded = atob(base64Match[1]);
+                      // Limit file content to prevent context overflow
+                      file.content = decoded.length > 5000 
+                        ? decoded.substring(0, 5000) + '\n...[truncated]'
+                        : decoded;
+                    }
+                  } catch (e) {
+                    console.warn('Failed to decode file content:', e);
+                  }
+                }
+                
+                return file;
+              });
+            } else if (typeof parsed === 'object' && parsed.text) {
+              parsedContent = parsed.text;
+            }
+          } catch {
+            // Not JSON, use as-is
+            parsedContent = msg.content;
+          }
+        }
+        
+        return {
+          role: msg.role,
+          content: parsedContent,
+          files: files.length > 0 ? files : undefined
+        };
+      });
+
       return {
         title,
-        messages: messages.reverse()
+        messages
       };
     } catch (error) {
       console.error('Error fetching conversation context:', error);
@@ -163,6 +230,55 @@ export class AIContextManagerImpl implements AIContextManager {
     // Add conversation context
     sections.push(`## Conversation Context`);
     sections.push(`**Title:** ${context.conversationTitle}`);
+    
+    // Add conversation messages if available
+    if (context.conversationMessages && context.conversationMessages.length > 0) {
+      sections.push(`\n## Recent Conversation History`);
+      sections.push(`The following are recent messages from the chat conversation that provide context about the user's thesis topic and direction:\n`);
+      context.conversationMessages.forEach((msg, index) => {
+        const roleLabel = msg.role === 'user' ? 'User' : 'Assistant';
+        // Truncate very long messages to keep context manageable
+        const content = msg.content.length > 500 
+          ? msg.content.substring(0, 500) + '...' 
+          : msg.content;
+        sections.push(`**${roleLabel}:** ${content}`);
+        
+        // Include file attachments if present
+        if (msg.files && msg.files.length > 0) {
+          msg.files.forEach((file) => {
+            sections.push(`  📎 **Attached File:** ${file.name} (${file.type})`);
+            if (file.content) {
+              sections.push(`  **File Content:**`);
+              sections.push(`  \`\`\``);
+              sections.push(`  ${file.content}`);
+              sections.push(`  \`\`\``);
+            }
+          });
+        }
+      });
+      
+      // Also add a dedicated section for all file attachments for easy reference
+      const allFiles = context.conversationMessages
+        .filter(msg => msg.files && msg.files.length > 0)
+        .flatMap(msg => msg.files || []);
+      
+      if (allFiles.length > 0) {
+        sections.push(`\n## Attached Files from Conversation`);
+        sections.push(`The user has shared the following files in the conversation:\n`);
+        allFiles.forEach((file, index) => {
+          sections.push(`### File ${index + 1}: ${file.name}`);
+          sections.push(`**Type:** ${file.type}`);
+          if (file.content) {
+            sections.push(`**Content:**`);
+            sections.push(`\`\`\``);
+            sections.push(file.content);
+            sections.push(`\`\`\``);
+          } else {
+            sections.push(`*(Binary file - content not available as text)*`);
+          }
+        });
+      }
+    }
     
     // Add academic context if available
     if (context.academicContext) {

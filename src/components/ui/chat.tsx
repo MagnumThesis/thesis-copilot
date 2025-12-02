@@ -15,11 +15,14 @@ import { CopyButton } from "@/components/ui/copy-button"
 import { MessageInput } from "@/components/ui/message-input"
 import { MessageList } from "@/components/ui/message-list"
 import { PromptSuggestions } from "@/components/ui/prompt-suggestions"
+import { type AttachedItem } from "@/components/ui/attachment-menu"
+
+export type { AttachedItem }
 
 interface ChatPropsBase {
   handleSubmit: (
     event?: { preventDefault?: () => void },
-    options?: { experimental_attachments?: FileList }
+    options?: { experimental_attachments?: FileList; attachedItems?: AttachedItem[] }
   ) => void
   messages: Array<Message>
   input: string
@@ -33,6 +36,7 @@ interface ChatPropsBase {
   ) => void
   setMessages?: (messages: any[]) => void
   transcribeAudio?: (blob: Blob) => Promise<string>
+  conversationId?: string
 }
 
 interface ChatPropsWithoutSuggestions extends ChatPropsBase {
@@ -132,6 +136,7 @@ export function Chat({
   onRateResponse,
   setMessages,
   transcribeAudio,
+  conversationId,
 }: ChatProps) {
   const lastMessage = messages.at(-1)
   const isEmpty = messages.length === 0
@@ -286,7 +291,7 @@ export function Chat({
         isPending={isGenerating || isTyping}
         handleSubmit={handleSubmit}
       >
-        {({ files, setFiles }) => (
+        {({ files, setFiles, attachedItems, setAttachedItems }) => (
           <MessageInput
             value={input}
             onChange={handleInputChange}
@@ -296,6 +301,9 @@ export function Chat({
             stop={handleStop}
             isGenerating={isGenerating}
             transcribeAudio={transcribeAudio}
+            conversationId={conversationId}
+            attachedItems={attachedItems}
+            onAttachedItemsChange={setAttachedItems}
           />
         )}
       </ChatForm>
@@ -402,11 +410,13 @@ interface ChatFormProps {
   isPending: boolean
   handleSubmit: (
     event?: { preventDefault?: () => void },
-    options?: { experimental_attachments?: FileList }
+    options?: { experimental_attachments?: FileList; attachedItems?: AttachedItem[] }
   ) => void
   children: (props: {
     files: File[] | null
     setFiles: React.Dispatch<React.SetStateAction<File[] | null>>
+    attachedItems: AttachedItem[]
+    setAttachedItems: React.Dispatch<React.SetStateAction<AttachedItem[]>>
   }) => ReactElement
 }
 
@@ -443,21 +453,26 @@ interface ChatFormProps {
 export const ChatForm = forwardRef<HTMLFormElement, ChatFormProps>(
   ({ children, handleSubmit, isPending, className }, ref) => {
     const [files, setFiles] = useState<File[] | null>(null)
+    const [attachedItems, setAttachedItems] = useState<AttachedItem[]>([])
 
     const onSubmit = (event: React.FormEvent) => {
+      const currentAttachedItems = attachedItems.length > 0 ? [...attachedItems] : undefined
+      
       if (!files) {
-        handleSubmit(event)
+        handleSubmit(event, { attachedItems: currentAttachedItems })
+        setAttachedItems([])
         return
       }
 
       const fileList = createFileList(files)
-      handleSubmit(event, { experimental_attachments: fileList })
+      handleSubmit(event, { experimental_attachments: fileList, attachedItems: currentAttachedItems })
       setFiles(null)
+      setAttachedItems([])
     }
 
     return (
       <form ref={ref} onSubmit={onSubmit} className={className}>
-        {children({ files, setFiles })}
+        {children({ files, setFiles, attachedItems, setAttachedItems })}
       </form>
     )
   }

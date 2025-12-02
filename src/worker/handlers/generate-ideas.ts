@@ -8,6 +8,7 @@ import { ModelMessage } from "ai";
 import { onError } from "../lib/utils";
 import { getGoogleGenerativeAIKey } from "../lib/api-keys";
 import { IdeaDefinition } from "../../lib/ai-types";
+import { withModelFallback } from "../lib/model-fallback";
 
 interface GenerateIdeasRequest {
   chatId: string;
@@ -50,8 +51,6 @@ export async function generateIdeasHandler(
       return c.json({ error: "API key is missing." }, 500);
     }
     
-    const google = createGoogleGenerativeAI({ apiKey: apiKey });
-    
     // Create a prompt that considers existing ideas and message history
     const existingIdeasText = existingIdeas && existingIdeas.length > 0
       ? `Existing ideas to avoid duplication:\n${existingIdeas.map((idea: Omit<IdeaDefinition, "id">) => `- ${idea.title}: ${idea.description}`).join('\n')}\n\n`
@@ -64,15 +63,19 @@ ${JSON.stringify(modelMessages)}
 
 Please provide ideas with titles and detailed descriptions. Each idea should be unique and not overlap with the existing ideas. Focus on the user's main interests as shown in the conversation. Each idea should be specific, well-defined, and suitable for a thesis topic.`;
     
-    const { object } = await generateObject({
-      model: google("gemini-2.0-flash-exp"),
-      schema: z.object({
-        ideas: z.array(z.object({
-          title: z.string().min(1, "Title is required"),
-          description: z.string().min(10, "Description should be at least 10 characters")
-        })).min(1, "At least one idea is required").max(10, "Maximum 10 ideas allowed")
-      }),
-      prompt: prompt,
+    // Use model fallback for rate limiting
+    const { object } = await withModelFallback(apiKey, async (google, modelName) => {
+      console.log(`Generate Ideas: Using model ${modelName}`);
+      return await generateObject({
+        model: google(modelName),
+        schema: z.object({
+          ideas: z.array(z.object({
+            title: z.string().min(1, "Title is required"),
+            description: z.string().min(10, "Description should be at least 10 characters")
+          })).min(1, "At least one idea is required").max(10, "Maximum 10 ideas allowed")
+        }),
+        prompt: prompt,
+      });
     });
     
     // Save ideas to the database

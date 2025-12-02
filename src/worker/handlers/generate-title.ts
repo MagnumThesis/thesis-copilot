@@ -3,10 +3,10 @@ import { getSupabase, SupabaseEnv } from "../lib/supabase";
 import { Env } from "../types/env";
 import { generateObject } from "ai";
 import { z } from "zod";
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { ModelMessage } from "ai";
 import { onError } from "../lib/utils";
 import { getGoogleGenerativeAIKey } from "../lib/api-keys";
+import { withModelFallback } from "../lib/model-fallback";
 
 export async function generateTitleHandler(
   c: Context<{ Bindings: Env & SupabaseEnv }>
@@ -35,15 +35,19 @@ export async function generateTitleHandler(
     if (!apiKey) {
       return c.json({ error: "API key is missing." }, 500);
     }
-    const google = createGoogleGenerativeAI({ apiKey: apiKey });
-    const { object } = await generateObject({
-      model: google("gemini-2.0-flash"),
-      schema: z.object({ title: z.string() }),
-      prompt:
-        "Generate a short, concise title for the following conversation that is less than 5 words. The title should be based on the main topic of the conversation. \n Here is the conversation:" +
-        JSON.stringify(modelMessages),
-    });
-    return c.json({ title: object.title });
+    const result = await withModelFallback(
+      apiKey,
+      async (google, modelName) => {
+        return await generateObject({
+          model: google(modelName),
+          schema: z.object({ title: z.string() }),
+          prompt:
+            "Generate a short, concise title for the following conversation that is less than 5 words. The title should be based on the main topic of the conversation. \n Here is the conversation:" +
+            JSON.stringify(modelMessages),
+        });
+      }
+    );
+    return c.json({ title: result.object.title });
   } catch (err: any) {
     console.error("Error in /api/generate-title:", err);
     return onError(c, err);

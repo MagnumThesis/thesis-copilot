@@ -3,7 +3,17 @@
 import React, { useMemo, useState } from "react"
 import { cva, type VariantProps } from "class-variance-authority"
 import { motion } from "framer-motion"
-import { Ban, ChevronRight, Code2, Loader2, Terminal } from "lucide-react"
+import { 
+  Ban, 
+  ChevronRight, 
+  Code2, 
+  Loader2, 
+  Terminal,
+  Lightbulb,
+  FileText,
+  AlertTriangle,
+  BookOpen
+} from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import {
@@ -13,6 +23,7 @@ import {
 } from "@/components/ui/shadcn/collapsible"
 import { FilePreview } from "@/components/ui/file-preview"
 import { MarkdownRenderer } from "@/components/ui/markdown-renderer"
+import { Badge } from "@/components/ui/shadcn/badge"
 
 const chatBubbleVariants = cva(
   "group/message relative break-words rounded-lg p-3 text-sm sm:max-w-[70%]",
@@ -199,6 +210,62 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
     minute: "2-digit",
   })
 
+  // Parse attached context from user messages
+  const { displayContent, attachedContext } = useMemo(() => {
+    if (!isUser || !content) return { displayContent: content, attachedContext: null }
+    
+    // Check if message contains attached context
+    const contextMatch = content.match(/^([\s\S]*?)\n\n---\n\*\*Context from attached items:\*\*\n([\s\S]*?)\n---\n\n$/)
+    
+    if (contextMatch) {
+      const userText = contextMatch[1].trim()
+      const contextText = contextMatch[2].trim()
+      
+      // Parse the context to extract attachment info
+      const attachments: Array<{type: string; count: number; items: string[]}> = []
+      
+      // Parse ideas
+      const ideasMatch = contextText.match(/\*\*Attached Ideas:\*\*\n([\s\S]*?)(?=\n\*\*Attached|$)/)
+      if (ideasMatch) {
+        const items = ideasMatch[1].split('\n').filter(line => line.startsWith('- **')).map(line => {
+          const match = line.match(/- \*\*([^*]+)\*\*/)
+          return match ? match[1] : ''
+        }).filter(Boolean)
+        if (items.length) attachments.push({ type: 'idea', count: items.length, items })
+      }
+      
+      // Parse content
+      const contentMatch = contextText.match(/\*\*Attached Content:\*\*/)
+      if (contentMatch) {
+        attachments.push({ type: 'content', count: 1, items: ['Builder Content'] })
+      }
+      
+      // Parse concerns
+      const concernsMatch = contextText.match(/\*\*Attached Concerns:\*\*\n([\s\S]*?)(?=\n\*\*Attached|$)/)
+      if (concernsMatch) {
+        const items = concernsMatch[1].split('\n').filter(line => line.startsWith('- **[')).map(line => {
+          const match = line.match(/- \*\*\[([^\]]+)\]\*\*/)
+          return match ? match[1] : ''
+        }).filter(Boolean)
+        if (items.length) attachments.push({ type: 'concern', count: items.length, items })
+      }
+      
+      // Parse references
+      const referencesMatch = contextText.match(/\*\*Attached References:\*\*\n([\s\S]*?)(?=\n\*\*Attached|$)/)
+      if (referencesMatch) {
+        const items = referencesMatch[1].split('\n').filter(line => line.startsWith('- ')).map(line => {
+          const match = line.match(/- [^"]*"([^"]+)"/)
+          return match ? match[1].substring(0, 50) + (match[1].length > 50 ? '...' : '') : ''
+        }).filter(Boolean)
+        if (items.length) attachments.push({ type: 'reference', count: items.length, items })
+      }
+      
+      return { displayContent: userText, attachedContext: attachments.length > 0 ? attachments : null }
+    }
+    
+    return { displayContent: content, attachedContext: null }
+  }, [content, isUser])
+
   if (isUser) {
     return (
       <div
@@ -212,8 +279,13 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
           </div>
         ) : null}
 
+        {/* Display attached items */}
+        {attachedContext && attachedContext.length > 0 && (
+          <AttachedContextDisplay attachments={attachedContext} />
+        )}
+
         <div className={cn(chatBubbleVariants({ isUser, animation }))}>
-          <MarkdownRenderer>{content}</MarkdownRenderer>
+          <MarkdownRenderer>{displayContent}</MarkdownRenderer>
         </div>
 
         {showTimeStamp && createdAt ? (
@@ -308,10 +380,17 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
   )
 }
 
-function dataUrlToUint8Array(data: string) {
-  const base64 = data.split(",")[1]
-  const buf = Buffer.from(base64, "base64")
-  return new Uint8Array(buf)
+function dataUrlToUint8Array(data: string): Uint8Array {
+  // Handle data URLs by extracting the base64 portion
+  const base64 = data.split(",")[1] || data
+  
+  // Use browser-compatible atob() instead of Node.js Buffer
+  const binaryString = atob(base64)
+  const bytes = new Uint8Array(binaryString.length)
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i)
+  }
+  return bytes
 }
 
 /**
@@ -454,6 +533,99 @@ function ToolCall({
             return null
         }
       })}
+    </div>
+  )
+}
+
+/**
+ * Displays attached context items (ideas, content, concerns, references) in a compact format
+ */
+interface AttachedContextDisplayProps {
+  attachments: Array<{type: string; count: number; items: string[]}>
+}
+
+function AttachedContextDisplay({ attachments }: AttachedContextDisplayProps) {
+  const [isExpanded, setIsExpanded] = useState(false)
+
+  const getIcon = (type: string) => {
+    switch (type) {
+      case 'idea':
+        return <Lightbulb className="h-3 w-3 text-yellow-500" />
+      case 'content':
+        return <FileText className="h-3 w-3 text-blue-500" />
+      case 'concern':
+        return <AlertTriangle className="h-3 w-3 text-orange-500" />
+      case 'reference':
+        return <BookOpen className="h-3 w-3 text-green-500" />
+      default:
+        return null
+    }
+  }
+
+  const getLabel = (type: string, count: number) => {
+    const labels: Record<string, string> = {
+      idea: count === 1 ? 'Idea' : 'Ideas',
+      content: 'Content',
+      concern: count === 1 ? 'Concern' : 'Concerns',
+      reference: count === 1 ? 'Reference' : 'References',
+    }
+    return `${count} ${labels[type] || type}`
+  }
+
+  return (
+    <div className="mb-2 flex flex-col items-end gap-1">
+      <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
+        <CollapsibleTrigger asChild>
+          <button className="flex flex-wrap items-center gap-1.5 rounded-lg border bg-muted/50 px-2 py-1 text-xs text-muted-foreground hover:bg-muted transition-colors">
+            <span className="font-medium">Attached:</span>
+            {attachments.map((attachment, index) => (
+              <Badge 
+                key={index} 
+                variant="secondary" 
+                className="flex items-center gap-1 text-xs py-0 h-5"
+              >
+                {getIcon(attachment.type)}
+                {getLabel(attachment.type, attachment.count)}
+              </Badge>
+            ))}
+            <ChevronRight 
+              className={cn(
+                "h-3 w-3 transition-transform",
+                isExpanded && "rotate-90"
+              )} 
+            />
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mt-1 rounded-lg border bg-muted/30 p-2 text-xs max-w-md"
+          >
+            {attachments.map((attachment, index) => (
+              <div key={index} className="mb-2 last:mb-0">
+                <div className="flex items-center gap-1 font-medium text-muted-foreground mb-1">
+                  {getIcon(attachment.type)}
+                  <span>{getLabel(attachment.type, attachment.count)}</span>
+                </div>
+                <ul className="pl-4 space-y-0.5">
+                  {attachment.items.slice(0, 3).map((item, itemIndex) => (
+                    <li key={itemIndex} className="text-foreground truncate">
+                      • {item}
+                    </li>
+                  ))}
+                  {attachment.items.length > 3 && (
+                    <li className="text-muted-foreground italic">
+                      +{attachment.items.length - 3} more...
+                    </li>
+                  )}
+                </ul>
+              </div>
+            ))}
+          </motion.div>
+        </CollapsibleContent>
+      </Collapsible>
     </div>
   )
 }

@@ -26,6 +26,8 @@ import {
   fetchMessages,
   handleDelete,
   handleMessagesLengthChange,
+  handleUpdateTitle,
+  handleRegenerateTitle,
 } from "./Landing.hooks";
 
 function Landing() {
@@ -39,6 +41,7 @@ function Landing() {
     new IdeaSidebarItem("New", "")
   );
   const [isTitleGenerated, setIsTitleGenerated] = useState(false);
+  const [isLoadingChats, setIsLoadingChats] = useState(true);
 
   //chat messages
   const [initialMessages, setInitialMessages] = useState<UIMessage[]>([]);
@@ -50,7 +53,10 @@ function Landing() {
   useEffect(() => {
     if (!hasLoadedChatsRef.current) {
       hasLoadedChatsRef.current = true;
-      fetchChats(setItems, setSelectedItem, location, items);
+      setIsLoadingChats(true);
+      fetchChats(setItems, setSelectedItem, location, items).finally(() => {
+        setIsLoadingChats(false);
+      });
     }
   }, []);
 
@@ -116,6 +122,14 @@ function Landing() {
     }
   };
 
+  const onUpdateTitle = async (id: string, title: string) => {
+    await handleUpdateTitle(id, title, items, setItems, selectedItem, setSelectedItem);
+  };
+
+  const onRegenerateTitle = async (id: string): Promise<string> => {
+    return await handleRegenerateTitle(id, items, setItems, selectedItem, setSelectedItem);
+  };
+
   return !selectedItem ? (
     <></>
   ) : (
@@ -127,6 +141,9 @@ function Landing() {
           onNew={handleNewChat}
           onDelete={onDelete}
           setSelectedItem={setSelectedItem}
+          onUpdateTitle={onUpdateTitle}
+          onRegenerateTitle={onRegenerateTitle}
+          isLoading={isLoadingChats}
         />
       <SidebarInset className="h-screen overflow-hidden">
         <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
