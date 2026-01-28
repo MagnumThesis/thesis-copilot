@@ -304,25 +304,31 @@ export async function getConcernsHandler(
     }
     
     // Convert database records to ProofreadingConcern objects
-    const formattedConcerns: ProofreadingConcern[] = (concerns || []).map(concern => ({
-      id: concern.id,
-      conversationId: concern.conversation_id,
-      category: concern.category as ConcernCategory,
-      severity: concern.severity as ConcernSeverity,
-      title: concern.title,
-      description: concern.description,
-      location: concern.location ? (typeof concern.location === 'string' ? JSON.parse(concern.location) : concern.location) : undefined,
-      suggestions: concern.suggestions || [],
-      relatedIdeas: concern.related_ideas || [],
-      status: concern.status as ConcernStatus,
-      createdAt: concern.created_at || undefined,
-      updatedAt: concern.updated_at || undefined,
-      text: '', // Database doesn't provide this
-      position: { start: 0, end: 0 }, // Database doesn't provide this
-      explanation: '', // Database doesn't provide this
-      created_at: concern.created_at || '',
-      updated_at: concern.updated_at || ''
-    }));
+    const formattedConcerns: ProofreadingConcern[] = (concerns || []).map(concern => {
+      const isAIGenerated = concern.ai_generated === true;
+      return {
+        id: concern.id,
+        conversationId: concern.conversation_id,
+        category: concern.category as ConcernCategory,
+        severity: concern.severity as ConcernSeverity,
+        title: concern.title,
+        description: concern.description,
+        location: concern.location ? (typeof concern.location === 'string' ? JSON.parse(concern.location) : concern.location) : undefined,
+        suggestions: concern.suggestions || [],
+        relatedIdeas: concern.related_ideas || [],
+        status: concern.status as ConcernStatus,
+        createdAt: concern.created_at || undefined,
+        updatedAt: concern.updated_at || undefined,
+        // Use title/description as fallback for text when not explicitly set
+        text: concern.description || concern.title || '',
+        position: { start: 0, end: 0 }, // Database doesn't provide this
+        // Generate explanation with AI marker for AI-generated concerns
+        explanation: isAIGenerated ? `(AI-generated) ${concern.description || concern.title}` : (concern.description || ''),
+        aiGenerated: isAIGenerated,
+        created_at: concern.created_at || '',
+        updated_at: concern.updated_at || ''
+      };
+    });
     
     return c.json({
       success: true,
@@ -384,6 +390,7 @@ export async function updateConcernStatusHandler(
     }
     
     // Convert database record to ProofreadingConcern object
+    const isAIGenerated = data.ai_generated === true;
     const updatedConcern: ProofreadingConcern = {
       id: data.id,
       conversationId: data.conversation_id,
@@ -397,9 +404,12 @@ export async function updateConcernStatusHandler(
       status: data.status as ConcernStatus,
       createdAt: data.created_at || undefined,
       updatedAt: data.updated_at || undefined,
-      text: '', // Database doesn't provide this
+      // Use title/description as fallback for text when not explicitly set
+      text: data.description || data.title || '',
       position: { start: 0, end: 0 }, // Database doesn't provide this
-      explanation: '', // Database doesn't provide this
+      // Generate explanation with AI marker for AI-generated concerns
+      explanation: isAIGenerated ? `(AI-generated) ${data.description || data.title}` : (data.description || ''),
+      aiGenerated: isAIGenerated,
       created_at: data.created_at || '',
       updated_at: data.updated_at || ''
     };
