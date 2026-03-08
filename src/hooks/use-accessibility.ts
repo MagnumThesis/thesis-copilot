@@ -88,6 +88,38 @@ export function useAccessibility(options: AccessibilityOptions = {}) {
     };
   }, []);
 
+  // Apply side effects to body class list
+  useEffect(() => {
+    const classesToRemove: string[] = [];
+
+    // Cleanup previous classes
+    document.body.classList.forEach(cls => {
+      if (
+        cls === 'motion-reduce' ||
+        cls === 'high-contrast' ||
+        cls.startsWith('color-scheme-') ||
+        cls.startsWith('font-size-')
+      ) {
+        classesToRemove.push(cls);
+      }
+    });
+
+    document.body.classList.remove(...classesToRemove);
+
+    // Apply new classes
+    if (respectMotionPreferences && preferences.prefersReducedMotion) {
+      document.body.classList.add('motion-reduce');
+    }
+
+    if (respectContrastPreferences && preferences.prefersHighContrast) {
+      document.body.classList.add('high-contrast');
+    }
+
+    document.body.classList.add(`color-scheme-${preferences.prefersColorScheme}`);
+    document.body.classList.add(`font-size-${preferences.fontSize}`);
+
+  }, [preferences, respectMotionPreferences, respectContrastPreferences]);
+
   // Announce changes to screen readers
   const announce = useCallback((message: string, priority: 'polite' | 'assertive' = 'polite') => {
     if (!announceChanges) return;
