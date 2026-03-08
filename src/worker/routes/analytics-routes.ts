@@ -111,17 +111,19 @@ export async function handleGenerateReportRoute(ctx: Context): Promise<Analytics
 export async function handleGetAnalyticsRoute(ctx: Context): Promise<AnalyticsServiceResponse> {
   // Basic validation: ensure query has conversationId
   const conversationId = ctx.request?.query?.conversationId;
+  const userId = ctx.request?.query?.userId;
   if (!conversationId || typeof conversationId !== 'string') {
     throw new Error('Invalid request: missing conversationId');
   }
   
   const req: AnalyticsServiceRequest = {
     conversationId,
+    userId: typeof userId === 'string' ? userId : undefined,
     metadata: { operation: 'get-analytics' }
   };
   
   // Delegate to service layer
-  return await AnalyticsService.getAnalytics(req);
+  return await AnalyticsService.getAnalytics(req, (ctx as any).env);
 }
 
 /**

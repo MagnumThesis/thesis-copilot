@@ -1,6 +1,7 @@
 // src/worker/services/analytics-service.ts
 // Service for analytics and tracking operations (modular refactor)
 
+import { SearchAnalyticsManager } from '../lib/search-analytics-manager';
 import { getSupabase } from '../lib/supabase';
 
 export interface AnalyticsServiceRequest {
@@ -168,9 +169,29 @@ export class AnalyticsService {
   /**
    * Gets analytics data
    */
-  static async getAnalytics(req: AnalyticsServiceRequest): Promise<AnalyticsServiceResponse> {
-    // TODO: Implement analytics retrieval logic
-    throw new Error('Not implemented: AnalyticsService.getAnalytics');
+  static async getAnalytics(req: AnalyticsServiceRequest, env?: any): Promise<AnalyticsServiceResponse> {
+    if (!env) {
+      throw new Error('Environment object is required for analytics retrieval');
+    }
+
+    const userId = req.userId || req.conversationId;
+    if (!userId) {
+      throw new Error('userId or conversationId is required for analytics retrieval');
+    }
+
+    const analyticsManager = new SearchAnalyticsManager(env);
+    let days = req.filters?.days || 30;
+    if (req.timeRange && req.timeRange.start) {
+      days = Math.ceil((Date.now() - new Date(req.timeRange.start).getTime()) / (1000 * 60 * 60 * 24));
+    }
+
+    const searchAnalytics = await analyticsManager.getSearchAnalytics(userId, req.conversationId, days);
+
+    return {
+      success: true,
+      data: searchAnalytics,
+      metadata: { ...req.metadata, generatedAt: new Date().toISOString() }
+    };
   }
 
   /**
