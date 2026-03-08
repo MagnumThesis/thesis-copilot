@@ -242,43 +242,42 @@ export class ContentExtractionEngine {
    * Batch extract content from multiple sources
    */
   async batchExtract(sources: { ideas?: string[]; builder?: string[] }): Promise<ExtractedContent[]> {
-    const results: ExtractedContent[] = [];
+    const promises: Promise<ExtractedContent | null>[] = [];
 
-    // Extract from Ideas
+    // Queue extraction for Ideas
     if (sources.ideas && sources.ideas.length > 0) {
       for (const ideaId of sources.ideas) {
-        try {
-          const extracted = await this.extractContent({
+        promises.push(
+          this.extractContent({
             source: 'ideas',
             id: ideaId,
             conversationId: '' // Will be set by caller
-          });
-          results.push(extracted);
-        } catch (error) {
-          console.warn(`Failed to extract from idea ${ideaId}:`, error);
-          // Continue with other sources
-        }
+          }).catch(error => {
+            console.warn(`Failed to extract from idea ${ideaId}:`, error);
+            return null; // Continue with other sources
+          })
+        );
       }
     }
 
-    // Extract from Builder
+    // Queue extraction for Builder
     if (sources.builder && sources.builder.length > 0) {
       for (const builderId of sources.builder) {
-        try {
-          const extracted = await this.extractContent({
+        promises.push(
+          this.extractContent({
             source: 'builder',
             id: builderId,
             conversationId: '' // Will be set by caller
-          });
-          results.push(extracted);
-        } catch (error) {
-          console.warn(`Failed to extract from builder ${builderId}:`, error);
-          // Continue with other sources
-        }
+          }).catch(error => {
+            console.warn(`Failed to extract from builder ${builderId}:`, error);
+            return null; // Continue with other sources
+          })
+        );
       }
     }
 
-    return results;
+    const settledResults = await Promise.all(promises);
+    return settledResults.filter((result): result is ExtractedContent => result !== null);
   }
 
   /**
