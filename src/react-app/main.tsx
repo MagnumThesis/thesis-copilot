@@ -13,6 +13,9 @@ import {
 } from "@/components/ui/shadcn/skeletons";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ProtectedRoute, PublicRoute } from "./components/ProtectedRoute.tsx";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+const queryClient = new QueryClient();
 
 const Landing = lazy(() => import("./pages/Landing"));
 const PublicLanding = lazy(() => import("./pages/PublicLanding"));
@@ -27,9 +30,10 @@ const BillingMethods = lazy(() => import("./pages/BillingMethods"));
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <BrowserRouter>
-      <Routes>
-        <Route
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <Routes>
+          <Route
           path="/"
           element={
             <Suspense fallback={<LandingPageSkeleton />}>
@@ -119,17 +123,18 @@ createRoot(document.getElementById("root")!).render(
             </Suspense>
           }
         />
-        <Route
-          path="/billing/methods"
-          element={
-            <Suspense fallback={<FormSkeleton />}>
-              <ProtectedRoute skeleton={<FormSkeleton />}>
-                <BillingMethods />
-              </ProtectedRoute>
-            </Suspense>
-          }
-        />
-      </Routes>
-    </BrowserRouter>
+          <Route
+            path="/billing/methods"
+            element={
+              <Suspense fallback={<FormSkeleton />}>
+                <ProtectedRoute skeleton={<FormSkeleton />}>
+                  <BillingMethods />
+                </ProtectedRoute>
+              </Suspense>
+            }
+          />
+        </Routes>
+      </BrowserRouter>
+    </QueryClientProvider>
   </StrictMode>
 );

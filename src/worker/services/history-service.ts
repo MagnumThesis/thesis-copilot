@@ -33,8 +33,80 @@ export class HistoryService {
    * Retrieves conversation history
    */
   static async getHistory(req: HistoryServiceRequest): Promise<HistoryServiceResponse> {
-    // TODO: Implement history retrieval logic
-    throw new Error('Not implemented: HistoryService.getHistory');
+    if (!req.conversationId) {
+      throw new Error('Invalid request: missing conversationId');
+    }
+
+    const limit = req.limit && req.limit > 0 ? req.limit : 10;
+    const offset = req.offset && req.offset >= 0 ? req.offset : 0;
+
+    let userId = 'anonymous';
+    if (req.token && req.env?.SUPABASE_JWT_SECRET) {
+      userId = await getUserIdFromToken(req.token, req.env.SUPABASE_JWT_SECRET) || 'anonymous';
+    } else if (req.metadata?.userId) {
+      userId = req.metadata.userId;
+    }
+
+    try {
+      if (req.env) {
+        const { EnhancedSearchHistoryManager } = await import('../lib/enhanced-search-history-manager');
+        const historyManager = new EnhancedSearchHistoryManager(req.env);
+
+        const historyFilter = req.filters ? {
+          query: typeof req.filters.query === 'string' ? req.filters.query : undefined,
+          hasResults: req.filters.hasResults === true || req.filters.hasResults === 'true'
+        } : undefined;
+
+        const result = await historyManager.getSearchHistory(
+          userId,
+          req.conversationId,
+          historyFilter,
+          limit,
+          offset
+        );
+
+        return {
+          success: true,
+          data: result.entries,
+          total: result.total,
+          metadata: {
+            conversationId: req.conversationId,
+            limit,
+            offset,
+            hasMore: result.hasMore
+          }
+        };
+      }
+
+      // Fallback if no env available
+      return {
+        success: true,
+        data: [],
+        total: 0,
+        metadata: {
+          conversationId: req.conversationId,
+          limit,
+          offset,
+          hasMore: false,
+          warning: 'No environment provided for database connection'
+        }
+      };
+    } catch (error) {
+      console.error('Error fetching history in HistoryService:', error);
+
+      return {
+        success: false,
+        data: [],
+        total: 0,
+        metadata: {
+          conversationId: req.conversationId,
+          limit,
+          offset,
+          hasMore: false,
+          error: error instanceof Error ? error.message : 'Unknown error occurred while fetching history'
+        }
+      };
+    }
   }
 
   /**
@@ -178,8 +250,85 @@ export class HistoryService {
    * Searches conversation history
    */
   static async searchHistory(req: HistoryServiceRequest): Promise<HistoryServiceResponse> {
-    // TODO: Implement history search logic
-    throw new Error('Not implemented: HistoryService.searchHistory');
+    if (!req.query || req.query.trim() === '') {
+      throw new Error('Search query is required');
+    }
+
+    const limit = req.limit && req.limit > 0 ? req.limit : 50;
+    const offset = req.offset && req.offset >= 0 ? req.offset : 0;
+    const userId = req.metadata?.userId || 'anonymous';
+    const conversationId = req.conversationId;
+
+    try {
+      // Use env from request or metadata
+      const env = req.env || req.metadata?.env;
+
+      if (env) {
+        // Dynamic import to avoid circular dependencies
+        const { EnhancedSearchHistoryManager } = await import('../lib/enhanced-search-history-manager');
+        const historyManager = new EnhancedSearchHistoryManager(env);
+
+        const historyFilter: any = {
+          searchQuery: req.query,
+          ...req.filters
+        };
+
+        const result = await historyManager.getSearchHistory(
+          userId,
+          conversationId,
+          historyFilter,
+          limit,
+          offset
+        );
+
+        return {
+          success: true,
+          data: result.entries,
+          total: result.total,
+          metadata: {
+            conversationId,
+            userId,
+            limit,
+            offset,
+            hasMore: result.hasMore,
+            query: req.query
+          }
+        };
+      }
+
+      // Fallback if no env available
+      return {
+        success: true,
+        data: [],
+        total: 0,
+        metadata: {
+          conversationId,
+          userId,
+          limit,
+          offset,
+          hasMore: false,
+          query: req.query,
+          warning: 'No environment provided for database connection'
+        }
+      };
+    } catch (error) {
+      console.error('Error searching history:', error);
+
+      return {
+        success: false,
+        data: [],
+        total: 0,
+        metadata: {
+          conversationId,
+          userId,
+          limit,
+          offset,
+          hasMore: false,
+          query: req.query,
+          error: error instanceof Error ? error.message : 'Unknown error occurred while searching history'
+        }
+      };
+    }
   }
 
   /**
@@ -198,7 +347,7 @@ export class HistoryService {
 
     let userId: string | null = null;
     if (req.token) {
-      userId = await getUserIdFromToken(req.token);
+      userId = await getUserIdFromToken(req.token, req.env?.SUPABASE_JWT_SECRET || '');
     } else if (req.metadata?.userId) {
       userId = req.metadata.userId;
     }
@@ -304,8 +453,32 @@ export class HistoryService {
    * Gets content usage statistics
    */
   static async getContentUsage(req: HistoryServiceRequest): Promise<HistoryServiceResponse> {
-    // TODO: Implement content usage logic
-    throw new Error('Not implemented: HistoryService.getContentUsage');
+    if (!req.env) {
+      throw new Error('Environment object is required for getting content usage statistics');
+    }
+
+    const userId = req.metadata?.userId || 'unknown';
+    const days = req.metadata?.days ? parseInt(req.metadata.days, 10) : 30;
+    const conversationId = req.conversationId;
+
+    try {
+      const manager = new EnhancedSearchHistoryManager(req.env);
+      const usage = await manager.getContentSourceUsage(userId, conversationId, days);
+
+      return {
+        success: true,
+        data: usage,
+        metadata: {
+          operation: 'get-content-usage',
+          userId,
+          conversationId,
+          days
+        }
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error fetching content usage statistics';
+      throw new Error(`Failed to get content usage statistics: ${errorMessage}`);
+    }
   }
 
   /**
@@ -435,7 +608,53 @@ export class HistoryService {
    * Gets search session details
    */
   static async getSearchSessionDetails(req: HistoryServiceRequest): Promise<HistoryServiceResponse> {
-    // TODO: Implement session details logic
-    throw new Error('Not implemented: HistoryService.getSearchSessionDetails');
+    const sessionId = req.metadata?.sessionId;
+
+    if (!sessionId) {
+      throw new Error('Invalid request: missing sessionId in metadata');
+    }
+
+    if (!req.env) {
+      throw new Error('Environment object is required for getting session details');
+    }
+
+    try {
+      // Dynamic import to avoid circular dependencies if any
+      const { EnhancedSearchHistoryManager } = await import('../lib/enhanced-search-history-manager');
+      const manager = new EnhancedSearchHistoryManager(req.env);
+
+      const details = await manager.getSearchSessionDetails(sessionId);
+
+      if (!details) {
+        return {
+          success: false,
+          metadata: {
+            operation: 'get-session-details',
+            sessionId,
+            error: 'Session not found'
+          }
+        };
+      }
+
+      return {
+        success: true,
+        data: [details],
+        metadata: {
+          operation: 'get-session-details',
+          sessionId
+        }
+      };
+    } catch (error) {
+      console.error('Error fetching search session details:', error);
+
+      return {
+        success: false,
+        metadata: {
+          operation: 'get-session-details',
+          sessionId,
+          error: error instanceof Error ? error.message : 'Unknown error occurred while fetching session details'
+        }
+      };
+    }
   }
 }

@@ -10,37 +10,70 @@ describe('HistoryService', () => {
   });
 
   describe('getHistory', () => {
-    it('should throw not implemented error currently', async () => {
+    it('should fallback to pagination defaults if no environment is provided', async () => {
       const request: HistoryServiceRequest = {
         conversationId: 'conv-123',
-        limit: 10,
-        offset: 0
-      };
-      
-      await expect(HistoryService.getHistory(request)).rejects.toThrow('Not implemented: HistoryService.getHistory');
-    });
-
-    it('should handle pagination parameters when implemented', async () => {
-      const paginatedRequest: HistoryServiceRequest = {
-        conversationId: 'conv-456',
         limit: 25,
         offset: 50,
-        filters: { 
-          dateRange: { start: '2023-01-01', end: '2023-01-31' },
-          entryType: 'search'
-        }
+        metadata: { userId: 'user-123' }
       };
 
-      await expect(HistoryService.getHistory(paginatedRequest)).rejects.toThrow('Not implemented');
+      const response = await HistoryService.getHistory(request);
+
+      expect(response).toHaveProperty('success', true);
+      expect(response).toHaveProperty('data');
+      expect(Array.isArray(response.data)).toBe(true);
+      expect(response.total).toBe(0);
+      expect(response.metadata).toMatchObject({
+        conversationId: 'conv-123',
+        limit: 25,
+        offset: 50,
+        hasMore: false,
+        warning: 'No environment provided for database connection'
+      });
     });
 
-    it('should validate conversationId when implemented', async () => {
+    it('should use default limit and offset if not provided and no environment', async () => {
+      const request: HistoryServiceRequest = {
+        conversationId: 'conv-default'
+      };
+
+      const response = await HistoryService.getHistory(request);
+
+      expect(response).toHaveProperty('success', true);
+      expect(response.metadata).toMatchObject({
+        conversationId: 'conv-default',
+        limit: 10,
+        offset: 0,
+        hasMore: false
+      });
+    });
+
+    it('should ignore negative limit and offset values and use defaults when no env', async () => {
+      const request: HistoryServiceRequest = {
+        conversationId: 'conv-negative',
+        limit: -5,
+        offset: -10
+      };
+
+      const response = await HistoryService.getHistory(request);
+
+      expect(response).toHaveProperty('success', true);
+      expect(response.metadata).toMatchObject({
+        conversationId: 'conv-negative',
+        limit: 10,
+        offset: 0,
+        hasMore: false
+      });
+    });
+
+    it('should validate conversationId', async () => {
       const invalidRequest: HistoryServiceRequest = {
         conversationId: '',
         limit: 10
       };
 
-      await expect(HistoryService.getHistory(invalidRequest)).rejects.toThrow('Not implemented');
+      await expect(HistoryService.getHistory(invalidRequest)).rejects.toThrow('Invalid request: missing conversationId');
     });
   });
 
@@ -246,16 +279,35 @@ describe('HistoryService', () => {
   });
 
   describe('searchHistory', () => {
-    it('should throw not implemented error currently', async () => {
-      const request: HistoryServiceRequest = {
-        query: 'search term',
-        conversationId: 'conv-search-history'
+    it('should validate search query', async () => {
+      const emptyQueryRequest: HistoryServiceRequest = {
+        query: '',
+        conversationId: 'conv-empty-query'
       };
-      
-      await expect(HistoryService.searchHistory(request)).rejects.toThrow('Not implemented: HistoryService.searchHistory');
+
+      await expect(HistoryService.searchHistory(emptyQueryRequest)).rejects.toThrow('Search query is required');
     });
 
-    it('should handle cross-conversation search when implemented', async () => {
+    it('should handle search history successfully with fallback if no env provided', async () => {
+      const request: HistoryServiceRequest = {
+        query: 'search term',
+        conversationId: 'conv-search-history',
+        metadata: { userId: 'user123' }
+      };
+      
+      const response = await HistoryService.searchHistory(request);
+
+      expect(response).toHaveProperty('success', true);
+      expect(response.data).toEqual([]);
+      expect(response.metadata).toMatchObject({
+        conversationId: 'conv-search-history',
+        userId: 'user123',
+        query: 'search term',
+        warning: 'No environment provided for database connection'
+      });
+    });
+
+    it('should handle cross-conversation search', async () => {
       const globalSearchRequest: HistoryServiceRequest = {
         query: 'neural networks',
         // No conversationId means search across all conversations
@@ -265,13 +317,19 @@ describe('HistoryService', () => {
           minResultCount: 5
         },
         limit: 20,
-        offset: 0
+        offset: 0,
+        metadata: { userId: 'user456' }
       };
 
-      await expect(HistoryService.searchHistory(globalSearchRequest)).rejects.toThrow('Not implemented');
+      const response = await HistoryService.searchHistory(globalSearchRequest);
+      expect(response.success).toBe(true);
+      expect(response.metadata.query).toBe('neural networks');
+      expect(response.metadata.limit).toBe(20);
+      expect(response.metadata.offset).toBe(0);
+      expect(response.metadata.conversationId).toBeUndefined();
     });
 
-    it('should handle conversation-specific search when implemented', async () => {
+    it('should handle conversation-specific search', async () => {
       const conversationSearchRequest: HistoryServiceRequest = {
         query: 'quantum algorithms',
         conversationId: 'conv-quantum',
@@ -279,19 +337,14 @@ describe('HistoryService', () => {
           entryType: ['search', 'download'],
           hasResults: true
         },
-        limit: 10
+        limit: 10,
+        metadata: { userId: 'user789' }
       };
 
-      await expect(HistoryService.searchHistory(conversationSearchRequest)).rejects.toThrow('Not implemented');
-    });
-
-    it('should validate search query when implemented', async () => {
-      const emptyQueryRequest: HistoryServiceRequest = {
-        query: '',
-        conversationId: 'conv-empty-query'
-      };
-
-      await expect(HistoryService.searchHistory(emptyQueryRequest)).rejects.toThrow('Not implemented');
+      const response = await HistoryService.searchHistory(conversationSearchRequest);
+      expect(response.success).toBe(true);
+      expect(response.metadata.conversationId).toBe('conv-quantum');
+      expect(response.metadata.limit).toBe(10);
     });
   });
 

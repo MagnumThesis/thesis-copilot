@@ -1,8 +1,7 @@
-
-
 import { UIMessage } from "ai";
 import IdeaSidebarItem from "@/react-app/models/idea";
 import { NavigateFunction, Location } from "react-router-dom";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 // Get auth token from localStorage
 const getAuthToken = () => {
@@ -30,119 +29,91 @@ const getHeaders = () => {
   return headers;
 };
 
-export const fetchChats = async (
-  setItems: React.Dispatch<React.SetStateAction<IdeaSidebarItem[]>>,
-  setSelectedItem: React.Dispatch<React.SetStateAction<IdeaSidebarItem>>,
-  location: Location<unknown>,
-  items: IdeaSidebarItem[],
-) => {
-  if(location.pathname == "/" || items.length > 0) return; 
-  try {
-    const response = await fetch("/api/chats", {
-      headers: getHeaders(),
-    });
-    if (!response.ok) { 
-      throw new Error("Failed to fetch chats");
-    }
-    const chats = await response.json();
-    const newItems = chats.map( //TODO: fix this with react query later when really needed
-      (chat: any) => new IdeaSidebarItem(chat.name, chat.id)
-    );
-    setItems(newItems);
-    const selected = newItems.find(
-      (item: IdeaSidebarItem) => item.id === location.pathname.slice(5) // Remove "/app/" prefix
-    );
-    if (selected) {
-      setSelectedItem(selected);
-    }
-  } catch (error) {
-    console.error(error);
-  }
-};export const createNewChat = async (
-  selectedItem: IdeaSidebarItem,
-  location: Location<unknown>,
-  navigate: NavigateFunction,
-  setSelectedItem: React.Dispatch<React.SetStateAction<IdeaSidebarItem>>,
-  setItems: React.Dispatch<React.SetStateAction<IdeaSidebarItem[]>>
-) => {
-  try {
-    console.log('Creating new chat...');
-    const response = await fetch("/api/chats", {
-      method: "POST",
-      headers: getHeaders(),
-      body: JSON.stringify({ name: "New Idea" }),
-    });
-    console.log('Create response status:', response.status);
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error('Create chat error:', errorData);
-      throw new Error("Failed to create a new chat");
-    }
-    const newChat = await response.json();
-    console.log('New chat created:', newChat);
-    if (newChat && newChat.id) {
-      const newItem = new IdeaSidebarItem(newChat.name, newChat.id);
-      setSelectedItem(newItem);
-      setItems((prevItems) => [...prevItems, newItem]);
-      navigate(`/${newChat.id}`);
-    }
-  } catch (error) {
-    console.error("Error creating new chat:", error);
-  }
-};
-
-export const fetchMessages = async (
-  selectedItem: IdeaSidebarItem,
-  setInitialMessages: React.Dispatch<React.SetStateAction<UIMessage[]>>
-) => {
-  if (selectedItem?.id && selectedItem.id !== "") {
-    try {
-      const response = await fetch(`/api/chats/${selectedItem.id}/messages`);
-      if (response.ok) {
-        const data: [] = await response.json();
-        const transformedData: UIMessage[] = [];
-        data.forEach((message: any) => {
-          const transformedMessage: UIMessage = {
-            id: message.id,
-            role: message.role,
-            parts: JSON.parse(message.content),
-          };
-          transformedData.push(transformedMessage);
-        });
-        if (data) {
-          setInitialMessages(transformedData);
-        } else {
-          setInitialMessages([]);
-        }
-      } else {
-        setInitialMessages([]);
+export const useChats = () => {
+  return useQuery({
+    queryKey: ['chats'],
+    queryFn: async () => {
+      const response = await fetch("/api/chats", {
+        headers: getHeaders(),
+      });
+      if (!response.ok) {
+        throw new Error("Failed to fetch chats");
       }
-    } catch (error) {
-      console.error("Failed to fetch messages:", error);
-      setInitialMessages([]);
+      const chats = await response.json();
+      return chats.map(
+        (chat: any) => new IdeaSidebarItem(chat.name, chat.id)
+      );
     }
-  } else {
-    setInitialMessages([]);
-  }
+  });
 };
 
-export const handleMessagesLengthChange = async (
-  count: number,
-  isTitleGenerated: boolean,
-  setIsTitleGenerated: React.Dispatch<React.SetStateAction<boolean>>,
-  selectedItem: IdeaSidebarItem,
-  items: IdeaSidebarItem[],
-  setItems: React.Dispatch<React.SetStateAction<IdeaSidebarItem[]>>,
-  setSelectedItem: React.Dispatch<React.SetStateAction<IdeaSidebarItem>>
-) => {
-  if (count >= 5 && !isTitleGenerated && selectedItem?.title === "New Idea") {
-    setIsTitleGenerated(true); // Prevent multiple requests
-    try {
+export const useCreateChat = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      console.log('Creating new chat...');
+      const response = await fetch("/api/chats", {
+        method: "POST",
+        headers: getHeaders(),
+        body: JSON.stringify({ name: "New Idea" }),
+      });
+      console.log('Create response status:', response.status);
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Create chat error:', errorData);
+        throw new Error("Failed to create a new chat");
+      }
+      const newChat = await response.json();
+      console.log('New chat created:', newChat);
+      return newChat;
+    },
+    onSuccess: (newChat) => {
+      if (newChat && newChat.id) {
+        const newItem = new IdeaSidebarItem(newChat.name, newChat.id);
+        queryClient.setQueryData(['chats'], (old: IdeaSidebarItem[] | undefined) => {
+          return old ? [...old, newItem] : [newItem];
+        });
+      }
+    }
+  });
+};
+
+export const useChatMessages = (chatId: string) => {
+  return useQuery({
+    queryKey: ['chatMessages', chatId],
+    queryFn: async () => {
+      if (!chatId) return [];
+      const response = await fetch(`/api/chats/${chatId}/messages`, {
+        headers: getHeaders()
+      });
+      if (!response.ok) {
+        throw new Error("Failed to fetch messages");
+      }
+      const data = await response.json();
+      const transformedData: UIMessage[] = [];
+      data.forEach((message: any) => {
+        const transformedMessage: UIMessage = {
+          id: message.id,
+          role: message.role,
+          parts: JSON.parse(message.content),
+        };
+        transformedData.push(transformedMessage);
+      });
+      return transformedData;
+    },
+    enabled: !!chatId,
+  });
+};
+
+export const useGenerateTitleFromMessages = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ chatId }: { chatId: string }) => {
       // 1. Generate title
       const genTitleResponse = await fetch(`/api/generate-title`, {
         method: "POST",
         headers: getHeaders(),
-        body: JSON.stringify({ chatId: selectedItem.id }),
+        body: JSON.stringify({ chatId }),
       });
 
       if (!genTitleResponse.ok) {
@@ -151,131 +122,115 @@ export const handleMessagesLengthChange = async (
       const { title: newTitle } = await genTitleResponse.json();
 
       // 2. Update chat name in the database
-      await fetch(`/api/chats/${selectedItem.id}`, {
+      const updateResponse = await fetch(`/api/chats/${chatId}`, {
         method: "PATCH",
         headers: getHeaders(),
         body: JSON.stringify({ name: newTitle }),
       });
 
-      // 3. Update state
-      const updatedItems = items.map((item) =>
-        item.id === selectedItem.id
-          ? new IdeaSidebarItem(newTitle, item.id)
-          : item
-      );
-      setItems(updatedItems);
-      setSelectedItem(new IdeaSidebarItem(newTitle, selectedItem.id));
-      setIsTitleGenerated(false);
-    } catch (error) {
-      console.error("Error generating title:", error);
-      setIsTitleGenerated(false); // Reset on error to allow retry
+      if (!updateResponse.ok) {
+        throw new Error("Failed to save generated title");
+      }
+
+      return { chatId, newTitle };
+    },
+    onSuccess: ({ chatId, newTitle }) => {
+      queryClient.setQueryData(['chats'], (old: IdeaSidebarItem[] | undefined) => {
+        if (!old) return old;
+        return old.map((item) =>
+          item.id === chatId
+            ? new IdeaSidebarItem(newTitle, item.id)
+            : item
+        );
+      });
     }
-  }
+  });
 };
 
-export const handleDelete = async (
-  id: string,
-  setItems: React.Dispatch<React.SetStateAction<IdeaSidebarItem[]>>,
-  selectedItem: IdeaSidebarItem,
-  navigate: NavigateFunction,
-  setSelectedItem: React.Dispatch<React.SetStateAction<IdeaSidebarItem>>
-) => {
-  try {
-    const response = await fetch(`/api/chats/${id}`, {
-      method: "DELETE",
-      headers: getHeaders(),
-    });
-    if (!response.ok) {
-      throw new Error("Failed to delete chat");
+export const useDeleteChat = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const response = await fetch(`/api/chats/${id}`, {
+        method: "DELETE",
+        headers: getHeaders(),
+      });
+      if (!response.ok) {
+        throw new Error("Failed to delete chat");
+      }
+      return id;
+    },
+    onSuccess: (deletedId) => {
+      queryClient.setQueryData(['chats'], (old: IdeaSidebarItem[] | undefined) => {
+        if (!old) return old;
+        return old.filter((item) => item.id !== deletedId);
+      });
     }
-    setItems((prevItems) => prevItems.filter((item) => item.id !== id));
-    if (selectedItem.id === id) {
-      navigate("/");
-      setSelectedItem(new IdeaSidebarItem("New", ""));
-    }
-  } catch (error) {
-    console.error("Error deleting chat:", error);
-  }
+  });
 };
 
-export const handleUpdateTitle = async (
-  id: string,
-  title: string,
-  items: IdeaSidebarItem[],
-  setItems: React.Dispatch<React.SetStateAction<IdeaSidebarItem[]>>,
-  selectedItem: IdeaSidebarItem,
-  setSelectedItem: React.Dispatch<React.SetStateAction<IdeaSidebarItem>>
-) => {
-  try {
-    const response = await fetch(`/api/chats/${id}`, {
-      method: "PATCH",
-      headers: getHeaders(),
-      body: JSON.stringify({ name: title }),
-    });
+export const useUpdateChatTitle = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, title }: { id: string; title: string }) => {
+      const response = await fetch(`/api/chats/${id}`, {
+        method: "PATCH",
+        headers: getHeaders(),
+        body: JSON.stringify({ name: title }),
+      });
 
-    if (!response.ok) {
-      throw new Error("Failed to update title");
+      if (!response.ok) {
+        throw new Error("Failed to update title");
+      }
+      return { id, title };
+    },
+    onSuccess: ({ id, title }) => {
+      queryClient.setQueryData(['chats'], (old: IdeaSidebarItem[] | undefined) => {
+        if (!old) return old;
+        return old.map((item) =>
+          item.id === id ? new IdeaSidebarItem(title, item.id, item.isActive) : item
+        );
+      });
     }
-
-    // Update state
-    const updatedItems = items.map((item) =>
-      item.id === id ? new IdeaSidebarItem(title, item.id, item.isActive) : item
-    );
-    setItems(updatedItems);
-    
-    if (selectedItem.id === id) {
-      setSelectedItem(new IdeaSidebarItem(title, id, selectedItem.isActive));
-    }
-  } catch (error) {
-    console.error("Error updating title:", error);
-    throw error;
-  }
+  });
 };
 
-export const handleRegenerateTitle = async (
-  id: string,
-  items: IdeaSidebarItem[],
-  setItems: React.Dispatch<React.SetStateAction<IdeaSidebarItem[]>>,
-  selectedItem: IdeaSidebarItem,
-  setSelectedItem: React.Dispatch<React.SetStateAction<IdeaSidebarItem>>
-): Promise<string> => {
-  try {
-    // 1. Generate title using AI
-    const genTitleResponse = await fetch(`/api/generate-title`, {
-      method: "POST",
-      headers: getHeaders(),
-      body: JSON.stringify({ chatId: id }),
-    });
+export const useRegenerateChatTitle = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      // 1. Generate title using AI
+      const genTitleResponse = await fetch(`/api/generate-title`, {
+        method: "POST",
+        headers: getHeaders(),
+        body: JSON.stringify({ chatId: id }),
+      });
 
-    if (!genTitleResponse.ok) {
-      throw new Error("Failed to generate title");
+      if (!genTitleResponse.ok) {
+        throw new Error("Failed to generate title");
+      }
+      const { title: newTitle } = await genTitleResponse.json();
+
+      // 2. Update chat name in the database
+      const updateResponse = await fetch(`/api/chats/${id}`, {
+        method: "PATCH",
+        headers: getHeaders(),
+        body: JSON.stringify({ name: newTitle }),
+      });
+
+      if (!updateResponse.ok) {
+        throw new Error("Failed to save generated title");
+      }
+
+      return { id, newTitle };
+    },
+    onSuccess: ({ id, newTitle }) => {
+      queryClient.setQueryData(['chats'], (old: IdeaSidebarItem[] | undefined) => {
+        if (!old) return old;
+        return old.map((item) =>
+          item.id === id ? new IdeaSidebarItem(newTitle, item.id, item.isActive) : item
+        );
+      });
     }
-    const { title: newTitle } = await genTitleResponse.json();
-
-    // 2. Update chat name in the database
-    const updateResponse = await fetch(`/api/chats/${id}`, {
-      method: "PATCH",
-      headers: getHeaders(),
-      body: JSON.stringify({ name: newTitle }),
-    });
-
-    if (!updateResponse.ok) {
-      throw new Error("Failed to save generated title");
-    }
-
-    // 3. Update state
-    const updatedItems = items.map((item) =>
-      item.id === id ? new IdeaSidebarItem(newTitle, item.id, item.isActive) : item
-    );
-    setItems(updatedItems);
-    
-    if (selectedItem.id === id) {
-      setSelectedItem(new IdeaSidebarItem(newTitle, id, selectedItem.isActive));
-    }
-
-    return newTitle;
-  } catch (error) {
-    console.error("Error regenerating title:", error);
-    throw error;
-  }
+  });
 };

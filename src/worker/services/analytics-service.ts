@@ -1,6 +1,7 @@
 // src/worker/services/analytics-service.ts
 // Service for analytics and tracking operations (modular refactor)
 import { SearchAnalyticsManager } from '../lib/search-analytics-manager';
+import { EnhancedSearchHistoryManager } from '../lib/enhanced-search-history-manager';
 import { getSupabase } from '../lib/supabase';
 
 export interface AnalyticsServiceRequest {
@@ -324,9 +325,52 @@ export class AnalyticsService {
   /**
    * Gets statistics data
    */
-  static async getStatistics(req: AnalyticsServiceRequest): Promise<AnalyticsServiceResponse> {
-    // TODO: Implement statistics retrieval logic
-    throw new Error('Not implemented: AnalyticsService.getStatistics');
+  static async getStatistics(req: AnalyticsServiceRequest, env?: any): Promise<AnalyticsServiceResponse> {
+    // Determine the user identifier to retrieve statistics for.
+    const userId = req.userId || req.conversationId;
+
+    if (!userId) {
+      throw new Error('userId or conversationId is required to retrieve statistics');
+    }
+
+    const contextEnv = req.env || env;
+
+    if (!contextEnv) {
+      throw new Error('Environment object is required to retrieve statistics');
+    }
+
+    try {
+      const historyManager = new EnhancedSearchHistoryManager(contextEnv);
+
+      // Determine time range constraints
+      let days = req.filters?.days || 30;
+      if (req.timeRange && req.timeRange.start) {
+        days = Math.max(1, Math.ceil((Date.now() - new Date(req.timeRange.start).getTime()) / (1000 * 60 * 60 * 24)));
+      }
+
+      // Fetch the robust search history stats
+      const stats = await historyManager.getSearchHistoryStats(userId, req.conversationId, days);
+
+      return {
+        success: true,
+        data: stats,
+        metadata: {
+          ...req.metadata,
+          operation: 'get-statistics',
+          calculatedAt: new Date().toISOString(),
+          daysCalculated: days
+        }
+      };
+    } catch (error) {
+      console.error('Error fetching statistics:', error);
+      return {
+        success: false,
+        metadata: {
+          error: error instanceof Error ? error.message : 'Unknown error fetching statistics',
+          operation: 'get-statistics'
+        }
+      };
+    }
   }
 
   /**
