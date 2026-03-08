@@ -642,7 +642,7 @@ export class EnhancedSearchHistoryManager extends SearchAnalyticsManager {
           // Get content source details if available
           let contentSources: ('ideas' | 'builder')[] = [];
           try {
-            contentSources = JSON.parse(session.content_sources || '[]');
+            contentSources = JSON.parse(typeof session.content_sources === "string" ? session.content_sources : JSON.stringify(session.content_sources || []));
           } catch (e) {
             console.warn('Invalid JSON in content_sources:', session.content_sources);
             contentSources = [];
@@ -737,7 +737,7 @@ export class EnhancedSearchHistoryManager extends SearchAnalyticsManager {
         let sources: string[] = [];
         try {
           if (Array.isArray(session.content_sources)) {
-            sources = session.content_sources;
+            sources = session.content_sources as string[];
           } else if (typeof session.content_sources === 'string') {
             sources = JSON.parse(session.content_sources);
           }
@@ -783,7 +783,7 @@ export class EnhancedSearchHistoryManager extends SearchAnalyticsManager {
           // Ignore parse errors
         }
         return {
-          content_sources: parsedSources,
+          content_sources: parsedSources as string[],
           usage_count: count
         };
       });

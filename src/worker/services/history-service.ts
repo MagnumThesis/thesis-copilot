@@ -52,9 +52,9 @@ export class HistoryService {
         const { EnhancedSearchHistoryManager } = await import('../lib/enhanced-search-history-manager');
         const historyManager = new EnhancedSearchHistoryManager(req.env);
 
-        const historyFilter = req.filters ? {
-          query: typeof req.filters.query === 'string' ? req.filters.query : undefined,
-          hasResults: req.filters.hasResults === true || req.filters.hasResults === 'true'
+        const historyFilter: any = req.filters ? {
+          searchQuery: typeof req.filters.query === 'string' ? req.filters.query : undefined,
+          successOnly: req.filters.hasResults === true || req.filters.hasResults === 'true'
         } : undefined;
 
         const result = await historyManager.getSearchHistory(
@@ -544,9 +544,9 @@ export class HistoryService {
         const historyManager = new EnhancedSearchHistoryManager(req.metadata.env);
 
         // Pass the request filters to the history manager's filter object
-        const historyFilter = req.filters ? {
-          query: typeof req.filters.query === 'string' ? req.filters.query : undefined,
-          hasResults: req.filters.hasResults === true || req.filters.hasResults === 'true'
+        const historyFilter: any = req.filters ? {
+          searchQuery: typeof req.filters.query === 'string' ? req.filters.query : undefined,
+          successOnly: req.filters.hasResults === true || req.filters.hasResults === 'true'
         } : undefined;
 
         const result = await historyManager.getSearchHistory(

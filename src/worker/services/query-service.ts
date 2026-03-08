@@ -39,9 +39,9 @@ export class QueryService {
   static async generateQuery(req: QueryServiceRequest): Promise<QueryServiceResponse> {
     try {
       const { contentSources, options, conversationId } = req;
-      
+
       console.log('Generate query request:', { contentSources, hasEnv: !!req.context?.env });
-      
+
       if (!contentSources || contentSources.length === 0) {
         return {
           success: true,
@@ -82,7 +82,7 @@ export class QueryService {
       });
 
       const mainQuery = queries[0];
-      
+
       return {
         success: true,
         query: mainQuery.query,
@@ -118,7 +118,7 @@ export class QueryService {
   static async validateQuery(req: QueryServiceRequest): Promise<QueryServiceResponse> {
     const query = req.query || '';
     const isValid = query.length > 3 && query.length < 500;
-    
+
     const suggestions: string[] = [];
     if (query.length <= 3) {
       suggestions.push('Query is too short. Add more specific terms.');
@@ -126,7 +126,7 @@ export class QueryService {
     if (query.length >= 500) {
       suggestions.push('Query is too long. Consider simplifying.');
     }
-    
+
     return {
       isValid,
       suggestions,
@@ -142,24 +142,24 @@ export class QueryService {
    */
   static async combineQueries(req: QueryServiceRequest): Promise<QueryServiceResponse> {
     const queries = req.queries || [];
-    
+
     if (queries.length === 0) {
       return {
         query: '',
         metadata: { combined: false }
       };
     }
-    
+
     if (queries.length === 1) {
       return {
         query: queries[0],
         metadata: { combined: false }
       };
     }
-    
+
     // Simple combination - join with OR
     const combinedQuery = queries.join(' OR ');
-    
+
     return {
       query: combinedQuery,
       metadata: {
@@ -175,14 +175,14 @@ export class QueryService {
   static async refineQuery(req: QueryServiceRequest): Promise<QueryServiceResponse> {
     const originalQuery = req.query || '';
     const refinementContext = req.refinementContext || {};
-    
+
     // Simple refinement - add filters/modifiers
     let refinedQuery = originalQuery;
-    
+
     if (refinementContext.yearStart) {
       refinedQuery += ` after:${refinementContext.yearStart}`;
     }
-    
+
     return {
       query: refinedQuery,
       metadata: {
@@ -198,18 +198,18 @@ export class QueryService {
   static async extractContent(req: QueryServiceRequest): Promise<QueryServiceResponse> {
     try {
       const { contentSources, context } = req;
-      
+
       console.log('Extract content request:', { contentSources, hasEnv: !!context?.env });
-      
+
       if (!contentSources || contentSources.length === 0) {
         return {
           content: [],
           metadata: { extracted: false, error: 'No content sources provided' }
         };
       }
-      
+
       const { content: extractedContent, errors } = await this.fetchContentFromSources(contentSources, context?.env);
-      
+
       return {
         content: extractedContent,
         metadata: {
@@ -235,29 +235,29 @@ export class QueryService {
    */
   static async contentPreview(req: QueryServiceRequest): Promise<QueryServiceResponse> {
     const { source, id, context } = req;
-    
+
     console.log('Content preview request:', { source, id, hasEnv: !!context?.env });
-    
+
     if (!source || !id) {
       return {
         preview: null,
         metadata: { success: false, error: 'Missing source or id' }
       };
     }
-    
+
     try {
       const { content: contents } = await this.fetchContentFromSources([{ source, id }], context?.env);
       const content = contents[0];
-      
+
       console.log('Fetched content:', { content: !!content, source, id });
-      
+
       if (!content) {
         return {
           preview: null,
           metadata: { success: false, error: 'Content not found' }
         };
       }
-      
+
       // Generate extracted content in the format the frontend expects
       const extractedContent = {
         source: content.source,
@@ -268,7 +268,7 @@ export class QueryService {
         topics: content.topics || [],
         confidence: content.confidence || 0.85
       };
-      
+
       return {
         extractedContent,
         preview: {
@@ -313,7 +313,7 @@ export class QueryService {
 
     // Combine title and text
     const combinedText = title ? `${title} ${text}` : text;
-    
+
     // Extract words (3+ chars, alphanumeric)
     const words = combinedText
       .toLowerCase()
@@ -346,7 +346,7 @@ export class QueryService {
 
     try {
       const supabase = getSupabase(env);
-      
+
       // Group IDs by source to batch queries
       const ideasIds: number[] = [];
       const builderIds: string[] = [];
@@ -365,12 +365,12 @@ export class QueryService {
           errors.push(`Unknown source type: ${source.source}`);
         }
       }
-      
+
       const fetchPromises: Promise<void>[] = [];
 
       // Fetch ideas in batch
       if (ideasIds.length > 0) {
-        fetchPromises.push(
+        fetchPromises.push(Promise.resolve(
           supabase
             .from('ideas')
             .select('*')
@@ -404,13 +404,13 @@ export class QueryService {
                   }
                 }
               }
-            }) as Promise<void>
-        );
+            })
+        ).catch((err: any) => { errors.push(`Error fetching ideas: ${err.message}`); }) as Promise<void>);
       }
-      
+
       // Fetch builder messages in batch
       if (builderIds.length > 0) {
-        fetchPromises.push(
+        fetchPromises.push(Promise.resolve(
           supabase
             .from('messages')
             .select('*')
@@ -446,8 +446,8 @@ export class QueryService {
                   }
                 }
               }
-            }) as Promise<void>
-        );
+            })
+        ).catch((err: any) => { errors.push(`Error fetching builder messages: ${err.message}`); }) as Promise<void>);
       }
 
       // Wait for all batch queries to complete

@@ -26,7 +26,7 @@ export async function generateTitleHandler(
       return c.json({ error: "Authentication required" }, 401);
     }
 
-    const userId = await getUserIdFromToken(token);
+    const userId = await getUserIdFromToken(token, c.env.SUPABASE_JWT_SECRET || "");
     if (!userId) {
       return c.json({ error: "Invalid token" }, 401);
     }

@@ -64,6 +64,7 @@ export class ReferenceSuggestionEngine {
       const confidence = this.calculateConfidence(result, originalContent);
 
       const suggestion: ReferenceSuggestion = {
+        id: `suggestion-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         reference,
         relevance_score: relevanceScore,
         confidence,

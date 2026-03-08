@@ -69,7 +69,7 @@ describe('chatHandler Security', () => {
     it('should return 401 if authentication context is missing', async () => {
         mockContext.get.mockReturnValue(null);
 
-        const response = await chatHandler(mockContext as any);
+        const response: any = await chatHandler(mockContext as any);
 
         expect(response.status).toBe(401);
         expect(response.data).toEqual({ error: 'Authentication required' });
@@ -78,7 +78,7 @@ describe('chatHandler Security', () => {
     it('should return 401 if token is invalid', async () => {
         mockContext.get.mockReturnValue({ token: 'invalid-token' });
 
-        const response = await chatHandler(mockContext as any);
+        const response: any = await chatHandler(mockContext as any);
 
         expect(response.status).toBe(401);
         expect(response.data).toEqual({ error: 'Invalid authentication token' });
@@ -88,7 +88,7 @@ describe('chatHandler Security', () => {
         mockContext.get.mockReturnValue({ token: 'valid-token' }); // userId: user123
         mockSingle.mockResolvedValue({ data: { user_id: 'user456' }, error: null });
 
-        const response = await chatHandler(mockContext as any);
+        const response: any = await chatHandler(mockContext as any);
 
         expect(response.status).toBe(403);
         expect(response.data).toEqual({ error: 'Unauthorized access to chat' });
@@ -98,7 +98,7 @@ describe('chatHandler Security', () => {
         mockContext.get.mockReturnValue({ token: 'valid-token' });
         mockSingle.mockResolvedValue({ data: null, error: { message: 'Not found' } });
 
-        const response = await chatHandler(mockContext as any);
+        const response: any = await chatHandler(mockContext as any);
 
         expect(response.status).toBe(404);
         expect(response.data).toEqual({ error: 'Chat not found' });

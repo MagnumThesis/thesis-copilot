@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import '@testing-library/jest-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ContentSourceManagement, ContentSourceManagementProps } from '../../../../components/ui/ai-searcher/content-source-management';
 import { ExtractedContent } from '../../../../lib/ai-types';
@@ -62,10 +63,10 @@ describe('ContentSourceManagement', () => {
   });
 
   it('displays a summary when selectedContent is not empty', () => {
-    const mockSelectedContent: ExtractedContent[] = [
-      { id: '1', type: 'idea', content: 'Idea 1', title: 'Idea 1', selected: true },
-      { id: '2', type: 'idea', content: 'Idea 2', title: 'Idea 2', selected: true }
-    ];
+    const mockSelectedContent = [
+      { id: '1', source: 'ideas', content: 'Idea 1', title: 'Idea 1', confidence: 1 },
+      { id: '2', source: 'builder', content: 'Idea 2', title: 'Idea 2', confidence: 1 }
+    ] as ExtractedContent[];
 
     render(<ContentSourceManagement {...defaultProps} selectedContent={mockSelectedContent} />);
 
@@ -74,9 +75,9 @@ describe('ContentSourceManagement', () => {
   });
 
   it('displays singular source text when exactly one content item is selected', () => {
-    const mockSelectedContent: ExtractedContent[] = [
-      { id: '1', type: 'idea', content: 'Idea 1', title: 'Idea 1', selected: true }
-    ];
+    const mockSelectedContent = [
+      { id: '1', source: 'ideas', content: 'Idea 1', title: 'Idea 1', confidence: 1 }
+    ] as ExtractedContent[];
 
     render(<ContentSourceManagement {...defaultProps} selectedContent={mockSelectedContent} />);
 
@@ -174,9 +175,9 @@ describe('ContentSourceManagement', () => {
 
     expect(screen.getByPlaceholderText(/Enter your search query/i)).toBeInTheDocument();
 
-    const mockSelectedContent: ExtractedContent[] = [
-      { id: '1', type: 'idea', content: 'Idea 1', title: 'Idea 1', selected: true }
-    ];
+    const mockSelectedContent = [
+      { id: '1', source: 'ideas', content: 'Idea 1', title: 'Idea 1', confidence: 1 }
+    ] as ExtractedContent[];
     rerender(<ContentSourceManagement {...defaultProps} selectedContent={mockSelectedContent} />);
 
     expect(screen.getByPlaceholderText(/Query generated from selected content/i)).toBeInTheDocument();

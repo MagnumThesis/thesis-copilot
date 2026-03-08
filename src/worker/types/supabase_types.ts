@@ -138,18 +138,29 @@ export type Database = {
           created_at: string | null
           id: string
           name: string
+          user_id: string
         }
         Insert: {
           created_at?: string | null
           id?: string
           name: string
+          user_id?: string
         }
         Update: {
           created_at?: string | null
           id?: string
           name?: string
+          user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "chats_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       citation_instances: {
         Row: {
@@ -927,6 +938,36 @@ export type Database = {
           relevance_threshold?: number | null
           topic_preferences?: Json
           user_id?: string
+        }
+        Relationships: []
+      }
+      user_profiles: {
+        Row: {
+          id: string
+          email: string
+          plan: string | null
+          credits: number | null
+          next_billing_date: string | null
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+        }
+        Insert: {
+          id: string
+          email: string
+          plan?: string | null
+          credits?: number | null
+          next_billing_date?: string | null
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+        }
+        Update: {
+          id?: string
+          email?: string
+          plan?: string | null
+          credits?: number | null
+          next_billing_date?: string | null
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
         }
         Relationships: []
       }

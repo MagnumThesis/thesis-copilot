@@ -34,7 +34,7 @@ describe('QueryService Performance', () => {
     }));
 
     const start = performance.now();
-    await QueryService.extractContent({ contentSources });
+    await QueryService.extractContent({ conversationId: "test-conv", contentSources });
     const end = performance.now();
 
     console.log(`extractContent with 50 sources took ${end - start}ms`);

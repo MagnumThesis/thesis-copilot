@@ -324,7 +324,7 @@ export async function getConcernsHandler(
         position: { start: 0, end: 0 }, // Database doesn't provide this
         // Generate explanation with AI marker for AI-generated concerns
         explanation: isAIGenerated ? `(AI-generated) ${concern.description || concern.title}` : (concern.description || ''),
-        aiGenerated: isAIGenerated,
+
         created_at: concern.created_at || '',
         updated_at: concern.updated_at || ''
       };
@@ -409,7 +409,7 @@ export async function updateConcernStatusHandler(
       position: { start: 0, end: 0 }, // Database doesn't provide this
       // Generate explanation with AI marker for AI-generated concerns
       explanation: isAIGenerated ? `(AI-generated) ${data.description || data.title}` : (data.description || ''),
-      aiGenerated: isAIGenerated,
+
       created_at: data.created_at || '',
       updated_at: data.updated_at || ''
     };
