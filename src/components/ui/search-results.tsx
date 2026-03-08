@@ -8,6 +8,7 @@ import { Separator } from './shadcn/separator';
 import { ScrollArea } from './shadcn/scroll-area';
 import { CitationFormatter } from './citation-formatter';
 import { ReferenceSuggestion, SearchAnalytics, Reference, ReferenceType } from '../../lib/ai-types';
+import { trackSuggestionAction } from '../../lib/api/ai-searcher-api';
 import { CheckCircle, XCircle, AlertCircle, BookOpen, Calendar, BarChart3, TrendingUp, RefreshCw, Download } from 'lucide-react';
 
 interface SearchResultsProps {
@@ -36,7 +37,9 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
 
   const handleAcceptSuggestion = async (suggestion: ReferenceSuggestion) => {
     try {
-      // TODO: Call API to mark suggestion as accepted
+      // Call API to mark suggestion as accepted
+      await trackSuggestionAction(suggestion.id, 'accept');
+
       setAcceptedSuggestions(prev => new Set([...prev, suggestion.id]));
 
       // Call the selection handler
@@ -50,7 +53,9 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
 
   const handleRejectSuggestion = async (suggestion: ReferenceSuggestion) => {
     try {
-      // TODO: Call API to mark suggestion as rejected
+      // Call API to mark suggestion as rejected
+      await trackSuggestionAction(suggestion.id, 'reject');
+
       setRejectedSuggestions(prev => new Set([...prev, suggestion.id]));
     } catch (error) {
       console.error('Error rejecting suggestion:', error);
