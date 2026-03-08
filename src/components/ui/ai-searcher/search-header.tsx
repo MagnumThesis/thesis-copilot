@@ -14,6 +14,14 @@ export interface SearchHeaderProps {
    * Whether privacy controls are currently visible
    */
   showPrivacyControls: boolean;
+  /**
+   * Title of the search section
+   */
+  title?: string;
+  /**
+   * Description of the search section
+   */
+  description?: string;
 }
 
 /**
@@ -22,13 +30,18 @@ export interface SearchHeaderProps {
  */
 export const SearchHeader: React.FC<SearchHeaderProps> = ({
   onTogglePrivacyControls,
-  showPrivacyControls
+  showPrivacyControls,
+  title = "AI Search",
+  description = "Search across your library, notes, and external sources."
 }) => {
   return (
     <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2">
-        <Sparkles className="h-5 w-5 text-blue-600" />
-        <h3 className="text-lg font-semibold">AI-Powered Reference Search</h3>
+      <div>
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-5 w-5 text-blue-600" />
+          <h3 className="text-lg font-semibold">{title}</h3>
+        </div>
+        <p className="text-sm text-muted-foreground mt-1">{description}</p>
       </div>
       <Button
         variant="outline"
