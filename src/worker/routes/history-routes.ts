@@ -111,9 +111,14 @@ export async function handleClearHistoryRoute(ctx: Context): Promise<HistoryServ
     throw new Error('Invalid request: missing conversationId');
   }
   
+  const authHeader = (ctx as any).req?.header('Authorization') || ctx.request?.headers?.['authorization'] || ctx.request?.headers?.['Authorization'];
+  const token = typeof authHeader === 'string' ? authHeader.replace('Bearer ', '') : undefined;
+
   const req: HistoryServiceRequest = {
     conversationId: body.conversationId,
-    metadata: { operation: 'clear-history' }
+    metadata: { operation: 'clear-history' },
+    env: (ctx as any).env,
+    token
   };
   
   // Delegate to service layer
