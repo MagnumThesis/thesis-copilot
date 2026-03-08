@@ -1,8 +1,8 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, it, expect, vi } from 'vitest';
-import { ContentSourceManagement } from '../../../../components/ui/ai-searcher/content-source-management';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { ContentSourceManagement, ContentSourceManagementProps } from '../../../../components/ui/ai-searcher/content-source-management';
 import { ExtractedContent } from '../../../../lib/ai-types';
 
 // Mock Lucide icons to prevent portal/SVG issues in JSDOM
@@ -15,21 +15,22 @@ vi.mock('lucide-react', () => ({
 }));
 
 describe('ContentSourceManagement', () => {
-  const defaultProps = {
-    searchQuery: '',
-    onSearchQueryChange: vi.fn(),
-    onToggleContentSelector: vi.fn(),
-    showContentSelector: false,
-    selectedContent: [],
-    onSearch: vi.fn(),
-    loading: false,
-    onToggleFilters: vi.fn(),
-    onRefineQuery: vi.fn(),
-    refinementLoading: false,
-  };
+  let defaultProps: ContentSourceManagementProps;
 
   beforeEach(() => {
     vi.clearAllMocks();
+    defaultProps = {
+      searchQuery: '',
+      onSearchQueryChange: vi.fn(),
+      onToggleContentSelector: vi.fn(),
+      showContentSelector: false,
+      selectedContent: [],
+      onSearch: vi.fn(),
+      loading: false,
+      onToggleFilters: vi.fn(),
+      onRefineQuery: vi.fn(),
+      refinementLoading: false,
+    };
   });
 
   it('renders correctly with default props', () => {
