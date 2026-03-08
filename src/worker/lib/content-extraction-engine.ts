@@ -241,44 +241,47 @@ export class ContentExtractionEngine {
   /**
    * Batch extract content from multiple sources
    */
-  async batchExtract(sources: { ideas?: string[]; builder?: string[] }): Promise<ExtractedContent[]> {
-    const results: ExtractedContent[] = [];
+  async batchExtract(sources: { ideas?: string[]; builder?: string[] }, conversationId: string = ''): Promise<ExtractedContent[]> {
+    const extractionPromises: Promise<ExtractedContent | null>[] = [];
 
     // Extract from Ideas
     if (sources.ideas && sources.ideas.length > 0) {
-      for (const ideaId of sources.ideas) {
+      const ideaPromises = sources.ideas.map(async (ideaId) => {
         try {
-          const extracted = await this.extractContent({
+          return await this.extractContent({
             source: 'ideas',
             id: ideaId,
-            conversationId: '' // Will be set by caller
+            conversationId: conversationId
           });
-          results.push(extracted);
         } catch (error) {
           console.warn(`Failed to extract from idea ${ideaId}:`, error);
-          // Continue with other sources
+          return null;
         }
-      }
+      });
+      extractionPromises.push(...ideaPromises);
     }
 
     // Extract from Builder
     if (sources.builder && sources.builder.length > 0) {
-      for (const builderId of sources.builder) {
+      const builderPromises = sources.builder.map(async (builderId) => {
         try {
-          const extracted = await this.extractContent({
+          return await this.extractContent({
             source: 'builder',
             id: builderId,
-            conversationId: '' // Will be set by caller
+            conversationId: conversationId || builderId // Use provided conversationId or fallback to builderId
           });
-          results.push(extracted);
         } catch (error) {
           console.warn(`Failed to extract from builder ${builderId}:`, error);
-          // Continue with other sources
+          return null;
         }
-      }
+      });
+      extractionPromises.push(...builderPromises);
     }
 
-    return results;
+    const results = await Promise.all(extractionPromises);
+
+    // Filter out null results from failed extractions
+    return results.filter((result): result is ExtractedContent => result !== null);
   }
 
   /**
