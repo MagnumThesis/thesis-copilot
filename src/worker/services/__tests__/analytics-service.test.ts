@@ -64,7 +64,7 @@ describe('AnalyticsService', () => {
   });
 
   describe('getMetrics', () => {
-    it('should throw not implemented error currently', async () => {
+    it('should return default metrics when metricType is not recognized', async () => {
       const request: AnalyticsServiceRequest = {
         metricType: 'usage_stats',
         timeRange: {
@@ -74,10 +74,17 @@ describe('AnalyticsService', () => {
         aggregation: 'daily'
       };
       
-      await expect(AnalyticsService.getMetrics(request)).rejects.toThrow('Not implemented: AnalyticsService.getMetrics');
+      const response = await AnalyticsService.getMetrics(request);
+      expect(response.success).toBe(true);
+      expect(response.metrics).toEqual({
+        defaultMetric: 100,
+        status: 'active'
+      });
+      expect(response.metadata).toHaveProperty('calculatedAt');
+      expect(response.metadata.aggregation).toBe('daily');
     });
 
-    it('should handle different metric types when implemented', async () => {
+    it('should handle different metric types', async () => {
       const userMetricsRequest: AnalyticsServiceRequest = {
         metricType: 'user_engagement',
         timeRange: {
@@ -88,7 +95,15 @@ describe('AnalyticsService', () => {
         aggregation: 'hourly'
       };
 
-      await expect(AnalyticsService.getMetrics(userMetricsRequest)).rejects.toThrow('Not implemented');
+      const userMetricsResponse = await AnalyticsService.getMetrics(userMetricsRequest);
+      expect(userMetricsResponse.success).toBe(true);
+      expect(userMetricsResponse.metrics).toEqual({
+        activeUsers: 150,
+        averageSessionDuration: 300,
+        totalSessions: 450,
+        bounceRate: 0.25
+      });
+      expect(userMetricsResponse.metadata.filters).toEqual({ userType: 'researcher' });
 
       const searchMetricsRequest: AnalyticsServiceRequest = {
         metricType: 'search_performance',
@@ -102,7 +117,14 @@ describe('AnalyticsService', () => {
         }
       };
 
-      await expect(AnalyticsService.getMetrics(searchMetricsRequest)).rejects.toThrow('Not implemented');
+      const searchMetricsResponse = await AnalyticsService.getMetrics(searchMetricsRequest);
+      expect(searchMetricsResponse.success).toBe(true);
+      expect(searchMetricsResponse.metrics).toEqual({
+        totalSearches: 1500,
+        averageResponseTime: 245,
+        successRate: 0.95,
+        topQueries: ['machine learning', 'deep learning']
+      });
     });
   });
 
