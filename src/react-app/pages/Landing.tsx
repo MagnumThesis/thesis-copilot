@@ -19,15 +19,14 @@ import Skeleton from "@/components/ui/shadcn/skeleton";
 import { DetailContentSkeleton } from "@/components/ui/shadcn/skeletons";
 const Chatbot = lazy(() => import("./Chatbot"));
 const ToolsPanel = lazy(() => import("@/components/ui/tools-panel").then(m => ({ default: m.ToolsPanel })));
-import { UIMessage } from "ai";
 import {
-  createNewChat,
-  fetchChats,
-  fetchMessages,
-  handleDelete,
-  handleMessagesLengthChange,
-  handleUpdateTitle,
-  handleRegenerateTitle,
+  useChats,
+  useChatMessages,
+  useCreateChat,
+  useDeleteChat,
+  useUpdateChatTitle,
+  useRegenerateChatTitle,
+  useGenerateTitleFromMessages,
 } from "./Landing.hooks";
 
 function Landing() {
@@ -36,85 +35,65 @@ function Landing() {
   const navigate = useNavigate();
 
   //chat state management
-  const [items, setItems] = useState<IdeaSidebarItem[]>([]);
   const [selectedItem, setSelectedItem] = useState<IdeaSidebarItem>(
     new IdeaSidebarItem("New", "")
   );
   const [isTitleGenerated, setIsTitleGenerated] = useState(false);
-  const [isLoadingChats, setIsLoadingChats] = useState(true);
 
-  //chat messages
-  const [initialMessages, setInitialMessages] = useState<UIMessage[]>([]);
+  // React Query Hooks
+  const { data: items = [], isLoading: isLoadingChats } = useChats();
+  const { data: initialMessages = [] } = useChatMessages(selectedItem?.id || "");
 
-  // Track if chats have been loaded to prevent refetching
-  const hasLoadedChatsRef = useRef(false);
+  const createChatMutation = useCreateChat();
+  const deleteChatMutation = useDeleteChat();
+  const updateChatTitleMutation = useUpdateChatTitle();
+  const regenerateChatTitleMutation = useRegenerateChatTitle();
+  const generateTitleFromMessagesMutation = useGenerateTitleFromMessages();
 
-  //fetch chats only once on component mount
+  // Initialize selectedItem based on URL if it's not set
   useEffect(() => {
-    if (!hasLoadedChatsRef.current) {
-      hasLoadedChatsRef.current = true;
-      setIsLoadingChats(true);
-      fetchChats(setItems, setSelectedItem, location, items).finally(() => {
-        setIsLoadingChats(false);
-      });
+    if (location.pathname !== "/" && items.length > 0 && selectedItem.id === "") {
+      const selected = items.find(
+        (item: IdeaSidebarItem) => item.id === location.pathname.slice(5) // Remove "/app/" prefix
+      );
+      if (selected) {
+        setSelectedItem(selected);
+      }
     }
-  }, []);
+  }, [location.pathname, items, selectedItem.id]);
 
-  // fetch messages when user clicks on a chat
-  useEffect(() => {
-    fetchMessages(selectedItem, setInitialMessages);
-  }, [selectedItem, navigate]);
-
- 
-  const onMessagesLengthChange = (count: number) => {
-    handleMessagesLengthChange(
-      count,
-      isTitleGenerated,
-      setIsTitleGenerated,
-      selectedItem,
-      items,
-      setItems,
-      setSelectedItem
-    );
+  const onMessagesLengthChange = async (count: number) => {
+    if (count >= 5 && !isTitleGenerated && selectedItem?.title === "New Idea") {
+      setIsTitleGenerated(true);
+      try {
+        const { newTitle } = await generateTitleFromMessagesMutation.mutateAsync({ chatId: selectedItem.id });
+        setSelectedItem(new IdeaSidebarItem(newTitle, selectedItem.id));
+        setIsTitleGenerated(false);
+      } catch (error) {
+        console.error("Error generating title:", error);
+        setIsTitleGenerated(false);
+      }
+    }
   };
 
-  const onDelete = (id: string) => {
-    handleDelete(id, setItems, selectedItem, navigate, setSelectedItem);
+  const onDelete = async (id: string) => {
+    try {
+      await deleteChatMutation.mutateAsync(id);
+      if (selectedItem.id === id) {
+        navigate("/");
+        setSelectedItem(new IdeaSidebarItem("New", ""));
+      }
+    } catch (error) {
+      console.error("Error deleting chat:", error);
+    }
   };
 
   const handleNewChat = async () => {
     try {
-      // Get auth token
-      const authState = localStorage.getItem('authState');
-      const token = authState ? JSON.parse(authState).session?.accessToken : null;
-      
-      if (!token) {
-        console.error('No auth token found');
-        return;
-      }
-
-      const response = await fetch("/api/chats", {
-        method: "POST",
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ name: "New Idea" }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Create chat error:', errorData);
-        throw new Error("Failed to create a new chat");
-      }
-
-      const newChat = await response.json();
-      console.log('New chat created:', newChat);
-
+      const newChat = await createChatMutation.mutateAsync();
       if (newChat && newChat.id) {
         const newItem = new IdeaSidebarItem(newChat.name, newChat.id);
         setSelectedItem(newItem);
-        setItems((prevItems) => [...prevItems, newItem]);
         navigate(`/app/${newChat.id}`);
       }
     } catch (error) {
@@ -123,11 +102,27 @@ function Landing() {
   };
 
   const onUpdateTitle = async (id: string, title: string) => {
-    await handleUpdateTitle(id, title, items, setItems, selectedItem, setSelectedItem);
+    try {
+      await updateChatTitleMutation.mutateAsync({ id, title });
+      if (selectedItem.id === id) {
+        setSelectedItem(new IdeaSidebarItem(title, id, selectedItem.isActive));
+      }
+    } catch (error) {
+      console.error("Error updating title:", error);
+    }
   };
 
   const onRegenerateTitle = async (id: string): Promise<string> => {
-    return await handleRegenerateTitle(id, items, setItems, selectedItem, setSelectedItem);
+    try {
+      const { newTitle } = await regenerateChatTitleMutation.mutateAsync(id);
+      if (selectedItem.id === id) {
+        setSelectedItem(new IdeaSidebarItem(newTitle, id, selectedItem.isActive));
+      }
+      return newTitle;
+    } catch (error) {
+      console.error("Error regenerating title:", error);
+      throw error;
+    }
   };
 
   return !selectedItem ? (
