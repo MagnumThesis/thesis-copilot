@@ -103,31 +103,128 @@ describe('HistoryService', () => {
     });
   });
 
-  describe('deleteHistory', () => {
-    it('should throw not implemented error currently', async () => {
+  describe('clearHistory', () => {
+    it('should throw error if conversationId is not provided', async () => {
       const request: HistoryServiceRequest = {
-        conversationId: 'conv-delete'
+        env: {}
       };
+
+      await expect(HistoryService.clearHistory(request)).rejects.toThrow('conversationId is required to clear history');
+    });
+
+    it('should throw error if env is not provided', async () => {
+      const request: HistoryServiceRequest = {
+        conversationId: 'conv-123'
+      };
+
+      await expect(HistoryService.clearHistory(request)).rejects.toThrow('env is required to clear history');
+    });
+
+  });
+
+  describe('deleteHistory', () => {
+    // Tests for specific and full conversation deletion
+    // since we use a real or mocked Supabase client, we would mock it out here in a real unit test
+    // For now we test that it requires conversationId
+    it('should require conversationId', async () => {
+      const request: HistoryServiceRequest = {};
       
-      await expect(HistoryService.deleteHistory(request)).rejects.toThrow('Not implemented: HistoryService.deleteHistory');
+      await expect(HistoryService.deleteHistory(request)).rejects.toThrow('conversationId is required for deletion');
     });
+  });
 
-    it('should handle specific entry deletion when implemented', async () => {
-      const specificEntryRequest: HistoryServiceRequest = {
-        conversationId: 'conv-specific',
-        entryId: 'entry-123'
+  describe('getSuccessTracking', () => {
+    it('should throw error if conversationId is missing', async () => {
+      const invalidRequest: HistoryServiceRequest = {
+        metadata: { operation: 'get-success-tracking' }
       };
 
-      await expect(HistoryService.deleteHistory(specificEntryRequest)).rejects.toThrow('Not implemented');
+      await expect(HistoryService.getSuccessTracking(invalidRequest)).rejects.toThrow('Invalid request: missing conversationId');
     });
 
-    it('should handle full conversation deletion when implemented', async () => {
-      const fullConversationRequest: HistoryServiceRequest = {
-        conversationId: 'conv-full-delete'
-        // No entryId means delete entire conversation history
+    it('should return default tracking data when conversationId is provided', async () => {
+      const request: HistoryServiceRequest = {
+        conversationId: 'conv-tracking',
+        metadata: { operation: 'get-success-tracking' }
       };
 
-      await expect(HistoryService.deleteHistory(fullConversationRequest)).rejects.toThrow('Not implemented');
+      const response = await HistoryService.getSuccessTracking(request);
+
+      expect(response.success).toBe(true);
+      expect(response.data).toBeDefined();
+      expect(response.data?.length).toBe(1);
+
+      const trackingData = response.data![0];
+      expect(trackingData.conversationId).toBe('conv-tracking');
+      expect(trackingData.successfulRequests).toBe(0);
+      expect(trackingData.totalRequests).toBe(0);
+      expect(trackingData.successRate).toBe(0);
+      expect(trackingData.lastSuccessfulAction).toBeNull();
+
+      expect(response.metadata.operation).toBe('get-success-tracking');
+      expect(response.metadata.timestamp).toBeDefined();
+    });
+  });
+
+  describe('getNextBatch', () => {
+    it('should fallback to pagination defaults if no environment is provided', async () => {
+      const request: HistoryServiceRequest = {
+        conversationId: 'conv-page-1',
+        limit: 25,
+        offset: 50,
+        metadata: { userId: 'user-123' }
+      };
+
+      const response = await HistoryService.getNextBatch(request);
+
+      expect(response).toHaveProperty('success', true);
+      expect(response).toHaveProperty('data');
+      expect(Array.isArray(response.data)).toBe(true);
+      expect(response.total).toBe(0);
+      expect(response.metadata).toMatchObject({
+        conversationId: 'conv-page-1',
+        userId: 'user-123',
+        limit: 25,
+        offset: 50,
+        hasMore: false,
+        warning: 'No environment provided for database connection'
+      });
+    });
+
+    it('should use default limit and offset if not provided and no environment', async () => {
+      const request: HistoryServiceRequest = {
+        conversationId: 'conv-default'
+      };
+
+      const response = await HistoryService.getNextBatch(request);
+
+      expect(response).toHaveProperty('success', true);
+      expect(response.metadata).toMatchObject({
+        conversationId: 'conv-default',
+        userId: 'anonymous',
+        limit: 10,
+        offset: 0,
+        hasMore: false
+      });
+    });
+
+    it('should ignore negative limit and offset values and use defaults when no env', async () => {
+      const request: HistoryServiceRequest = {
+        conversationId: 'conv-negative',
+        limit: -5,
+        offset: -10
+      };
+
+      const response = await HistoryService.getNextBatch(request);
+
+      expect(response).toHaveProperty('success', true);
+      expect(response.metadata).toMatchObject({
+        conversationId: 'conv-negative',
+        userId: 'anonymous',
+        limit: 10,
+        offset: 0,
+        hasMore: false
+      });
     });
   });
 
@@ -178,6 +275,42 @@ describe('HistoryService', () => {
       };
 
       await expect(HistoryService.searchHistory(emptyQueryRequest)).rejects.toThrow('Not implemented');
+    });
+  });
+
+  describe('exportHistory', () => {
+    it('should validate conversationId', async () => {
+      const request: HistoryServiceRequest = {};
+      await expect(HistoryService.exportHistory(request)).rejects.toThrow('Conversation ID is required for export');
+    });
+
+    it('should return exported history in json format by default', async () => {
+      const request: HistoryServiceRequest = {
+        conversationId: 'conv-123'
+      };
+      const response = await HistoryService.exportHistory(request);
+      expect(response.success).toBe(true);
+      expect(response.metadata.format).toBe('json');
+      expect(response.metadata.conversationId).toBe('conv-123');
+      expect(response.data).toBeInstanceOf(Array);
+      expect(response.data?.length).toBe(1);
+      expect(typeof response.data?.[0]).toBe('string');
+      expect(response.data?.[0]).toBe('[]');
+    });
+
+    it('should return exported history in csv format when specified', async () => {
+      const request: HistoryServiceRequest = {
+        conversationId: 'conv-456',
+        metadata: { format: 'csv' }
+      };
+      const response = await HistoryService.exportHistory(request);
+      expect(response.success).toBe(true);
+      expect(response.metadata.format).toBe('csv');
+      expect(response.metadata.conversationId).toBe('conv-456');
+      expect(response.data).toBeInstanceOf(Array);
+      expect(response.data?.length).toBe(1);
+      expect(typeof response.data?.[0]).toBe('string');
+      expect(response.data?.[0]).toContain('id,timestamp,query,sources,total_results,accepted,rejected');
     });
   });
 

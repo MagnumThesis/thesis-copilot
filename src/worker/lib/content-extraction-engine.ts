@@ -11,7 +11,7 @@ import { aiSearcherPerformanceOptimizer } from '../../lib/ai-searcher-performanc
 interface BuilderDocument {
   id: string;
   title?: string;
-  sections?: Array<{ 
+  sections?: Array<{
     title?: string;
     content?: string;
   }>;
@@ -67,7 +67,7 @@ export class ContentExtractionEngine {
           const builderData = await this.extractFromBuilder(conversationId);
           content = builderData.content;
           title = builderData.title;
-          sourceMetadata = { 
+          sourceMetadata = {
             conversationId: conversationId
           };
           break;
@@ -244,7 +244,7 @@ export class ContentExtractionEngine {
   async batchExtract(sources: { ideas?: string[]; builder?: string[] }, conversationId: string = ''): Promise<ExtractedContent[]> {
     const extractionPromises: Promise<ExtractedContent | null>[] = [];
 
-    // Extract from Ideas
+    // Queue extraction for Ideas
     if (sources.ideas && sources.ideas.length > 0) {
       const ideaPromises = sources.ideas.map(async (ideaId) => {
         try {
@@ -261,7 +261,7 @@ export class ContentExtractionEngine {
       extractionPromises.push(...ideaPromises);
     }
 
-    // Extract from Builder
+    // Queue extraction for Builder
     if (sources.builder && sources.builder.length > 0) {
       const builderPromises = sources.builder.map(async (builderId) => {
         try {
@@ -378,7 +378,7 @@ class IdeaApi {
 
       // Construct the full URL for the ideas API endpoint
       const url = this.baseUrl ? `${this.baseUrl}/api/ideas/${id}` : `/api/ideas/${id}`;
-      
+
       const response = await fetch(url, {
         method: 'GET',
         headers: {
@@ -386,7 +386,7 @@ class IdeaApi {
           'Accept': 'application/json'
         }
       });
-      
+
       if (!response.ok) {
         if (response.status === 404) {
           console.warn(`Idea ${id} not found`);
@@ -396,15 +396,15 @@ class IdeaApi {
       }
 
       const data = await response.json();
-      
+
       // Type guard to ensure data has the expected properties
-      if (data && 
-          typeof data === 'object' && 
-          'success' in data && 
-          typeof (data as any).success === 'boolean' && 
-          'idea' in data && 
-          typeof (data as any).idea === 'object' && 
-          (data as any).idea !== null) {
+      if (data &&
+        typeof data === 'object' &&
+        'success' in data &&
+        typeof (data as any).success === 'boolean' &&
+        'idea' in data &&
+        typeof (data as any).idea === 'object' &&
+        (data as any).idea !== null) {
         const idea = (data as any).idea;
         return {
           id: idea.id,
@@ -424,7 +424,7 @@ class IdeaApi {
 
     } catch (error) {
       console.error(`Error fetching idea ${id}:`, error);
-      
+
       // Fallback to mock data for development/testing
       console.log(`Falling back to mock data for idea ${id}`);
       return {
@@ -450,7 +450,7 @@ class IdeaApi {
       console.log(`Fetching ideas for conversation ${conversationId}`);
 
       const url = this.baseUrl ? `${this.baseUrl}/api/ideas?conversationId=${conversationId}` : `/api/ideas?conversationId=${conversationId}`;
-      
+
       const response = await fetch(url, {
         method: 'GET',
         headers: {
@@ -458,20 +458,20 @@ class IdeaApi {
           'Accept': 'application/json'
         }
       });
-      
+
       if (!response.ok) {
         throw new Error(`Failed to fetch ideas: ${response.status} ${response.statusText}`);
       }
 
       const data = await response.json();
-      
+
       // Type guard to ensure data has the expected properties
-      if (data && 
-          typeof data === 'object' && 
-          'success' in data && 
-          typeof (data as any).success === 'boolean' && 
-          'ideas' in data && 
-          Array.isArray((data as any).ideas)) {
+      if (data &&
+        typeof data === 'object' &&
+        'success' in data &&
+        typeof (data as any).success === 'boolean' &&
+        'ideas' in data &&
+        Array.isArray((data as any).ideas)) {
         return (data as any).ideas.map((idea: any) => ({
           id: idea.id,
           title: idea.title,
@@ -490,7 +490,7 @@ class IdeaApi {
 
     } catch (error) {
       console.error(`Error fetching ideas for conversation ${conversationId}:`, error);
-      
+
       // Return empty array on error
       return [];
     }
@@ -513,7 +513,7 @@ class BuilderApi {
 
       // Construct the full URL for the builder API endpoint
       const url = this.baseUrl ? `${this.baseUrl}/api/builder-content/${conversationId}` : `/api/builder-content/${conversationId}`;
-      
+
       const response = await fetch(url, {
         method: 'GET',
         headers: {
@@ -521,7 +521,7 @@ class BuilderApi {
           'Accept': 'application/json'
         }
       });
-      
+
       if (!response.ok) {
         if (response.status === 404) {
           console.warn(`Builder content for conversation ${conversationId} not found`);
@@ -531,14 +531,14 @@ class BuilderApi {
       }
 
       const data = await response.json();
-      
+
       // Type guard to ensure data has the expected properties
-      if (data && 
-          typeof data === 'object' && 
-          'success' in data && 
-          typeof (data as any).success === 'boolean' && 
-          'content' in data && 
-          typeof (data as any).content === 'string') {
+      if (data &&
+        typeof data === 'object' &&
+        'success' in data &&
+        typeof (data as any).success === 'boolean' &&
+        'content' in data &&
+        typeof (data as any).content === 'string') {
         const typedData = data as any;
         return {
           id: conversationId,
@@ -548,9 +548,9 @@ class BuilderApi {
           updated_at: ('updated_at' in data && typeof (data as any).updated_at === 'string' ? (data as any).updated_at : new Date().toISOString()),
           created_at: ('created_at' in data && typeof (data as any).created_at === 'string' ? (data as any).created_at : new Date().toISOString()),
           wordCount: typedData.content.split(/\s+/).length,
-          lastModified: ('updated_at' in data && typeof (data as any).updated_at === 'string' ? (data as any).updated_at : 
-                        'created_at' in data && typeof (data as any).created_at === 'string' ? (data as any).created_at : 
-                        new Date().toISOString())
+          lastModified: ('updated_at' in data && typeof (data as any).updated_at === 'string' ? (data as any).updated_at :
+            'created_at' in data && typeof (data as any).created_at === 'string' ? (data as any).created_at :
+              new Date().toISOString())
         };
       }
 
@@ -558,7 +558,7 @@ class BuilderApi {
 
     } catch (error) {
       console.error(`Error fetching builder content for ${conversationId}:`, error);
-      
+
       // Fallback to mock data for development/testing
       console.log(`Falling back to mock data for builder ${conversationId}`);
       const mockContent = `# Research Document ${conversationId}
@@ -601,20 +601,20 @@ The research demonstrates the potential of AI-powered tools in enhancing academi
    */
   private parseContentSections(content: string): Array<{ title: string; content: string }> {
     const sections: Array<{ title: string; content: string }> = [];
-    
+
     // Split content by markdown headers (# ## ###)
     const lines = content.split('\n');
     let currentSection: { title: string; content: string } | null = null;
-    
+
     for (const line of lines) {
       const headerMatch = line.match(/^(#{1,3})\s+(.+)$/);
-      
+
       if (headerMatch) {
         // Save previous section if exists
         if (currentSection) {
           sections.push(currentSection);
         }
-        
+
         // Start new section
         currentSection = {
           title: headerMatch[2].trim(),
@@ -625,12 +625,12 @@ The research demonstrates the potential of AI-powered tools in enhancing academi
         currentSection.content += line + '\n';
       }
     }
-    
+
     // Add final section
     if (currentSection) {
       sections.push(currentSection);
     }
-    
+
     // If no sections found, create a single section with all content
     if (sections.length === 0 && content.trim()) {
       sections.push({
@@ -638,7 +638,7 @@ The research demonstrates the potential of AI-powered tools in enhancing academi
         content: content
       });
     }
-    
+
     return sections;
   }
 }

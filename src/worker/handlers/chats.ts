@@ -12,7 +12,7 @@ export async function getChatsHandler(c: Context<{ Bindings: Env & SupabaseEnv }
 
     if (authHeader) {
         const token = authHeader.replace('Bearer ', '');
-        userId = await getUserIdFromToken(token);
+        userId = await getUserIdFromToken(token, c.env.SUPABASE_JWT_SECRET);
     }
 
     // If no userId, return empty list
@@ -46,7 +46,7 @@ export async function createChatHandler(c: Context<{ Bindings: Env & SupabaseEnv
         return c.json({ error: "Authentication required" }, 401);
     }
 
-    const userId = await getUserIdFromToken(token);
+    const userId = await getUserIdFromToken(token, c.env.SUPABASE_JWT_SECRET);
     if (!userId) {
         return c.json({ error: "Invalid token" }, 401);
     }
@@ -81,7 +81,7 @@ export async function deleteChatHandler(c: Context<{ Bindings: Env & SupabaseEnv
         return c.json({ error: "Authentication required" }, 401);
     }
 
-    const userId = await getUserIdFromToken(token);
+    const userId = await getUserIdFromToken(token, c.env.SUPABASE_JWT_SECRET);
     if (!userId) {
         return c.json({ error: "Invalid token" }, 401);
     }
@@ -134,7 +134,7 @@ export async function updateChatHandler(c: Context<{ Bindings: Env & SupabaseEnv
         return c.json({ error: "Authentication required" }, 401);
     }
 
-    const userId = await getUserIdFromToken(token);
+    const userId = await getUserIdFromToken(token, c.env.SUPABASE_JWT_SECRET);
     if (!userId) {
         return c.json({ error: "Invalid token" }, 401);
     }
