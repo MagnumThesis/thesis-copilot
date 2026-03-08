@@ -131,6 +131,68 @@ describe('HistoryService', () => {
     });
   });
 
+  describe('getNextBatch', () => {
+    it('should fallback to pagination defaults if no environment is provided', async () => {
+      const request: HistoryServiceRequest = {
+        conversationId: 'conv-page-1',
+        limit: 25,
+        offset: 50,
+        metadata: { userId: 'user-123' }
+      };
+
+      const response = await HistoryService.getNextBatch(request);
+
+      expect(response).toHaveProperty('success', true);
+      expect(response).toHaveProperty('data');
+      expect(Array.isArray(response.data)).toBe(true);
+      expect(response.total).toBe(0);
+      expect(response.metadata).toMatchObject({
+        conversationId: 'conv-page-1',
+        userId: 'user-123',
+        limit: 25,
+        offset: 50,
+        hasMore: false,
+        warning: 'No environment provided for database connection'
+      });
+    });
+
+    it('should use default limit and offset if not provided and no environment', async () => {
+      const request: HistoryServiceRequest = {
+        conversationId: 'conv-default'
+      };
+
+      const response = await HistoryService.getNextBatch(request);
+
+      expect(response).toHaveProperty('success', true);
+      expect(response.metadata).toMatchObject({
+        conversationId: 'conv-default',
+        userId: 'anonymous',
+        limit: 10,
+        offset: 0,
+        hasMore: false
+      });
+    });
+
+    it('should ignore negative limit and offset values and use defaults when no env', async () => {
+      const request: HistoryServiceRequest = {
+        conversationId: 'conv-negative',
+        limit: -5,
+        offset: -10
+      };
+
+      const response = await HistoryService.getNextBatch(request);
+
+      expect(response).toHaveProperty('success', true);
+      expect(response.metadata).toMatchObject({
+        conversationId: 'conv-negative',
+        userId: 'anonymous',
+        limit: 10,
+        offset: 0,
+        hasMore: false
+      });
+    });
+  });
+
   describe('searchHistory', () => {
     it('should throw not implemented error currently', async () => {
       const request: HistoryServiceRequest = {
