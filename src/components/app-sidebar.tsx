@@ -204,6 +204,7 @@ export function AppSidebar({
                           size="icon"
                           className="h-9 w-9 shrink-0"
                           onClick={() => handleSaveEdit(item.id)}
+                          aria-label="Save title"
                           disabled={isUpdating}
                         >
                           {isUpdating ? (
@@ -217,6 +218,7 @@ export function AppSidebar({
                           size="icon"
                           className="h-9 w-9 shrink-0"
                           onClick={handleCancelEdit}
+                          aria-label="Cancel editing"
                           disabled={isUpdating}
                         >
                           <X className="h-5 w-5 text-destructive" />
@@ -235,6 +237,7 @@ export function AppSidebar({
                               className="h-8 w-8"
                               onClick={(e) => handleStartEdit(item, e)}
                               title="Edit title"
+                              aria-label="Edit title"
                             >
                               <Pencil className="h-4 w-4" />
                             </Button>
@@ -246,6 +249,7 @@ export function AppSidebar({
                               className="h-8 w-8"
                               onClick={(e) => handleRegenerateTitle(item.id, e)}
                               disabled={regeneratingId === item.id}
+                              aria-label="Regenerate title with AI"
                               title="Regenerate title with AI"
                             >
                               {regeneratingId === item.id ? (
@@ -261,6 +265,7 @@ export function AppSidebar({
                             className="h-8 w-8"
                             onClick={() => onDelete(item.id)}
                             title="Delete"
+                            aria-label="Delete idea"
                           >
                             <Trash className="h-4 w-4" />
                           </Button>
