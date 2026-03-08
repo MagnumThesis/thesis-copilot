@@ -166,7 +166,7 @@ export async function handleGetStatisticsRoute(ctx: Context): Promise<AnalyticsS
   };
   
   // Delegate to service layer
-  return await AnalyticsService.getStatistics(req);
+  return await AnalyticsService.getStatistics(req, (ctx as any).env);
 }
 
 /**
