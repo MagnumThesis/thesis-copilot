@@ -8,6 +8,7 @@ import { Separator } from './shadcn/separator';
 import { ScrollArea } from './shadcn/scroll-area';
 import { CitationFormatter } from './citation-formatter';
 import { ReferenceSuggestion, SearchAnalytics, Reference, ReferenceType } from '../../lib/ai-types';
+import { trackSuggestionAction } from '../../lib/api/ai-searcher-api';
 import { CheckCircle, XCircle, AlertCircle, BookOpen, Calendar, BarChart3, TrendingUp, RefreshCw, Download } from 'lucide-react';
 import { addReferenceFromSearch } from '../../lib/api/ai-searcher-api';
 
@@ -41,6 +42,8 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
     if (!suggestion.id) return;
 
     try {
+      // Call API to mark suggestion as accepted
+      await trackSuggestionAction(suggestion.id, 'accept');
       // Convert ReferenceMetadata back to ScholarSearchResult-like object for the API
       // which assumes ScholarSearchResult shape currently. It only requires a few fields for adding.
       const searchResultData: any = {
@@ -81,8 +84,10 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
     if (!suggestion.id) return;
 
     try {
-      // TODO: Call API to mark suggestion as rejected
-      setRejectedSuggestions(prev => new Set([...prev, suggestion.id!]));
+      // Call API to mark suggestion as rejected
+      await trackSuggestionAction(suggestion.id, 'reject');
+
+      setRejectedSuggestions(prev => new Set([...prev, suggestion.id]));
     } catch (error) {
       console.error('Error rejecting suggestion:', error);
     }
@@ -173,11 +178,9 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
     return (
       <Card
         key={suggestion.id}
-        className={`transition-all cursor-pointer hover:shadow-md ${
-          isSelected ? 'ring-2 ring-primary' : ''
-        } ${isAccepted ? 'bg-green-50 border-green-200' : ''} ${
-          isRejected ? 'bg-red-50 border-red-200' : ''
-        }`}
+        className={`transition-all cursor-pointer hover:shadow-md ${isSelected ? 'ring-2 ring-primary' : ''
+          } ${isAccepted ? 'bg-green-50 border-green-200' : ''} ${isRejected ? 'bg-red-50 border-red-200' : ''
+          }`}
         onClick={() => handleSuggestionSelect(suggestion)}
       >
         <CardHeader className="pb-3">

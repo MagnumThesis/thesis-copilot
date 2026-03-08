@@ -55,23 +55,7 @@ export class QueryService {
       }
 
       // Extract content from sources (ideas, messages, etc.)
-      const extractedContent: ExtractedContent[] = [];
-      const errors: string[] = [];
-      
-      for (const source of contentSources) {
-        try {
-          const content = await this.fetchContentFromSource(source.source, source.id, req.context?.env);
-          if (content) {
-            extractedContent.push(content);
-          } else {
-            errors.push(`Failed to fetch ${source.source}:${source.id}`);
-          }
-        } catch (error) {
-          const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-          errors.push(`Error fetching ${source.source}:${source.id} - ${errorMsg}`);
-          console.error(`Error fetching content from ${source.source}:${source.id}:`, error);
-        }
-      }
+      const { content: extractedContent, errors } = await this.fetchContentFromSources(contentSources, req.context?.env);
 
       if (extractedContent.length === 0) {
         return {
@@ -224,23 +208,7 @@ export class QueryService {
         };
       }
       
-      const extractedContent: ExtractedContent[] = [];
-      const errors: string[] = [];
-      
-      for (const source of contentSources) {
-        try {
-          const content = await this.fetchContentFromSource(source.source, source.id, context?.env);
-          if (content) {
-            extractedContent.push(content);
-          } else {
-            errors.push(`Failed to fetch ${source.source}:${source.id}`);
-          }
-        } catch (error) {
-          const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-          errors.push(`Error fetching ${source.source}:${source.id} - ${errorMsg}`);
-          console.error(`Error fetching content from ${source.source}:${source.id}:`, error);
-        }
-      }
+      const { content: extractedContent, errors } = await this.fetchContentFromSources(contentSources, context?.env);
       
       return {
         content: extractedContent,
@@ -278,7 +246,8 @@ export class QueryService {
     }
     
     try {
-      const content = await this.fetchContentFromSource(source, id, context?.env);
+      const { content: contents } = await this.fetchContentFromSources([{ source, id }], context?.env);
+      const content = contents[0];
       
       console.log('Fetched content:', { content: !!content, source, id });
       
@@ -366,69 +335,145 @@ export class QueryService {
   }
 
   /**
-   * Helper: Fetch content from different sources
+   * Helper: Fetch content from different sources in bulk
    */
-  private static async fetchContentFromSource(
-    source: string,
-    id: string,
+  private static async fetchContentFromSources(
+    sources: Array<{ source: string; id: string }>,
     env: any
-  ): Promise<ExtractedContent | null> {
+  ): Promise<{ content: ExtractedContent[], errors: string[] }> {
+    const extractedContent: ExtractedContent[] = [];
+    const errors: string[] = [];
+
     try {
       const supabase = getSupabase(env);
       
-      if (source === 'ideas') {
-        const numId = parseInt(id as string, 10);
-        const { data, error } = await supabase
-          .from('ideas')
-          .select('*')
-          .eq('id', numId)
-          .single();
-        
-        if (error || !data) return null;
-        
-        const text = data.description || '';
-        const title = data.title || '';
-        const keywords = this.extractKeywordsFromText(text, title);
-        
-        return {
-          source: 'ideas',
-          id: data.id,
-          title,
-          content: text,
-          keywords,
-          confidence: 0.9
-        };
+      // Group IDs by source to batch queries
+      const ideasIds: number[] = [];
+      const builderIds: string[] = [];
+
+      for (const source of sources) {
+        if (source.source === 'ideas') {
+          const numId = parseInt(source.id, 10);
+          if (!isNaN(numId)) {
+            ideasIds.push(numId);
+          } else {
+            errors.push(`Invalid ID format for ideas: ${source.id}`);
+          }
+        } else if (source.source === 'builder') {
+          builderIds.push(source.id);
+        } else {
+          errors.push(`Unknown source type: ${source.source}`);
+        }
       }
       
-      if (source === 'builder') {
-        const { data, error } = await supabase
-          .from('messages')
-          .select('*')
-          .eq('message_id', id)
-          .single();
-        
-        if (error || !data) return null;
-        
-        const content = Array.isArray(data.content) 
-          ? data.content.map((c: any) => c.text || '').join(' ')
-          : data.content || '';
-        
-        const keywords = this.extractKeywordsFromText(content);
-        
-        return {
-          source: 'builder',
-          id: data.message_id,
-          title: `Message`,
-          content: content,
-          keywords,
-          confidence: 0.85
-        };
+      const fetchPromises: Promise<void>[] = [];
+
+      // Fetch ideas in batch
+      if (ideasIds.length > 0) {
+        fetchPromises.push(
+          supabase
+            .from('ideas')
+            .select('*')
+            .in('id', ideasIds)
+            .then(({ data, error }) => {
+              if (error) {
+                errors.push(`Error fetching ideas: ${error.message}`);
+                return;
+              }
+              if (data) {
+                for (const item of data) {
+                  const text = item.description || '';
+                  const title = item.title || '';
+                  const keywords = this.extractKeywordsFromText(text, title);
+
+                  extractedContent.push({
+                    source: 'ideas',
+                    id: String(item.id),
+                    title,
+                    content: text,
+                    keywords,
+                    confidence: 0.9
+                  });
+                }
+
+                // Track missing IDs
+                const fetchedIds = new Set(data.map(d => d.id));
+                for (const id of ideasIds) {
+                  if (!fetchedIds.has(id)) {
+                    errors.push(`Failed to fetch ideas:${id}`);
+                  }
+                }
+              }
+            })
+            .catch(err => {
+              errors.push(`Error fetching ideas: ${err.message}`);
+            })
+        );
       }
       
-      return null;
+      // Fetch builder messages in batch
+      if (builderIds.length > 0) {
+        fetchPromises.push(
+          supabase
+            .from('messages')
+            .select('*')
+            .in('message_id', builderIds)
+            .then(({ data, error }) => {
+              if (error) {
+                errors.push(`Error fetching builder messages: ${error.message}`);
+                return;
+              }
+              if (data) {
+                for (const item of data) {
+                  const content = Array.isArray(item.content)
+                    ? item.content.map((c: any) => c.text || '').join(' ')
+                    : item.content || '';
+
+                  const keywords = this.extractKeywordsFromText(content);
+
+                  extractedContent.push({
+                    source: 'builder',
+                    id: item.message_id,
+                    title: `Message`,
+                    content: content,
+                    keywords,
+                    confidence: 0.85
+                  });
+                }
+
+                // Track missing IDs
+                const fetchedIds = new Set(data.map(d => d.message_id));
+                for (const id of builderIds) {
+                  if (!fetchedIds.has(id)) {
+                    errors.push(`Failed to fetch builder:${id}`);
+                  }
+                }
+              }
+            })
+            .catch(err => {
+              errors.push(`Error fetching builder messages: ${err.message}`);
+            })
+        );
+      }
+
+      // Wait for all batch queries to complete
+      await Promise.all(fetchPromises);
+
+      // Sort the results to match the original sources order
+      const sortedContent: ExtractedContent[] = [];
+      for (const source of sources) {
+        const found = extractedContent.find(c => c.source === source.source && c.id === source.id);
+        if (found) {
+          sortedContent.push(found);
+        }
+      }
+
+      return { content: sortedContent, errors };
+
     } catch (error) {
-      console.error(`Error fetching content from ${source}:`, error);
-      return null;
+      console.error(`Error fetching content from sources:`, error);
+      errors.push(`Global error fetching content: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      return { content: [], errors };
     }
   }
 }

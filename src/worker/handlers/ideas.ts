@@ -125,11 +125,35 @@ app.delete("/:id", async (c) => {
   const id = c.req.param("id");
 
   const numId = parseInt(id, 10);
-  const { error } = await supabase.from("ideas").delete().eq("id", numId);
+  
+  // First verify the idea exists
+  const { data: existingIdea, error: fetchError } = await supabase
+    .from("ideas")
+    .select("id")
+    .eq("id", numId)
+    .single();
+
+  if (fetchError || !existingIdea) {
+    console.error(`Idea with id ${id} not found:`, fetchError);
+    return c.json({ error: `Idea with id ${id} not found` }, 404);
+  }
+
+  // Perform the delete and return the deleted row to verify it was actually deleted
+  const { data: deletedData, error } = await supabase
+    .from("ideas")
+    .delete()
+    .eq("id", numId)
+    .select("id");
 
   if (error) {
     console.error(`Error deleting idea with id ${id}:`, error);
     return c.json({ error: `Failed to delete idea with id ${id}` }, 500);
+  }
+
+  // Verify that the row was actually deleted
+  if (!deletedData || deletedData.length === 0) {
+    console.error(`Delete operation did not affect any rows for idea ${id}`);
+    return c.json({ error: `Failed to delete idea with id ${id}. No rows affected.` }, 500);
   }
 
   return c.json({ message: `Idea with id ${id} deleted successfully` });
