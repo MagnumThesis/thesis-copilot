@@ -9,19 +9,22 @@ import { ScrollArea } from './shadcn/scroll-area';
 import { CitationFormatter } from './citation-formatter';
 import { ReferenceSuggestion, SearchAnalytics, Reference, ReferenceType } from '../../lib/ai-types';
 import { CheckCircle, XCircle, AlertCircle, BookOpen, Calendar, BarChart3, TrendingUp, RefreshCw, Download } from 'lucide-react';
+import { submitResultFeedback } from '../../lib/api/ai-searcher-api';
 
 interface SearchResultsProps {
   suggestions: ReferenceSuggestion[];
   analytics: SearchAnalytics;
   onSuggestionSelect?: (suggestion: ReferenceSuggestion) => void;
   onNewSearch?: () => void;
+  searchSessionId?: string;
 }
 
 export const SearchResults: React.FC<SearchResultsProps> = ({
   suggestions,
   analytics,
   onSuggestionSelect,
-  onNewSearch
+  onNewSearch,
+  searchSessionId
 }) => {
   const [selectedSuggestion, setSelectedSuggestion] = useState<ReferenceSuggestion | null>(null);
   const [acceptedSuggestions, setAcceptedSuggestions] = useState<Set<string>>(new Set());
@@ -36,7 +39,15 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
 
   const handleAcceptSuggestion = async (suggestion: ReferenceSuggestion) => {
     try {
-      // TODO: Call API to mark suggestion as accepted
+      if (suggestion.id && searchSessionId) {
+        await submitResultFeedback(searchSessionId, suggestion.id, {
+          isRelevant: true,
+          qualityRating: 5,
+          comments: '',
+          timestamp: new Date()
+        });
+      }
+
       setAcceptedSuggestions(prev => new Set([...prev, suggestion.id]));
 
       // Call the selection handler
@@ -50,7 +61,15 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
 
   const handleRejectSuggestion = async (suggestion: ReferenceSuggestion) => {
     try {
-      // TODO: Call API to mark suggestion as rejected
+      if (suggestion.id && searchSessionId) {
+        await submitResultFeedback(searchSessionId, suggestion.id, {
+          isRelevant: false,
+          qualityRating: 1,
+          comments: '',
+          timestamp: new Date()
+        });
+      }
+
       setRejectedSuggestions(prev => new Set([...prev, suggestion.id]));
     } catch (error) {
       console.error('Error rejecting suggestion:', error);
