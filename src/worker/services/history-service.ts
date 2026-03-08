@@ -48,8 +48,69 @@ export class HistoryService {
    * Deletes conversation history
    */
   static async deleteHistory(req: HistoryServiceRequest): Promise<HistoryServiceResponse> {
-    // TODO: Implement history deletion logic
-    throw new Error('Not implemented: HistoryService.deleteHistory');
+    const { conversationId, entryId, metadata } = req;
+
+    if (!conversationId) {
+      throw new Error('conversationId is required for deletion');
+    }
+
+    try {
+      // Pass env from metadata if available (useful for test mocks or passing Cloudflare context env)
+      const supabase = getSupabase(metadata?.env);
+      let deletedCount = 0;
+
+      if (entryId) {
+        // Delete specific entry related data
+        await supabase.from('search_feedback').delete().eq('search_session_id', entryId);
+        await supabase.from('search_results').delete().eq('search_session_id', entryId);
+
+        const query = supabase.from('search_sessions').delete().eq('id', entryId);
+
+        if (conversationId) {
+          query.eq('conversation_id', conversationId);
+        }
+
+        const { data, error } = await query.select();
+
+        if (error) throw error;
+        deletedCount = data ? data.length : 0;
+      } else {
+        // Delete full conversation related data
+        // Let's get the sessions first to delete the related results and feedback
+        const { data: sessions } = await supabase
+          .from('search_sessions')
+          .select('id')
+          .eq('conversation_id', conversationId);
+
+        if (sessions && sessions.length > 0) {
+          const sessionIds = sessions.map(s => s.id);
+
+          await supabase.from('search_feedback').delete().in('search_session_id', sessionIds);
+          await supabase.from('search_results').delete().in('search_session_id', sessionIds);
+        }
+
+        const { data, error } = await supabase
+          .from('search_sessions')
+          .delete()
+          .eq('conversation_id', conversationId)
+          .select();
+
+        if (error) throw error;
+        deletedCount = data ? data.length : 0;
+      }
+
+      return {
+        success: true,
+        metadata: {
+          deletedCount,
+          deletedAt: new Date().toISOString(),
+          conversationId
+        }
+      };
+    } catch (error) {
+      console.error('Error deleting history:', error);
+      throw error;
+    }
   }
 
   /**

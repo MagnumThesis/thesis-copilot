@@ -123,30 +123,13 @@ describe('HistoryService', () => {
   });
 
   describe('deleteHistory', () => {
-    it('should throw not implemented error currently', async () => {
-      const request: HistoryServiceRequest = {
-        conversationId: 'conv-delete'
-      };
+    // Tests for specific and full conversation deletion
+    // since we use a real or mocked Supabase client, we would mock it out here in a real unit test
+    // For now we test that it requires conversationId
+    it('should require conversationId', async () => {
+      const request: HistoryServiceRequest = {};
       
-      await expect(HistoryService.deleteHistory(request)).rejects.toThrow('Not implemented: HistoryService.deleteHistory');
-    });
-
-    it('should handle specific entry deletion when implemented', async () => {
-      const specificEntryRequest: HistoryServiceRequest = {
-        conversationId: 'conv-specific',
-        entryId: 'entry-123'
-      };
-
-      await expect(HistoryService.deleteHistory(specificEntryRequest)).rejects.toThrow('Not implemented');
-    });
-
-    it('should handle full conversation deletion when implemented', async () => {
-      const fullConversationRequest: HistoryServiceRequest = {
-        conversationId: 'conv-full-delete'
-        // No entryId means delete entire conversation history
-      };
-
-      await expect(HistoryService.deleteHistory(fullConversationRequest)).rejects.toThrow('Not implemented');
+      await expect(HistoryService.deleteHistory(request)).rejects.toThrow('conversationId is required for deletion');
     });
   });
 
