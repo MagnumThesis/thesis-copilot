@@ -5,6 +5,8 @@ import { Env } from '../types/env';
 import { Context } from 'hono';
 import { onError } from '../lib/utils';
 import { getGoogleGenerativeAIKey } from '../lib/api-keys';
+import { getAuthContext } from '../middleware/auth-middleware';
+import { getUserIdFromToken } from '../lib/auth-utils';
 import { GEMINI_MODELS, isRateLimitError, type GeminiModel } from '../lib/model-fallback';
 
 // Chat models in order of preference (for streaming)
@@ -58,6 +60,33 @@ export async function chatHandler(c: Context<{ Bindings: Env & SupabaseEnv }>) {
     try {
         const { messages, chatId }: { messages: UIMessage[]; chatId?: string } = await c.req.json();
         const supabase = getSupabase(c.env);
+
+        const authContext = getAuthContext(c);
+        if (!authContext?.token) {
+            return c.json({ error: 'Authentication required' }, 401);
+        }
+
+        const userId = await getUserIdFromToken(authContext.token);
+        if (!userId) {
+            return c.json({ error: 'Invalid authentication token' }, 401);
+        }
+
+        // If chatId is provided, verify it belongs to the user
+        if (chatId) {
+            const { data: chatData, error: chatError } = await supabase
+                .from('chats')
+                .select('user_id')
+                .eq('id', chatId)
+                .single();
+
+            if (chatError || !chatData) {
+                return c.json({ error: 'Chat not found' }, 404);
+            }
+
+            if (chatData.user_id !== userId) {
+                return c.json({ error: 'Unauthorized access to chat' }, 403);
+            }
+        }
 
         const apiKey = getGoogleGenerativeAIKey(c);
         if (!apiKey) {
