@@ -404,10 +404,7 @@ export class QueryService {
                   }
                 }
               }
-            })
-            .catch(err => {
-              errors.push(`Error fetching ideas: ${err.message}`);
-            })
+            }) as Promise<void>
         );
       }
       
@@ -449,10 +446,7 @@ export class QueryService {
                   }
                 }
               }
-            })
-            .catch(err => {
-              errors.push(`Error fetching builder messages: ${err.message}`);
-            })
+            }) as Promise<void>
         );
       }
 
