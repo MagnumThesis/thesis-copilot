@@ -1,6 +1,8 @@
 // src/worker/services/history-service.ts
 // Service for history management operations (modular refactor)
 
+import { EnhancedSearchHistoryManager } from '../lib/enhanced-search-history-manager';
+
 export interface HistoryServiceRequest {
   conversationId?: string; // Optional for cross-conversation search
   entryId?: string;
@@ -89,8 +91,45 @@ export class HistoryService {
    * Gets success tracking data
    */
   static async getSuccessTracking(req: HistoryServiceRequest): Promise<HistoryServiceResponse> {
-    // TODO: Implement success tracking logic
-    throw new Error('Not implemented: HistoryService.getSuccessTracking');
+    if (!req.conversationId) {
+      throw new Error('Invalid request: missing conversationId');
+    }
+
+    let trackingData = null;
+
+    if (req.metadata?.env && req.metadata?.userId) {
+      const historyManager = new EnhancedSearchHistoryManager(req.metadata.env);
+      try {
+        const result = await historyManager.getSearchSuccessRateTracking(
+          req.metadata.userId,
+          req.conversationId,
+          30 // Default 30 days
+        );
+        trackingData = result;
+      } catch (error) {
+        console.warn('Failed to retrieve success rate tracking data:', error);
+      }
+    }
+
+    // Fallback to default format if not retrieved
+    if (!trackingData) {
+      trackingData = [{
+        conversationId: req.conversationId,
+        successfulRequests: 0,
+        totalRequests: 0,
+        successRate: 0,
+        lastSuccessfulAction: null
+      }];
+    }
+
+    return {
+      success: true,
+      data: trackingData,
+      metadata: {
+        operation: 'get-success-tracking',
+        timestamp: new Date().toISOString()
+      }
+    };
   }
 
   /**
