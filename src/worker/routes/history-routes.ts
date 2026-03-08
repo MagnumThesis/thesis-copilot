@@ -153,9 +153,17 @@ export async function handleGetHistoryStatsRoute(ctx: Context): Promise<HistoryS
     throw new Error('Invalid request: missing conversationId');
   }
   
+  const days = ctx.request?.query?.days;
+  const userId = ctx.request?.query?.userId;
+
   const req: HistoryServiceRequest = {
     conversationId,
-    metadata: { operation: 'get-history-stats' }
+    env: ctx.env,
+    metadata: {
+      operation: 'get-history-stats',
+      days,
+      userId
+    }
   };
   
   // Delegate to service layer
