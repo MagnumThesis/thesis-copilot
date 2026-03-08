@@ -225,9 +225,18 @@ export async function handleGetNextBatchRoute(ctx: Context): Promise<HistoryServ
     throw new Error('Invalid request: missing conversationId');
   }
   
+  const limitQuery = ctx.request?.query?.limit;
+  const offsetQuery = ctx.request?.query?.offset;
+
   const req: HistoryServiceRequest = {
     conversationId,
-    metadata: { operation: 'get-next-batch' }
+    limit: limitQuery ? parseInt(limitQuery as string, 10) : undefined,
+    offset: offsetQuery ? parseInt(offsetQuery as string, 10) : undefined,
+    metadata: {
+      operation: 'get-next-batch',
+      env: ctx.env,
+      userId: ctx.request?.query?.userId || 'anonymous'
+    }
   };
   
   // Delegate to service layer
