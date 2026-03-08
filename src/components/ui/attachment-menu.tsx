@@ -639,11 +639,16 @@ function ConcernSelectorDialog({
     if (isSelected(concern.id)) {
       onRemove(concern.id)
     } else {
+      // Use title or text for display, preferring title for AI-generated concerns
+      const displayText = concern.title || concern.text || concern.description || ''
+      const displayTitle = displayText.length > 50 
+        ? `${concern.category}: ${displayText.substring(0, 50)}...`
+        : `${concern.category}: ${displayText}`
       onSelect({
         id: concern.id,
         type: "concern",
-        title: `${concern.category}: ${concern.text.substring(0, 50)}...`,
-        description: concern.explanation,
+        title: displayTitle,
+        description: concern.explanation || concern.description,
         data: concern,
       })
     }
@@ -688,41 +693,53 @@ function ConcernSelectorDialog({
             </div>
           ) : (
             <div className="space-y-2">
-              {concerns.map((concern) => (
-                <div
-                  key={concern.id}
-                  className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                    isSelected(concern.id)
-                      ? "border-primary bg-primary/5"
-                      : "border-border hover:bg-muted/50"
-                  }`}
-                  onClick={() => handleToggle(concern)}
-                >
-                  <Checkbox
-                    checked={isSelected(concern.id)}
-                    onCheckedChange={() => handleToggle(concern)}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="text-xs">
-                        {concern.category}
-                      </Badge>
-                      <Badge 
-                        variant="outline" 
-                        className={`text-xs ${getSeverityColor(concern.severity)}`}
-                      >
-                        {concern.severity}
-                      </Badge>
+              {concerns.map((concern) => {
+                const isAIGenerated = (concern as any).aiGenerated === true || 
+                  (typeof concern.explanation === 'string' && concern.explanation.startsWith('(AI-generated)'))
+                const displayText = concern.title || concern.text || concern.description || ''
+                
+                return (
+                  <div
+                    key={concern.id}
+                    className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                      isSelected(concern.id)
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:bg-muted/50"
+                    }`}
+                    onClick={() => handleToggle(concern)}
+                  >
+                    <Checkbox
+                      checked={isSelected(concern.id)}
+                      onCheckedChange={() => handleToggle(concern)}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge variant="outline" className="text-xs">
+                          {concern.category}
+                        </Badge>
+                        <Badge 
+                          variant="outline" 
+                          className={`text-xs ${getSeverityColor(concern.severity)}`}
+                        >
+                          {concern.severity}
+                        </Badge>
+                        {isAIGenerated && (
+                          <Badge variant="secondary" className="text-xs">
+                            <Sparkles className="h-2 w-2 mr-1" />
+                            AI
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-sm mt-1 line-clamp-2">{displayText}</p>
+                      {concern.description && concern.description !== displayText && (
+                        <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
+                          {concern.description}
+                        </p>
+                      )}
                     </div>
-                    <p className="text-sm mt-1 line-clamp-2">{concern.text}</p>
-                    {concern.explanation && (
-                      <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
-                        {concern.explanation}
-                      </p>
-                    )}
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </ScrollArea>

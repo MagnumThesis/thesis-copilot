@@ -740,17 +740,26 @@ export class PrivacyManager {
       let totalDeleted = 0;
       let usersProcessed = 0;
 
-      for (const setting of settings || []) {
+      const cleanupPromises = (settings || []).map(async (setting) => {
         try {
           const { deletedCount } = await this.clearOldData(
             setting.user_id as string,
             setting.data_retention_days as number,
             setting.conversation_id as string | undefined
           );
-          totalDeleted += deletedCount;
-          usersProcessed++;
+          return { deletedCount, success: true, userId: setting.user_id };
         } catch (error) {
           console.error(`Error cleaning up data for user ${setting.user_id}:`, error);
+          return { deletedCount: 0, success: false, userId: setting.user_id };
+        }
+      });
+
+      const results = await Promise.all(cleanupPromises);
+
+      for (const result of results) {
+        if (result.success) {
+          totalDeleted += result.deletedCount;
+          usersProcessed++;
         }
       }
 

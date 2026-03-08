@@ -60,6 +60,8 @@ export interface AISearchResult {
  * @description Interface for a reference suggestion.
  */
 export interface ReferenceSuggestion {
+  /** @property {string} id - The unique ID of the suggestion. */
+  id: string;
   /** @property {import('../citation-types/reference-types').ReferenceMetadata} reference - The suggested reference. */
   reference: import('../citation-types/reference-types').ReferenceMetadata;
   /** @property {string} reasoning - The reasoning for the suggestion. */
