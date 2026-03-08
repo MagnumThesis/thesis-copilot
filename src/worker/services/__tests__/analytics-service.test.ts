@@ -228,7 +228,7 @@ describe('AnalyticsService', () => {
 
     beforeEach(() => {
       // Create mock data that will result in p50=200, p95=800, p99=1200, errorRate=0.02
-      const mockEvents = [];
+      const mockEvents: any[] = [];
 
       // 10000 total events
       const totalEvents = 10000;

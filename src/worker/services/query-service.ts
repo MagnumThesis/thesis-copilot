@@ -370,7 +370,7 @@ export class QueryService {
 
       // Fetch ideas in batch
       if (ideasIds.length > 0) {
-        fetchPromises.push(
+        fetchPromises.push(Promise.resolve(
           supabase
             .from('ideas')
             .select('*')
@@ -405,15 +405,12 @@ export class QueryService {
                 }
               }
             })
-            .catch(err => {
-              errors.push(`Error fetching ideas: ${err.message}`);
-            })
-        );
+          ).catch((err: any) => { errors.push(`Error fetching ideas: ${err.message}`); }));
       }
       
       // Fetch builder messages in batch
       if (builderIds.length > 0) {
-        fetchPromises.push(
+        fetchPromises.push(Promise.resolve(
           supabase
             .from('messages')
             .select('*')
@@ -450,10 +447,7 @@ export class QueryService {
                 }
               }
             })
-            .catch(err => {
-              errors.push(`Error fetching builder messages: ${err.message}`);
-            })
-        );
+          ).catch((err: any) => { errors.push(`Error fetching builder messages: ${err.message}`); }));
       }
 
       // Wait for all batch queries to complete
