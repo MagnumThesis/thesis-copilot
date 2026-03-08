@@ -9,10 +9,12 @@ import { ScrollArea } from './shadcn/scroll-area';
 import { CitationFormatter } from './citation-formatter';
 import { ReferenceSuggestion, SearchAnalytics, Reference, ReferenceType } from '../../lib/ai-types';
 import { CheckCircle, XCircle, AlertCircle, BookOpen, Calendar, BarChart3, TrendingUp, RefreshCw, Download } from 'lucide-react';
+import { addReferenceFromSearch } from '../../lib/api/ai-searcher-api';
 
 interface SearchResultsProps {
   suggestions: ReferenceSuggestion[];
   analytics: SearchAnalytics;
+  conversationId: string;
   onSuggestionSelect?: (suggestion: ReferenceSuggestion) => void;
   onNewSearch?: () => void;
 }
@@ -20,6 +22,7 @@ interface SearchResultsProps {
 export const SearchResults: React.FC<SearchResultsProps> = ({
   suggestions,
   analytics,
+  conversationId,
   onSuggestionSelect,
   onNewSearch
 }) => {
@@ -35,13 +38,39 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
   };
 
   const handleAcceptSuggestion = async (suggestion: ReferenceSuggestion) => {
-    try {
-      // TODO: Call API to mark suggestion as accepted
-      setAcceptedSuggestions(prev => new Set([...prev, suggestion.id]));
+    if (!suggestion.id) return;
 
-      // Call the selection handler
-      if (onSuggestionSelect) {
-        onSuggestionSelect(suggestion);
+    try {
+      // Convert ReferenceMetadata back to ScholarSearchResult-like object for the API
+      // which assumes ScholarSearchResult shape currently. It only requires a few fields for adding.
+      const searchResultData: any = {
+        title: suggestion.reference.title,
+        authors: suggestion.reference.authors,
+        year: suggestion.reference.publicationDate?.getFullYear(),
+        journal: suggestion.reference.journal,
+        doi: suggestion.reference.doi,
+        url: suggestion.reference.url,
+        abstract: suggestion.reference.abstract,
+        confidence: suggestion.confidence,
+        relevance_score: suggestion.relevance_score
+      };
+
+      const result = await addReferenceFromSearch(searchResultData, conversationId, {
+        checkDuplicates: true,
+        duplicateHandling: 'prompt_user',
+        minConfidence: 0.5,
+        autoPopulateMetadata: true
+      });
+
+      if (result.success) {
+        setAcceptedSuggestions(prev => new Set([...prev, suggestion.id!]));
+
+        // Call the selection handler
+        if (onSuggestionSelect) {
+          onSuggestionSelect(suggestion);
+        }
+      } else {
+        console.error('Failed to accept suggestion:', result.error);
       }
     } catch (error) {
       console.error('Error accepting suggestion:', error);
@@ -49,9 +78,11 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
   };
 
   const handleRejectSuggestion = async (suggestion: ReferenceSuggestion) => {
+    if (!suggestion.id) return;
+
     try {
       // TODO: Call API to mark suggestion as rejected
-      setRejectedSuggestions(prev => new Set([...prev, suggestion.id]));
+      setRejectedSuggestions(prev => new Set([...prev, suggestion.id!]));
     } catch (error) {
       console.error('Error rejecting suggestion:', error);
     }
@@ -133,6 +164,8 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
   );
 
   const renderSuggestionItem = (suggestion: ReferenceSuggestion) => {
+    if (!suggestion.id) return null;
+
     const isAccepted = acceptedSuggestions.has(suggestion.id);
     const isRejected = rejectedSuggestions.has(suggestion.id);
     const isSelected = selectedSuggestion?.id === suggestion.id;
