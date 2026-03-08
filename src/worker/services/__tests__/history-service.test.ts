@@ -181,6 +181,42 @@ describe('HistoryService', () => {
     });
   });
 
+  describe('exportHistory', () => {
+    it('should validate conversationId', async () => {
+      const request: HistoryServiceRequest = {};
+      await expect(HistoryService.exportHistory(request)).rejects.toThrow('Conversation ID is required for export');
+    });
+
+    it('should return exported history in json format by default', async () => {
+      const request: HistoryServiceRequest = {
+        conversationId: 'conv-123'
+      };
+      const response = await HistoryService.exportHistory(request);
+      expect(response.success).toBe(true);
+      expect(response.metadata.format).toBe('json');
+      expect(response.metadata.conversationId).toBe('conv-123');
+      expect(response.data).toBeInstanceOf(Array);
+      expect(response.data?.length).toBe(1);
+      expect(typeof response.data?.[0]).toBe('string');
+      expect(response.data?.[0]).toBe('[]');
+    });
+
+    it('should return exported history in csv format when specified', async () => {
+      const request: HistoryServiceRequest = {
+        conversationId: 'conv-456',
+        metadata: { format: 'csv' }
+      };
+      const response = await HistoryService.exportHistory(request);
+      expect(response.success).toBe(true);
+      expect(response.metadata.format).toBe('csv');
+      expect(response.metadata.conversationId).toBe('conv-456');
+      expect(response.data).toBeInstanceOf(Array);
+      expect(response.data?.length).toBe(1);
+      expect(typeof response.data?.[0]).toBe('string');
+      expect(response.data?.[0]).toContain('id,timestamp,query,sources,total_results,accepted,rejected');
+    });
+  });
+
   describe('service response format', () => {
     it('should return properly structured response when implemented', () => {
       // Test getHistory response
