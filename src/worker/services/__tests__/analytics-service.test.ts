@@ -224,7 +224,66 @@ describe('AnalyticsService', () => {
   });
 
   describe('getPerformance', () => {
-    it('should throw not implemented error currently', async () => {
+    let mockQuery: any;
+
+    beforeEach(() => {
+      // Create mock data that will result in p50=200, p95=800, p99=1200, errorRate=0.02
+      const mockEvents = [];
+
+      // 10000 total events
+      const totalEvents = 10000;
+      const errorEventsCount = 200; // 0.02 error rate
+      const searchEventsCount = totalEvents - errorEventsCount;
+
+      for (let i = 0; i < errorEventsCount; i++) {
+        mockEvents.push({ event_type: 'error', created_at: new Date().toISOString() });
+      }
+
+      // We need to set the searchTimes correctly to get the right percentiles
+      // p50 at index 4899 should be 200
+      // p95 at index 9309 should be 800
+      // p99 at index 9701 should be 1200
+      for (let i = 0; i < searchEventsCount; i++) {
+        let searchTime = 100; // default
+
+        // Very basic mock distribution to satisfy the percentile assertions
+        if (i === Math.ceil(50 / 100 * searchEventsCount) - 1) searchTime = 200;
+        else if (i === Math.ceil(95 / 100 * searchEventsCount) - 1) searchTime = 800;
+        else if (i === Math.ceil(99 / 100 * searchEventsCount) - 1) searchTime = 1200;
+        else if (i < Math.ceil(50 / 100 * searchEventsCount) - 1) searchTime = 100;
+        else if (i < Math.ceil(95 / 100 * searchEventsCount) - 1) searchTime = 500;
+        else if (i < Math.ceil(99 / 100 * searchEventsCount) - 1) searchTime = 1000;
+        else searchTime = 1500;
+
+        mockEvents.push({
+          event_type: 'search_performed',
+          event_data: { searchTime },
+          created_at: new Date().toISOString()
+        });
+      }
+
+      mockQuery = {
+        select: vi.fn().mockReturnThis(),
+        gte: vi.fn().mockReturnThis(),
+        lte: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        then: vi.fn((resolve) => resolve({ data: mockEvents, error: null }))
+      };
+
+      const mockSupabaseClient = {
+        from: vi.fn().mockImplementation((table) => {
+          if (table === 'analytics_events') {
+            return mockQuery;
+          }
+          // fallback to other mocks if needed
+          return { insert: mockInsert };
+        }),
+      };
+
+      vi.spyOn(SupabaseLib, 'getSupabase').mockReturnValue(mockSupabaseClient as any);
+    });
+
+    it('should return default performance metrics for response_time', async () => {
       const request: AnalyticsServiceRequest = {
         conversationId: 'conv-performance',
         timeRange: {
@@ -234,10 +293,26 @@ describe('AnalyticsService', () => {
         performanceType: 'response_time'
       };
       
-      await expect(AnalyticsService.getPerformance(request)).rejects.toThrow('Not implemented: AnalyticsService.getPerformance');
+      const response = await AnalyticsService.getPerformance(request);
+      expect(response.success).toBe(true);
+      expect(response.data).toEqual({
+        p50ResponseTime: 200,
+        p95ResponseTime: 800,
+        p99ResponseTime: 1200,
+        errorRate: 0.02
+      });
+      expect(response.metadata.performanceType).toBe('response_time');
+      expect(response.metadata).toHaveProperty('calculatedAt');
+      expect(response.metadata.timeWindow).toBe('24h');
+      expect(response.metadata.samplesAnalyzed).toBe(10000);
+
+      expect(mockQuery.select).toHaveBeenCalledWith('event_type, event_data, created_at');
+      expect(mockQuery.gte).toHaveBeenCalledWith('created_at', request.timeRange!.start);
+      expect(mockQuery.lte).toHaveBeenCalledWith('created_at', request.timeRange!.end);
+      expect(mockQuery.eq).toHaveBeenCalledWith('conversation_id', request.conversationId);
     });
 
-    it('should handle different performance metrics when implemented', async () => {
+    it('should handle different performance metrics correctly', async () => {
       const latencyRequest: AnalyticsServiceRequest = {
         performanceType: 'latency_analysis',
         timeRange: {
@@ -250,7 +325,11 @@ describe('AnalyticsService', () => {
         }
       };
 
-      await expect(AnalyticsService.getPerformance(latencyRequest)).rejects.toThrow('Not implemented');
+      const latencyResponse = await AnalyticsService.getPerformance(latencyRequest);
+      expect(latencyResponse.success).toBe(true);
+      expect(latencyResponse.data.p99ResponseTime).toBe(1200);
+      expect(latencyResponse.metadata.performanceType).toBe('latency_analysis');
+      expect(latencyResponse.metadata.timeWindow).toBe('1h');
 
       const throughputRequest: AnalyticsServiceRequest = {
         performanceType: 'throughput',
@@ -261,7 +340,23 @@ describe('AnalyticsService', () => {
         filters: { serverRegion: 'us-east-1' }
       };
 
-      await expect(AnalyticsService.getPerformance(throughputRequest)).rejects.toThrow('Not implemented');
+      const throughputResponse = await AnalyticsService.getPerformance(throughputRequest);
+      expect(throughputResponse.success).toBe(true);
+      expect(throughputResponse.data.errorRate).toBe(0.02);
+      expect(throughputResponse.metadata.performanceType).toBe('throughput');
+    });
+
+    it('should handle database errors gracefully', async () => {
+      mockQuery.then = vi.fn((resolve) => resolve({ data: null, error: new Error('Database query failed') }));
+
+      const request: AnalyticsServiceRequest = {
+        performanceType: 'response_time'
+      };
+
+      const response = await AnalyticsService.getPerformance(request);
+
+      expect(response.success).toBe(false);
+      expect(response.metadata.error).toBe('Database query failed');
     });
   });
 

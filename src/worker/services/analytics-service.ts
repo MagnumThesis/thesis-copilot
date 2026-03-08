@@ -1,8 +1,6 @@
 // src/worker/services/analytics-service.ts
 // Service for analytics and tracking operations (modular refactor)
 import { SearchAnalyticsManager } from '../lib/search-analytics-manager';
-
-import { SearchAnalyticsManager } from '../lib/search-analytics-manager';
 import { getSupabase } from '../lib/supabase';
 
 export interface AnalyticsServiceRequest {
@@ -125,8 +123,93 @@ export class AnalyticsService {
    * Retrieves performance analytics
    */
   static async getPerformance(req: AnalyticsServiceRequest): Promise<AnalyticsServiceResponse> {
-    // TODO: Implement performance analytics logic
-    throw new Error('Not implemented: AnalyticsService.getPerformance');
+    try {
+      const supabase = getSupabase();
+
+      let query = supabase
+        .from('analytics_events')
+        .select('event_type, event_data, created_at');
+
+      if (req.timeRange?.start) {
+        query = query.gte('created_at', req.timeRange.start);
+      }
+      if (req.timeRange?.end) {
+        query = query.lte('created_at', req.timeRange.end);
+      }
+      if (req.conversationId) {
+        query = query.eq('conversation_id', req.conversationId);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        throw error;
+      }
+
+      const events = data || [];
+      const samplesAnalyzed = events.length;
+
+      // Calculate performance metrics from events
+      const searchTimes: number[] = [];
+      let errorCount = 0;
+
+      for (const event of events) {
+        // Aggregate error count
+        if (event.event_type === 'error' || event.event_type === 'error_event' || event.event_type === 'search_error') {
+          errorCount++;
+        }
+
+        // Aggregate search times
+        if (event.event_type === 'search_performed' && event.event_data && typeof event.event_data === 'object') {
+          const searchTime = (event.event_data as any).searchTime || (event.event_data as any).duration;
+          if (typeof searchTime === 'number') {
+            searchTimes.push(searchTime);
+          }
+        }
+      }
+
+      searchTimes.sort((a, b) => a - b);
+
+      const getPercentile = (arr: number[], p: number) => {
+        if (arr.length === 0) return 0;
+        const index = Math.ceil((p / 100) * arr.length) - 1;
+        return arr[Math.max(0, Math.min(index, arr.length - 1))];
+      };
+
+      const errorRate = samplesAnalyzed > 0 ? errorCount / samplesAnalyzed : 0;
+
+      // Compute time window text
+      let timeWindow = 'unknown';
+      if (req.timeRange?.start && req.timeRange?.end) {
+        const diffMs = new Date(req.timeRange.end).getTime() - new Date(req.timeRange.start).getTime();
+        timeWindow = `${Math.round(diffMs / (1000 * 60 * 60))}h`;
+      }
+
+      return {
+        success: true,
+        data: {
+          p50ResponseTime: getPercentile(searchTimes, 50),
+          p95ResponseTime: getPercentile(searchTimes, 95),
+          p99ResponseTime: getPercentile(searchTimes, 99),
+          errorRate: Number(errorRate.toFixed(4))
+        },
+        metadata: {
+          samplesAnalyzed,
+          timeWindow,
+          performanceType: req.performanceType,
+          calculatedAt: new Date().toISOString()
+        }
+      };
+    } catch (error) {
+      console.error('Error retrieving performance analytics:', error);
+      return {
+        success: false,
+        metadata: {
+          error: error instanceof Error ? error.message : 'Unknown error retrieving performance analytics',
+          performanceType: req.performanceType
+        }
+      };
+    }
   }
 
   /**
