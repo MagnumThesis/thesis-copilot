@@ -103,6 +103,25 @@ describe('HistoryService', () => {
     });
   });
 
+  describe('clearHistory', () => {
+    it('should throw error if conversationId is not provided', async () => {
+      const request: HistoryServiceRequest = {
+        env: {}
+      };
+
+      await expect(HistoryService.clearHistory(request)).rejects.toThrow('conversationId is required to clear history');
+    });
+
+    it('should throw error if env is not provided', async () => {
+      const request: HistoryServiceRequest = {
+        conversationId: 'conv-123'
+      };
+
+      await expect(HistoryService.clearHistory(request)).rejects.toThrow('env is required to clear history');
+    });
+
+  });
+
   describe('deleteHistory', () => {
     // Tests for specific and full conversation deletion
     // since we use a real or mocked Supabase client, we would mock it out here in a real unit test
