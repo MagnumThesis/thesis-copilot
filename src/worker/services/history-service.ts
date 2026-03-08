@@ -459,7 +459,53 @@ export class HistoryService {
    * Gets search session details
    */
   static async getSearchSessionDetails(req: HistoryServiceRequest): Promise<HistoryServiceResponse> {
-    // TODO: Implement session details logic
-    throw new Error('Not implemented: HistoryService.getSearchSessionDetails');
+    const sessionId = req.metadata?.sessionId;
+
+    if (!sessionId) {
+      throw new Error('Invalid request: missing sessionId in metadata');
+    }
+
+    if (!req.env) {
+      throw new Error('Environment object is required for getting session details');
+    }
+
+    try {
+      // Dynamic import to avoid circular dependencies if any
+      const { EnhancedSearchHistoryManager } = await import('../lib/enhanced-search-history-manager');
+      const manager = new EnhancedSearchHistoryManager(req.env);
+
+      const details = await manager.getSearchSessionDetails(sessionId);
+
+      if (!details) {
+        return {
+          success: false,
+          metadata: {
+            operation: 'get-session-details',
+            sessionId,
+            error: 'Session not found'
+          }
+        };
+      }
+
+      return {
+        success: true,
+        data: [details],
+        metadata: {
+          operation: 'get-session-details',
+          sessionId
+        }
+      };
+    } catch (error) {
+      console.error('Error fetching search session details:', error);
+
+      return {
+        success: false,
+        metadata: {
+          operation: 'get-session-details',
+          sessionId,
+          error: error instanceof Error ? error.message : 'Unknown error occurred while fetching session details'
+        }
+      };
+    }
   }
 }
