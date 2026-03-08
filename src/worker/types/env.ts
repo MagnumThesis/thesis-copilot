@@ -3,4 +3,5 @@ export interface Env {
     OPENROUTER_API_KEY: string;
     SUPABASE_URL: string;
     SUPABASE_ANON: string;
+    SUPABASE_JWT_SECRET: string;
 }
