@@ -1,5 +1,6 @@
 // src/worker/services/analytics-service.ts
 // Service for analytics and tracking operations (modular refactor)
+import { SearchAnalyticsManager } from '../lib/search-analytics-manager';
 
 export interface AnalyticsServiceRequest {
   eventType?: string;
@@ -18,6 +19,7 @@ export interface AnalyticsServiceRequest {
   format?: string;
   options?: Record<string, any>;
   metadata?: Record<string, any>;
+  env?: any; // Added env to allow passing environment variables down for DB access
 }
 
 export interface AnalyticsServiceResponse {
@@ -73,8 +75,42 @@ export class AnalyticsService {
    * Gets trending data
    */
   static async getTrending(req: AnalyticsServiceRequest): Promise<AnalyticsServiceResponse> {
-    // TODO: Implement trending data logic
-    throw new Error('Not implemented: AnalyticsService.getTrending');
+    const limit = req.options?.limit || 20;
+    const days = req.timeRange?.start ?
+      Math.max(1, Math.round((Date.now() - new Date(req.timeRange.start).getTime()) / (1000 * 60 * 60 * 24))) :
+      30;
+
+    let trendingTopics: { topic: string; count: number }[] = [];
+
+    // Use SearchAnalyticsManager to fetch actual trending topics from DB
+    if (req.env) {
+      const analyticsManager = new SearchAnalyticsManager(req.env);
+      // We can use the existing user's search analytics, or fetch globally
+      // For now, if a conversationId is provided we fetch for that, but trending is usually global.
+      try {
+        trendingTopics = await analyticsManager.getTrendingTopics(
+          limit,
+          days,
+          req.userId || req.conversationId || 'global',
+          req.conversationId
+        );
+      } catch (e) {
+        console.error("Error fetching trending topics from DB:", e);
+      }
+    }
+
+    return {
+      success: true,
+      data: {
+        topics: trendingTopics,
+        timeframe: req.timeRange || { start: new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString(), end: new Date().toISOString() }
+      },
+      metadata: {
+        operation: 'get-trending',
+        calculatedAt: new Date().toISOString(),
+        limit
+      }
+    };
   }
 
   /**
