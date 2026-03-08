@@ -9,6 +9,7 @@ import { onError } from "../lib/utils";
 import { getGoogleGenerativeAIKey } from "../lib/api-keys";
 import { IdeaDefinition } from "../../lib/ai-types";
 import { withModelFallback } from "../lib/model-fallback";
+import { getUserIdFromToken } from "../lib/auth-utils";
 
 interface GenerateIdeasRequest {
   chatId: string;
@@ -26,7 +27,31 @@ export async function generateIdeasHandler(
       return c.json({ error: "chatId is required." }, 400);
     }
     
+    const authHeader = c.req.header("Authorization");
+    const token = authHeader?.replace("Bearer ", "");
+
+    if (!token) {
+      return c.json({ error: "Authentication required" }, 401);
+    }
+
+    const userId = await getUserIdFromToken(token, c.env.SUPABASE_JWT_SECRET);
+    if (!userId) {
+      return c.json({ error: "Invalid token" }, 401);
+    }
+
     const supabase = getSupabase(c.env);
+
+    // Verify chat belongs to user
+    const { data: chatData, error: chatError } = await supabase
+      .from("chats")
+      .select("id")
+      .eq("id", chatId)
+      .eq("user_id", userId)
+      .single();
+
+    if (chatError || !chatData) {
+      return c.json({ error: "Chat not found or access denied." }, 403);
+    }
     
     // Fetch message history for context
     const { data: messages, error } = await supabase
