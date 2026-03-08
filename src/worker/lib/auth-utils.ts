@@ -1,27 +1,27 @@
+import jwt from 'jsonwebtoken';
+
 /**
  * Authentication utilities for token handling
  */
 
 /**
- * Decode JWT token and extract userId
- * Note: This does basic decoding without verification (verification happens server-side in Supabase)
+ * Verify JWT token and extract userId securely
  */
-export async function getUserIdFromToken(token: string): Promise<string | null> {
-  try {
-    // JWT format: header.payload.signature
-    const parts = token.split('.');
-    if (parts.length !== 3) {
-      return null;
-    }
+export async function getUserIdFromToken(token: string, secret: string): Promise<string | null> {
+  if (!secret) {
+    console.error('Missing JWT secret for verification');
+    return null;
+  }
 
-    // Decode the payload (second part)
-    const payload = parts[1];
-    const decoded = JSON.parse(Buffer.from(payload, 'base64').toString('utf-8'));
+  try {
+    // Verify token using the provided secret
+    // Supabase JWTs use HS256 algorithm by default
+    const decoded = jwt.verify(token, secret) as jwt.JwtPayload;
 
     // Supabase JWT tokens have 'sub' field containing the user ID
     return decoded.sub || null;
   } catch (error) {
-    console.error('Failed to decode token:', error);
+    console.error('Failed to verify token:', error);
     return null;
   }
 }

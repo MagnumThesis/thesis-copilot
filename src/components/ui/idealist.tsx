@@ -19,12 +19,40 @@ interface IdealistProps {
   currentConversation: { title: string; id: string }; // Added currentConversation prop
 }
 
-// Function to check for duplicate ideas
+/**
+ * Calculate similarity between two strings using Levenshtein distance
+ * Returns a value between 0 (completely different) and 1 (identical)
+ */
+const calculateSimilarity = (str1: string, str2: string): number => {
+  const s1 = str1.toLowerCase().trim();
+  const s2 = str2.toLowerCase().trim();
+  
+  if (s1 === s2) return 1;
+  if (s1.length === 0 || s2.length === 0) return 0;
+  
+  // Use a simpler approach: check word overlap for longer texts
+  const words1 = new Set(s1.split(/\s+/).filter(w => w.length > 3));
+  const words2 = new Set(s2.split(/\s+/).filter(w => w.length > 3));
+  
+  if (words1.size === 0 || words2.size === 0) return s1 === s2 ? 1 : 0;
+  
+  const intersection = [...words1].filter(w => words2.has(w)).length;
+  const union = new Set([...words1, ...words2]).size;
+  
+  return intersection / union; // Jaccard similarity
+};
+
+// Function to check for duplicate ideas using fuzzy matching
 const isDuplicateIdea = (newIdea: {title: string, description: string}, existingIdeas: IdeaDefinition[]) => {
-  return existingIdeas.some(idea =>
-    idea.title.toLowerCase() === newIdea.title.toLowerCase() ||
-    idea.description.toLowerCase() === newIdea.description.toLowerCase()
-  );
+  const SIMILARITY_THRESHOLD = 0.7; // 70% similarity is considered a duplicate
+  
+  return existingIdeas.some(idea => {
+    const titleSimilarity = calculateSimilarity(idea.title, newIdea.title);
+    const descSimilarity = calculateSimilarity(idea.description, newIdea.description);
+    
+    // Consider duplicate if title is very similar OR description is very similar
+    return titleSimilarity >= SIMILARITY_THRESHOLD || descSimilarity >= SIMILARITY_THRESHOLD;
+  });
 };
 
 /**
@@ -49,17 +77,71 @@ export const Idealist: React.FC<IdealistProps> = ({ isOpen, onClose, currentConv
   const [isGenerating, setIsGenerating] = useState<boolean>(false); // Generate ideas loading state
 
   // Fetch ideas when component mounts or when sheet opens
+  // Also reset state when sheet closes to prevent stale data
   useEffect(() => {
     if (isOpen) {
       loadIdeas();
+    } else {
+      // Clear state when sheet closes to prevent stale data on reopen
+      setIdeaDefinitions([]);
+      setLoading(true);
+      setError(null);
+      setIsFormOpen(false);
     }
   }, [isOpen]);
+
+  // Also reload when conversation changes
+  useEffect(() => {
+    if (isOpen && currentConversation?.id) {
+      loadIdeas();
+    }
+  }, [currentConversation?.id]);
+
+  // Function to find and remove duplicate ideas from a list
+  // Keeps the first occurrence (oldest by ID) and removes duplicates
+  const deduplicateIdeas = (ideas: IdeaDefinition[]): { unique: IdeaDefinition[], duplicateIds: number[] } => {
+    const unique: IdeaDefinition[] = [];
+    const duplicateIds: number[] = [];
+    
+    for (const idea of ideas) {
+      const isDuplicate = unique.some(existingIdea => {
+        const titleSimilarity = calculateSimilarity(existingIdea.title, idea.title);
+        const descSimilarity = calculateSimilarity(existingIdea.description, idea.description);
+        return titleSimilarity >= 0.7 || descSimilarity >= 0.7;
+      });
+      
+      if (isDuplicate) {
+        duplicateIds.push(idea.id as number);
+      } else {
+        unique.push(idea);
+      }
+    }
+    
+    return { unique, duplicateIds };
+  };
 
   const loadIdeas = async () => {
     try {
       setLoading(true);
       const ideas = await fetchIdeas(currentConversation.id);
-      setIdeaDefinitions(ideas);
+      
+      // Check for and remove duplicates
+      const { unique, duplicateIds } = deduplicateIdeas(ideas);
+      
+      // If duplicates found, delete them from the database
+      if (duplicateIds.length > 0) {
+        console.log(`Found ${duplicateIds.length} duplicate ideas, removing...`);
+        for (const id of duplicateIds) {
+          try {
+            await deleteIdea(id);
+          } catch (err) {
+            console.error(`Failed to delete duplicate idea ${id}:`, err);
+          }
+        }
+        toast.info(`Removed ${duplicateIds.length} duplicate idea(s)`);
+      }
+      
+      setIdeaDefinitions(unique);
       setRetryCount(0); // Reset retry count on success
       toast.success("Ideas loaded successfully!");
     } catch (err) {
@@ -140,7 +222,10 @@ export const Idealist: React.FC<IdealistProps> = ({ isOpen, onClose, currentConv
   const handleDeleteIdea = async (id: number) => {
     try {
       await deleteIdea(id);
-      setIdeaDefinitions(prevIdeas => prevIdeas.filter(idea => idea.id !== id));
+      
+      // Fetch fresh data from database to ensure state is in sync
+      const freshIdeas = await fetchIdeas(currentConversation.id);
+      setIdeaDefinitions(freshIdeas);
       
       // Notify content retrieval service that ideas have changed
       const { contentRetrievalService } = await import("@/lib/content-retrieval-service");
@@ -158,37 +243,67 @@ export const Idealist: React.FC<IdealistProps> = ({ isOpen, onClose, currentConv
   const handleGenerateIdeas = async () => {
     try {
       setIsGenerating(true);
-      const ideas = await generateIdeas(currentConversation.id, ideaDefinitions);
       
-      // Filter out duplicate ideas
-      const uniqueIdeas = ideas.filter(idea => !isDuplicateIdea(idea, ideaDefinitions));
+      // Fetch fresh ideas from database to ensure accurate duplicate detection
+      const currentDbIdeas = await fetchIdeas(currentConversation.id);
+      setIdeaDefinitions(currentDbIdeas); // Sync local state with database
       
-      // Add non-duplicate ideas to the state
+      const ideas = await generateIdeas(currentConversation.id, currentDbIdeas);
+      
+      // Filter out duplicate ideas against fresh database data
+      const uniqueIdeas = ideas.filter(idea => !isDuplicateIdea(idea, currentDbIdeas));
+      
+      // Save non-duplicate ideas to the database and add to state
       if (uniqueIdeas.length > 0) {
-        setIdeaDefinitions(prevIdeas => [...prevIdeas, ...uniqueIdeas.map(idea => ({
-          id: Date.now() + Math.random(), // Temporary ID until saved to DB
-          content: idea.description,
-          type: 'concept' as const, // Use 'concept' as a const assertion
-          tags: [],
-          confidence: 0.8,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          ...idea
-        }))]);
+        const savedIdeas: IdeaDefinition[] = [];
         
-        // Notify content retrieval service that ideas have changed
-        const { contentRetrievalService } = await import("@/lib/content-retrieval-service");
-        contentRetrievalService.invalidateCache(currentConversation.id, 'ideas');
-      }
-      
-      // Show appropriate toast message based on results
-      const duplicateCount = ideas.length - uniqueIdeas.length;
-      if (uniqueIdeas.length === 0) {
-        toast.info("No new ideas were generated");
-      } else if (duplicateCount > 0) {
-        toast.success(`Added ${uniqueIdeas.length} new ideas (${duplicateCount} duplicates filtered out)`);
+        // Save each generated idea to the database
+        for (const idea of uniqueIdeas) {
+          try {
+            const savedIdea = await createIdea({
+              title: idea.title,
+              description: idea.description,
+              content: idea.description,
+              type: 'concept',
+              tags: [],
+              confidence: 0.8,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+              conversationid: currentConversation.id,
+            });
+            savedIdeas.push(savedIdea);
+          } catch (saveErr) {
+            console.error("Failed to save generated idea:", saveErr);
+            // Continue with other ideas even if one fails
+          }
+        }
+        
+        // Only add successfully saved ideas to the state
+        if (savedIdeas.length > 0) {
+          // Fetch fresh data from database to ensure state is in sync
+          const freshIdeas = await fetchIdeas(currentConversation.id);
+          setIdeaDefinitions(freshIdeas);
+          
+          // Notify content retrieval service that ideas have changed
+          const { contentRetrievalService } = await import("@/lib/content-retrieval-service");
+          contentRetrievalService.invalidateCache(currentConversation.id, 'ideas');
+        }
+        
+        // Show appropriate toast message based on results
+        const duplicateCount = ideas.length - uniqueIdeas.length;
+        const failedCount = uniqueIdeas.length - savedIdeas.length;
+        
+        if (savedIdeas.length === 0) {
+          toast.error("Failed to save generated ideas. Please try again.");
+        } else if (failedCount > 0) {
+          toast.warning(`Added ${savedIdeas.length} new ideas (${failedCount} failed to save)`);
+        } else if (duplicateCount > 0) {
+          toast.success(`Added ${savedIdeas.length} new ideas (${duplicateCount} duplicates filtered out)`);
+        } else {
+          toast.success(`Added ${savedIdeas.length} new ideas`);
+        }
       } else {
-        toast.success(`Added ${uniqueIdeas.length} new ideas`);
+        toast.info("No new ideas were generated");
       }
     } catch (err) {
       console.error("Failed to generate ideas:", err);

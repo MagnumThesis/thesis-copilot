@@ -149,7 +149,19 @@ describe('AnalyticsService', () => {
   });
 
   describe('generateReport', () => {
-    it('should throw not implemented error currently', async () => {
+    it('should throw an error if reportType is missing', async () => {
+      const request: AnalyticsServiceRequest = {
+        timeRange: {
+          start: '2023-01-01T00:00:00Z',
+          end: '2023-01-31T23:59:59Z'
+        },
+        format: 'json'
+      };
+
+      await expect(AnalyticsService.generateReport(request)).rejects.toThrow('Invalid request: missing reportType');
+    });
+
+    it('should generate a valid report response', async () => {
       const request: AnalyticsServiceRequest = {
         reportType: 'monthly_summary',
         timeRange: {
@@ -159,10 +171,18 @@ describe('AnalyticsService', () => {
         format: 'json'
       };
       
-      await expect(AnalyticsService.generateReport(request)).rejects.toThrow('Not implemented: AnalyticsService.generateReport');
+      const response = await AnalyticsService.generateReport(request);
+      expect(response.success).toBe(true);
+      expect(response.report).toBeDefined();
+      expect(response.report.id).toContain('report-');
+      expect(response.report.format).toBe('json');
+      expect(response.report.reportType).toBe('monthly_summary');
+      expect(response.metadata).toBeDefined();
+      expect(response.metadata.generatedAt).toBeDefined();
+      expect(response.metadata.expiresAt).toBeDefined();
     });
 
-    it('should handle different report types and formats when implemented', async () => {
+    it('should handle different report types and formats', async () => {
       const usageReportRequest: AnalyticsServiceRequest = {
         reportType: 'user_activity_report',
         timeRange: {
@@ -178,7 +198,15 @@ describe('AnalyticsService', () => {
         }
       };
 
-      await expect(AnalyticsService.generateReport(usageReportRequest)).rejects.toThrow('Not implemented');
+      const usageResponse = await AnalyticsService.generateReport(usageReportRequest);
+      expect(usageResponse.success).toBe(true);
+      expect(usageResponse.report.format).toBe('pdf');
+      expect(usageResponse.report.filters).toEqual({ department: 'research' });
+      expect(usageResponse.report.options).toEqual({
+        includeCharts: true,
+        includeRawData: false,
+        granularity: 'daily'
+      });
 
       const performanceReportRequest: AnalyticsServiceRequest = {
         reportType: 'system_performance_report',
@@ -193,7 +221,10 @@ describe('AnalyticsService', () => {
         }
       };
 
-      await expect(AnalyticsService.generateReport(performanceReportRequest)).rejects.toThrow('Not implemented');
+      const performanceResponse = await AnalyticsService.generateReport(performanceReportRequest);
+      expect(performanceResponse.success).toBe(true);
+      expect(performanceResponse.report.format).toBe('csv');
+      expect(performanceResponse.report.reportType).toBe('system_performance_report');
     });
   });
 

@@ -7,9 +7,10 @@ import { ModelMessage } from "ai";
 import { onError } from "../lib/utils";
 import { getGoogleGenerativeAIKey } from "../lib/api-keys";
 import { withModelFallback } from "../lib/model-fallback";
+import { getUserIdFromToken } from "../lib/auth-utils";
 
 export async function generateTitleHandler(
-  c: Context<{ Bindings: Env & SupabaseEnv }>
+  c: Context<{ Bindings: Env & SupabaseEnv }>,
 ) {
   try {
     const { chatId } = await c.req.json();
@@ -17,6 +18,31 @@ export async function generateTitleHandler(
     if (!chatId) {
       return c.json({ error: "chatId is required." }, 400);
     }
+
+    const authHeader = c.req.header("Authorization");
+    const token = authHeader?.replace("Bearer ", "");
+
+    if (!token) {
+      return c.json({ error: "Authentication required" }, 401);
+    }
+
+    const userId = await getUserIdFromToken(token);
+    if (!userId) {
+      return c.json({ error: "Invalid token" }, 401);
+    }
+
+    // Verify chat belongs to user
+    const { data: chatData, error: chatError } = await supabase
+      .from("chats")
+      .select("id")
+      .eq("id", chatId)
+      .eq("user_id", userId)
+      .single();
+
+    if (chatError || !chatData) {
+      return c.json({ error: "Chat not found or access denied." }, 403);
+    }
+
     const { data: messages, error } = await supabase
       .from("messages")
       .select("message_id, role, content")
@@ -45,7 +71,7 @@ export async function generateTitleHandler(
             "Generate a short, concise title for the following conversation that is less than 5 words. The title should be based on the main topic of the conversation. \n Here is the conversation:" +
             JSON.stringify(modelMessages),
         });
-      }
+      },
     );
     return c.json({ title: result.object.title });
   } catch (err: any) {

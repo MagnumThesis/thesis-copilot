@@ -2,6 +2,7 @@
 // Service for history management operations (modular refactor)
 
 import { EnhancedSearchHistoryManager } from '../lib/enhanced-search-history-manager';
+import { SearchHistoryManager } from '../lib/search-history-manager';
 
 export interface HistoryServiceRequest {
   conversationId?: string; // Optional for cross-conversation search
@@ -67,8 +68,23 @@ export class HistoryService {
    * Exports conversation history
    */
   static async exportHistory(req: HistoryServiceRequest): Promise<HistoryServiceResponse> {
-    // TODO: Implement history export logic
-    throw new Error('Not implemented: HistoryService.exportHistory');
+    if (!req.conversationId) {
+      throw new Error('Conversation ID is required for export');
+    }
+
+    const format = req.metadata?.format === 'csv' ? 'csv' : 'json';
+    const manager = new SearchHistoryManager();
+    const exportData = await manager.exportHistory(req.conversationId, format);
+
+    return {
+      success: true,
+      data: [exportData],
+      metadata: {
+        conversationId: req.conversationId,
+        format,
+        exportedAt: new Date().toISOString()
+      }
+    };
   }
 
   /**

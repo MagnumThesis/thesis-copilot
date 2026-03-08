@@ -15,7 +15,8 @@ export const IdeaDetail: React.FC<IdeaDetailProps> = ({ idea, onUpdate, onDelete
   const [isEditing, setIsEditing] = useState(false);
   const [editedTitle, setEditedTitle] = useState(idea.title);
   const [editedDescription, setEditedDescription] = useState(idea.description);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const [isDeletingInProgress, setIsDeletingInProgress] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
 
   const handleUpdate = async () => {
@@ -37,29 +38,33 @@ export const IdeaDetail: React.FC<IdeaDetailProps> = ({ idea, onUpdate, onDelete
     if (!onDelete) return;
     
     try {
+      setIsDeletingInProgress(true);
       await onDelete(Number(idea.id));
-      setIsDeleting(false);
+      // Component will be unmounted by parent after successful deletion
+      // Don't reset state here as it causes UI flicker
     } catch (error) {
       console.error("Failed to delete idea:", error);
       toast.error("Failed to delete idea. Please try again.");
+      setIsDeletingInProgress(false);
+      setShowDeleteConfirmation(false);
     }
   };
 
   const handleCancelDelete = () => {
-    setIsDeleting(false);
+    setShowDeleteConfirmation(false);
   };
 
   return (
     <div key={idea.id} className="border p-3 rounded-md">
-      {isDeleting ? (
+      {showDeleteConfirmation ? (
         <div className="space-y-2">
           <p className="text-sm">Are you sure you want to delete "{idea.title}"?</p>
           <div className="flex justify-end space-x-2">
-            <Button variant="outline" onClick={handleCancelDelete}>
+            <Button variant="outline" onClick={handleCancelDelete} disabled={isDeletingInProgress}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleDelete}>
-              Delete
+            <Button variant="destructive" onClick={handleDelete} disabled={isDeletingInProgress}>
+              {isDeletingInProgress ? "Deleting..." : "Delete"}
             </Button>
           </div>
         </div>
@@ -98,7 +103,7 @@ export const IdeaDetail: React.FC<IdeaDetailProps> = ({ idea, onUpdate, onDelete
             <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
               Edit
             </Button>
-            <Button variant="destructive" size="sm" onClick={() => setIsDeleting(true)}>
+            <Button variant="destructive" size="sm" onClick={() => setShowDeleteConfirmation(true)}>
               Delete
             </Button>
           </div>
