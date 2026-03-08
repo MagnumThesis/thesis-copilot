@@ -30,6 +30,10 @@ export interface QueryManagementProps {
    */
   onToggleFilters: () => void;
   /**
+   * Function to handle query generation
+   */
+  onGenerateQuery: () => void;
+  /**
    * Function to handle query refinement
    */
   onRefineQuery: () => void;
@@ -53,6 +57,7 @@ export const QueryManagement: React.FC<QueryManagementProps> = ({
   onSearch,
   loading,
   onToggleFilters,
+  onGenerateQuery,
   onRefineQuery,
   refinementLoading,
   selectedContent
@@ -79,6 +84,15 @@ export const QueryManagement: React.FC<QueryManagementProps> = ({
           >
             <Filter className="h-4 w-4" />
             Filters
+          </Button>
+          <Button
+            variant="outline"
+            onClick={onGenerateQuery}
+            disabled={loading || selectedContent.length === 0}
+            className="flex items-center gap-2"
+          >
+            <Zap className="h-4 w-4" />
+            Generate
           </Button>
           <Button
             variant="outline"
