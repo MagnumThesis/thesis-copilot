@@ -3,14 +3,35 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { AnalyticsService, AnalyticsServiceRequest, AnalyticsServiceResponse } from '../analytics-service';
+import * as SupabaseLib from '../../lib/supabase';
+
+// Mock the console.error to keep test output clean
+vi.spyOn(console, 'error').mockImplementation(() => {});
 
 describe('AnalyticsService', () => {
+  let mockInsert: any;
+  let mockSelect: any;
+  let mockSingle: any;
+
   beforeEach(() => {
     vi.restoreAllMocks();
+
+    mockSingle = vi.fn().mockResolvedValue({
+      data: { id: 'event-uuid-123', created_at: '2023-01-01T12:00:00Z' },
+      error: null
+    });
+    mockSelect = vi.fn().mockReturnValue({ single: mockSingle });
+    mockInsert = vi.fn().mockReturnValue({ select: mockSelect });
+
+    const mockSupabaseClient = {
+      from: vi.fn().mockReturnValue({ insert: mockInsert }),
+    };
+
+    vi.spyOn(SupabaseLib, 'getSupabase').mockReturnValue(mockSupabaseClient as any);
   });
 
   describe('trackEvent', () => {
-    it('should throw not implemented error currently', async () => {
+    it('should track a search_performed event successfully', async () => {
       const request: AnalyticsServiceRequest = {
         eventType: 'search_performed',
         eventData: {
@@ -22,10 +43,27 @@ describe('AnalyticsService', () => {
         userId: 'user-456'
       };
       
-      await expect(AnalyticsService.trackEvent(request)).rejects.toThrow('Not implemented: AnalyticsService.trackEvent');
+      const response = await AnalyticsService.trackEvent(request);
+
+      expect(response.success).toBe(true);
+      expect(response.metadata).toEqual({
+        eventId: 'event-uuid-123',
+        timestamp: '2023-01-01T12:00:00Z',
+        processed: true
+      });
+
+      const supabase = SupabaseLib.getSupabase();
+      expect(supabase.from).toHaveBeenCalledWith('analytics_events');
+      expect(mockInsert).toHaveBeenCalledWith({
+        event_type: 'search_performed',
+        event_data: request.eventData,
+        user_id: 'user-456',
+        conversation_id: 'conv-123',
+        metadata: {}
+      });
     });
 
-    it('should handle different event types when implemented', async () => {
+    it('should track different event types correctly', async () => {
       const clickEventRequest: AnalyticsServiceRequest = {
         eventType: 'result_clicked',
         eventData: {
@@ -37,7 +75,15 @@ describe('AnalyticsService', () => {
         metadata: { sessionId: 'session-abc' }
       };
 
-      await expect(AnalyticsService.trackEvent(clickEventRequest)).rejects.toThrow('Not implemented');
+      const response1 = await AnalyticsService.trackEvent(clickEventRequest);
+      expect(response1.success).toBe(true);
+      expect(mockInsert).toHaveBeenCalledWith({
+        event_type: 'result_clicked',
+        event_data: clickEventRequest.eventData,
+        user_id: null,
+        conversation_id: 'conv-789',
+        metadata: { sessionId: 'session-abc' }
+      });
 
       const downloadEventRequest: AnalyticsServiceRequest = {
         eventType: 'paper_downloaded',
@@ -49,17 +95,66 @@ describe('AnalyticsService', () => {
         userId: 'user-789'
       };
 
-      await expect(AnalyticsService.trackEvent(downloadEventRequest)).rejects.toThrow('Not implemented');
+      const response2 = await AnalyticsService.trackEvent(downloadEventRequest);
+      expect(response2.success).toBe(true);
+      expect(mockInsert).toHaveBeenCalledWith({
+        event_type: 'paper_downloaded',
+        event_data: downloadEventRequest.eventData,
+        user_id: 'user-789',
+        conversation_id: null,
+        metadata: {}
+      });
     });
 
-    it('should validate event data structure when implemented', async () => {
+    it('should handle missing eventData', async () => {
       const invalidEventRequest: AnalyticsServiceRequest = {
-        eventType: 'invalid_event',
+        eventType: 'simple_event',
         eventData: null,
+        conversationId: 'conv-simple'
+      };
+
+      const response = await AnalyticsService.trackEvent(invalidEventRequest);
+      expect(response.success).toBe(true);
+      expect(mockInsert).toHaveBeenCalledWith({
+        event_type: 'simple_event',
+        event_data: {},
+        user_id: null,
+        conversation_id: 'conv-simple',
+        metadata: {}
+      });
+    });
+
+    it('should return error response when eventType is missing', async () => {
+      const invalidEventRequest: AnalyticsServiceRequest = {
+        eventData: { something: true },
         conversationId: 'conv-invalid'
       };
 
-      await expect(AnalyticsService.trackEvent(invalidEventRequest)).rejects.toThrow('Not implemented');
+      const response = await AnalyticsService.trackEvent(invalidEventRequest);
+
+      expect(response.success).toBe(false);
+      expect(response.metadata.error).toBe('Missing eventType in trackEvent request');
+      expect(response.metadata.processed).toBe(false);
+
+      const supabase = SupabaseLib.getSupabase();
+      expect(supabase.from).not.toHaveBeenCalled();
+    });
+
+    it('should handle database errors gracefully', async () => {
+      mockSingle.mockResolvedValue({
+        data: null,
+        error: new Error('Database insertion failed')
+      });
+
+      const request: AnalyticsServiceRequest = {
+        eventType: 'error_event',
+      };
+
+      const response = await AnalyticsService.trackEvent(request);
+
+      expect(response.success).toBe(false);
+      expect(response.metadata.error).toBe('Database insertion failed');
+      expect(response.metadata.processed).toBe(false);
     });
   });
 
