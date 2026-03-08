@@ -10,7 +10,7 @@ import { CitationFormatter } from './citation-formatter';
 import { ReferenceSuggestion, SearchAnalytics, Reference, ReferenceType } from '../../lib/ai-types';
 import { trackSuggestionAction } from '../../lib/api/ai-searcher-api';
 import { CheckCircle, XCircle, AlertCircle, BookOpen, Calendar, BarChart3, TrendingUp, RefreshCw, Download } from 'lucide-react';
-import { addReferenceFromSearch } from '../../lib/api/ai-searcher-api';
+import { addReferenceFromSearch, submitResultFeedback } from '../../lib/api/ai-searcher-api';
 
 interface SearchResultsProps {
   suggestions: ReferenceSuggestion[];
@@ -18,6 +18,7 @@ interface SearchResultsProps {
   conversationId: string;
   onSuggestionSelect?: (suggestion: ReferenceSuggestion) => void;
   onNewSearch?: () => void;
+  searchSessionId?: string;
 }
 
 export const SearchResults: React.FC<SearchResultsProps> = ({
@@ -25,7 +26,8 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
   analytics,
   conversationId,
   onSuggestionSelect,
-  onNewSearch
+  onNewSearch,
+  searchSessionId
 }) => {
   const [selectedSuggestion, setSelectedSuggestion] = useState<ReferenceSuggestion | null>(null);
   const [acceptedSuggestions, setAcceptedSuggestions] = useState<Set<string>>(new Set());
@@ -42,8 +44,19 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
     if (!suggestion.id) return;
 
     try {
+      if (suggestion.id && searchSessionId) {
+        await submitResultFeedback(searchSessionId, suggestion.id, {
+          isRelevant: true,
+          qualityRating: 5,
+          comments: '',
+          timestamp: new Date()
+        });
+      }
       // Call API to mark suggestion as accepted
-      await trackSuggestionAction(suggestion.id, 'accept');
+      if (suggestion.id) {
+        await trackSuggestionAction(suggestion.id, 'accept');
+      }
+
       // Convert ReferenceMetadata back to ScholarSearchResult-like object for the API
       // which assumes ScholarSearchResult shape currently. It only requires a few fields for adding.
       const searchResultData: any = {
@@ -84,8 +97,18 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
     if (!suggestion.id) return;
 
     try {
+      if (suggestion.id && searchSessionId) {
+        await submitResultFeedback(searchSessionId, suggestion.id, {
+          isRelevant: false,
+          qualityRating: 1,
+          comments: '',
+          timestamp: new Date()
+        });
+      }
       // Call API to mark suggestion as rejected
-      await trackSuggestionAction(suggestion.id, 'reject');
+      if (suggestion.id) {
+        await trackSuggestionAction(suggestion.id, 'reject');
+      }
 
       setRejectedSuggestions(prev => new Set([...prev, suggestion.id]));
     } catch (error) {

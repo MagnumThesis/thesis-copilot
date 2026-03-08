@@ -113,7 +113,7 @@ app.delete('/api/chats/:id', deleteChatHandler);
 app.patch('/api/chats/:id', updateChatHandler);
 app.get('/api/chats/:id/messages', getMessagesHandler);
 app.post('/api/generate-title', generateTitleHandler);
-app.post('/api/generate-ideas', generateIdeasHandler);
+app.post('/api/generate-ideas', requireAuth, generateIdeasHandler);
 app.post('/api/regenerate-idea-title', regenerateIdeaTitleHandler);
 app.post('/api/chat', requireAuth, chatHandler); // Streaming chat endpoint
 
