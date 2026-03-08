@@ -178,8 +178,85 @@ export class HistoryService {
    * Searches conversation history
    */
   static async searchHistory(req: HistoryServiceRequest): Promise<HistoryServiceResponse> {
-    // TODO: Implement history search logic
-    throw new Error('Not implemented: HistoryService.searchHistory');
+    if (!req.query || req.query.trim() === '') {
+      throw new Error('Search query is required');
+    }
+
+    const limit = req.limit && req.limit > 0 ? req.limit : 50;
+    const offset = req.offset && req.offset >= 0 ? req.offset : 0;
+    const userId = req.metadata?.userId || 'anonymous';
+    const conversationId = req.conversationId;
+
+    try {
+      // Use env from request or metadata
+      const env = req.env || req.metadata?.env;
+
+      if (env) {
+        // Dynamic import to avoid circular dependencies
+        const { EnhancedSearchHistoryManager } = await import('../lib/enhanced-search-history-manager');
+        const historyManager = new EnhancedSearchHistoryManager(env);
+
+        const historyFilter: any = {
+          searchQuery: req.query,
+          ...req.filters
+        };
+
+        const result = await historyManager.getSearchHistory(
+          userId,
+          conversationId,
+          historyFilter,
+          limit,
+          offset
+        );
+
+        return {
+          success: true,
+          data: result.entries,
+          total: result.total,
+          metadata: {
+            conversationId,
+            userId,
+            limit,
+            offset,
+            hasMore: result.hasMore,
+            query: req.query
+          }
+        };
+      }
+
+      // Fallback if no env available
+      return {
+        success: true,
+        data: [],
+        total: 0,
+        metadata: {
+          conversationId,
+          userId,
+          limit,
+          offset,
+          hasMore: false,
+          query: req.query,
+          warning: 'No environment provided for database connection'
+        }
+      };
+    } catch (error) {
+      console.error('Error searching history:', error);
+
+      return {
+        success: false,
+        data: [],
+        total: 0,
+        metadata: {
+          conversationId,
+          userId,
+          limit,
+          offset,
+          hasMore: false,
+          query: req.query,
+          error: error instanceof Error ? error.message : 'Unknown error occurred while searching history'
+        }
+      };
+    }
   }
 
   /**
