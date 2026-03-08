@@ -1,4 +1,5 @@
 import { SearchAnalyticsManager, SearchSession, SearchResult, SearchFeedback } from './search-analytics-manager';
+import { getSupabase } from './supabase';
 
 /**
  * Enhanced Search History Manager
@@ -689,102 +690,132 @@ export class EnhancedSearchHistoryManager extends SearchAnalyticsManager {
     days: number = 30
   ): Promise<SearchHistoryStats> {
     try {
+      const supabase = getSupabase(this.getEnvironment());
       const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-      
-      let whereClause = 'WHERE ss.user_id = ? AND ss.created_at >= ?';
-      const params = [userId, cutoffDate.toISOString()];
+
+      let query = supabase
+        .from('search_sessions')
+        .select('*')
+        .eq('user_id', userId)
+        .gte('created_at', cutoffDate.toISOString());
 
       if (conversationId) {
-        whereClause += ' AND ss.conversation_id = ?';
-        params.push(conversationId);
+        query = query.eq('conversation_id', conversationId);
       }
 
-      // Get basic statistics
-      const statsQuery = `
-        SELECT 
-          COUNT(*) as total_searches,
-          COUNT(CASE WHEN search_success = true THEN 1 END) as successful_searches,
-          AVG(results_count) as avg_results_per_search,
-          AVG(CASE 
-            WHEN results_count > 0 THEN CAST(results_accepted AS FLOAT) / results_count
-            ELSE 0
-          END) as avg_success_rate,
-          AVG(processing_time_ms) as avg_processing_time
-        FROM search_sessions ss
-        ${whereClause}
-      `;
+      const { data: sessions, error } = await query;
 
-      const statsResult = await this.getEnvironment().DB.prepare(statsQuery).bind(...params).first();
+      if (error) {
+        console.error('Error fetching search history stats from Supabase:', error);
+        throw error;
+      }
 
-      // Get content source usage
-      const sourcesQuery = `
-        SELECT 
-          content_sources,
-          COUNT(*) as usage_count
-        FROM search_sessions ss
-        ${whereClause}
-        GROUP BY content_sources
-      `;
+      const totalSearches = sessions.length;
+      let successfulSearches = 0;
+      let totalResults = 0;
+      let totalSuccessRate = 0;
+      let totalProcessingTime = 0;
 
-      const sourcesResult = await this.getEnvironment().DB.prepare(sourcesQuery).bind(...params).all();
-      const mostUsedContentSources = this.calculateContentSourceUsage(sourcesResult.results || []);
+      const contentSourcesMap = new Map<string, number>();
+      const searchQueriesMap = new Map<string, { count: number; totalResults: number; totalSuccessRate: number }>();
+      const trendsMap = new Map<string, { count: number; totalResults: number; totalSuccessRate: number }>();
 
-      // Get top search queries
-      const queriesQuery = `
-        SELECT 
-          search_query,
-          COUNT(*) as query_count,
-          AVG(results_count) as avg_results,
-          AVG(CASE 
-            WHEN results_count > 0 THEN CAST(results_accepted AS FLOAT) / results_count
-            ELSE 0
-          END) as success_rate
-        FROM search_sessions ss
-        ${whereClause}
-        GROUP BY search_query
-        ORDER BY query_count DESC
-        LIMIT 10
-      `;
+      for (const session of sessions) {
+        if (session.search_success) {
+          successfulSearches++;
+        }
 
-      const queriesResult = await this.getEnvironment().DB.prepare(queriesQuery).bind(...params).all();
-      const topSearchQueries = (queriesResult.results || []).map((row: any) => ({
-        query: row.search_query,
-        count: row.query_count,
-        averageResults: row.avg_results || 0,
-        successRate: row.success_rate || 0
-      }));
+        const resultsCount = session.results_count || 0;
+        const resultsAccepted = session.results_accepted || 0;
+        totalResults += resultsCount;
 
-      // Get search trends (daily aggregation)
-      const trendsQuery = `
-        SELECT 
-          DATE(created_at) as search_date,
-          COUNT(*) as search_count,
-          AVG(CASE 
-            WHEN results_count > 0 THEN CAST(results_accepted AS FLOAT) / results_count
-            ELSE 0
-          END) as success_rate,
-          AVG(results_count) as avg_results
-        FROM search_sessions ss
-        ${whereClause}
-        GROUP BY DATE(created_at)
-        ORDER BY search_date DESC
-        LIMIT 30
-      `;
+        const successRate = resultsCount > 0 ? resultsAccepted / resultsCount : 0;
+        totalSuccessRate += successRate;
+        totalProcessingTime += session.processing_time_ms || 0;
 
-      const trendsResult = await this.getEnvironment().DB.prepare(trendsQuery).bind(...params).all();
-      const searchTrends = (trendsResult.results || []).map((row: any) => ({
-        date: row.search_date,
-        searchCount: row.search_count,
-        successRate: row.success_rate || 0,
-        averageResults: row.avg_results || 0
-      }));
+        // Content Sources
+        let sources: string[] = [];
+        try {
+          if (Array.isArray(session.content_sources)) {
+            sources = session.content_sources;
+          } else if (typeof session.content_sources === 'string') {
+            sources = JSON.parse(session.content_sources);
+          }
+        } catch (e) {
+          // Ignore parse errors
+        }
+
+        const sourcesKey = JSON.stringify(sources.sort());
+        contentSourcesMap.set(sourcesKey, (contentSourcesMap.get(sourcesKey) || 0) + 1);
+
+        // Top Search Queries
+        const searchQuery = session.search_query || '';
+        if (searchQuery) {
+          const existingQuery = searchQueriesMap.get(searchQuery) || { count: 0, totalResults: 0, totalSuccessRate: 0 };
+          searchQueriesMap.set(searchQuery, {
+            count: existingQuery.count + 1,
+            totalResults: existingQuery.totalResults + resultsCount,
+            totalSuccessRate: existingQuery.totalSuccessRate + successRate
+          });
+        }
+
+        // Trends
+        if (session.created_at) {
+          const date = session.created_at.split('T')[0];
+          const existingTrend = trendsMap.get(date) || { count: 0, totalResults: 0, totalSuccessRate: 0 };
+          trendsMap.set(date, {
+            count: existingTrend.count + 1,
+            totalResults: existingTrend.totalResults + resultsCount,
+            totalSuccessRate: existingTrend.totalSuccessRate + successRate
+          });
+        }
+      }
+
+      const averageResultsPerSearch = totalSearches > 0 ? totalResults / totalSearches : 0;
+      const averageSuccessRate = totalSearches > 0 ? totalSuccessRate / totalSearches : 0;
+      const averageProcessingTime = totalSearches > 0 ? totalProcessingTime / totalSearches : 0;
+
+      const sourcesResult = Array.from(contentSourcesMap.entries()).map(([sources, count]) => {
+        let parsedSources: any = [];
+        try {
+          parsedSources = JSON.parse(sources);
+        } catch (e) {
+          // Ignore parse errors
+        }
+        return {
+          content_sources: parsedSources,
+          usage_count: count
+        };
+      });
+
+      const mostUsedContentSources = this.calculateContentSourceUsage(sourcesResult);
+
+      const topSearchQueries = Array.from(searchQueriesMap.entries())
+        .map(([query, stats]) => ({
+          query,
+          count: stats.count,
+          averageResults: stats.totalResults / stats.count,
+          successRate: stats.totalSuccessRate / stats.count
+        }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10);
+
+      const searchTrends = Array.from(trendsMap.entries())
+        .map(([date, stats]) => ({
+          date,
+          searchCount: stats.count,
+          averageResults: stats.totalResults / stats.count,
+          successRate: stats.totalSuccessRate / stats.count
+        }))
+        .sort((a, b) => b.date.localeCompare(a.date))
+        .slice(0, 30);
 
       return {
-        totalSearches: statsResult.total_searches || 0,
-        successfulSearches: statsResult.successful_searches || 0,
-        averageResultsPerSearch: statsResult.avg_results_per_search || 0,
-        averageSuccessRate: statsResult.avg_success_rate || 0,
-        averageProcessingTime: statsResult.avg_processing_time || 0,
+        totalSearches,
+        successfulSearches,
+        averageResultsPerSearch,
+        averageSuccessRate,
+        averageProcessingTime,
         mostUsedContentSources,
         topSearchQueries,
         searchTrends
@@ -873,10 +904,9 @@ export class EnhancedSearchHistoryManager extends SearchAnalyticsManager {
       });
 
       // Convert to ContentSourceUsage format
-      const contentSourceUsage: ContentSourceUsage[] = [];
-      
-      for (const [source, usage] of sourceUsageMap.entries()) {
-        if (source === 'ideas' || source === 'builder') {
+      const sourcePromises = Array.from(sourceUsageMap.entries())
+        .filter(([source]) => source === 'ideas' || source === 'builder')
+        .map(async ([source, usage]) => {
           // Get top keywords for this source (simplified implementation)
           const topKeywords = await this.getTopKeywordsForSource(
             userId, 
@@ -885,16 +915,17 @@ export class EnhancedSearchHistoryManager extends SearchAnalyticsManager {
             days
           );
 
-          contentSourceUsage.push({
+          return {
             source: source as 'ideas' | 'builder',
             totalUsage: usage.totalUsage,
             successfulSearches: usage.successfulSearches,
             averageResults: usage.totalUsage > 0 ? usage.totalResults / usage.totalUsage : 0,
             topKeywords,
             recentUsage: usage.recentUsage.sort((a, b) => b.date.localeCompare(a.date))
-          });
-        }
-      }
+          };
+        });
+
+      const contentSourceUsage: ContentSourceUsage[] = await Promise.all(sourcePromises);
 
       return contentSourceUsage;
     } catch (error) {

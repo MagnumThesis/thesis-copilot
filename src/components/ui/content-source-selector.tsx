@@ -409,12 +409,9 @@ export const ContentSourceSelector: React.FC<ContentSourceSelectorProps> = ({
       
       try {
         // Extract content from all selected sources
-        const extractedContents: ExtractedContent[] = []
-        
-        for (const source of selectedSources) {
-          const extracted = await extractContentFromSource(source)
-          extractedContents.push(extracted)
-        }
+        const extractedContents: ExtractedContent[] = await Promise.all(
+          selectedSources.map(source => extractContentFromSource(source))
+        )
         
         // Generate search query from extracted content
         const allKeywords = [...new Set(extractedContents.flatMap(ec => ec.keywords || []))]
