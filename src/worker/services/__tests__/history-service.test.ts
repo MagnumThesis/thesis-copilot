@@ -45,7 +45,7 @@ describe('HistoryService', () => {
   });
 
   describe('saveHistory', () => {
-    it('should throw not implemented error currently', async () => {
+    it('should return successfully when data and conversationId are provided', async () => {
       const request: HistoryServiceRequest = {
         conversationId: 'conv-789',
         data: {
@@ -55,10 +55,16 @@ describe('HistoryService', () => {
         }
       };
       
-      await expect(HistoryService.saveHistory(request)).rejects.toThrow('Not implemented: HistoryService.saveHistory');
+      const response = await HistoryService.saveHistory(request);
+
+      expect(response.success).toBe(true);
+      expect(response.entry).toHaveProperty('id');
+      expect(response.entry).toHaveProperty('savedAt');
+      expect(response.entry.conversationId).toBe('conv-789');
+      expect(response.entry.query).toBe('machine learning');
     });
 
-    it('should handle different data types when implemented', async () => {
+    it('should handle different data types successfully', async () => {
       const searchHistoryRequest: HistoryServiceRequest = {
         conversationId: 'conv-search',
         data: {
@@ -74,7 +80,10 @@ describe('HistoryService', () => {
         }
       };
 
-      await expect(HistoryService.saveHistory(searchHistoryRequest)).rejects.toThrow('Not implemented');
+      const response1 = await HistoryService.saveHistory(searchHistoryRequest);
+      expect(response1.success).toBe(true);
+      expect(response1.metadata.userAgent).toBe('research-tool');
+      expect(response1.entry.type).toBe('search');
 
       const downloadHistoryRequest: HistoryServiceRequest = {
         conversationId: 'conv-download',
@@ -90,16 +99,24 @@ describe('HistoryService', () => {
         }
       };
 
-      await expect(HistoryService.saveHistory(downloadHistoryRequest)).rejects.toThrow('Not implemented');
+      const response2 = await HistoryService.saveHistory(downloadHistoryRequest);
+      expect(response2.success).toBe(true);
+      expect(response2.entry.type).toBe('download');
     });
 
-    it('should validate required fields when implemented', async () => {
+    it('should validate required fields', async () => {
       const invalidDataRequest: HistoryServiceRequest = {
         conversationId: 'conv-invalid',
         data: null
       };
 
-      await expect(HistoryService.saveHistory(invalidDataRequest)).rejects.toThrow('Not implemented');
+      await expect(HistoryService.saveHistory(invalidDataRequest)).rejects.toThrow('Invalid request: missing data');
+
+      const missingConvIdRequest: HistoryServiceRequest = {
+        data: { foo: 'bar' }
+      };
+
+      await expect(HistoryService.saveHistory(missingConvIdRequest)).rejects.toThrow('Invalid request: missing conversationId');
     });
   });
 

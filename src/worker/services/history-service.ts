@@ -10,6 +10,7 @@ export interface HistoryServiceRequest {
   filters?: Record<string, any>;
   limit?: number;
   offset?: number;
+  env?: any; // Cloudflare worker env for database access
 }
 
 export interface HistoryServiceResponse {
@@ -33,8 +34,68 @@ export class HistoryService {
    * Saves conversation history entry
    */
   static async saveHistory(req: HistoryServiceRequest): Promise<HistoryServiceResponse> {
-    // TODO: Implement history saving logic
-    throw new Error('Not implemented: HistoryService.saveHistory');
+    if (!req.conversationId) {
+      throw new Error('Invalid request: missing conversationId');
+    }
+
+    if (!req.data) {
+      throw new Error('Invalid request: missing data');
+    }
+
+    const entryId = crypto.randomUUID();
+    const savedAt = new Date().toISOString();
+
+    const entry = {
+      id: entryId,
+      conversationId: req.conversationId,
+      savedAt: savedAt,
+      ...req.data
+    };
+
+    // If environment is available, persist the data
+    if (req.env) {
+      try {
+        const { getSupabase } = await import('../lib/supabase');
+        const supabase = getSupabase(req.env);
+
+        // Ensure userId is available, fallback if not
+        const userId = req.metadata?.userId || 'system';
+
+        if (req.data.type === 'search') {
+          // If it is a search history item, save basic record to search_sessions
+          await supabase.from('search_sessions').insert({
+            id: entryId,
+            conversation_id: req.conversationId,
+            user_id: userId,
+            search_query: req.data.query || 'unknown search',
+            content_sources: req.data.contentSources || [],
+            search_success: req.data.success !== false,
+            results_count: req.data.resultCount || 0
+          });
+        } else {
+          // Fallback: save generic user actions or data into messages table as a system message
+          await supabase.from('messages').insert({
+            id: entryId,
+            chat_id: req.conversationId,
+            role: 'system',
+            content: JSON.stringify({
+              action_type: req.data.type || 'generic_history_event',
+              data: req.data,
+              metadata: req.metadata
+            }),
+            message_id: entryId
+          });
+        }
+      } catch (err) {
+        console.error('Error persisting history entry:', err);
+      }
+    }
+
+    return {
+      success: true,
+      entry: entry,
+      metadata: req.metadata || {}
+    };
   }
 
   /**

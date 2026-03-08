@@ -22,6 +22,7 @@ export async function handleGetHistoryRoute(ctx: Context): Promise<HistoryServic
     limit: body.limit,
     offset: body.offset,
     filters: body.filters,
+    env: ctx.env,
   };
   
   // Call HistoryService.getHistory
@@ -45,6 +46,7 @@ export async function handleSaveHistoryRoute(ctx: Context): Promise<HistoryServi
     conversationId: body.conversationId,
     data: body.data,
     metadata: body.metadata,
+    env: ctx.env,
   };
   
   // Call HistoryService.saveHistory
@@ -67,6 +69,7 @@ export async function handleDeleteHistoryRoute(ctx: Context): Promise<HistorySer
   const req: HistoryServiceRequest = {
     conversationId: body.conversationId,
     entryId: body.entryId, // Optional - if provided, delete specific entry
+    env: ctx.env,
   };
   
   // Call HistoryService.deleteHistory
@@ -92,6 +95,7 @@ export async function handleSearchHistoryRoute(ctx: Context): Promise<HistorySer
     filters: body.filters,
     limit: body.limit,
     offset: body.offset,
+    env: ctx.env,
   };
   
   // Call HistoryService.searchHistory
@@ -113,7 +117,8 @@ export async function handleClearHistoryRoute(ctx: Context): Promise<HistoryServ
   
   const req: HistoryServiceRequest = {
     conversationId: body.conversationId,
-    metadata: { operation: 'clear-history' }
+    metadata: { operation: 'clear-history' },
+    env: ctx.env,
   };
   
   // Delegate to service layer
@@ -134,7 +139,8 @@ export async function handleExportHistoryRoute(ctx: Context): Promise<HistorySer
   
   const req: HistoryServiceRequest = {
     conversationId,
-    metadata: { operation: 'export-history' }
+    metadata: { operation: 'export-history' },
+    env: ctx.env,
   };
   
   // Delegate to service layer
@@ -155,7 +161,8 @@ export async function handleGetHistoryStatsRoute(ctx: Context): Promise<HistoryS
   
   const req: HistoryServiceRequest = {
     conversationId,
-    metadata: { operation: 'get-history-stats' }
+    metadata: { operation: 'get-history-stats' },
+    env: ctx.env,
   };
   
   // Delegate to service layer
@@ -176,7 +183,8 @@ export async function handleGetContentUsageRoute(ctx: Context): Promise<HistoryS
   
   const req: HistoryServiceRequest = {
     conversationId,
-    metadata: { operation: 'get-content-usage' }
+    metadata: { operation: 'get-content-usage' },
+    env: ctx.env,
   };
   
   // Delegate to service layer
@@ -197,7 +205,8 @@ export async function handleGetSuccessTrackingRoute(ctx: Context): Promise<Histo
   
   const req: HistoryServiceRequest = {
     conversationId: body.conversationId,
-    metadata: { operation: 'get-success-tracking' }
+    metadata: { operation: 'get-success-tracking' },
+    env: ctx.env,
   };
   
   // Delegate to service layer
@@ -218,7 +227,8 @@ export async function handleGetNextBatchRoute(ctx: Context): Promise<HistoryServ
   
   const req: HistoryServiceRequest = {
     conversationId,
-    metadata: { operation: 'get-next-batch' }
+    metadata: { operation: 'get-next-batch' },
+    env: ctx.env,
   };
   
   // Delegate to service layer
@@ -239,7 +249,8 @@ export async function handleGetSearchSessionDetailsRoute(ctx: Context): Promise<
   
   const req: HistoryServiceRequest = {
     conversationId: '', // Will be resolved by service
-    metadata: { operation: 'get-session-details', sessionId }
+    metadata: { operation: 'get-session-details', sessionId },
+    env: ctx.env,
   };
   
   // Delegate to service layer
