@@ -1,6 +1,8 @@
 // src/worker/services/analytics-service.ts
 // Service for analytics and tracking operations (modular refactor)
 
+import { getSupabase } from '../lib/supabase';
+
 export interface AnalyticsServiceRequest {
   eventType?: string;
   eventData?: any;
@@ -33,8 +35,47 @@ export class AnalyticsService {
    * Tracks user events
    */
   static async trackEvent(req: AnalyticsServiceRequest): Promise<AnalyticsServiceResponse> {
-    // TODO: Implement event tracking logic
-    throw new Error('Not implemented: AnalyticsService.trackEvent');
+    try {
+      if (!req.eventType) {
+        throw new Error('Missing eventType in trackEvent request');
+      }
+
+      const supabase = getSupabase();
+
+      const { data, error } = await supabase
+        .from('analytics_events')
+        .insert({
+          event_type: req.eventType,
+          event_data: req.eventData || {},
+          user_id: req.userId || null,
+          conversation_id: req.conversationId || null,
+          metadata: req.metadata || {},
+        })
+        .select('id, created_at')
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      return {
+        success: true,
+        metadata: {
+          eventId: data.id,
+          timestamp: data.created_at,
+          processed: true,
+        },
+      };
+    } catch (error) {
+      console.error('Error tracking event:', error);
+      return {
+        success: false,
+        metadata: {
+          error: error instanceof Error ? error.message : 'Unknown error tracking event',
+          processed: false,
+        },
+      };
+    }
   }
 
   /**
