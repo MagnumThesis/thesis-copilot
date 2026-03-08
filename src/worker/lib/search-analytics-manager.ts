@@ -733,6 +733,53 @@ export class SearchAnalyticsManager {
   }
 
   // Helper methods
+  /**
+   * Get trending topics across all users or specific user
+   */
+  async getTrendingTopics(limit: number = 20, days: number = 30, userId?: string, conversationId?: string): Promise<{ topic: string; count: number }[]> {
+    try {
+      const supabase = getSupabase(this.env);
+      const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+      let queriesQuery = supabase
+        .from('search_sessions')
+        .select('search_query')
+        .gte('created_at', cutoffDate.toISOString());
+
+      if (userId && userId !== 'global') {
+        queriesQuery = queriesQuery.eq('user_id', userId);
+      }
+      if (conversationId) {
+        queriesQuery = queriesQuery.eq('conversation_id', conversationId);
+      }
+
+      const { data: queries, error: queriesError } = await queriesQuery;
+
+      if (queriesError) {
+        console.error('Error getting search queries for trending topics:', queriesError);
+        throw queriesError;
+      }
+
+      const topicCounts = new Map<string, number>();
+      queries.forEach(q => {
+        if (q.search_query) {
+          const topics = this.extractTopicsFromQuery(q.search_query);
+          topics.forEach(topic => {
+            topicCounts.set(topic, (topicCounts.get(topic) || 0) + 1);
+          });
+        }
+      });
+
+      return Array.from(topicCounts.entries())
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, limit)
+        .map(([topic, count]) => ({ topic, count }));
+    } catch (error) {
+      console.error('Error getting trending topics:', error);
+      throw error;
+    }
+  }
+
   private extractPopularTopics(queries: string[]): string[] {
     const topicCounts = new Map<string, number>();
     

@@ -140,7 +140,8 @@ export async function handleGetTrendingRoute(ctx: Context): Promise<AnalyticsSer
   
   const req: AnalyticsServiceRequest = {
     conversationId,
-    metadata: { operation: 'get-trending' }
+    metadata: { operation: 'get-trending' },
+    env: ctx.env
   };
   
   // Delegate to service layer
