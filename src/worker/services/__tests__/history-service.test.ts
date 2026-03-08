@@ -10,37 +10,70 @@ describe('HistoryService', () => {
   });
 
   describe('getHistory', () => {
-    it('should throw not implemented error currently', async () => {
+    it('should fallback to pagination defaults if no environment is provided', async () => {
       const request: HistoryServiceRequest = {
         conversationId: 'conv-123',
-        limit: 10,
-        offset: 0
-      };
-      
-      await expect(HistoryService.getHistory(request)).rejects.toThrow('Not implemented: HistoryService.getHistory');
-    });
-
-    it('should handle pagination parameters when implemented', async () => {
-      const paginatedRequest: HistoryServiceRequest = {
-        conversationId: 'conv-456',
         limit: 25,
         offset: 50,
-        filters: { 
-          dateRange: { start: '2023-01-01', end: '2023-01-31' },
-          entryType: 'search'
-        }
+        metadata: { userId: 'user-123' }
       };
 
-      await expect(HistoryService.getHistory(paginatedRequest)).rejects.toThrow('Not implemented');
+      const response = await HistoryService.getHistory(request);
+
+      expect(response).toHaveProperty('success', true);
+      expect(response).toHaveProperty('data');
+      expect(Array.isArray(response.data)).toBe(true);
+      expect(response.total).toBe(0);
+      expect(response.metadata).toMatchObject({
+        conversationId: 'conv-123',
+        limit: 25,
+        offset: 50,
+        hasMore: false,
+        warning: 'No environment provided for database connection'
+      });
     });
 
-    it('should validate conversationId when implemented', async () => {
+    it('should use default limit and offset if not provided and no environment', async () => {
+      const request: HistoryServiceRequest = {
+        conversationId: 'conv-default'
+      };
+
+      const response = await HistoryService.getHistory(request);
+
+      expect(response).toHaveProperty('success', true);
+      expect(response.metadata).toMatchObject({
+        conversationId: 'conv-default',
+        limit: 10,
+        offset: 0,
+        hasMore: false
+      });
+    });
+
+    it('should ignore negative limit and offset values and use defaults when no env', async () => {
+      const request: HistoryServiceRequest = {
+        conversationId: 'conv-negative',
+        limit: -5,
+        offset: -10
+      };
+
+      const response = await HistoryService.getHistory(request);
+
+      expect(response).toHaveProperty('success', true);
+      expect(response.metadata).toMatchObject({
+        conversationId: 'conv-negative',
+        limit: 10,
+        offset: 0,
+        hasMore: false
+      });
+    });
+
+    it('should validate conversationId', async () => {
       const invalidRequest: HistoryServiceRequest = {
         conversationId: '',
         limit: 10
       };
 
-      await expect(HistoryService.getHistory(invalidRequest)).rejects.toThrow('Not implemented');
+      await expect(HistoryService.getHistory(invalidRequest)).rejects.toThrow('Invalid request: missing conversationId');
     });
   });
 
