@@ -197,7 +197,11 @@ export async function handleGetSuccessTrackingRoute(ctx: Context): Promise<Histo
   
   const req: HistoryServiceRequest = {
     conversationId: body.conversationId,
-    metadata: { operation: 'get-success-tracking' }
+    metadata: {
+      operation: 'get-success-tracking',
+      userId: ctx.user?.id,
+      env: ctx.env
+    }
   };
   
   // Delegate to service layer
