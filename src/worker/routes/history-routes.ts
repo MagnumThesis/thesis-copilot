@@ -16,14 +16,15 @@ export async function handleGetHistoryRoute(ctx: Context): Promise<HistoryServic
   if (!body || typeof body.conversationId !== 'string') {
     throw new Error('Invalid request: missing conversationId');
   }
-  
+
   const req: HistoryServiceRequest = {
     conversationId: body.conversationId,
     limit: body.limit,
     offset: body.offset,
     filters: body.filters,
+    env: ctx.env,
   };
-  
+
   // Call HistoryService.getHistory
   const response = await HistoryService.getHistory(req);
   return response;
@@ -40,13 +41,14 @@ export async function handleSaveHistoryRoute(ctx: Context): Promise<HistoryServi
   if (!body || typeof body.conversationId !== 'string' || !body.data) {
     throw new Error('Invalid request: missing conversationId or data');
   }
-  
+
   const req: HistoryServiceRequest = {
     conversationId: body.conversationId,
     data: body.data,
     metadata: body.metadata,
+    env: ctx.env,
   };
-  
+
   // Call HistoryService.saveHistory
   const response = await HistoryService.saveHistory(req);
   return response;
@@ -63,12 +65,13 @@ export async function handleDeleteHistoryRoute(ctx: Context): Promise<HistorySer
   if (!body || typeof body.conversationId !== 'string') {
     throw new Error('Invalid request: missing conversationId');
   }
-  
+
   const req: HistoryServiceRequest = {
     conversationId: body.conversationId,
     entryId: body.entryId, // Optional - if provided, delete specific entry
+    env: ctx.env,
   };
-  
+
   // Call HistoryService.deleteHistory
   const response = await HistoryService.deleteHistory(req);
   return response;
@@ -85,15 +88,16 @@ export async function handleSearchHistoryRoute(ctx: Context): Promise<HistorySer
   if (!body || typeof body.query !== 'string') {
     throw new Error('Invalid request: missing query');
   }
-  
+
   const req: HistoryServiceRequest = {
     conversationId: body.conversationId, // Optional - can search across all conversations
     query: body.query,
     filters: body.filters,
     limit: body.limit,
     offset: body.offset,
+    env: ctx.env,
   };
-  
+
   // Call HistoryService.searchHistory
   const response = await HistoryService.searchHistory(req);
   return response;
@@ -110,12 +114,17 @@ export async function handleClearHistoryRoute(ctx: Context): Promise<HistoryServ
   if (!body || typeof body.conversationId !== 'string') {
     throw new Error('Invalid request: missing conversationId');
   }
-  
+
+  const authHeader = (ctx as any).req?.header('Authorization') || ctx.request?.headers?.['authorization'] || ctx.request?.headers?.['Authorization'];
+  const token = typeof authHeader === 'string' ? authHeader.replace('Bearer ', '') : undefined;
+
   const req: HistoryServiceRequest = {
     conversationId: body.conversationId,
-    metadata: { operation: 'clear-history' }
+    metadata: { operation: 'clear-history' },
+    env: ctx.env,
+    token
   };
-  
+
   // Delegate to service layer
   return await HistoryService.clearHistory(req);
 }
@@ -131,12 +140,13 @@ export async function handleExportHistoryRoute(ctx: Context): Promise<HistorySer
   if (!conversationId || typeof conversationId !== 'string') {
     throw new Error('Invalid request: missing conversationId');
   }
-  
+
   const req: HistoryServiceRequest = {
     conversationId,
-    metadata: { operation: 'export-history' }
+    metadata: { operation: 'export-history' },
+    env: ctx.env,
   };
-  
+
   // Delegate to service layer
   return await HistoryService.exportHistory(req);
 }
@@ -152,12 +162,20 @@ export async function handleGetHistoryStatsRoute(ctx: Context): Promise<HistoryS
   if (!conversationId || typeof conversationId !== 'string') {
     throw new Error('Invalid request: missing conversationId');
   }
-  
+
+  const days = ctx.request?.query?.days;
+  const userId = ctx.request?.query?.userId;
+
   const req: HistoryServiceRequest = {
     conversationId,
-    metadata: { operation: 'get-history-stats' }
+    env: ctx.env,
+    metadata: {
+      operation: 'get-history-stats',
+      days,
+      userId
+    }
   };
-  
+
   // Delegate to service layer
   return await HistoryService.getHistoryStats(req);
 }
@@ -173,12 +191,13 @@ export async function handleGetContentUsageRoute(ctx: Context): Promise<HistoryS
   if (!conversationId || typeof conversationId !== 'string') {
     throw new Error('Invalid request: missing conversationId');
   }
-  
+
   const req: HistoryServiceRequest = {
     conversationId,
-    metadata: { operation: 'get-content-usage' }
+    metadata: { operation: 'get-content-usage' },
+    env: ctx.env,
   };
-  
+
   // Delegate to service layer
   return await HistoryService.getContentUsage(req);
 }
@@ -194,12 +213,17 @@ export async function handleGetSuccessTrackingRoute(ctx: Context): Promise<Histo
   if (!body || typeof body.conversationId !== 'string') {
     throw new Error('Invalid request: missing conversationId');
   }
-  
+
   const req: HistoryServiceRequest = {
     conversationId: body.conversationId,
-    metadata: { operation: 'get-success-tracking' }
+    env: ctx.env,
+    metadata: {
+      operation: 'get-success-tracking',
+      userId: (ctx as any).user?.id,
+      env: ctx.env
+    }
   };
-  
+
   // Delegate to service layer
   return await HistoryService.getSuccessTracking(req);
 }
@@ -215,12 +239,22 @@ export async function handleGetNextBatchRoute(ctx: Context): Promise<HistoryServ
   if (!conversationId || typeof conversationId !== 'string') {
     throw new Error('Invalid request: missing conversationId');
   }
-  
+
+  const limitQuery = ctx.request?.query?.limit;
+  const offsetQuery = ctx.request?.query?.offset;
+
   const req: HistoryServiceRequest = {
     conversationId,
-    metadata: { operation: 'get-next-batch' }
+    env: ctx.env,
+    limit: limitQuery ? parseInt(limitQuery as string, 10) : undefined,
+    offset: offsetQuery ? parseInt(offsetQuery as string, 10) : undefined,
+    metadata: {
+      operation: 'get-next-batch',
+      env: ctx.env,
+      userId: ctx.request?.query?.userId || 'anonymous'
+    }
   };
-  
+
   // Delegate to service layer
   return await HistoryService.getNextBatch(req);
 }
@@ -236,12 +270,13 @@ export async function handleGetSearchSessionDetailsRoute(ctx: Context): Promise<
   if (!sessionId || typeof sessionId !== 'string') {
     throw new Error('Invalid request: missing sessionId');
   }
-  
+
   const req: HistoryServiceRequest = {
     conversationId: '', // Will be resolved by service
-    metadata: { operation: 'get-session-details', sessionId }
+    metadata: { operation: 'get-session-details', sessionId },
+    env: ctx.env,
   };
-  
+
   // Delegate to service layer
   return await HistoryService.getSearchSessionDetails(req);
 }

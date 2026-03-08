@@ -8,6 +8,7 @@ import { Separator } from './shadcn/separator';
 import { ScrollArea } from './shadcn/scroll-area';
 import { CitationFormatter } from './citation-formatter';
 import { ReferenceSuggestion, SearchAnalytics, Reference, ReferenceType } from '../../lib/ai-types';
+import { trackSuggestionAction } from '../../lib/api/ai-searcher-api';
 import { CheckCircle, XCircle, AlertCircle, BookOpen, Calendar, BarChart3, TrendingUp, RefreshCw, Download } from 'lucide-react';
 import { submitResultFeedback } from '../../lib/api/ai-searcher-api';
 
@@ -47,6 +48,10 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
           timestamp: new Date()
         });
       }
+      // Call API to mark suggestion as accepted
+      if (suggestion.id) {
+        await trackSuggestionAction(suggestion.id, 'accept');
+      }
 
       setAcceptedSuggestions(prev => new Set([...prev, suggestion.id]));
 
@@ -68,6 +73,10 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
           comments: '',
           timestamp: new Date()
         });
+      }
+      // Call API to mark suggestion as rejected
+      if (suggestion.id) {
+        await trackSuggestionAction(suggestion.id, 'reject');
       }
 
       setRejectedSuggestions(prev => new Set([...prev, suggestion.id]));
@@ -159,11 +168,9 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
     return (
       <Card
         key={suggestion.id}
-        className={`transition-all cursor-pointer hover:shadow-md ${
-          isSelected ? 'ring-2 ring-primary' : ''
-        } ${isAccepted ? 'bg-green-50 border-green-200' : ''} ${
-          isRejected ? 'bg-red-50 border-red-200' : ''
-        }`}
+        className={`transition-all cursor-pointer hover:shadow-md ${isSelected ? 'ring-2 ring-primary' : ''
+          } ${isAccepted ? 'bg-green-50 border-green-200' : ''} ${isRejected ? 'bg-red-50 border-red-200' : ''
+          }`}
         onClick={() => handleSuggestionSelect(suggestion)}
       >
         <CardHeader className="pb-3">

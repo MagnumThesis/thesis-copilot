@@ -65,6 +65,12 @@ interface SessionFeedbackRequest {
   };
 }
 
+interface TrackSuggestionRequest {
+  suggestionId: string;
+  action: 'accept' | 'reject';
+  timestamp: string;
+}
+
 /**
  * Performs a search using the AI searcher API
  * @param query - The search query
@@ -113,6 +119,57 @@ export async function search(
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Search failed. Please try again.'
+    };
+  }
+}
+
+/**
+ * Tracks an action taken on a reference suggestion (accept/reject)
+ * @param suggestionId - The ID of the suggestion
+ * @param action - The action taken ('accept' or 'reject')
+ * @returns Promise with success status or error
+ */
+export async function trackSuggestionAction(
+  suggestionId: string,
+  action: 'accept' | 'reject'
+): Promise<ApiResponse<null>> {
+  try {
+    const response = await fetch('/api/ai-searcher/suggestions/track', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        suggestionId,
+        action,
+        timestamp: new Date().toISOString()
+      } as TrackSuggestionRequest)
+    });
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: `Failed to track suggestion: ${response.statusText}`
+      };
+    }
+
+    const data = await response.json();
+
+    if (!data.success) {
+      return {
+        success: false,
+        error: data.error || 'Failed to track suggestion'
+      };
+    }
+
+    return {
+      success: true
+    };
+  } catch (error) {
+    console.error('Error tracking suggestion action:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to track suggestion'
     };
   }
 }

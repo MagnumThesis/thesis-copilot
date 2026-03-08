@@ -3,14 +3,35 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { AnalyticsService, AnalyticsServiceRequest, AnalyticsServiceResponse } from '../analytics-service';
+import * as SupabaseLib from '../../lib/supabase';
+
+// Mock the console.error to keep test output clean
+vi.spyOn(console, 'error').mockImplementation(() => {});
 
 describe('AnalyticsService', () => {
+  let mockInsert: any;
+  let mockSelect: any;
+  let mockSingle: any;
+
   beforeEach(() => {
     vi.restoreAllMocks();
+
+    mockSingle = vi.fn().mockResolvedValue({
+      data: { id: 'event-uuid-123', created_at: '2023-01-01T12:00:00Z' },
+      error: null
+    });
+    mockSelect = vi.fn().mockReturnValue({ single: mockSingle });
+    mockInsert = vi.fn().mockReturnValue({ select: mockSelect });
+
+    const mockSupabaseClient = {
+      from: vi.fn().mockReturnValue({ insert: mockInsert }),
+    };
+
+    vi.spyOn(SupabaseLib, 'getSupabase').mockReturnValue(mockSupabaseClient as any);
   });
 
   describe('trackEvent', () => {
-    it('should throw not implemented error currently', async () => {
+    it('should track a search_performed event successfully', async () => {
       const request: AnalyticsServiceRequest = {
         eventType: 'search_performed',
         eventData: {
@@ -22,10 +43,27 @@ describe('AnalyticsService', () => {
         userId: 'user-456'
       };
       
-      await expect(AnalyticsService.trackEvent(request)).rejects.toThrow('Not implemented: AnalyticsService.trackEvent');
+      const response = await AnalyticsService.trackEvent(request);
+
+      expect(response.success).toBe(true);
+      expect(response.metadata).toEqual({
+        eventId: 'event-uuid-123',
+        timestamp: '2023-01-01T12:00:00Z',
+        processed: true
+      });
+
+      const supabase = SupabaseLib.getSupabase();
+      expect(supabase.from).toHaveBeenCalledWith('analytics_events');
+      expect(mockInsert).toHaveBeenCalledWith({
+        event_type: 'search_performed',
+        event_data: request.eventData,
+        user_id: 'user-456',
+        conversation_id: 'conv-123',
+        metadata: {}
+      });
     });
 
-    it('should handle different event types when implemented', async () => {
+    it('should track different event types correctly', async () => {
       const clickEventRequest: AnalyticsServiceRequest = {
         eventType: 'result_clicked',
         eventData: {
@@ -37,7 +75,15 @@ describe('AnalyticsService', () => {
         metadata: { sessionId: 'session-abc' }
       };
 
-      await expect(AnalyticsService.trackEvent(clickEventRequest)).rejects.toThrow('Not implemented');
+      const response1 = await AnalyticsService.trackEvent(clickEventRequest);
+      expect(response1.success).toBe(true);
+      expect(mockInsert).toHaveBeenCalledWith({
+        event_type: 'result_clicked',
+        event_data: clickEventRequest.eventData,
+        user_id: null,
+        conversation_id: 'conv-789',
+        metadata: { sessionId: 'session-abc' }
+      });
 
       const downloadEventRequest: AnalyticsServiceRequest = {
         eventType: 'paper_downloaded',
@@ -49,22 +95,71 @@ describe('AnalyticsService', () => {
         userId: 'user-789'
       };
 
-      await expect(AnalyticsService.trackEvent(downloadEventRequest)).rejects.toThrow('Not implemented');
+      const response2 = await AnalyticsService.trackEvent(downloadEventRequest);
+      expect(response2.success).toBe(true);
+      expect(mockInsert).toHaveBeenCalledWith({
+        event_type: 'paper_downloaded',
+        event_data: downloadEventRequest.eventData,
+        user_id: 'user-789',
+        conversation_id: null,
+        metadata: {}
+      });
     });
 
-    it('should validate event data structure when implemented', async () => {
+    it('should handle missing eventData', async () => {
       const invalidEventRequest: AnalyticsServiceRequest = {
-        eventType: 'invalid_event',
+        eventType: 'simple_event',
         eventData: null,
+        conversationId: 'conv-simple'
+      };
+
+      const response = await AnalyticsService.trackEvent(invalidEventRequest);
+      expect(response.success).toBe(true);
+      expect(mockInsert).toHaveBeenCalledWith({
+        event_type: 'simple_event',
+        event_data: {},
+        user_id: null,
+        conversation_id: 'conv-simple',
+        metadata: {}
+      });
+    });
+
+    it('should return error response when eventType is missing', async () => {
+      const invalidEventRequest: AnalyticsServiceRequest = {
+        eventData: { something: true },
         conversationId: 'conv-invalid'
       };
 
-      await expect(AnalyticsService.trackEvent(invalidEventRequest)).rejects.toThrow('Not implemented');
+      const response = await AnalyticsService.trackEvent(invalidEventRequest);
+
+      expect(response.success).toBe(false);
+      expect(response.metadata.error).toBe('Missing eventType in trackEvent request');
+      expect(response.metadata.processed).toBe(false);
+
+      const supabase = SupabaseLib.getSupabase();
+      expect(supabase.from).not.toHaveBeenCalled();
+    });
+
+    it('should handle database errors gracefully', async () => {
+      mockSingle.mockResolvedValue({
+        data: null,
+        error: new Error('Database insertion failed')
+      });
+
+      const request: AnalyticsServiceRequest = {
+        eventType: 'error_event',
+      };
+
+      const response = await AnalyticsService.trackEvent(request);
+
+      expect(response.success).toBe(false);
+      expect(response.metadata.error).toBe('Database insertion failed');
+      expect(response.metadata.processed).toBe(false);
     });
   });
 
   describe('getMetrics', () => {
-    it('should throw not implemented error currently', async () => {
+    it('should return default metrics when metricType is not recognized', async () => {
       const request: AnalyticsServiceRequest = {
         metricType: 'usage_stats',
         timeRange: {
@@ -74,10 +169,17 @@ describe('AnalyticsService', () => {
         aggregation: 'daily'
       };
       
-      await expect(AnalyticsService.getMetrics(request)).rejects.toThrow('Not implemented: AnalyticsService.getMetrics');
+      const response = await AnalyticsService.getMetrics(request);
+      expect(response.success).toBe(true);
+      expect(response.metrics).toEqual({
+        defaultMetric: 100,
+        status: 'active'
+      });
+      expect(response.metadata).toHaveProperty('calculatedAt');
+      expect(response.metadata.aggregation).toBe('daily');
     });
 
-    it('should handle different metric types when implemented', async () => {
+    it('should handle different metric types', async () => {
       const userMetricsRequest: AnalyticsServiceRequest = {
         metricType: 'user_engagement',
         timeRange: {
@@ -88,7 +190,15 @@ describe('AnalyticsService', () => {
         aggregation: 'hourly'
       };
 
-      await expect(AnalyticsService.getMetrics(userMetricsRequest)).rejects.toThrow('Not implemented');
+      const userMetricsResponse = await AnalyticsService.getMetrics(userMetricsRequest);
+      expect(userMetricsResponse.success).toBe(true);
+      expect(userMetricsResponse.metrics).toEqual({
+        activeUsers: 150,
+        averageSessionDuration: 300,
+        totalSessions: 450,
+        bounceRate: 0.25
+      });
+      expect(userMetricsResponse.metadata.filters).toEqual({ userType: 'researcher' });
 
       const searchMetricsRequest: AnalyticsServiceRequest = {
         metricType: 'search_performance',
@@ -102,7 +212,14 @@ describe('AnalyticsService', () => {
         }
       };
 
-      await expect(AnalyticsService.getMetrics(searchMetricsRequest)).rejects.toThrow('Not implemented');
+      const searchMetricsResponse = await AnalyticsService.getMetrics(searchMetricsRequest);
+      expect(searchMetricsResponse.success).toBe(true);
+      expect(searchMetricsResponse.metrics).toEqual({
+        totalSearches: 1500,
+        averageResponseTime: 245,
+        successRate: 0.95,
+        topQueries: ['machine learning', 'deep learning']
+      });
     });
   });
 
@@ -149,7 +266,19 @@ describe('AnalyticsService', () => {
   });
 
   describe('generateReport', () => {
-    it('should throw not implemented error currently', async () => {
+    it('should throw an error if reportType is missing', async () => {
+      const request: AnalyticsServiceRequest = {
+        timeRange: {
+          start: '2023-01-01T00:00:00Z',
+          end: '2023-01-31T23:59:59Z'
+        },
+        format: 'json'
+      };
+
+      await expect(AnalyticsService.generateReport(request)).rejects.toThrow('Invalid request: missing reportType');
+    });
+
+    it('should generate a valid report response', async () => {
       const request: AnalyticsServiceRequest = {
         reportType: 'monthly_summary',
         timeRange: {
@@ -159,10 +288,18 @@ describe('AnalyticsService', () => {
         format: 'json'
       };
       
-      await expect(AnalyticsService.generateReport(request)).rejects.toThrow('Not implemented: AnalyticsService.generateReport');
+      const response = await AnalyticsService.generateReport(request);
+      expect(response.success).toBe(true);
+      expect(response.report).toBeDefined();
+      expect(response.report.id).toContain('report-');
+      expect(response.report.format).toBe('json');
+      expect(response.report.reportType).toBe('monthly_summary');
+      expect(response.metadata).toBeDefined();
+      expect(response.metadata.generatedAt).toBeDefined();
+      expect(response.metadata.expiresAt).toBeDefined();
     });
 
-    it('should handle different report types and formats when implemented', async () => {
+    it('should handle different report types and formats', async () => {
       const usageReportRequest: AnalyticsServiceRequest = {
         reportType: 'user_activity_report',
         timeRange: {
@@ -178,7 +315,15 @@ describe('AnalyticsService', () => {
         }
       };
 
-      await expect(AnalyticsService.generateReport(usageReportRequest)).rejects.toThrow('Not implemented');
+      const usageResponse = await AnalyticsService.generateReport(usageReportRequest);
+      expect(usageResponse.success).toBe(true);
+      expect(usageResponse.report.format).toBe('pdf');
+      expect(usageResponse.report.filters).toEqual({ department: 'research' });
+      expect(usageResponse.report.options).toEqual({
+        includeCharts: true,
+        includeRawData: false,
+        granularity: 'daily'
+      });
 
       const performanceReportRequest: AnalyticsServiceRequest = {
         reportType: 'system_performance_report',
@@ -193,7 +338,10 @@ describe('AnalyticsService', () => {
         }
       };
 
-      await expect(AnalyticsService.generateReport(performanceReportRequest)).rejects.toThrow('Not implemented');
+      const performanceResponse = await AnalyticsService.generateReport(performanceReportRequest);
+      expect(performanceResponse.success).toBe(true);
+      expect(performanceResponse.report.format).toBe('csv');
+      expect(performanceResponse.report.reportType).toBe('system_performance_report');
     });
   });
 

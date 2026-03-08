@@ -111,17 +111,19 @@ export async function handleGenerateReportRoute(ctx: Context): Promise<Analytics
 export async function handleGetAnalyticsRoute(ctx: Context): Promise<AnalyticsServiceResponse> {
   // Basic validation: ensure query has conversationId
   const conversationId = ctx.request?.query?.conversationId;
+  const userId = ctx.request?.query?.userId;
   if (!conversationId || typeof conversationId !== 'string') {
     throw new Error('Invalid request: missing conversationId');
   }
   
   const req: AnalyticsServiceRequest = {
     conversationId,
+    userId: typeof userId === 'string' ? userId : undefined,
     metadata: { operation: 'get-analytics' }
   };
   
   // Delegate to service layer
-  return await AnalyticsService.getAnalytics(req);
+  return await AnalyticsService.getAnalytics(req, (ctx as any).env);
 }
 
 /**
@@ -138,7 +140,8 @@ export async function handleGetTrendingRoute(ctx: Context): Promise<AnalyticsSer
   
   const req: AnalyticsServiceRequest = {
     conversationId,
-    metadata: { operation: 'get-trending' }
+    metadata: { operation: 'get-trending' },
+    env: ctx.env
   };
   
   // Delegate to service layer
