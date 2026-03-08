@@ -5,29 +5,20 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ContentSourceManagement, ContentSourceManagementProps } from '../../../../components/ui/ai-searcher/content-source-management';
 import { ExtractedContent } from '../../../../lib/ai-types';
 
-// Mock Lucide icons to prevent JSDOM issues
+// Mock Lucide icons to prevent portal/SVG issues in JSDOM
 vi.mock('lucide-react', () => ({
-  Settings: () => <div data-testid="icon-settings" />,
-  Sparkles: () => <div data-testid="icon-sparkles" />,
-  Filter: () => <div data-testid="icon-filter" />,
-  Zap: () => <div data-testid="icon-zap" />,
-  Search: () => <div data-testid="icon-search" />,
+  Settings: () => <div data-testid="settings-icon" />,
+  Sparkles: () => <div data-testid="sparkles-icon" />,
+  Filter: () => <div data-testid="filter-icon" />,
+  Zap: () => <div data-testid="zap-icon" />,
+  Search: () => <div data-testid="search-icon" />,
 }));
-
-const mockExtractedContent: ExtractedContent = {
-  id: '1',
-  type: 'idea',
-  content: 'Sample idea content',
-  metadata: {
-    sourceId: 'source-1',
-    title: 'Idea 1'
-  }
-};
 
 describe('ContentSourceManagement', () => {
   let defaultProps: ContentSourceManagementProps;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     defaultProps = {
       searchQuery: '',
       onSearchQueryChange: vi.fn(),
@@ -46,121 +37,148 @@ describe('ContentSourceManagement', () => {
     render(<ContentSourceManagement {...defaultProps} />);
 
     expect(screen.getByText('AI-Powered Search Options')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Show Content Selection/i })).toBeInTheDocument();
-    expect(screen.getByLabelText(/Search Query/i)).toBeInTheDocument();
+    expect(screen.getByLabelText('Search Query')).toBeInTheDocument();
 
-    const searchInput = screen.getByPlaceholderText(/Enter your search query/i);
-    expect(searchInput).toBeInTheDocument();
-
-    expect(screen.getByRole('button', { name: /Filters/i })).toBeInTheDocument();
-
-    const refineButton = screen.getByRole('button', { name: /Refine/i });
-    expect(refineButton).toBeInTheDocument();
-    expect(refineButton).toBeDisabled(); // Disabled because searchQuery is empty
-
-    const searchButton = screen.getByRole('button', { name: /Search/i });
-    expect(searchButton).toBeInTheDocument();
-    expect(searchButton).toBeDisabled(); // Disabled because searchQuery is empty
+    // Check for buttons
+    expect(screen.getByRole('button', { name: /show content selection/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /filters/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /refine/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /search/i })).toBeInTheDocument();
   });
 
-  it('calls onToggleContentSelector when "Show/Hide Content Selection" is clicked', async () => {
+  it('toggles content selection button text based on showContentSelector prop', async () => {
     const user = userEvent.setup();
-    render(<ContentSourceManagement {...defaultProps} />);
+    const { rerender } = render(<ContentSourceManagement {...defaultProps} showContentSelector={false} />);
 
-    const toggleButton = screen.getByRole('button', { name: /Show Content Selection/i });
+    const toggleButton = screen.getByRole('button', { name: /show content selection/i });
+    expect(toggleButton).toBeInTheDocument();
+
     await user.click(toggleButton);
-
     expect(defaultProps.onToggleContentSelector).toHaveBeenCalledTimes(1);
+
+    // Re-render with showContentSelector = true
+    rerender(<ContentSourceManagement {...defaultProps} showContentSelector={true} />);
+    expect(screen.getByRole('button', { name: /hide content selection/i })).toBeInTheDocument();
   });
 
-  it('renders "Hide Content Selection" when showContentSelector is true', () => {
-    render(<ContentSourceManagement {...defaultProps} showContentSelector={true} />);
+  it('displays a summary when selectedContent is not empty', () => {
+    const mockSelectedContent: ExtractedContent[] = [
+      { id: '1', type: 'idea', content: 'Idea 1', title: 'Idea 1', selected: true },
+      { id: '2', type: 'idea', content: 'Idea 2', title: 'Idea 2', selected: true }
+    ];
 
-    expect(screen.getByRole('button', { name: /Hide Content Selection/i })).toBeInTheDocument();
+    render(<ContentSourceManagement {...defaultProps} selectedContent={mockSelectedContent} />);
+
+    expect(screen.getByText(/Using content from 2 sources/i)).toBeInTheDocument();
+    expect(screen.getByText(/Search query will be generated from your selected Ideas and Builder content/i)).toBeInTheDocument();
   });
 
-  it('calls onSearchQueryChange when user types in the input', async () => {
+  it('displays singular source text when exactly one content item is selected', () => {
+    const mockSelectedContent: ExtractedContent[] = [
+      { id: '1', type: 'idea', content: 'Idea 1', title: 'Idea 1', selected: true }
+    ];
+
+    render(<ContentSourceManagement {...defaultProps} selectedContent={mockSelectedContent} />);
+
+    expect(screen.getByText(/Using content from 1 source/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Using content from 1 sources/i)).not.toBeInTheDocument();
+  });
+
+  it('calls onSearchQueryChange when typing in the search input', async () => {
     const user = userEvent.setup();
     render(<ContentSourceManagement {...defaultProps} />);
 
-    const searchInput = screen.getByLabelText(/Search Query/i);
-    await user.type(searchInput, 'test query');
+    const input = screen.getByLabelText('Search Query');
+    await user.type(input, 'test query');
 
+    // userEvent.type triggers change for each character, so we check if it was called
     expect(defaultProps.onSearchQueryChange).toHaveBeenCalled();
   });
 
-  it('calls onSearch when "Search" button is clicked', async () => {
+  it('calls onSearch when pressing Enter in the search input', async () => {
     const user = userEvent.setup();
-    render(<ContentSourceManagement {...defaultProps} searchQuery="test query" />);
+    render(<ContentSourceManagement {...defaultProps} searchQuery="test" />);
 
-    const searchButton = screen.getByRole('button', { name: /Search/i });
-    expect(searchButton).not.toBeDisabled();
+    const input = screen.getByLabelText('Search Query');
+    await user.type(input, '{Enter}');
 
-    await user.click(searchButton);
-    expect(defaultProps.onSearch).toHaveBeenCalledTimes(1);
+    expect(defaultProps.onSearch).toHaveBeenCalled();
   });
 
-  it('calls onSearch when "Enter" is pressed in input', async () => {
+  it('calls onToggleFilters when clicking the Filters button', async () => {
     const user = userEvent.setup();
-    render(<ContentSourceManagement {...defaultProps} searchQuery="test query" />);
+    render(<ContentSourceManagement {...defaultProps} />);
 
-    const searchInput = screen.getByLabelText(/Search Query/i);
-    await user.click(searchInput);
-    await user.keyboard('{Enter}');
-
-    expect(defaultProps.onSearch).toHaveBeenCalledTimes(1);
-  });
-
-  it('calls onToggleFilters when "Filters" is clicked', async () => {
-    const user = userEvent.setup();
-    render(<ContentSourceManagement {...defaultProps} searchQuery="test query" />);
-
-    const filtersButton = screen.getByRole('button', { name: /Filters/i });
+    const filtersButton = screen.getByRole('button', { name: /filters/i });
     await user.click(filtersButton);
 
     expect(defaultProps.onToggleFilters).toHaveBeenCalledTimes(1);
   });
 
-  it('calls onRefineQuery when "Refine" is clicked', async () => {
+  it('disables Refine and Search buttons when searchQuery is empty or whitespace', () => {
+    const { rerender } = render(<ContentSourceManagement {...defaultProps} searchQuery="" />);
+
+    expect(screen.getByRole('button', { name: /refine/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /search/i })).toBeDisabled();
+
+    rerender(<ContentSourceManagement {...defaultProps} searchQuery="   " />);
+    expect(screen.getByRole('button', { name: /refine/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /search/i })).toBeDisabled();
+  });
+
+  it('enables Refine and Search buttons when searchQuery has text', () => {
+    render(<ContentSourceManagement {...defaultProps} searchQuery="valid query" />);
+
+    expect(screen.getByRole('button', { name: /refine/i })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /search/i })).toBeEnabled();
+  });
+
+  it('calls onRefineQuery when Refine button is clicked', async () => {
     const user = userEvent.setup();
     render(<ContentSourceManagement {...defaultProps} searchQuery="test query" />);
 
-    const refineButton = screen.getByRole('button', { name: /Refine/i });
-    expect(refineButton).not.toBeDisabled();
-
+    const refineButton = screen.getByRole('button', { name: /refine/i });
     await user.click(refineButton);
+
     expect(defaultProps.onRefineQuery).toHaveBeenCalledTimes(1);
   });
 
-  it('disables "Search" button when loading is true', () => {
-    render(<ContentSourceManagement {...defaultProps} searchQuery="test query" loading={true} />);
+  it('shows analyzing state and disables Refine button when refinementLoading is true', () => {
+    render(<ContentSourceManagement {...defaultProps} searchQuery="test" refinementLoading={true} />);
 
-    const searchButton = screen.getByRole('button', { name: /Searching.../i });
-    expect(searchButton).toBeDisabled();
-  });
-
-  it('disables "Refine" button when refinementLoading is true', () => {
-    render(<ContentSourceManagement {...defaultProps} searchQuery="test query" refinementLoading={true} />);
-
-    const refineButton = screen.getByRole('button', { name: /Analyzing.../i });
+    const refineButton = screen.getByRole('button', { name: /analyzing.../i });
+    expect(refineButton).toBeInTheDocument();
     expect(refineButton).toBeDisabled();
   });
 
-  it('renders selected content summary when selectedContent is not empty', () => {
-    render(<ContentSourceManagement {...defaultProps} selectedContent={[mockExtractedContent]} />);
+  it('shows searching state and disables Search button when loading is true', () => {
+    render(<ContentSourceManagement {...defaultProps} searchQuery="test" loading={true} />);
 
-    expect(screen.getByText('Using content from 1 source')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText(/Query generated from selected content/i)).toBeInTheDocument();
+    const searchButton = screen.getByRole('button', { name: /searching.../i });
+    expect(searchButton).toBeInTheDocument();
+    expect(searchButton).toBeDisabled();
   });
 
-  it('renders correct summary text for multiple selected contents', () => {
-    render(
-      <ContentSourceManagement
-        {...defaultProps}
-        selectedContent={[mockExtractedContent, { ...mockExtractedContent, id: '2' }]}
-      />
-    );
+  it('calls onSearch when Search button is clicked', async () => {
+    const user = userEvent.setup();
+    render(<ContentSourceManagement {...defaultProps} searchQuery="test query" />);
 
-    expect(screen.getByText('Using content from 2 sources')).toBeInTheDocument();
+    const searchButton = screen.getByRole('button', { name: /search/i });
+    await user.click(searchButton);
+
+    expect(defaultProps.onSearch).toHaveBeenCalledTimes(1);
+  });
+
+  it('changes input placeholder based on selectedContent length', () => {
+    const { rerender } = render(<ContentSourceManagement {...defaultProps} selectedContent={[]} />);
+
+    expect(screen.getByPlaceholderText(/Enter your search query/i)).toBeInTheDocument();
+
+    const mockSelectedContent: ExtractedContent[] = [
+      { id: '1', type: 'idea', content: 'Idea 1', title: 'Idea 1', selected: true }
+    ];
+    rerender(<ContentSourceManagement {...defaultProps} selectedContent={mockSelectedContent} />);
+
+    expect(screen.getByPlaceholderText(/Query generated from selected content/i)).toBeInTheDocument();
   });
 });
