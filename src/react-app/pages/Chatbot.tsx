@@ -2,10 +2,11 @@
 
 import { useChat } from "@ai-sdk/react";
 import { Chat, AttachedItem } from "@/components/ui/chat";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { DefaultChatTransport, UIMessage } from "ai";
 import { Message } from "@/components/ui/chat-message";
 import { useMemo } from "react";
+import { useToast } from "@/hooks/use-toast";
 
 interface ChatbotProps {
   chatId: string;
@@ -123,10 +124,49 @@ function formatAttachedItemsSummary(attachedItems: AttachedItem[]): string {
 
 function Chatbot({ chatId, initialMessages, onMessagesLengthChange }: ChatbotProps) {
   const [input, setInput] = useState("");
+  const { toast } = useToast();
 
-  const { messages: rawMessages, sendMessage, stop, status, setMessages } = useChat({
+  const handleError = useCallback((error: Error) => {
+    console.error("Chat error:", error);
+    
+    // Parse error message for user-friendly display
+    let title = "Connection Error";
+    let description = "Unable to connect to the AI service. Please try again.";
+    
+    const errorMessage = error.message?.toLowerCase() || "";
+    
+    if (errorMessage.includes("fetch failed") || errorMessage.includes("network")) {
+      title = "Network Error";
+      description = "Unable to connect to the AI service. Please check your internet connection and try again.";
+    } else if (errorMessage.includes("rate limit") || errorMessage.includes("429") || errorMessage.includes("busy")) {
+      title = "Service Busy";
+      description = "The AI service is currently busy. Please try again in a moment.";
+    } else if (errorMessage.includes("api key") || errorMessage.includes("configuration")) {
+      title = "Configuration Error";
+      description = "There's an issue with the AI service configuration. Please contact support.";
+    } else if (errorMessage.includes("timeout")) {
+      title = "Request Timeout";
+      description = "The request took too long. Please try again.";
+    }
+    
+    toast({
+      variant: "destructive",
+      title,
+      description,
+    });
+  }, [toast]);
+
+  const { messages: rawMessages, sendMessage, stop, status, setMessages, error } = useChat({
     transport: new DefaultChatTransport({ api: '/api/chat', body: { chatId } }),
+    onError: handleError,
   });
+
+  // Show error toast when error state changes
+  useEffect(() => {
+    if (error) {
+      handleError(error);
+    }
+  }, [error, handleError]);
 
   useEffect(() => {
     setMessages(initialMessages);

@@ -6,6 +6,7 @@ import { z } from "zod";
 import { onError } from "../lib/utils";
 import { getGoogleGenerativeAIKey } from "../lib/api-keys";
 import { withModelFallback } from "../lib/model-fallback";
+import { getUserIdFromToken } from "../lib/auth-utils";
 
 interface RegenerateIdeaTitleRequest {
   ideaId: number;
@@ -28,6 +29,19 @@ export async function regenerateIdeaTitleHandler(
       return c.json({ error: "description is required to generate a title." }, 400);
     }
     
+    // Check authentication
+    const authHeader = c.req.header('Authorization');
+    const token = authHeader?.replace('Bearer ', '');
+
+    if (!token) {
+        return c.json({ error: "Authentication required" }, 401);
+    }
+
+    const userId = await getUserIdFromToken(token);
+    if (!userId) {
+        return c.json({ error: "Invalid token" }, 401);
+    }
+
     const apiKey = getGoogleGenerativeAIKey(c);
     if (!apiKey) {
       return c.json({ error: "API key is missing." }, 500);
@@ -35,6 +49,33 @@ export async function regenerateIdeaTitleHandler(
     
     const supabase = getSupabase(c.env);
     
+    // Verify user owns the idea
+    // First, get the idea to find its conversationid
+    const { data: idea, error: ideaError } = await supabase
+      .from("ideas")
+      .select("conversationid")
+      .eq("id", ideaId)
+      .single();
+
+    if (ideaError || !idea) {
+      return c.json({ error: "Idea not found." }, 404);
+    }
+
+    // Check if the chat belongs to the user
+    if (!idea.conversationid) {
+      return c.json({ error: "Forbidden: Cannot verify ownership of this idea." }, 403);
+    }
+
+    const { data: chat, error: chatError } = await supabase
+      .from("chats")
+      .select("user_id")
+      .eq("id", idea.conversationid)
+      .single();
+
+    if (chatError || !chat || chat.user_id !== userId) {
+      return c.json({ error: "Forbidden: You do not have permission to modify this idea." }, 403);
+    }
+
     // Optionally fetch conversation context for better title generation
     let conversationContext = "";
     if (conversationId) {

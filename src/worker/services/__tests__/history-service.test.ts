@@ -114,6 +114,39 @@ describe('HistoryService', () => {
     });
   });
 
+  describe('getSuccessTracking', () => {
+    it('should throw error if conversationId is missing', async () => {
+      const invalidRequest: HistoryServiceRequest = {
+        metadata: { operation: 'get-success-tracking' }
+      };
+
+      await expect(HistoryService.getSuccessTracking(invalidRequest)).rejects.toThrow('Invalid request: missing conversationId');
+    });
+
+    it('should return default tracking data when conversationId is provided', async () => {
+      const request: HistoryServiceRequest = {
+        conversationId: 'conv-tracking',
+        metadata: { operation: 'get-success-tracking' }
+      };
+
+      const response = await HistoryService.getSuccessTracking(request);
+
+      expect(response.success).toBe(true);
+      expect(response.data).toBeDefined();
+      expect(response.data?.length).toBe(1);
+
+      const trackingData = response.data![0];
+      expect(trackingData.conversationId).toBe('conv-tracking');
+      expect(trackingData.successfulRequests).toBe(0);
+      expect(trackingData.totalRequests).toBe(0);
+      expect(trackingData.successRate).toBe(0);
+      expect(trackingData.lastSuccessfulAction).toBeNull();
+
+      expect(response.metadata.operation).toBe('get-success-tracking');
+      expect(response.metadata.timestamp).toBeDefined();
+    });
+  });
+
   describe('searchHistory', () => {
     it('should throw not implemented error currently', async () => {
       const request: HistoryServiceRequest = {
@@ -161,6 +194,42 @@ describe('HistoryService', () => {
       };
 
       await expect(HistoryService.searchHistory(emptyQueryRequest)).rejects.toThrow('Not implemented');
+    });
+  });
+
+  describe('exportHistory', () => {
+    it('should validate conversationId', async () => {
+      const request: HistoryServiceRequest = {};
+      await expect(HistoryService.exportHistory(request)).rejects.toThrow('Conversation ID is required for export');
+    });
+
+    it('should return exported history in json format by default', async () => {
+      const request: HistoryServiceRequest = {
+        conversationId: 'conv-123'
+      };
+      const response = await HistoryService.exportHistory(request);
+      expect(response.success).toBe(true);
+      expect(response.metadata.format).toBe('json');
+      expect(response.metadata.conversationId).toBe('conv-123');
+      expect(response.data).toBeInstanceOf(Array);
+      expect(response.data?.length).toBe(1);
+      expect(typeof response.data?.[0]).toBe('string');
+      expect(response.data?.[0]).toBe('[]');
+    });
+
+    it('should return exported history in csv format when specified', async () => {
+      const request: HistoryServiceRequest = {
+        conversationId: 'conv-456',
+        metadata: { format: 'csv' }
+      };
+      const response = await HistoryService.exportHistory(request);
+      expect(response.success).toBe(true);
+      expect(response.metadata.format).toBe('csv');
+      expect(response.metadata.conversationId).toBe('conv-456');
+      expect(response.data).toBeInstanceOf(Array);
+      expect(response.data?.length).toBe(1);
+      expect(typeof response.data?.[0]).toBe('string');
+      expect(response.data?.[0]).toContain('id,timestamp,query,sources,total_results,accepted,rejected');
     });
   });
 
