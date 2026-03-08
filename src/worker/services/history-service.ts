@@ -304,8 +304,32 @@ export class HistoryService {
    * Gets content usage statistics
    */
   static async getContentUsage(req: HistoryServiceRequest): Promise<HistoryServiceResponse> {
-    // TODO: Implement content usage logic
-    throw new Error('Not implemented: HistoryService.getContentUsage');
+    if (!req.env) {
+      throw new Error('Environment object is required for getting content usage statistics');
+    }
+
+    const userId = req.metadata?.userId || 'unknown';
+    const days = req.metadata?.days ? parseInt(req.metadata.days, 10) : 30;
+    const conversationId = req.conversationId;
+
+    try {
+      const manager = new EnhancedSearchHistoryManager(req.env);
+      const usage = await manager.getContentSourceUsage(userId, conversationId, days);
+
+      return {
+        success: true,
+        data: usage,
+        metadata: {
+          operation: 'get-content-usage',
+          userId,
+          conversationId,
+          days
+        }
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error fetching content usage statistics';
+      throw new Error(`Failed to get content usage statistics: ${errorMessage}`);
+    }
   }
 
   /**
