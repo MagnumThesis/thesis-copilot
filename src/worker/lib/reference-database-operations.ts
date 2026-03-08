@@ -25,13 +25,13 @@ export class ReferenceDatabaseOperations {
    * Create a new reference
    */
   async createReference(data: ReferenceFormData & { conversationId: string }): Promise<Reference> {
+    const { authors, ...restOfData } = data;
     const referenceData = {
-      conversation_id: data.conversationId,
-      type: data.type,
-      title: data.title,
-      authors: JSON.stringify(data.authors),
-      publication_date: data.publicationDate ? new Date(data.publicationDate) : null,
-      url: data.url || null,
+      conversation_id: restOfData.conversationId,
+      type: restOfData.type,
+      title: restOfData.title,
+      publication_date: restOfData.publicationDate ? new Date(restOfData.publicationDate) : null,
+      url: restOfData.url || null,
       doi: data.doi || null,
       journal: data.journal || null,
       volume: data.volume || null,
@@ -58,6 +58,39 @@ export class ReferenceDatabaseOperations {
       throw new Error(`Failed to create reference: ${error.message}`);
     }
 
+    if (authors) {
+      for (const author of authors) {
+        let authorId;
+        const { data: existingAuthor, error: selectError } = await this.supabase
+          .from('authors')
+          .select('id')
+          .eq('name', author.name)
+          .single();
+
+        if (existingAuthor) {
+          authorId = existingAuthor.id;
+        } else {
+          const { data: newAuthor, error: insertError } = await this.supabase
+            .from('authors')
+            .insert({ name: author.name })
+            .select('id')
+            .single();
+          if (insertError) {
+            throw new Error(`Failed to create author: ${insertError.message}`);
+          }
+          authorId = newAuthor.id;
+        }
+
+        const { error: insertRefAuthorError } = await this.supabase
+          .from('reference_authors')
+          .insert({ reference_id: result.id, author_id: authorId });
+
+        if (insertRefAuthorError) {
+          throw new Error(`Failed to link author to reference: ${insertRefAuthorError.message}`);
+        }
+      }
+    }
+
     return this.mapDatabaseToReference(result);
   }
 
@@ -67,7 +100,7 @@ export class ReferenceDatabaseOperations {
   async getReferenceById(id: string): Promise<Reference | null> {
     const { data, error } = await this.supabase
       .from('references')
-      .select('*')
+      .select('*, authors:reference_authors(author:authors(name)))')
       .eq('id', id)
       .single();
 
@@ -89,7 +122,6 @@ export class ReferenceDatabaseOperations {
     
     if (data.type !== undefined) updateData.type = data.type;
     if (data.title !== undefined) updateData.title = data.title;
-    if (data.authors !== undefined) updateData.authors = JSON.stringify(data.authors);
     if (data.publicationDate !== undefined) {
       updateData.publication_date = data.publicationDate ? new Date(data.publicationDate) : null;
     }
@@ -121,6 +153,50 @@ export class ReferenceDatabaseOperations {
       throw new Error(`Failed to update reference: ${error.message}`);
     }
 
+    if (data.authors) {
+      // First, remove all existing author associations for this reference
+      const { error: deleteError } = await this.supabase
+        .from('reference_authors')
+        .delete()
+        .eq('reference_id', id);
+
+      if (deleteError) {
+        throw new Error(`Failed to remove existing authors: ${deleteError.message}`);
+      }
+
+      // Now, add the new authors
+      for (const author of data.authors) {
+        let authorId;
+        const { data: existingAuthor, error: selectError } = await this.supabase
+          .from('authors')
+          .select('id')
+          .eq('name', author.name)
+          .single();
+
+        if (existingAuthor) {
+          authorId = existingAuthor.id;
+        } else {
+          const { data: newAuthor, error: insertError } = await this.supabase
+            .from('authors')
+            .insert({ name: author.name })
+            .select('id')
+            .single();
+          if (insertError) {
+            throw new Error(`Failed to create author: ${insertError.message}`);
+          }
+          authorId = newAuthor.id;
+        }
+
+        const { error: insertRefAuthorError } = await this.supabase
+          .from('reference_authors')
+          .insert({ reference_id: id, author_id: authorId });
+
+        if (insertRefAuthorError) {
+          throw new Error(`Failed to link author to reference: ${insertRefAuthorError.message}`);
+        }
+      }
+    }
+
     return this.mapDatabaseToReference(result);
   }
 
@@ -128,6 +204,15 @@ export class ReferenceDatabaseOperations {
    * Delete a reference
    */
   async deleteReference(id: string): Promise<void> {
+    const { error: deleteAuthorsError } = await this.supabase
+      .from('reference_authors')
+      .delete()
+      .eq('reference_id', id);
+
+    if (deleteAuthorsError) {
+      throw new Error(`Failed to delete author references: ${deleteAuthorsError.message}`);
+    }
+
     const { error } = await this.supabase
       .from('references')
       .delete()
@@ -147,7 +232,7 @@ export class ReferenceDatabaseOperations {
   ): Promise<ReferenceListResponse> {
     let query = this.supabase
       .from('references')
-      .select('*')
+      .select('*, authors:reference_authors(author:authors(name)))')
       .eq('conversation_id', conversationId);
 
     // Apply filters
@@ -157,11 +242,11 @@ export class ReferenceDatabaseOperations {
 
     if (options.query) {
       // Search in title, authors, and journal
-      query = query.or(`title.ilike.%${options.query}%,journal.ilike.%${options.query}%,authors.ilike.%${options.query}%`);
+      query = query.or(`title.ilike.%${options.query}%,journal.ilike.%${options.query}%,reference_authors.author.name.ilike.%${options.query}%`);
     }
 
     if (options.author) {
-      query = query.ilike('authors', `%${options.author}%`);
+      query = query.ilike('reference_authors.author.name', `%${options.author}%`);
     }
 
     if (options.year) {
@@ -227,7 +312,7 @@ export class ReferenceDatabaseOperations {
   async searchReferences(options: ReferenceSearchOptions = {}): Promise<ReferenceListResponse> {
     let query = this.supabase
       .from('references')
-      .select('*');
+      .select('*, authors:reference_authors(author:authors(name)))');
 
     // Apply the same filters as getReferencesForConversation but without conversation filter
     if (options.type && options.type !== 'all') {
@@ -235,11 +320,11 @@ export class ReferenceDatabaseOperations {
     }
 
     if (options.query) {
-      query = query.or(`title.ilike.%${options.query}%,journal.ilike.%${options.query}%,authors.ilike.%${options.query}%`);
+      query = query.or(`title.ilike.%${options.query}%,journal.ilike.%${options.query}%,reference_authors.author.name.ilike.%${options.query}%`);
     }
 
     if (options.author) {
-      query = query.ilike('authors', `%${options.author}%`);
+      query = query.ilike('reference_authors.author.name', `%${options.author}%`);
     }
 
     if (options.year) {
@@ -434,13 +519,27 @@ export class ReferenceDatabaseOperations {
    * Map database row to Reference interface
    */
   private mapDatabaseToReference(data: Record<string, unknown>): Reference {
+    const authorsFromDb = Array.isArray(data.authors) ? data.authors.map((a: any) => a.author) : [];
+    const authors = authorsFromDb.map(author => {
+      if (!author || !author.name) {
+        return { firstName: '', lastName: '' };
+      }
+      const nameParts = author.name.trim().split(' ');
+      if (nameParts.length === 1) {
+        return { firstName: '', lastName: nameParts[0] };
+      }
+      const lastName = nameParts.pop() || '';
+      const firstName = nameParts.join(' ');
+      return { firstName, lastName };
+    });
+
     return {
       id: String(data.id),
-      conversation_id: String(data.conversation_id),
+      conversationId: String(data.conversation_id),
       type: data.type as ReferenceType,
       title: String(data.title),
-      authors: typeof data.authors === 'string' ? JSON.parse(data.authors) : data.authors,
-      publication_date: data.publication_date ? new Date(data.publication_date as string | number | Date).toISOString() : undefined,
+      authors: authors,
+      publicationDate: data.publication_date ? new Date(data.publication_date as string | number | Date) : undefined,
       url: data.url ? String(data.url) : undefined,
       doi: data.doi ? String(data.doi) : undefined,
       journal: data.journal ? String(data.journal) : undefined,
@@ -452,14 +551,14 @@ export class ReferenceDatabaseOperations {
       edition: data.edition ? String(data.edition) : undefined,
       chapter: data.chapter ? String(data.chapter) : undefined,
       editor: data.editor ? String(data.editor) : undefined,
-      access_date: data.access_date ? new Date(data.access_date as string | number | Date).toISOString() : undefined,
+      accessDate: data.access_date ? new Date(data.access_date as string | number | Date) : undefined,
       notes: data.notes ? String(data.notes) : undefined,
       tags: Array.isArray(data.tags) ? data.tags as string[] : [],
-      metadata_confidence: typeof data.metadata_confidence === 'number' ? data.metadata_confidence : 1.0,
-      ai_confidence: typeof data.ai_confidence === 'number' ? data.ai_confidence : 0,
-      ai_relevance_score: typeof data.ai_relevance_score === 'number' ? data.ai_relevance_score : 0,
-      created_at: new Date(data.created_at as string | number | Date).toISOString(),
-      updated_at: new Date(data.updated_at as string | number | Date).toISOString()
+      metadataConfidence: typeof data.metadata_confidence === 'number' ? data.metadata_confidence : 1.0,
+      aiConfidence: typeof data.ai_confidence === 'number' ? data.ai_confidence : 0,
+      aiRelevanceScore: typeof data.ai_relevance_score === 'number' ? data.ai_relevance_score : 0,
+      createdAt: new Date(data.created_at as string | number | Date),
+      updatedAt: new Date(data.updated_at as string | number | Date)
     };
   }
 
@@ -469,13 +568,13 @@ export class ReferenceDatabaseOperations {
   private mapDatabaseToCitationInstance(data: Record<string, unknown>): CitationInstance {
     return {
       id: String(data.id),
-      reference_id: String(data.reference_id),
-      conversation_id: String(data.conversation_id),
-      citation_style: data.citation_style as CitationStyle,
-      citation_text: String(data.citation_text),
-      document_position: typeof data.document_position === 'number' ? data.document_position : undefined,
+      referenceId: String(data.reference_id),
+      conversationId: String(data.conversation_id),
+      citationStyle: data.citation_style as CitationStyle,
+      citationText: String(data.citation_text),
+      documentPosition: typeof data.document_position === 'number' ? data.document_position : undefined,
       context: data.context ? String(data.context) : undefined,
-      created_at: new Date(data.created_at as string | number | Date).toISOString()
+      createdAt: new Date(data.created_at as string | number | Date)
     };
   }
 }

@@ -133,7 +133,7 @@ export const SearchResultsDisplay: React.FC<SearchResultsDisplayProps> = ({
   }
 
   const handleAddReference = async (result: RankedResult) => {
-    const resultId = `${result.title}-${result.authors[0]}`
+    const resultId = `${result.title}-${result.authors.map(a => a.lastName).join('-')}`
     setAddingReference(resultId)
 
     try {
@@ -184,7 +184,7 @@ export const SearchResultsDisplay: React.FC<SearchResultsDisplayProps> = ({
   }
 
   const handleBookmarkToggle = async (result: RankedResult) => {
-    const resultId = `${result.title}-${result.authors[0]}`
+    const resultId = `${result.title}-${result.authors.map(a => a.lastName).join('-')}`
     const isBookmarked = bookmarkedResults.has(resultId)
     
     setProcessingBookmark(resultId)
@@ -204,7 +204,7 @@ export const SearchResultsDisplay: React.FC<SearchResultsDisplayProps> = ({
   const handleAddToComparison = async (result: RankedResult) => {
     if (!onAddToComparison) return
 
-    const resultId = `${result.title}-${result.authors[0]}`
+    const resultId = `${result.title}-${result.authors.map(a => a.lastName).join('-')}`
     setProcessingComparison(resultId)
     try {
       await onAddToComparison(result)
@@ -369,7 +369,7 @@ export const SearchResultsDisplay: React.FC<SearchResultsDisplayProps> = ({
   {/* Results List */}
       <div className="space-y-4">
         {rankedResults.map((result, index) => {
-          const resultId = `${result.title}-${result.authors[0]}`
+          const resultId = `${result.title}-${result.authors.map(a => a.lastName).join('-')}`
           
           return (
             <Card key={index} className="hover:shadow-md transition-shadow">
@@ -449,7 +449,7 @@ export const SearchResultsDisplay: React.FC<SearchResultsDisplayProps> = ({
                     
                     {/* Metadata */}
                     <div className="text-sm text-muted-foreground space-y-1">
-                      <div><strong>Authors:</strong> {result.authors.join(', ')}</div>
+                      <div><strong>Authors:</strong> {result.authors.map(a => `${a.firstName} ${a.lastName}`).join(', ')}</div>
                       {result.journal && (
                         <div><strong>Journal:</strong> {result.journal}</div>
                       )}

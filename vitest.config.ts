@@ -8,7 +8,6 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
-    setupFiles: ['./src/tests/setup.ts'],
     bail: 10,
     testTimeout: 30000,
     hookTimeout: 10000,
@@ -17,11 +16,6 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
     },
-    exclude: [
-      '**/ai-searcher-integration-comprehensive.test.ts',
-      '**/search-filters-comprehensive.test.ts',
-      '**/.yoyo/**',
-    ],
   },
   resolve: {
     alias: {

@@ -80,7 +80,7 @@ export const BibliographyGenerator: React.FC<BibliographyGeneratorProps> = ({
     }
 
     return references.map((ref, index) => {
-      const authors = Array.isArray(ref.authors) ? ref.authors.join(', ') : 'Unknown Author'
+      const authors = Array.isArray(ref.authors) ? ref.authors.map(a => `${a.firstName} ${a.lastName}`).join(', ') : 'Unknown Author'
       const publicationDate = typeof ref.publication_date === 'string' ? ref.publication_date : 'n.d.'
       const title = typeof ref.title === 'string' ? ref.title : 'Untitled'
       const journal = typeof ref.journal === 'string' ? ref.journal : ''

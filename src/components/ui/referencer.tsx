@@ -245,7 +245,7 @@ export const Referencer: React.FC<ReferencerProps> = ({ isOpen, onClose, current
         conversationId: currentConversation.id,
         type: reference.type || 'journal_article',
         title: reference.title,
-        authors: reference.authors || [],
+        authors: reference.authors.map(a => ({ name: `${a.firstName} ${a.lastName}` })),
         publication_date: reference.publication_date,
         journal: reference.journal,
         volume: reference.volume,
