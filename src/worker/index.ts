@@ -8,6 +8,7 @@ import { getChatsHandler, createChatHandler, deleteChatHandler, updateChatHandle
 import { getMessagesHandler } from './handlers/messages';
 import { generateTitleHandler } from './handlers/generate-title';
 import { chatHandler } from './handlers/chat';
+import { requireAuth } from './middleware/auth-middleware';
 import { generateIdeasHandler } from './handlers/generate-ideas';
 import { regenerateIdeaTitleHandler } from './handlers/regenerate-idea-title';
 import ideasApi from './handlers/ideas';
@@ -114,7 +115,7 @@ app.get('/api/chats/:id/messages', getMessagesHandler);
 app.post('/api/generate-title', generateTitleHandler);
 app.post('/api/generate-ideas', generateIdeasHandler);
 app.post('/api/regenerate-idea-title', regenerateIdeaTitleHandler);
-app.post('/api/chat', chatHandler); // Streaming chat endpoint
+app.post('/api/chat', requireAuth, chatHandler); // Streaming chat endpoint
 
 // Proofreader API routes
 app.post('/api/proofreader/analyze', proofreaderAnalysisHandler);

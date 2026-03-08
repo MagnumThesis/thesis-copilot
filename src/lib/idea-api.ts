@@ -126,10 +126,17 @@ export async function deleteIdea(id: number): Promise<void> {
     });
 
     if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
       if (response.status === 404) {
         throw new Error(`Idea with id ${id} not found`);
       }
-      throw new Error(`Failed to delete idea: ${response.statusText}`);
+      throw new Error(errorData.error || `Failed to delete idea: ${response.statusText}`);
+    }
+
+    // Verify the response indicates successful deletion
+    const result = await response.json().catch(() => ({}));
+    if (!result.message || !result.message.includes('deleted successfully')) {
+      throw new Error(`Delete operation may have failed for idea ${id}`);
     }
   } catch (error) {
     console.error(`Error deleting idea with id ${id}:`, error);

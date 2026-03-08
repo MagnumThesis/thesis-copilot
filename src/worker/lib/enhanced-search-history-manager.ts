@@ -904,10 +904,9 @@ export class EnhancedSearchHistoryManager extends SearchAnalyticsManager {
       });
 
       // Convert to ContentSourceUsage format
-      const contentSourceUsage: ContentSourceUsage[] = [];
-      
-      for (const [source, usage] of sourceUsageMap.entries()) {
-        if (source === 'ideas' || source === 'builder') {
+      const sourcePromises = Array.from(sourceUsageMap.entries())
+        .filter(([source]) => source === 'ideas' || source === 'builder')
+        .map(async ([source, usage]) => {
           // Get top keywords for this source (simplified implementation)
           const topKeywords = await this.getTopKeywordsForSource(
             userId, 
@@ -916,16 +915,17 @@ export class EnhancedSearchHistoryManager extends SearchAnalyticsManager {
             days
           );
 
-          contentSourceUsage.push({
+          return {
             source: source as 'ideas' | 'builder',
             totalUsage: usage.totalUsage,
             successfulSearches: usage.successfulSearches,
             averageResults: usage.totalUsage > 0 ? usage.totalResults / usage.totalUsage : 0,
             topKeywords,
             recentUsage: usage.recentUsage.sort((a, b) => b.date.localeCompare(a.date))
-          });
-        }
-      }
+          };
+        });
+
+      const contentSourceUsage: ContentSourceUsage[] = await Promise.all(sourcePromises);
 
       return contentSourceUsage;
     } catch (error) {

@@ -353,6 +353,19 @@ export class ConcernStatusManagerImpl implements ConcernStatusManager {
     try {
       const supabase = getSupabase(this.env);
       
+      // Get the conversation ID from the first concern
+      const conversationId = concerns[0].conversationId;
+      
+      // Delete existing 'to_be_done' concerns for this conversation before inserting new ones
+      // This preserves concerns that were addressed/rejected by the user and prevents duplication
+      if (conversationId) {
+        await supabase
+          .from('proofreading_concerns')
+          .delete()
+          .eq('conversation_id', conversationId)
+          .eq('status', ConcernStatus.TO_BE_DONE);
+      }
+      
       // Convert concerns to database format
       const dbConcerns = concerns.map(concern => ({
         id: concern.id,
@@ -365,6 +378,7 @@ export class ConcernStatusManagerImpl implements ConcernStatusManager {
         suggestions: concern.suggestions || [],
         related_ideas: concern.relatedIdeas || [],
         status: concern.status,
+        ai_generated: (concern as any).aiGenerated === true || (typeof concern.explanation === 'string' && concern.explanation.startsWith('(AI-generated)')),
         created_at: concern.createdAt || new Date().toISOString(),
         updated_at: concern.updatedAt || new Date().toISOString()
       }));
