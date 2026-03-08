@@ -82,8 +82,40 @@ export class AnalyticsService {
    * Retrieves analytics metrics
    */
   static async getMetrics(req: AnalyticsServiceRequest): Promise<AnalyticsServiceResponse> {
-    // TODO: Implement metrics retrieval logic
-    throw new Error('Not implemented: AnalyticsService.getMetrics');
+    // Mock implementation returning different metrics based on metricType
+    let metricsData: Record<string, any> = {};
+
+    if (req.metricType === 'user_engagement') {
+      metricsData = {
+        activeUsers: 150,
+        averageSessionDuration: 300,
+        totalSessions: 450,
+        bounceRate: 0.25
+      };
+    } else if (req.metricType === 'search_performance') {
+      metricsData = {
+        totalSearches: 1500,
+        averageResponseTime: 245,
+        successRate: 0.95,
+        topQueries: ['machine learning', 'deep learning']
+      };
+    } else {
+      metricsData = {
+        defaultMetric: 100,
+        status: 'active'
+      };
+    }
+
+    return {
+      success: true,
+      metrics: metricsData,
+      metadata: {
+        calculatedAt: new Date().toISOString(),
+        timeRange: req.timeRange,
+        filters: req.filters,
+        aggregation: req.aggregation
+      }
+    };
   }
 
   /**
