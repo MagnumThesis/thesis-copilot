@@ -33,8 +33,80 @@ export class HistoryService {
    * Retrieves conversation history
    */
   static async getHistory(req: HistoryServiceRequest): Promise<HistoryServiceResponse> {
-    // TODO: Implement history retrieval logic
-    throw new Error('Not implemented: HistoryService.getHistory');
+    if (!req.conversationId) {
+      throw new Error('Invalid request: missing conversationId');
+    }
+
+    const limit = req.limit && req.limit > 0 ? req.limit : 10;
+    const offset = req.offset && req.offset >= 0 ? req.offset : 0;
+
+    let userId = 'anonymous';
+    if (req.token && req.env?.SUPABASE_JWT_SECRET) {
+      userId = await getUserIdFromToken(req.token, req.env.SUPABASE_JWT_SECRET) || 'anonymous';
+    } else if (req.metadata?.userId) {
+      userId = req.metadata.userId;
+    }
+
+    try {
+      if (req.env) {
+        const { EnhancedSearchHistoryManager } = await import('../lib/enhanced-search-history-manager');
+        const historyManager = new EnhancedSearchHistoryManager(req.env);
+
+        const historyFilter = req.filters ? {
+          query: typeof req.filters.query === 'string' ? req.filters.query : undefined,
+          hasResults: req.filters.hasResults === true || req.filters.hasResults === 'true'
+        } : undefined;
+
+        const result = await historyManager.getSearchHistory(
+          userId,
+          req.conversationId,
+          historyFilter,
+          limit,
+          offset
+        );
+
+        return {
+          success: true,
+          data: result.entries,
+          total: result.total,
+          metadata: {
+            conversationId: req.conversationId,
+            limit,
+            offset,
+            hasMore: result.hasMore
+          }
+        };
+      }
+
+      // Fallback if no env available
+      return {
+        success: true,
+        data: [],
+        total: 0,
+        metadata: {
+          conversationId: req.conversationId,
+          limit,
+          offset,
+          hasMore: false,
+          warning: 'No environment provided for database connection'
+        }
+      };
+    } catch (error) {
+      console.error('Error fetching history in HistoryService:', error);
+
+      return {
+        success: false,
+        data: [],
+        total: 0,
+        metadata: {
+          conversationId: req.conversationId,
+          limit,
+          offset,
+          hasMore: false,
+          error: error instanceof Error ? error.message : 'Unknown error occurred while fetching history'
+        }
+      };
+    }
   }
 
   /**
@@ -275,7 +347,7 @@ export class HistoryService {
 
     let userId: string | null = null;
     if (req.token) {
-      userId = await getUserIdFromToken(req.token);
+      userId = await getUserIdFromToken(req.token, req.env?.SUPABASE_JWT_SECRET || '');
     } else if (req.metadata?.userId) {
       userId = req.metadata.userId;
     }
