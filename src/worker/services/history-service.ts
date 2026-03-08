@@ -15,7 +15,7 @@ export interface HistoryServiceRequest {
   filters?: Record<string, any>;
   limit?: number;
   offset?: number;
-  env?: any;
+  env?: any; // Cloudflare environment bindings
   token?: string;
 }
 
@@ -23,6 +23,7 @@ export interface HistoryServiceResponse {
   success: boolean;
   data?: any[];
   entry?: any;
+  stats?: any;
   total?: number;
   metadata: Record<string, any>;
 }
@@ -211,8 +212,32 @@ export class HistoryService {
    * Gets history statistics
    */
   static async getHistoryStats(req: HistoryServiceRequest): Promise<HistoryServiceResponse> {
-    // TODO: Implement history stats logic
-    throw new Error('Not implemented: HistoryService.getHistoryStats');
+    if (!req.env) {
+      throw new Error('Environment object is required for getting history statistics');
+    }
+
+    const userId = req.metadata?.userId || 'unknown';
+    const days = req.metadata?.days ? parseInt(req.metadata.days, 10) : 30;
+    const conversationId = req.conversationId;
+
+    try {
+      const manager = new EnhancedSearchHistoryManager(req.env);
+      const stats = await manager.getSearchHistoryStats(userId, conversationId, days);
+
+      return {
+        success: true,
+        stats,
+        metadata: {
+          operation: 'get-history-stats',
+          userId,
+          conversationId,
+          days
+        }
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error fetching history stats';
+      throw new Error(`Failed to get history statistics: ${errorMessage}`);
+    }
   }
 
   /**
