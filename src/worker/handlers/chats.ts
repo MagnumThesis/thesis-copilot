@@ -87,10 +87,12 @@ export async function deleteChatHandler(c: Context<{ Bindings: Env & SupabaseEnv
     }
 
     // Verify chat exists
+    // SECURITY: Verify chat belongs to authenticated user to prevent IDOR
     const { data: chatData } = await supabase
         .from("chats")
         .select("*")
         .eq("id", chatId)
+        .eq("user_id", userId)
         .single();
 
     if (!chatData) {
@@ -108,10 +110,12 @@ export async function deleteChatHandler(c: Context<{ Bindings: Env & SupabaseEnv
     }
 
     // Then delete the chat
+    // SECURITY: Verify chat belongs to authenticated user to prevent IDOR
     const { error: chatErr } = await supabase
         .from("chats")
         .delete()
-        .eq("id", chatId);
+        .eq("id", chatId)
+        .eq("user_id", userId);
 
     if (chatErr) {
         console.error("Failed to delete chat:", chatErr);
@@ -140,10 +144,12 @@ export async function updateChatHandler(c: Context<{ Bindings: Env & SupabaseEnv
     }
 
     // Verify chat exists
+    // SECURITY: Verify chat belongs to authenticated user to prevent IDOR
     const { data: chatData } = await supabase
         .from("chats")
         .select("*")
         .eq("id", chatId)
+        .eq("user_id", userId)
         .single();
 
     if (!chatData) {
@@ -154,10 +160,12 @@ export async function updateChatHandler(c: Context<{ Bindings: Env & SupabaseEnv
         return c.json({ error: "Chat name is required." }, 400);
     }
 
+    // SECURITY: Verify chat belongs to authenticated user to prevent IDOR
     const { data, error } = await supabase
         .from("chats")
         .update({ name })
         .eq("id", chatId)
+        .eq("user_id", userId)
         .select("id, name")
         .single();
 
