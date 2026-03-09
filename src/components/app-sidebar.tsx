@@ -1,5 +1,5 @@
 import type * as React from "react"
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { Plus, Trash, Settings, LogOut, User, Pencil, Sparkles, Check, X, Loader2 } from "lucide-react"
 
 import { SearchForm } from "@/components/search-form"
@@ -72,12 +72,18 @@ export function AppSidebar({
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   
-  // Filter items based on search query
-  const filteredItems = items.filter(item => 
-    item.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // ⚡ Bolt: Performance optimization
+  // 💡 What: Memoize the filtered items array and data object
+  // 🎯 Why: Prevent O(N) filtering operations and object recreation on every render (e.g., when editing titles or when parent re-renders)
+  // 📊 Impact: Reduces unnecessary re-renders of child components and improves responsiveness when typing in search or editing
+  // 🔬 Measurement: Verify sidebar remains responsive during text input with large item lists
+  const filteredItems = useMemo(() => {
+    return items.filter(item =>
+      item.title.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [items, searchQuery]);
   
-  const data = {
+  const data = useMemo(() => ({
     navMain: [
       {
         title: "Ideas",
@@ -85,7 +91,7 @@ export function AppSidebar({
         items: filteredItems,
       },
     ],
-  };
+  }), [filteredItems]);
 
   const handleLogout = async () => {
     try {
