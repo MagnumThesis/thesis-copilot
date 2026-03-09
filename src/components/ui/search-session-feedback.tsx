@@ -162,6 +162,7 @@ export const SearchSessionFeedbackComponent: React.FC<SearchSessionFeedbackProps
                   ? 'hover:bg-gray-100 cursor-pointer' 
                   : 'cursor-default'
               }`}
+              aria-label={`Rate ${star} out of 5 stars for ${label}`}
             >
               <Star
                 className={`h-5 w-5 ${
