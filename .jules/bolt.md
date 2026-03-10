@@ -1,3 +1,3 @@
-## 2024-03-09 - AppSidebar Unnecessary Recalculations
-**Learning:** React sidebars that manage their own local state (like editing states) and also filter parent-provided arrays (like `items`) must memoize the filtering operation, otherwise every local state change triggers an O(N) recalculation.
-**Action:** Always wrap array filtering and derived object creation in `useMemo` when they depend on props in a component that frequently re-renders due to unrelated local state changes.
+## 2024-03-10 - [Batch Insert for Search Analytics]
+**Learning:** Found an N+1 query problem where `recordSearchResult` was being called individually for each search result returned. This can significantly slow down the overall request if the search returns many results (like 10-20 search results in academic queries).
+**Action:** Introduced a `recordSearchResults` function in the `SearchAnalyticsManager` to insert an array of objects into the database in a single `supabase.from().insert(recordsToInsert)` call. Always look for iteration (`for...of`) around database operations as a prime candidate for performance optimization using batching.
