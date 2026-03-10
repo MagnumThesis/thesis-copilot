@@ -1,0 +1,4 @@
+## 2024-05-24 - [Fix IDOR in Get Messages Endpoint]
+**Vulnerability:** The `/api/chats/:id/messages` endpoint was susceptible to Insecure Direct Object Reference (IDOR). It fetched and returned chat messages simply by using the `chatId` from the route parameter without verifying if the authenticated user actually owned the chat.
+**Learning:** Endpoints that operate on sub-resources (like messages) often assume the parent resource (like chat) was already authorized in previous steps, leading to missing ownership checks at the data access layer.
+**Prevention:** Always verify the ownership of the parent resource against the authenticated user's ID before allowing access to its nested resources or data. In Supabase, query the parent table with the authenticated user ID and the resource ID to assert ownership.
