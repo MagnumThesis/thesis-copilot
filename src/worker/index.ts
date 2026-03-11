@@ -111,7 +111,7 @@ app.get('/api/chats', getChatsHandler);
 app.post('/api/chats', createChatHandler);
 app.delete('/api/chats/:id', deleteChatHandler);
 app.patch('/api/chats/:id', updateChatHandler);
-app.get('/api/chats/:id/messages', getMessagesHandler);
+app.get('/api/chats/:id/messages', requireAuth, getMessagesHandler);
 app.post('/api/generate-title', generateTitleHandler);
 app.post('/api/generate-ideas', requireAuth, generateIdeasHandler);
 app.post('/api/regenerate-idea-title', regenerateIdeaTitleHandler);
