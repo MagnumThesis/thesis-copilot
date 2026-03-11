@@ -244,6 +244,7 @@ export function Chat({
             variant="ghost"
             className="h-6 w-6"
             onClick={() => onRateResponse(message.id, "thumbs-up")}
+            aria-label="Thumbs up"
           >
             <ThumbsUp className="h-4 w-4" />
           </Button>
@@ -252,6 +253,7 @@ export function Chat({
             variant="ghost"
             className="h-6 w-6"
             onClick={() => onRateResponse(message.id, "thumbs-down")}
+            aria-label="Thumbs down"
           >
             <ThumbsDown className="h-4 w-4" />
           </Button>
