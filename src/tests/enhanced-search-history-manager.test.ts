@@ -326,19 +326,14 @@ describe('EnhancedSearchHistoryManager', () => {
 
   describe('getQueryPerformanceAnalytics', () => {
     it('should analyze query performance', async () => {
-      const mockPerformanceData = [
+      const mockCombinedData = [
         {
           search_query: 'machine learning',
           search_count: 3,
           avg_results: 8.5,
           success_rate: 0.7,
           avg_processing_time: 2200,
-          last_used: '2024-01-15T10:00:00Z'
-        }
-      ];
-
-      const mockTopResults = [
-        {
+          last_used: '2024-01-15T10:00:00Z',
           result_title: 'Deep Learning for NLP',
           relevance_score: 0.95,
           added_to_library: true
@@ -346,8 +341,7 @@ describe('EnhancedSearchHistoryManager', () => {
       ];
 
       mockPrepare.all
-        .mockResolvedValueOnce({ results: mockPerformanceData })
-        .mockResolvedValueOnce({ results: mockTopResults });
+        .mockResolvedValueOnce({ results: mockCombinedData });
 
       const analytics = await manager.getQueryPerformanceAnalytics('user-1', 'conv-1', 30);
 
@@ -654,14 +648,28 @@ describe('EnhancedSearchHistoryManager', () => {
 
     describe('advanced analytics features', () => {
       it('should provide query performance analytics', async () => {
-        const mockPerformanceData = [
+        const mockCombinedData = [
           {
             search_query: 'machine learning research',
             search_count: 5,
             avg_results: 8.2,
             success_rate: 0.75,
             avg_processing_time: 2200,
-            last_used: '2024-01-15T10:00:00Z'
+            last_used: '2024-01-15T10:00:00Z',
+            result_title: 'Advanced ML Techniques',
+            relevance_score: 0.92,
+            added_to_library: true
+          },
+          {
+            search_query: 'machine learning research',
+            search_count: 5,
+            avg_results: 8.2,
+            success_rate: 0.75,
+            avg_processing_time: 2200,
+            last_used: '2024-01-15T10:00:00Z',
+            result_title: 'ML in Healthcare',
+            relevance_score: 0.88,
+            added_to_library: false
           },
           {
             search_query: 'deep learning applications',
@@ -669,17 +677,18 @@ describe('EnhancedSearchHistoryManager', () => {
             avg_results: 6.5,
             success_rate: 0.85,
             avg_processing_time: 1800,
-            last_used: '2024-01-14T15:30:00Z'
-          }
-        ];
-
-        const mockTopResults = [
-          {
+            last_used: '2024-01-14T15:30:00Z',
             result_title: 'Advanced ML Techniques',
             relevance_score: 0.92,
             added_to_library: true
           },
           {
+            search_query: 'deep learning applications',
+            search_count: 3,
+            avg_results: 6.5,
+            success_rate: 0.85,
+            avg_processing_time: 1800,
+            last_used: '2024-01-14T15:30:00Z',
             result_title: 'ML in Healthcare',
             relevance_score: 0.88,
             added_to_library: false
@@ -687,9 +696,7 @@ describe('EnhancedSearchHistoryManager', () => {
         ];
 
         mockPrepare.all
-          .mockResolvedValueOnce({ results: mockPerformanceData })
-          .mockResolvedValueOnce({ results: mockTopResults })
-          .mockResolvedValueOnce({ results: mockTopResults });
+          .mockResolvedValueOnce({ results: mockCombinedData });
 
         const analytics = await manager.getQueryPerformanceAnalytics('user-1', 'conv-1', 30);
 
