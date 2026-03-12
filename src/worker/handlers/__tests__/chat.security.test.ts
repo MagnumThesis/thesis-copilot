@@ -59,7 +59,7 @@ describe('chatHandler Security', () => {
                 }),
                 header: vi.fn()
             },
-            env: {},
+            env: { SUPABASE_JWT_SECRET: 'test-secret' },
             json: vi.fn((data, status) => ({ data, status })),
             get: vi.fn(),
             set: vi.fn()
