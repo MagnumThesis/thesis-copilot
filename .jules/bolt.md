@@ -1,3 +1,3 @@
-## 2024-03-09 - AppSidebar Unnecessary Recalculations
-**Learning:** React sidebars that manage their own local state (like editing states) and also filter parent-provided arrays (like `items`) must memoize the filtering operation, otherwise every local state change triggers an O(N) recalculation.
-**Action:** Always wrap array filtering and derived object creation in `useMemo` when they depend on props in a component that frequently re-renders due to unrelated local state changes.
+## 2024-03-12 - Resolving N+1 Queries in Supabase Analytics
+**Learning:** Supabase PostgREST limitations often lead to in-memory aggregation after fetching raw rows, or in this case, executing multiple queries sequentially (`Promise.all` over mapped rows) for things like `topResults` per `search_query` in `EnhancedSearchHistoryManager`.
+**Action:** When aggregating or fetching "Top N" items per group, always look for opportunities to replace `Promise.all` query loops with a single SQL query using CTEs (Common Table Expressions) and window functions like `ROW_NUMBER() OVER(PARTITION BY ... ORDER BY ...)`. This significantly reduces database round-trips and improves backend performance.

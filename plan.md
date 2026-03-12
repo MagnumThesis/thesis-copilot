@@ -1,7 +1,7 @@
-1. **What:** Wrap `filteredItems` and `data` in `useMemo` in `AppSidebar`.
-   - Update `AppSidebar` to import `useMemo` from `react`
-   - Wrap the filtering logic for `filteredItems` with `useMemo(() => items.filter(...), [items, searchQuery])`
-   - Wrap the `data` creation with `useMemo(() => ({ navMain: ... }), [filteredItems])`
-2. **Why:** To prevent unnecessary filtering operations and object allocations on every render of `AppSidebar` (which can happen frequently if the parent component re-renders or if other local state like `isUpdating` changes). This is particularly impactful when the `items` list is large.
-3. **Impact:** Improves React rendering performance by caching the filtered list and data object unless their dependencies change.
-4. **Measurement:** Verify by running `npm run lint` and `npm run test -- --run` and optionally visual verification if required.
+1. **Optimize `getQueryPerformanceAnalytics` in `EnhancedSearchHistoryManager`**
+   - The current implementation has an N+1 query problem where it first fetches up to 20 grouped search queries and then fires a separate database query to fetch top results for *each* query.
+   - Using window functions (`ROW_NUMBER()`) or combining the query using a join, we can fetch all the top results in a single database round trip, removing the `Promise.all` loop and improving backend performance.
+2. **Pre-commit Steps**
+   - Complete pre-commit steps to ensure proper testing, verification, review, and reflection are done.
+3. **Submit**
+   - Submit the performance improvement as a PR titled "⚡ Bolt: Resolve N+1 query in query performance analytics".

@@ -295,65 +295,87 @@ export class EnhancedSearchHistoryManager extends SearchAnalyticsManager {
         params.push(conversationId);
       }
 
+      // ⚡ Bolt Performance Optimization:
+      // Fixed N+1 query problem by combining the initial grouping query and the subsequent
+      // top results queries into a single query using CTEs and ROW_NUMBER() window function.
       const query = `
+        WITH top_queries AS (
+          SELECT
+            ss.search_query,
+            COUNT(*) as search_count,
+            AVG(ss.results_count) as avg_results,
+            AVG(CASE
+              WHEN ss.results_count > 0 THEN CAST(ss.results_accepted AS FLOAT) / ss.results_count
+              ELSE 0
+            END) as success_rate,
+            AVG(ss.processing_time_ms) as avg_processing_time,
+            MAX(ss.created_at) as last_used
+          FROM search_sessions ss
+          ${whereClause}
+          GROUP BY ss.search_query
+          HAVING search_count > 1
+          ORDER BY search_count DESC, success_rate DESC
+          LIMIT 20
+        ),
+        ranked_results AS (
+          SELECT
+            tq.search_query,
+            sr.result_title,
+            sr.relevance_score,
+            sr.added_to_library,
+            ROW_NUMBER() OVER(PARTITION BY tq.search_query ORDER BY sr.relevance_score DESC) as rn
+          FROM top_queries tq
+          JOIN search_sessions ss ON ss.search_query = tq.search_query AND ss.user_id = ?
+          ${conversationId ? 'AND ss.conversation_id = ?' : ''}
+          JOIN search_results sr ON sr.search_session_id = ss.id
+        )
         SELECT 
-          ss.search_query,
-          COUNT(*) as search_count,
-          AVG(ss.results_count) as avg_results,
-          AVG(CASE 
-            WHEN ss.results_count > 0 THEN CAST(ss.results_accepted AS FLOAT) / ss.results_count
-            ELSE 0
-          END) as success_rate,
-          AVG(ss.processing_time_ms) as avg_processing_time,
-          MAX(ss.created_at) as last_used
-        FROM search_sessions ss
-        ${whereClause}
-        GROUP BY ss.search_query
-        HAVING search_count > 1
-        ORDER BY search_count DESC, success_rate DESC
-        LIMIT 20
+          tq.search_query,
+          tq.search_count,
+          tq.avg_results,
+          tq.success_rate,
+          tq.avg_processing_time,
+          tq.last_used,
+          rr.result_title,
+          rr.relevance_score,
+          rr.added_to_library
+        FROM top_queries tq
+        LEFT JOIN ranked_results rr ON tq.search_query = rr.search_query AND rr.rn <= 3
+        ORDER BY tq.search_count DESC, tq.success_rate DESC, rr.relevance_score DESC
       `;
 
-      const result = await this.getEnvironment().DB.prepare(query).bind(...params).all();
-      
-      // Get top results for each query
-      const queryAnalytics = await Promise.all(
-        (result.results || []).map(async (row: any) => {
-          const topResultsQuery = `
-            SELECT sr.result_title, sr.relevance_score, sr.added_to_library
-            FROM search_results sr
-            JOIN search_sessions ss ON sr.search_session_id = ss.id
-            WHERE ss.search_query = ? AND ss.user_id = ?
-            ${conversationId ? 'AND ss.conversation_id = ?' : ''}
-            ORDER BY sr.relevance_score DESC
-            LIMIT 3
-          `;
+      const combinedParams = [...params, userId];
+      if (conversationId) {
+        combinedParams.push(conversationId);
+      }
 
-          const topResultsParams = [row.search_query, userId];
-          if (conversationId) {
-            topResultsParams.push(conversationId);
-          }
+      const result = await this.getEnvironment().DB.prepare(query).bind(...combinedParams).all();
 
-          const topResultsResult = await this.getEnvironment().DB.prepare(topResultsQuery).bind(...topResultsParams).all();
-          const topResults = (topResultsResult.results || []).map((r: any) => ({
-            title: r.result_title,
-            relevanceScore: r.relevance_score,
-            addedToLibrary: r.added_to_library
-          }));
+      const queriesMap = new Map<string, any>();
 
-          return {
+      for (const row of (result.results || []) as any[]) {
+        if (!queriesMap.has(row.search_query)) {
+          queriesMap.set(row.search_query, {
             query: row.search_query,
             searchCount: row.search_count,
             averageResults: row.avg_results || 0,
             successRate: row.success_rate || 0,
             averageProcessingTime: row.avg_processing_time || 0,
             lastUsed: new Date(row.last_used),
-            topResults
-          };
-        })
-      );
+            topResults: []
+          });
+        }
 
-      return queryAnalytics;
+        if (row.result_title) {
+          queriesMap.get(row.search_query).topResults.push({
+            title: row.result_title,
+            relevanceScore: row.relevance_score,
+            addedToLibrary: row.added_to_library
+          });
+        }
+      }
+
+      return Array.from(queriesMap.values());
     } catch (error) {
       console.error('Error getting query performance analytics:', error);
       throw error;
