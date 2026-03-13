@@ -1,0 +1,4 @@
+## 2025-02-28 - Missing Ownership Verification on Chat Messages Endpoint
+**Vulnerability:** IDOR (Insecure Direct Object Reference) in `getMessagesHandler` for `/api/chats/:id/messages` where any user (or unauthenticated visitor) could fetch the full message history for any `chatId`.
+**Learning:** Handlers reading direct IDs without an explicit `requireAuth` middleware must parse the `Authorization` token and query the related parent object (`chats` table) to verify `user_id == authenticated_user_id`. Simply querying the messages by `chat_id` exposes all messages since there's no inherent user relation on the messages request itself.
+**Prevention:** Always verify object ownership before executing a query that fetches its children. For Hono routes that aren't wrapped in `requireAuth`, enforce authentication in the handler manually and validate the object belongs to the decoded token's user.
