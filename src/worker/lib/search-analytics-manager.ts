@@ -625,10 +625,17 @@ export class SearchAnalyticsManager {
         this.getSearchResultUsage(userId, conversationId, days)
       ]);
 
-      // Generate trend data (simplified for now)
+      // ⚡ Bolt Performance Optimization
+      // What: Refactored sequential analytics computations into a concurrent Promise.all execution
+      // Why: Generating trend data requires independent DB queries that don't depend on each other's state
+      // Impact: Reduces the overall report generation time by ~50% of the trend fetching duration
+      const [searchTrend, conversionTrend] = await Promise.all([
+        this.getSearchTrend(userId, conversationId, days),
+        this.getConversionTrend(userId, conversationId, days)
+      ]);
       const trends = {
-        searchTrend: await this.getSearchTrend(userId, conversationId, days),
-        conversionTrend: await this.getConversionTrend(userId, conversationId, days)
+        searchTrend,
+        conversionTrend
       };
 
       return {
