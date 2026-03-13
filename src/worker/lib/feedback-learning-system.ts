@@ -356,8 +356,14 @@ export class FeedbackLearningSystem {
     }
 
     try {
-      const userPatterns = await this.getUserPreferencePatterns(userId);
-      const adaptiveFilters = await this.generateAdaptiveFilters(userId);
+      // ⚡ Bolt Performance Optimization
+      // What: Combined independent sequential DB queries into Promise.all
+      // Why: Reduces total wait time by running user pattern and filter queries concurrently
+      // Impact: Saves 1 database round-trip time (e.g., 50-100ms) per search learning adjustment
+      const [userPatterns, adaptiveFilters] = await Promise.all([
+        this.getUserPreferencePatterns(userId),
+        this.generateAdaptiveFilters(userId)
+      ]);
 
       return searchResults.map(result => {
         let adjustedRelevanceScore = result.relevanceScore;
@@ -427,8 +433,14 @@ export class FeedbackLearningSystem {
     }
 
     try {
-      const userPatterns = await this.getUserPreferencePatterns(userId);
-      const learningMetrics = await this.getLearningMetrics(userId);
+      // ⚡ Bolt Performance Optimization
+      // What: Combined independent sequential DB queries into Promise.all
+      // Why: Reduces total wait time by running user pattern and learning metrics queries concurrently
+      // Impact: Saves 1 database round-trip time (e.g., 50-100ms) per filter generation
+      const [userPatterns, learningMetrics] = await Promise.all([
+        this.getUserPreferencePatterns(userId),
+        this.getLearningMetrics(userId)
+      ]);
       
       const filters: AdaptiveFilter[] = [];
 
