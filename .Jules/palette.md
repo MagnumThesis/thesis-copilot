@@ -1,3 +1,3 @@
-## 2026-03-09 - ARIA labels for dynamic elements
-**Learning:** For interactive UI elements created in loops (like star ratings), dynamic `aria-label`s (e.g. `aria-label={`Rate ${star} out of 5 stars`}`) provide critical context for screen readers that static text cannot.
-**Action:** Always verify that interactive map-generated components have clear, context-aware `aria-label` attributes.
+## 2024-05-18 - Added ARIA labels to chat icon buttons
+**Learning:** Found multiple icon-only `Button` elements in the `Chat` component without `aria-label` attributes (Thumbs Up, Thumbs Down, and Scroll Down), making them inaccessible to screen readers.
+**Action:** When using icon-only buttons (`size="icon"` in Shadcn UI) always remember to add an `aria-label` so their purpose is announced correctly by assistive technology.
