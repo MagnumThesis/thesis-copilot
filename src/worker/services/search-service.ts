@@ -476,22 +476,26 @@ export class SearchService {
       if (sessionId && env) {
         try {
           const analyticsManager = this.getAnalyticsManager(env);
-          for (const result of finalResults) {
-            await analyticsManager.recordSearchResult({
-              searchSessionId: sessionId,
-              resultTitle: result.title,
-              resultAuthors: result.authors,
-              resultJournal: result.journal,
-              resultYear: result.publication_date ? parseInt(result.publication_date) : undefined,
-              resultDoi: result.doi,
-              resultUrl: result.url,
-              relevanceScore: result.relevance_score || 0,
-              confidenceScore: result.confidence || 0,
-              qualityScore: this.calculateQualityScore(result),
-              citationCount: result.citation_count || 0,
-              addedToLibrary: false,
-            });
-          }
+          // Optimization: Use batch insert to prevent N+1 queries
+          // 💡 What: Replaced a `for` loop of individual `analyticsManager.recordSearchResult` calls with a single `analyticsManager.recordSearchResults` batch call.
+          // 🎯 Why: The loop created an N+1 query problem by executing a separate Supabase insert for each search result, heavily blocking the worker.
+          // 📊 Impact: For an average query yielding 20 results, this reduces database network round-trips from 20 to 1, significantly lowering latency.
+          const resultsData = finalResults.map(result => ({
+            searchSessionId: sessionId,
+            resultTitle: result.title,
+            resultAuthors: result.authors,
+            resultJournal: result.journal,
+            resultYear: result.publication_date ? parseInt(result.publication_date) : undefined,
+            resultDoi: result.doi,
+            resultUrl: result.url,
+            relevanceScore: result.relevance_score || 0,
+            confidenceScore: result.confidence || 0,
+            qualityScore: this.calculateQualityScore(result),
+            citationCount: result.citation_count || 0,
+            addedToLibrary: false,
+          }));
+
+          await analyticsManager.recordSearchResults(resultsData);
 
           const processingTime = Date.now() - startTime;
           await this.updateSearchSession(env, sessionId, {
