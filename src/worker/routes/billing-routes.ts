@@ -3,6 +3,7 @@ import { cors } from 'hono/cors';
 import { getSupabase } from '../lib/supabase';
 import type { SupabaseEnv } from '../lib/supabase';
 import crypto from 'crypto';
+import { resolveCorsOrigin } from '../lib/cors-utils';
 
 // Helper: resolve environment variables using same fallback strategy
 // as other services: bindings (c.env) -> process.env -> import.meta.env -> VITE_ prefixed
@@ -14,7 +15,7 @@ function resolveEnv(c: any, key: string) {
 const billingApi = new Hono();
 
 billingApi.use('*', cors({
-  origin: '*',
+  origin: (origin, c) => resolveCorsOrigin(origin, c),
   allowMethods: ['GET', 'POST', 'PUT', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization', 'Stripe-Signature'],
   maxAge: 600
