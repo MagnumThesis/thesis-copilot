@@ -1,3 +1,3 @@
-## 2026-03-09 - ARIA labels for dynamic elements
-**Learning:** For interactive UI elements created in loops (like star ratings), dynamic `aria-label`s (e.g. `aria-label={`Rate ${star} out of 5 stars`}`) provide critical context for screen readers that static text cannot.
-**Action:** Always verify that interactive map-generated components have clear, context-aware `aria-label` attributes.
+## 2024-03-15 - Missing ARIA labels on Icon-only Chat Buttons
+**Learning:** Found that the main Chat interface uses `size="icon"` buttons for Rating (Thumbs Up/Down) and Auto-Scroll (Arrow Down) without any `aria-label` attributes. This pattern might exist in other complex conversational UI components where icons seem self-explanatory to visual users but lack semantic meaning for screen readers.
+**Action:** When adding icon-only control buttons, especially inside complex iterative components like message lists or chat forms, always ensure `aria-label` is provided explicitly. Added a `chat-ux.test.tsx` file to enforce presence of these specific labels to prevent future regressions.
