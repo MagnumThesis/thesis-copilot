@@ -17,6 +17,7 @@ import { builderAIPromptHandler, builderAIContinueHandler, builderAIModifyHandle
 import { proofreaderAnalysisHandler, getConcernsHandler, updateConcernStatusHandler, getConcernStatisticsHandler } from './handlers/proofreader-ai';
 import authApi from './routes/auth-routes';
 import billingApi from './routes/billing-routes';
+import { resolveCorsOrigin } from './lib/cors-utils';
 
 const app = new Hono();
 
@@ -64,7 +65,7 @@ app.use('*', async (c, next) => {
 
 // CORS middleware - Apply to all /api/* routes
 app.use('/api/*', cors({
-  origin: '*',
+  origin: (origin, c) => resolveCorsOrigin(origin, c),
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin'],
   credentials: false,

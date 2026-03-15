@@ -15,12 +15,13 @@ import {
   requestPasswordResetHandler,
   resetPasswordHandler,
 } from '../handlers/auth';
+import { resolveCorsOrigin } from '../lib/cors-utils';
 
 const authApi = new Hono();
 
 // Apply CORS to all auth routes with explicit OPTIONS handling
 authApi.use('*', cors({
-  origin: '*',
+  origin: (origin, c) => resolveCorsOrigin(origin, c),
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
