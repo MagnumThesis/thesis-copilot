@@ -169,6 +169,58 @@ export class SearchAnalyticsManager {
   }
 
   /**
+   * Record multiple search results in a single batch insert
+   */
+  async recordSearchResults(resultsData: Omit<SearchResult, 'id' | 'createdAt'>[]): Promise<string[]> {
+    if (!resultsData || resultsData.length === 0) {
+      return [];
+    }
+
+    try {
+      const supabase = getSupabase(this.env);
+      const insertData = resultsData.map(resultData => {
+        const resultId = crypto.randomUUID();
+        return {
+          id: resultId,
+          search_session_id: resultData.searchSessionId,
+          reference_id: resultData.referenceId || null,
+          result_title: resultData.resultTitle,
+          result_authors: resultData.resultAuthors,
+          result_journal: resultData.resultJournal || null,
+          result_year: resultData.resultYear || null,
+          result_doi: resultData.resultDoi || null,
+          result_url: resultData.resultUrl || null,
+          relevance_score: resultData.relevanceScore,
+          confidence_score: resultData.confidenceScore,
+          quality_score: resultData.qualityScore,
+          citation_count: resultData.citationCount,
+          user_action: resultData.userAction || null,
+          user_feedback_rating: resultData.userFeedbackRating || null,
+          user_feedback_comments: resultData.userFeedbackComments || null,
+          added_to_library: resultData.addedToLibrary,
+          added_at: resultData.addedAt?.toISOString() || null
+        };
+      });
+
+      const { error } = await supabase
+        .from('search_results')
+        .insert(insertData);
+
+      if (error) {
+        console.error('Error recording search results in batch:', error);
+        throw error;
+      }
+
+      const resultIds = insertData.map(d => d.id);
+      console.log(`Recorded ${resultIds.length} search results in batch`);
+      return resultIds;
+    } catch (error) {
+      console.error('Error recording search results in batch:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Record a search result interaction
    */
   async recordSearchResult(resultData: Omit<SearchResult, 'id' | 'createdAt'>): Promise<string> {
