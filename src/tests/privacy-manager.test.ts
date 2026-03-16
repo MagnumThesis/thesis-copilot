@@ -460,26 +460,26 @@ describe('PrivacyManager', () => {
   });
 
   describe('runAutomaticCleanup', () => {
-    it('should run cleanup for users with auto-delete enabled', async () => {
-      const mockUsers = {
-        results: [
-          { user_id: 'user1', conversation_id: null, data_retention_days: 30 },
-          { user_id: 'user2', conversation_id: 'conv1', data_retention_days: 90 }
-        ]
-      };
+    it('should run cleanup for users with auto-delete enabled using RPC', async () => {
+      const mockRpcResults = [
+        { user_id: 'user1', conversation_id: null, deleted_count: 5 },
+        { user_id: 'user2', conversation_id: 'conv1', deleted_count: 5 }
+      ];
 
-      const mockChain = {
-        all: vi.fn().mockResolvedValue(mockUsers)
-      };
-      mockEnv.DB.prepare.mockReturnValue(mockChain);
-
-      // Mock clearOldData to return some deleted count
-      vi.spyOn(privacyManager, 'clearOldData').mockResolvedValue({ deletedCount: 5 });
+      mockSupabaseClient.rpc.mockResolvedValue({ data: mockRpcResults, error: null });
 
       const result = await privacyManager.runAutomaticCleanup();
 
       expect(result.usersProcessed).toBe(2);
       expect(result.recordsDeleted).toBe(10); // 2 users * 5 records each
+      expect(mockSupabaseClient.rpc).toHaveBeenCalledWith('run_automatic_cleanup');
+    });
+
+    it('should handle RPC errors gracefully', async () => {
+      mockSupabaseClient.rpc.mockResolvedValue({ data: null, error: new Error('RPC failed') });
+
+      await expect(privacyManager.runAutomaticCleanup()).rejects.toThrow('RPC failed');
+      expect(mockSupabaseClient.rpc).toHaveBeenCalledWith('run_automatic_cleanup');
     });
   });
 
