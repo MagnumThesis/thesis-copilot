@@ -725,43 +725,32 @@ export class PrivacyManager {
     try {
       const supabase = getSupabase(this.env);
 
-      // Get all users with auto-delete enabled
-      const { data: settings, error } = await supabase
-        .from('privacy_settings')
-        .select('user_id, conversation_id, data_retention_days')
-        .eq('auto_delete_enabled', true)
-        .eq('consent_given', true);
+      // ⚡ Bolt: Replaced N+1 query pattern with a single RPC call.
+      // Previously, this fetched all privacy settings and then fired off a Promise.all()
+      // containing separate clearOldData() calls per user. Now, we execute the entire
+      // cleanup bulk operation directly inside Postgres via the `run_automatic_cleanup` RPC function,
+      // saving significant memory, network roundtrips, and computation time in the Cloudflare Worker.
+      const { data: results, error } = await supabase.rpc('run_automatic_cleanup');
 
       if (error) {
-        console.error('Error getting privacy settings for cleanup:', error);
+        console.error('Error executing run_automatic_cleanup RPC:', error);
         throw error;
       }
 
       let totalDeleted = 0;
       let usersProcessed = 0;
 
-      const cleanupPromises = (settings || []).map(async (setting) => {
-        try {
-          const { deletedCount } = await this.clearOldData(
-            setting.user_id as string,
-            setting.data_retention_days as number,
-            setting.conversation_id as string | undefined
-          );
-          return { deletedCount, success: true, userId: setting.user_id };
-        } catch (error) {
-          console.error(`Error cleaning up data for user ${setting.user_id}:`, error);
-          return { deletedCount: 0, success: false, userId: setting.user_id };
-        }
-      });
+      // Extract unique users processed and total deleted records
+      const uniqueUsers = new Set<string>();
 
-      const results = await Promise.all(cleanupPromises);
-
-      for (const result of results) {
-        if (result.success) {
-          totalDeleted += result.deletedCount;
-          usersProcessed++;
+      for (const result of (results || [])) {
+        totalDeleted += result.deleted_count;
+        if (result.user_id) {
+          uniqueUsers.add(result.user_id);
         }
       }
+
+      usersProcessed = uniqueUsers.size;
 
       console.log(`Automatic cleanup completed: ${usersProcessed} users processed, ${totalDeleted} records deleted`);
       
