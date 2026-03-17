@@ -316,42 +316,71 @@ export class EnhancedSearchHistoryManager extends SearchAnalyticsManager {
 
       const result = await this.getEnvironment().DB.prepare(query).bind(...params).all();
       
-      // Get top results for each query
-      const queryAnalytics = await Promise.all(
-        (result.results || []).map(async (row: any) => {
-          const topResultsQuery = `
-            SELECT sr.result_title, sr.relevance_score, sr.added_to_library
-            FROM search_results sr
-            JOIN search_sessions ss ON sr.search_session_id = ss.id
-            WHERE ss.search_query = ? AND ss.user_id = ?
+      const queryResults = result.results || [];
+      if (queryResults.length === 0) {
+        return [];
+      }
+
+      // ⚡ Bolt Performance Optimization: Batched Top Results Query
+      // What: Replaced an N+1 query pattern in a Promise.all loop with a single CTE query
+      // Why: Fetching top results for up to 20 queries individually creates 20 database
+      //      round-trips. This was a severe bottleneck over network boundaries (D1).
+      // Impact: Reduces DB calls from up to 21 down to exactly 2.
+      const searchQueries = queryResults.map((r: any) => r.search_query);
+      const queryPlaceholders = searchQueries.map(() => '?').join(', ');
+
+      let topResultsQuery = `
+        WITH RankedResults AS (
+          SELECT
+            ss.search_query,
+            sr.result_title,
+            sr.relevance_score,
+            sr.added_to_library,
+            ROW_NUMBER() OVER (
+              PARTITION BY ss.search_query
+              ORDER BY sr.relevance_score DESC
+            ) as rn
+          FROM search_results sr
+          JOIN search_sessions ss ON sr.search_session_id = ss.id
+          WHERE ss.user_id = ?
+            AND ss.search_query IN (${queryPlaceholders})
             ${conversationId ? 'AND ss.conversation_id = ?' : ''}
-            ORDER BY sr.relevance_score DESC
-            LIMIT 3
-          `;
+        )
+        SELECT * FROM RankedResults
+        WHERE rn <= 3
+        ORDER BY search_query, rn ASC
+      `;
 
-          const topResultsParams = [row.search_query, userId];
-          if (conversationId) {
-            topResultsParams.push(conversationId);
-          }
+      const topResultsParams = [userId, ...searchQueries];
+      if (conversationId) {
+        topResultsParams.push(conversationId);
+      }
 
-          const topResultsResult = await this.getEnvironment().DB.prepare(topResultsQuery).bind(...topResultsParams).all();
-          const topResults = (topResultsResult.results || []).map((r: any) => ({
-            title: r.result_title,
-            relevanceScore: r.relevance_score,
-            addedToLibrary: r.added_to_library
-          }));
+      const batchedTopResults = await this.getEnvironment().DB.prepare(topResultsQuery).bind(...topResultsParams).all();
 
-          return {
-            query: row.search_query,
-            searchCount: row.search_count,
-            averageResults: row.avg_results || 0,
-            successRate: row.success_rate || 0,
-            averageProcessingTime: row.avg_processing_time || 0,
-            lastUsed: new Date(row.last_used),
-            topResults
-          };
-        })
-      );
+      // Group results by search query in memory
+      const topResultsByQuery = new Map<string, any[]>();
+      for (const r of (batchedTopResults.results || [])) {
+        const q = r.search_query;
+        if (!topResultsByQuery.has(q)) {
+          topResultsByQuery.set(q, []);
+        }
+        topResultsByQuery.get(q)!.push({
+          title: r.result_title,
+          relevanceScore: r.relevance_score,
+          addedToLibrary: !!r.added_to_library
+        });
+      }
+
+      const queryAnalytics = queryResults.map((row: any) => ({
+        query: row.search_query,
+        searchCount: row.search_count,
+        averageResults: row.avg_results || 0,
+        successRate: row.success_rate || 0,
+        averageProcessingTime: row.avg_processing_time || 0,
+        lastUsed: new Date(row.last_used),
+        topResults: topResultsByQuery.get(row.search_query) || []
+      }));
 
       return queryAnalytics;
     } catch (error) {
