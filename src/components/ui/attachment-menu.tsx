@@ -368,6 +368,7 @@ function IdeaSelectorDialog({
                         <Button
                           variant="ghost"
                           size="icon"
+                          aria-label="Save title"
                           className="h-7 w-7"
                           onClick={(e) => handleSaveEdit(idea, e)}
                           disabled={isUpdating}
@@ -381,6 +382,7 @@ function IdeaSelectorDialog({
                         <Button
                           variant="ghost"
                           size="icon"
+                          aria-label="Cancel editing"
                           className="h-7 w-7"
                           onClick={handleCancelEdit}
                           disabled={isUpdating}
@@ -402,6 +404,7 @@ function IdeaSelectorDialog({
                         <Button
                           variant="ghost"
                           size="icon"
+                          aria-label="Edit title"
                           className="h-6 w-6 shrink-0"
                           onClick={(e) => handleStartEdit(idea, e)}
                           title="Edit title"
@@ -411,6 +414,7 @@ function IdeaSelectorDialog({
                         <Button
                           variant="ghost"
                           size="icon"
+                          aria-label="Regenerate title with AI"
                           className="h-6 w-6 shrink-0"
                           onClick={(e) => handleRegenerateTitle(idea, e)}
                           disabled={regeneratingId === idea.id || !idea.description}
