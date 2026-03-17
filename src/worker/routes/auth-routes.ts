@@ -20,7 +20,22 @@ const authApi = new Hono();
 
 // Apply CORS to all auth routes with explicit OPTIONS handling
 authApi.use('*', cors({
-  origin: '*',
+  origin: (origin, c) => {
+    // Dynamic origin resolution for security
+    // Allow localhost for development
+    if (!origin || origin.startsWith('http://localhost:') || origin.startsWith('https://localhost:')) {
+      return origin || 'http://localhost:5173';
+    }
+
+    // Allow specific frontend URLs from environment
+    const allowedOrigin = c.env?.FRONTEND_URL || (import.meta as any).env?.VITE_FRONTEND_URL || (import.meta as any).env?.FRONTEND_URL;
+    if (allowedOrigin && origin === allowedOrigin) {
+      return origin;
+    }
+
+    // Default fallback to configured frontend URL or localhost
+    return allowedOrigin || 'http://localhost:5173';
+  },
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
