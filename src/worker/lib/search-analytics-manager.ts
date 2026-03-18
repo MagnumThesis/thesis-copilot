@@ -169,6 +169,55 @@ export class SearchAnalyticsManager {
   }
 
   /**
+   * Record multiple search results in a single operation
+   * This is much more efficient than calling recordSearchResult in a loop
+   */
+  async recordSearchResults(resultsData: Array<Omit<SearchResult, 'id' | 'createdAt'>>): Promise<string[]> {
+    if (!resultsData || resultsData.length === 0) return [];
+
+    try {
+      const supabase = getSupabase(this.env);
+
+      const recordsToInsert = resultsData.map(data => ({
+        id: crypto.randomUUID(),
+        search_session_id: data.searchSessionId,
+        reference_id: data.referenceId || null,
+        result_title: data.resultTitle,
+        result_authors: data.resultAuthors,
+        result_journal: data.resultJournal || null,
+        result_year: data.resultYear || null,
+        result_doi: data.resultDoi || null,
+        result_url: data.resultUrl || null,
+        relevance_score: data.relevanceScore,
+        confidence_score: data.confidenceScore,
+        quality_score: data.qualityScore,
+        citation_count: data.citationCount,
+        user_action: data.userAction || null,
+        user_feedback_rating: data.userFeedbackRating || null,
+        user_feedback_comments: data.userFeedbackComments || null,
+        added_to_library: data.addedToLibrary,
+        added_at: data.addedAt?.toISOString() || null
+      }));
+
+      const { error } = await supabase
+        .from('search_results')
+        .insert(recordsToInsert);
+
+      if (error) {
+        console.error('Error recording multiple search results:', error);
+        throw error;
+      }
+
+      const resultIds = recordsToInsert.map(r => r.id);
+      console.log(`Recorded ${resultIds.length} search results in bulk`);
+      return resultIds;
+    } catch (error) {
+      console.error('Error recording multiple search results:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Record a search result interaction
    */
   async recordSearchResult(resultData: Omit<SearchResult, 'id' | 'createdAt'>): Promise<string> {

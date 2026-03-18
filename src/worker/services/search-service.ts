@@ -476,22 +476,24 @@ export class SearchService {
       if (sessionId && env) {
         try {
           const analyticsManager = this.getAnalyticsManager(env);
-          for (const result of finalResults) {
-            await analyticsManager.recordSearchResult({
-              searchSessionId: sessionId,
-              resultTitle: result.title,
-              resultAuthors: result.authors,
-              resultJournal: result.journal,
-              resultYear: result.publication_date ? parseInt(result.publication_date) : undefined,
-              resultDoi: result.doi,
-              resultUrl: result.url,
-              relevanceScore: result.relevance_score || 0,
-              confidenceScore: result.confidence || 0,
-              qualityScore: this.calculateQualityScore(result),
-              citationCount: result.citation_count || 0,
-              addedToLibrary: false,
-            });
-          }
+
+          // Bulk insert results to avoid N+1 queries
+          const resultsToRecord = finalResults.map(result => ({
+            searchSessionId: sessionId,
+            resultTitle: result.title,
+            resultAuthors: result.authors,
+            resultJournal: result.journal,
+            resultYear: result.publication_date ? parseInt(result.publication_date) : undefined,
+            resultDoi: result.doi,
+            resultUrl: result.url,
+            relevanceScore: result.relevance_score || 0,
+            confidenceScore: result.confidence || 0,
+            qualityScore: this.calculateQualityScore(result),
+            citationCount: result.citation_count || 0,
+            addedToLibrary: false,
+          }));
+
+          await analyticsManager.recordSearchResults(resultsToRecord);
 
           const processingTime = Date.now() - startTime;
           await this.updateSearchSession(env, sessionId, {
