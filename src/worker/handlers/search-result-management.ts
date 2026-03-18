@@ -12,11 +12,22 @@ import { ExportOptions, ShareOptions } from '../../types/search-result-types'
 const app = new Hono()
 
 // Enable CORS
-app.use('*', cors({
-  origin: ['http://localhost:5173', 'https://localhost:5173'],
-  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowHeaders: ['Content-Type', 'Authorization'],
-}))
+app.use('*', async (c, next) => {
+  const corsMiddleware = cors({
+    origin: (origin, c) => {
+      const allowedOriginsStr = (c.env as any)?.ALLOWED_ORIGINS || process.env.ALLOWED_ORIGINS || 'http://localhost:5173,http://localhost:3000,https://localhost:5173';
+      const allowedOrigins = allowedOriginsStr.split(',').map((o: string) => o.trim());
+
+      if (!origin || allowedOrigins.includes(origin)) {
+        return origin;
+      }
+      return null;
+    },
+    allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowHeaders: ['Content-Type', 'Authorization'],
+  });
+  return corsMiddleware(c, next);
+});
 
 // Bookmark endpoints
 app.post('/bookmarks', async (c) => {
