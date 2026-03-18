@@ -19,14 +19,26 @@ import {
 const authApi = new Hono();
 
 // Apply CORS to all auth routes with explicit OPTIONS handling
-authApi.use('*', cors({
-  origin: '*',
-  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowHeaders: ['Content-Type', 'Authorization'],
-  credentials: true,
-  exposeHeaders: ['Content-Length', 'X-JSON-Response-Size'],
-  maxAge: 600
-}));
+authApi.use('*', async (c, next) => {
+  const corsMiddleware = cors({
+    origin: (origin, c) => {
+      // Allow specific origins from environment, or fallback to sensible defaults
+      const allowedOriginsStr = (c.env as any)?.ALLOWED_ORIGINS || process.env.ALLOWED_ORIGINS || 'http://localhost:5173,http://localhost:3000,https://localhost:5173';
+      const allowedOrigins = allowedOriginsStr.split(',').map((o: string) => o.trim());
+
+      if (!origin || allowedOrigins.includes(origin)) {
+        return origin;
+      }
+      return null;
+    },
+    allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
+    exposeHeaders: ['Content-Length', 'X-JSON-Response-Size'],
+    maxAge: 600
+  });
+  return corsMiddleware(c, next);
+});
 
 // Register endpoint
 authApi.post('/register', registerHandler);

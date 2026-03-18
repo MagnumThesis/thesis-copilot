@@ -13,12 +13,23 @@ function resolveEnv(c: any, key: string) {
 
 const billingApi = new Hono();
 
-billingApi.use('*', cors({
-  origin: '*',
-  allowMethods: ['GET', 'POST', 'PUT', 'OPTIONS'],
-  allowHeaders: ['Content-Type', 'Authorization', 'Stripe-Signature'],
-  maxAge: 600
-}));
+billingApi.use('*', async (c, next) => {
+  const corsMiddleware = cors({
+    origin: (origin, c) => {
+      const allowedOriginsStr = resolveEnv(c, 'ALLOWED_ORIGINS') || 'http://localhost:5173,http://localhost:3000,https://localhost:5173';
+      const allowedOrigins = allowedOriginsStr.split(',').map((o: string) => o.trim());
+
+      if (!origin || allowedOrigins.includes(origin)) {
+        return origin;
+      }
+      return null;
+    },
+    allowMethods: ['GET', 'POST', 'PUT', 'OPTIONS'],
+    allowHeaders: ['Content-Type', 'Authorization', 'Stripe-Signature'],
+    maxAge: 600
+  });
+  return corsMiddleware(c, next);
+});
 
 // Get user billing info (plan, credits, next_billing_date) from database
 billingApi.get('/user/:userId', async (c) => {

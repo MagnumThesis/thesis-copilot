@@ -63,13 +63,25 @@ app.use('*', async (c, next) => {
   });
 
 // CORS middleware - Apply to all /api/* routes
-app.use('/api/*', cors({
-  origin: '*',
-  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin'],
-  credentials: false,
-  maxAge: 600
-}));
+app.use('/api/*', async (c, next) => {
+  const corsMiddleware = cors({
+    origin: (origin, c) => {
+      // Allow specific origins from environment, or fallback to sensible defaults
+      const allowedOriginsStr = (c.env as any)?.ALLOWED_ORIGINS || process.env.ALLOWED_ORIGINS || 'http://localhost:5173,http://localhost:3000,https://localhost:5173';
+      const allowedOrigins = allowedOriginsStr.split(',').map((o: string) => o.trim());
+
+      if (!origin || allowedOrigins.includes(origin)) {
+        return origin;
+      }
+      return null;
+    },
+    allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin'],
+    credentials: false,
+    maxAge: 600
+  });
+  return corsMiddleware(c, next);
+});
 
 // Health check endpoint
 app.get('/health', (c) => {
