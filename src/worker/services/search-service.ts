@@ -473,24 +473,29 @@ export class SearchService {
       }
 
       // Record search results for analytics
+      // ⚡ BOLT OPTIMIZATION:
+      // What: Using recordSearchResults bulk insert instead of individual recordSearchResult inserts
+      // Why: Eliminates N+1 query problem, replacing sequential network requests with a single roundtrip
       if (sessionId && env) {
         try {
           const analyticsManager = this.getAnalyticsManager(env);
-          for (const result of finalResults) {
-            await analyticsManager.recordSearchResult({
-              searchSessionId: sessionId,
-              resultTitle: result.title,
-              resultAuthors: result.authors,
-              resultJournal: result.journal,
-              resultYear: result.publication_date ? parseInt(result.publication_date) : undefined,
-              resultDoi: result.doi,
-              resultUrl: result.url,
-              relevanceScore: result.relevance_score || 0,
-              confidenceScore: result.confidence || 0,
-              qualityScore: this.calculateQualityScore(result),
-              citationCount: result.citation_count || 0,
-              addedToLibrary: false,
-            });
+          const resultsToRecord = finalResults.map(result => ({
+            searchSessionId: sessionId,
+            resultTitle: result.title,
+            resultAuthors: result.authors,
+            resultJournal: result.journal,
+            resultYear: result.publication_date ? parseInt(result.publication_date) : undefined,
+            resultDoi: result.doi,
+            resultUrl: result.url,
+            relevanceScore: result.relevance_score || 0,
+            confidenceScore: result.confidence || 0,
+            qualityScore: this.calculateQualityScore(result),
+            citationCount: result.citation_count || 0,
+            addedToLibrary: false,
+          }));
+
+          if (resultsToRecord.length > 0) {
+            await analyticsManager.recordSearchResults(resultsToRecord);
           }
 
           const processingTime = Date.now() - startTime;
