@@ -1,0 +1,4 @@
+## 2024-05-24 - IDOR Vulnerability in Chat Messages Endpoint
+**Vulnerability:** The `/api/chats/:id/messages` endpoint retrieved all messages for a given `chatId` without verifying that the `chatId` belonged to the authenticated user.
+**Learning:** Even if the client-side UI only displays chats belonging to the user, the backend API must explicitly re-validate ownership of the resource being requested to prevent Insecure Direct Object Reference (IDOR) attacks where a malicious user could guess or enumerate `chatId`s.
+**Prevention:** Always extract the user context (e.g., from a JWT token) and include it in database queries when accessing user-owned resources (e.g., `eq('user_id', userId)`).
