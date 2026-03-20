@@ -1,3 +1,4 @@
+import { getCorsOrigin } from '../lib/cors-helper';
 /**
  * Search Result Management API Handlers
  * Handles bookmarking, comparison, export, and sharing endpoints
@@ -13,7 +14,7 @@ const app = new Hono()
 
 // Enable CORS
 app.use('*', cors({
-  origin: ['http://localhost:5173', 'https://localhost:5173'],
+  origin: (origin, c) => getCorsOrigin(origin, c),
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization'],
 }))
