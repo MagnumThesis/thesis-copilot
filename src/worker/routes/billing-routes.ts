@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+import { getCorsOrigin } from '../lib/cors-helper';
 import { getSupabase } from '../lib/supabase';
 import type { SupabaseEnv } from '../lib/supabase';
 import crypto from 'crypto';
@@ -14,7 +15,7 @@ function resolveEnv(c: any, key: string) {
 const billingApi = new Hono();
 
 billingApi.use('*', cors({
-  origin: '*',
+  origin: (origin, c) => getCorsOrigin(origin, c),
   allowMethods: ['GET', 'POST', 'PUT', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization', 'Stripe-Signature'],
   maxAge: 600
