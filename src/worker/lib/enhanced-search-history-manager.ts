@@ -316,42 +316,65 @@ export class EnhancedSearchHistoryManager extends SearchAnalyticsManager {
 
       const result = await this.getEnvironment().DB.prepare(query).bind(...params).all();
       
-      // Get top results for each query
-      const queryAnalytics = await Promise.all(
-        (result.results || []).map(async (row: any) => {
-          const topResultsQuery = `
-            SELECT sr.result_title, sr.relevance_score, sr.added_to_library
+      // Get top results for each query efficiently (prevent N+1 queries)
+      // Extract unique queries to fetch results for
+      const uniqueQueries = (result.results || []).map((r: any) => r.search_query);
+
+      let allTopResults: Record<string, Array<any>> = {};
+
+      if (uniqueQueries.length > 0) {
+        // Optimize: Use window functions to get top 3 results per query in a single DB roundtrip
+        const placeholders = uniqueQueries.map(() => '?').join(',');
+        const topResultsParams = [...uniqueQueries, userId];
+        if (conversationId) {
+          topResultsParams.push(conversationId);
+        }
+
+        const topResultsQuery = `
+          WITH RankedResults AS (
+            SELECT
+              ss.search_query,
+              sr.result_title,
+              sr.relevance_score,
+              sr.added_to_library,
+              ROW_NUMBER() OVER(PARTITION BY ss.search_query ORDER BY sr.relevance_score DESC) as rn
             FROM search_results sr
             JOIN search_sessions ss ON sr.search_session_id = ss.id
-            WHERE ss.search_query = ? AND ss.user_id = ?
+            WHERE ss.search_query IN (${placeholders}) AND ss.user_id = ?
             ${conversationId ? 'AND ss.conversation_id = ?' : ''}
-            ORDER BY sr.relevance_score DESC
-            LIMIT 3
-          `;
+          )
+          SELECT search_query, result_title, relevance_score, added_to_library
+          FROM RankedResults
+          WHERE rn <= 3
+          ORDER BY search_query, relevance_score DESC
+        `;
 
-          const topResultsParams = [row.search_query, userId];
-          if (conversationId) {
-            topResultsParams.push(conversationId);
+        const topResultsResult = await this.getEnvironment().DB.prepare(topResultsQuery).bind(...topResultsParams).all();
+
+        // Group results by query
+        for (const r of (topResultsResult.results || [])) {
+          if (!allTopResults[r.search_query]) {
+            allTopResults[r.search_query] = [];
           }
-
-          const topResultsResult = await this.getEnvironment().DB.prepare(topResultsQuery).bind(...topResultsParams).all();
-          const topResults = (topResultsResult.results || []).map((r: any) => ({
+          allTopResults[r.search_query].push({
             title: r.result_title,
             relevanceScore: r.relevance_score,
             addedToLibrary: r.added_to_library
-          }));
+          });
+        }
+      }
 
-          return {
-            query: row.search_query,
-            searchCount: row.search_count,
-            averageResults: row.avg_results || 0,
-            successRate: row.success_rate || 0,
-            averageProcessingTime: row.avg_processing_time || 0,
-            lastUsed: new Date(row.last_used),
-            topResults
-          };
-        })
-      );
+      const queryAnalytics = (result.results || []).map((row: any) => {
+        return {
+          query: row.search_query,
+          searchCount: row.search_count,
+          averageResults: row.avg_results || 0,
+          successRate: row.success_rate || 0,
+          averageProcessingTime: row.avg_processing_time || 0,
+          lastUsed: new Date(row.last_used),
+          topResults: allTopResults[row.search_query] || []
+        };
+      });
 
       return queryAnalytics;
     } catch (error) {
