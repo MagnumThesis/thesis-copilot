@@ -69,7 +69,9 @@ export default function BillingSuccess() {
         try {
           const raw = localStorage.getItem(processedKey);
           if (raw) processed = JSON.parse(raw) as string[];
-        } catch (e) {}
+        } catch (e) {
+          console.error('Failed to parse processed sessions from localStorage', e);
+        }
 
         if (!processed.includes(sessionId)) {
           // Persist locally
@@ -78,7 +80,11 @@ export default function BillingSuccess() {
 
           // mark processed
           processed.push(sessionId);
-          try { localStorage.setItem(processedKey, JSON.stringify(processed)); } catch (e) {}
+          try {
+            localStorage.setItem(processedKey, JSON.stringify(processed));
+          } catch (e) {
+            console.error('Failed to save processed session to localStorage', e);
+          }
         } else {
           console.debug('Session already processed, skipping local credit application', sessionId);
         }

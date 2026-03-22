@@ -155,7 +155,9 @@ export default function Profile() {
       saveAuthState?.(newState);
       try {
         localStorage.setItem('billing', JSON.stringify({ plan: newPlan, credits: newCredits, nextBilling: newNextBilling }));
-      } catch (e) {}
+      } catch (e) {
+        console.error('Failed to save billing to localStorage cache', e);
+      }
     } catch (e) {
       console.error('Failed to persist billing locally', e);
     }
