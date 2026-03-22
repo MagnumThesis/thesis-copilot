@@ -165,18 +165,24 @@ export class SearchHistoryManager {
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-    const searchesToday = userHistory.filter(h => {
+    let searchesToday = 0;
+    let searchesThisWeek = 0;
+    let searchesThisMonth = 0;
+
+    userHistory.forEach(h => {
       const timestamp = safeDate(h.timestamp);
-      return timestamp && timestamp >= today;
-    }).length;
-    const searchesThisWeek = userHistory.filter(h => {
-      const timestamp = safeDate(h.timestamp);
-      return timestamp && timestamp >= weekAgo;
-    }).length;
-    const searchesThisMonth = userHistory.filter(h => {
-      const timestamp = safeDate(h.timestamp);
-      return timestamp && timestamp >= monthAgo;
-    }).length;
+      if (!timestamp) return;
+
+      if (timestamp >= today) {
+        searchesToday++;
+      }
+      if (timestamp >= weekAgo) {
+        searchesThisWeek++;
+      }
+      if (timestamp >= monthAgo) {
+        searchesThisMonth++;
+      }
+    });
 
     // Ensure we return 0 instead of undefined for averageResults and successRate
     return {
