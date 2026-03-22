@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+import { corsOriginResolver } from './utils/cors-resolver';
 import referencerApi from './handlers/referencer-api';
 import aiSearcherApi from './handlers/ai-searcher-api';
 import searchResultManagementApi from './handlers/search-result-management';
@@ -64,7 +65,7 @@ app.use('*', async (c, next) => {
 
 // CORS middleware - Apply to all /api/* routes
 app.use('/api/*', cors({
-  origin: '*',
+  origin: corsOriginResolver,
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin'],
   credentials: false,

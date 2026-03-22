@@ -3,6 +3,7 @@
  */
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+import { corsOriginResolver } from '../utils/cors-resolver';
 import {
   registerHandler,
   loginHandler,
@@ -20,7 +21,7 @@ const authApi = new Hono();
 
 // Apply CORS to all auth routes with explicit OPTIONS handling
 authApi.use('*', cors({
-  origin: '*',
+  origin: corsOriginResolver,
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
