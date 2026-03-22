@@ -244,6 +244,7 @@ export function Chat({
             variant="ghost"
             className="h-6 w-6"
             onClick={() => onRateResponse(message.id, "thumbs-up")}
+            aria-label="Rate response as helpful"
           >
             <ThumbsUp className="h-4 w-4" />
           </Button>
@@ -252,6 +253,7 @@ export function Chat({
             variant="ghost"
             className="h-6 w-6"
             onClick={() => onRateResponse(message.id, "thumbs-down")}
+            aria-label="Rate response as unhelpful"
           >
             <ThumbsDown className="h-4 w-4" />
           </Button>
@@ -366,6 +368,7 @@ export function ChatMessages({
               className="pointer-events-auto h-8 w-8 rounded-full ease-in-out animate-in fade-in-0 slide-in-from-bottom-1"
               size="icon"
               variant="ghost"
+              aria-label="Scroll to bottom"
             >
               <ArrowDown className="h-4 w-4" />
             </Button>

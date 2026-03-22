@@ -31,12 +31,8 @@ vi.mock('@ai-sdk/google', () => ({
     createGoogleGenerativeAI: vi.fn(() => vi.fn())
 }));
 
-vi.mock('../lib/auth-utils', () => ({
-    getUserIdFromToken: vi.fn(async (token) => {
-        if (token === 'valid-token') return 'user123';
-        if (token === 'other-user-token') return 'user456';
-        return null;
-    })
+vi.mock('../middleware/auth-middleware', () => ({
+    getAuthContext: vi.fn((c) => c.get('authContext'))
 }));
 
 vi.mock('ai', () => ({
@@ -48,9 +44,11 @@ vi.mock('ai', () => ({
 
 describe('chatHandler Security', () => {
     let mockContext: any;
+    let store = new Map();
 
     beforeEach(() => {
         vi.clearAllMocks();
+        store = new Map();
         mockContext = {
             req: {
                 json: vi.fn().mockResolvedValue({
@@ -61,31 +59,29 @@ describe('chatHandler Security', () => {
             },
             env: {},
             json: vi.fn((data, status) => ({ data, status })),
-            get: vi.fn(),
-            set: vi.fn()
+            get: vi.fn((key) => store.get(key)),
+            set: vi.fn((key, val) => store.set(key, val))
         };
     });
 
     it('should return 401 if authentication context is missing', async () => {
-        mockContext.get.mockReturnValue(null);
-
         const response: any = await chatHandler(mockContext as any);
 
         expect(response.status).toBe(401);
-        expect(response.data).toEqual({ error: 'Authentication required' });
+        expect(response.data).toEqual({ error: 'Authentication required or invalid' });
     });
 
-    it('should return 401 if token is invalid', async () => {
-        mockContext.get.mockReturnValue({ token: 'invalid-token' });
+    it('should return 401 if userId is missing in context', async () => {
+        mockContext.set('authContext', { token: 'some-token' });
 
         const response: any = await chatHandler(mockContext as any);
 
         expect(response.status).toBe(401);
-        expect(response.data).toEqual({ error: 'Invalid authentication token' });
+        expect(response.data).toEqual({ error: 'Authentication required or invalid' });
     });
 
     it('should return 403 if chat belongs to another user', async () => {
-        mockContext.get.mockReturnValue({ token: 'valid-token' }); // userId: user123
+        mockContext.set('authContext', { userId: 'user123', token: 'valid-token' });
         mockSingle.mockResolvedValue({ data: { user_id: 'user456' }, error: null });
 
         const response: any = await chatHandler(mockContext as any);
@@ -95,7 +91,7 @@ describe('chatHandler Security', () => {
     });
 
     it('should return 404 if chat is not found', async () => {
-        mockContext.get.mockReturnValue({ token: 'valid-token' });
+        mockContext.set('authContext', { userId: 'user123', token: 'valid-token' });
         mockSingle.mockResolvedValue({ data: null, error: { message: 'Not found' } });
 
         const response: any = await chatHandler(mockContext as any);
@@ -105,7 +101,7 @@ describe('chatHandler Security', () => {
     });
 
     it('should proceed if authenticated and chat owner', async () => {
-        mockContext.get.mockReturnValue({ token: 'valid-token' });
+        mockContext.set('authContext', { userId: 'user123', token: 'valid-token' });
         mockSingle.mockResolvedValue({ data: { user_id: 'user123' }, error: null });
 
         const response = await chatHandler(mockContext as any);
@@ -117,7 +113,7 @@ describe('chatHandler Security', () => {
         mockContext.req.json.mockResolvedValue({
             messages: [{ role: 'user', content: 'Hello', id: '1' }]
         });
-        mockContext.get.mockReturnValue({ token: 'valid-token' });
+        mockContext.set('authContext', { userId: 'user123', token: 'valid-token' });
 
         const response = await chatHandler(mockContext as any);
 

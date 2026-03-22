@@ -62,14 +62,11 @@ export async function chatHandler(c: Context<{ Bindings: Env & SupabaseEnv }>) {
         const supabase = getSupabase(c.env);
 
         const authContext = getAuthContext(c);
-        if (!authContext?.token) {
-            return c.json({ error: 'Authentication required' }, 401);
+        if (!authContext?.userId) {
+            return c.json({ error: 'Authentication required or invalid' }, 401);
         }
 
-        const userId = await getUserIdFromToken(authContext.token, c.env.SUPABASE_JWT_SECRET || "");
-        if (!userId) {
-            return c.json({ error: 'Invalid authentication token' }, 401);
-        }
+        const userId = authContext.userId;
 
         // If chatId is provided, verify it belongs to the user
         if (chatId) {
