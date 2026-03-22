@@ -2,3 +2,8 @@
 **Vulnerability:** The application is using `origin: '*'` together with `credentials: true` in Hono CORS configuration (`src/worker/routes/auth-routes.ts`).
 **Learning:** Using a wildcard origin with credentials enabled allows any website to make requests to the authenticated endpoints and include the user's cookies/credentials. This is a significant security risk and can lead to CSRF attacks or data theft.
 **Prevention:** Avoid using `origin: '*'` with `credentials: true`. Instead, implement a dynamic origin resolver function utilizing `c.env` or `import.meta.env` to strictly validate against allowed frontend URLs and development environments.
+
+## 2024-06-18 - Missing Authentication and IDOR on Chat Messages
+**Vulnerability:** The `getMessagesHandler` for the `/api/chats/:id/messages` endpoint lacked both authentication and authorization checks. It simply read `chatId` from the route parameters and returned all messages from the database for that chat ID. This Insecure Direct Object Reference (IDOR) allowed any unauthenticated user to read any chat's message history.
+**Learning:** Even if the client-side UI prevents navigation to other users' chats, backend API endpoints must enforce authorization rules independently. Just because a user does not see the IDs of other users' chats does not mean the API is safe from direct requests via `curl` or Postman.
+**Prevention:** For all endpoints exposing user-specific or sensitive data by ID, implement robust authorization: require a valid session/token, extract the authenticated user ID (`getUserIdFromToken`), and assert that the requested resource (e.g., the chat record) actually belongs to that authenticated user before returning its contents.
