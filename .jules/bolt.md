@@ -5,3 +5,7 @@
 ## 2026-03-22 - Redundant Array Traversals in getStatistics
 **Learning:** Performing multiple consecutive `.filter().length` operations on an array of objects where each filter condition involves an expensive operation (like `safeDate` parsing) leads to (kN)$ time complexity and redundant processing.
 **Action:** Consolidate multiple statistics calculations into a single (N)$ pass using a single loop (e.g., `forEach` or `reduce`). This minimizes traversals and ensures each expensive transformation (like date parsing) is performed exactly once per element.
+
+## 2024-05-18 - Nested Multi-pass Statistics Aggregation
+**Learning:** In Cloudflare Worker environments, computing multi-dimensional statistics (e.g., aggregating by category and severity) using `.filter().length` inside loops leads to O(N*M) time complexity, drastically slowing down large payload processing.
+**Action:** Consolidate multi-dimensional nested array aggregations into a single O(N) pass loop by maintaining pre-allocated objects/maps and incrementing respective counters as the array is traversed once.
