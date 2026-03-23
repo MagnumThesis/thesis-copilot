@@ -1,0 +1,3 @@
+## 2026-03-23 - ARIA labels in dynamic edit-mode icon buttons
+**Learning:** Icon-only buttons (like `Save`, `Cancel`, `Edit`, `Regenerate`) rendered dynamically inside list items during edit modes are frequently missed for accessibility annotations because they are not part of the primary static UI. This makes crucial actions completely opaque to screen reader users when managing list items (like editing Idea titles).
+**Action:** Always audit conditional render paths (e.g., `isEditing ? <Save/Cancel> : <Edit>`) for icon-only buttons to ensure they have explicit, context-aware `aria-label` attributes describing the action (e.g., "Save edited title" rather than just "Save").
