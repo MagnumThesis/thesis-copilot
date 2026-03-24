@@ -1,0 +1,3 @@
+## 2024-03-24 - Missing aria-labels in Dialog component menus
+**Learning:** Icon-only buttons representing primary user actions (Save, Cancel, Edit, and Regenerate) inside nested dynamic components like the `IdeaSelectorDialog` frequently lack `aria-label` attributes in this app. The same applies to floating UI toggles (e.g., Tools Panel sidebar toggle button). Screen reader users would have no context on what these buttons do.
+**Action:** When adding or reviewing deeply nested components like selector dialogs or collapsible sidebars in this design system, I must proactively search for `<Button size="icon">` instances without visible text and ensure they are explicitly labeled with an `aria-label`.
