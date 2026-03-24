@@ -59,6 +59,7 @@ export const ToolsPanel: React.FC<ToolsPanelProps> = ({
             ? "-left-4" // Center when open
             : "-left-10" // More to the right when closed
         )}
+        aria-label="Toggle tools panel"
       >
         {isOpen ? (
           <ChevronRight className="h-4 w-4" />
