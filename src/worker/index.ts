@@ -102,6 +102,7 @@ app.route('/api/referencer', referencerApi);
 app.route('/api/ai-searcher', aiSearcherApi);
 app.route('/api/ai-searcher/privacy', privacyManagementApi);
 app.route('/api/search-result-management', searchResultManagementApi);
+app.use('/api/ideas/*', requireAuth);
 app.route('/api/ideas', ideasApi);
 app.route('/api/builder', builderApi);
 app.route('/api/builder-content', builderContentApi);
