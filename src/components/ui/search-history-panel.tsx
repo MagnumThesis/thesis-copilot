@@ -344,6 +344,7 @@ export const SearchHistoryPanel: React.FC<SearchHistoryPanelProps> = ({
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowFilters(false)}
+                aria-label="Close filters"
               >
                 <X className="h-4 w-4" />
               </Button>

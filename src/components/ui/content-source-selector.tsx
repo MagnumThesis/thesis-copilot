@@ -824,7 +824,7 @@ const ContentPreviewModal: React.FC<ContentPreviewModalProps> = ({
             <Eye className="h-5 w-5" />
             Content Preview: {preview.source.title}
           </h3>
-          <Button variant="ghost" size="sm" onClick={onClose}>
+          <Button variant="ghost" size="sm" onClick={onClose} aria-label="Close preview">
             ×
           </Button>
         </div>

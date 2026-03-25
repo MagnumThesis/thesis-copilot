@@ -249,7 +249,7 @@ export const CitationInsertion: React.FC<CitationInsertionProps> = ({
             </Badge>
           )}
         </div>
-        <Button variant="ghost" size="sm" onClick={onClose}>
+        <Button variant="ghost" size="sm" onClick={onClose} aria-label="Close dialog">
           <X className="h-4 w-4" />
         </Button>
       </div>

@@ -150,7 +150,7 @@ export const SearchResultSharing: React.FC<SearchResultSharingProps> = ({
                 Results Shared Successfully
               </CardTitle>
               {onClose && (
-                <Button variant="ghost" size="sm" onClick={onClose}>
+                <Button variant="ghost" size="sm" onClick={onClose} aria-label="Close share dialog">
                   <X className="h-4 w-4" />
                 </Button>
               )}
@@ -282,7 +282,7 @@ export const SearchResultSharing: React.FC<SearchResultSharingProps> = ({
               Share Search Results ({results.length} results)
             </CardTitle>
             {onClose && (
-              <Button variant="ghost" size="sm" onClick={onClose}>
+              <Button variant="ghost" size="sm" onClick={onClose} aria-label="Close share dialog">
                 <X className="h-4 w-4" />
               </Button>
             )}
