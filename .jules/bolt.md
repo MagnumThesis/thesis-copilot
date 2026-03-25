@@ -5,3 +5,7 @@
 ## 2026-03-22 - Redundant Array Traversals in getStatistics
 **Learning:** Performing multiple consecutive `.filter().length` operations on an array of objects where each filter condition involves an expensive operation (like `safeDate` parsing) leads to (kN)$ time complexity and redundant processing.
 **Action:** Consolidate multiple statistics calculations into a single (N)$ pass using a single loop (e.g., `forEach` or `reduce`). This minimizes traversals and ensures each expensive transformation (like date parsing) is performed exactly once per element.
+
+## 2024-05-15 - O(N*M) Multiple traversals in getConcernStatistics
+**Learning:** Calculating statistics by iterating through categories and severities, and for each performing a `.filter().length` traversal on the full concerns array results in an O(N*M) bottleneck. In `concern-status-manager.ts`, this was highly inefficient for multiple distinct statuses, categories, and severities combinations.
+**Action:** Replace multiple `.filter().length` queries with a single pass (O(N) traversal) over the data array. Initialize counter objects/dictionaries and increment all desired metric intersections during the single loop.
