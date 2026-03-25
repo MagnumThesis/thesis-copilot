@@ -220,7 +220,7 @@ export const SearchResultManagementPanel: React.FC<SearchResultManagementPanelPr
                 Refresh
               </Button>
               {onClose && (
-                <Button variant="ghost" size="sm" onClick={onClose}>
+                <Button variant="ghost" size="sm" onClick={onClose} aria-label="Close panel">
                   <X className="h-4 w-4" />
                 </Button>
               )}

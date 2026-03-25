@@ -151,7 +151,7 @@ export const SearchResultExport: React.FC<SearchResultExportProps> = ({
               Export Search Results ({results.length} results)
             </CardTitle>
             {onClose && (
-              <Button variant="ghost" size="sm" onClick={onClose}>
+              <Button variant="ghost" size="sm" onClick={onClose} aria-label="Close export dialog">
                 <X className="h-4 w-4" />
               </Button>
             )}

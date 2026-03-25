@@ -229,7 +229,7 @@ export const ReferenceForm: React.FC<ReferenceFormProps> = ({
           <CardTitle>
             {isEditing ? 'Edit Reference' : 'Add New Reference'}
           </CardTitle>
-          <Button variant="ghost" size="sm" onClick={onClose}>
+          <Button variant="ghost" size="sm" onClick={onClose} aria-label="Close form">
             <X className="h-4 w-4" />
           </Button>
         </div>
