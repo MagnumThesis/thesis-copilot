@@ -2,7 +2,11 @@
 
 import React from "react";
 import { Button } from "@/components/ui/shadcn/button";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/shadcn/alert";
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/ui/shadcn/alert";
 import {
   AlertTriangle,
   Wifi,
@@ -97,7 +101,7 @@ export const AIErrorNotification: React.FC<AIErrorNotificationProps> = ({
   className,
 }) => {
   const [showDetails, setShowDetails] = React.useState(false);
-  
+
   const Icon = errorIcons[error.type] || AlertTriangle;
   const variant = errorVariants[error.type] || "default";
   const recoveryStrategy = AIErrorHandler.getRetryStrategy(error);
@@ -132,8 +136,10 @@ export const AIErrorNotification: React.FC<AIErrorNotificationProps> = ({
     }
   };
 
-  const shouldShowRetryButton = canRetry && recoveryStrategy.showRetryButton && onRetry;
-  const shouldShowGracefulDegradation = recoveryStrategy.gracefulDegradation && onGracefulDegradation;
+  const shouldShowRetryButton =
+    canRetry && recoveryStrategy.showRetryButton && onRetry;
+  const shouldShowGracefulDegradation =
+    recoveryStrategy.gracefulDegradation && onGracefulDegradation;
 
   return (
     <Alert variant={variant} className={cn("relative", className)}>
@@ -165,6 +171,7 @@ export const AIErrorNotification: React.FC<AIErrorNotificationProps> = ({
               </Button>
             )}
             <Button
+              aria-label="Close"
               variant="ghost"
               size="sm"
               onClick={onDismiss}
@@ -177,13 +184,13 @@ export const AIErrorNotification: React.FC<AIErrorNotificationProps> = ({
         <AlertDescription className="mt-2">
           <div className="space-y-2">
             <p>{userFriendlyMessage}</p>
-            
+
             {error.retryable && retryCount > 0 && (
               <p className="text-sm text-muted-foreground">
                 Retry attempt {retryCount} of {recoveryStrategy.retryAttempts}
               </p>
             )}
-            
+
             {error.code && (
               <Button
                 variant="ghost"
@@ -204,14 +211,22 @@ export const AIErrorNotification: React.FC<AIErrorNotificationProps> = ({
                 )}
               </Button>
             )}
-            
+
             {showDetails && (
               <div className="mt-2 p-2 bg-muted rounded text-xs font-mono space-y-1">
-                <div><strong>Error Code:</strong> {error.code}</div>
-                <div><strong>Type:</strong> {error.type}</div>
-                <div><strong>Retryable:</strong> {error.retryable ? 'Yes' : 'No'}</div>
+                <div>
+                  <strong>Error Code:</strong> {error.code}
+                </div>
+                <div>
+                  <strong>Type:</strong> {error.type}
+                </div>
+                <div>
+                  <strong>Retryable:</strong> {error.retryable ? "Yes" : "No"}
+                </div>
                 {error.originalError && (
-                  <div><strong>Details:</strong> {error.originalError.message}</div>
+                  <div>
+                    <strong>Details:</strong> {error.originalError.message}
+                  </div>
                 )}
               </div>
             )}

@@ -1,29 +1,29 @@
-"use client"
+"use client";
 
-import React, { useState } from "react"
-import { Button } from "./shadcn/button"
-import { Card, CardContent, CardHeader, CardTitle } from "./shadcn/card"
-import { Badge } from "./shadcn/badge"
-import { Separator } from "./shadcn/separator"
-import { CitationStyle, Reference } from "../../lib/ai-types"
-import { X, Quote, FileText } from "lucide-react"
+import React, { useState } from "react";
+import { Button } from "./shadcn/button";
+import { Card, CardContent, CardHeader, CardTitle } from "./shadcn/card";
+import { Badge } from "./shadcn/badge";
+import { Separator } from "./shadcn/separator";
+import { CitationStyle, Reference } from "../../lib/ai-types";
+import { X, Quote, FileText } from "lucide-react";
 
 interface CitationInsertionProps {
-  selectedText?: string
-  onCitationInsert: (citation: string) => Promise<boolean>
-  onBibliographyInsert: (bibliography: string) => Promise<boolean>
-  currentCitationStyle: CitationStyle
-  availableReferences?: Reference[]
-  onClose: () => void
-  className?: string
+  selectedText?: string;
+  onCitationInsert: (citation: string) => Promise<boolean>;
+  onBibliographyInsert: (bibliography: string) => Promise<boolean>;
+  currentCitationStyle: CitationStyle;
+  availableReferences?: Reference[];
+  onClose: () => void;
+  className?: string;
 }
 
 interface InsertionState {
-  selectedReferences: Reference[]
-  inlineCitation: string
-  bibliographyEntry: string
-  isProcessing: boolean
-  error: string | null
+  selectedReferences: Reference[];
+  inlineCitation: string;
+  bibliographyEntry: string;
+  isProcessing: boolean;
+  error: string | null;
 }
 
 /**
@@ -80,161 +80,190 @@ export const CitationInsertion: React.FC<CitationInsertionProps> = ({
   currentCitationStyle,
   availableReferences = [],
   onClose,
-  className = ''
+  className = "",
 }) => {
   const [state, setState] = useState<InsertionState>({
     selectedReferences: [],
-    inlineCitation: '',
-    bibliographyEntry: '',
+    inlineCitation: "",
+    bibliographyEntry: "",
     isProcessing: false,
-    error: null
-  })
+    error: null,
+  });
 
-  const [showPreview, setShowPreview] = useState(false)
+  const [showPreview, setShowPreview] = useState(false);
 
   // Filter references based on selected text if available
   const relevantReferences = React.useMemo(() => {
     if (!selectedText || availableReferences.length === 0) {
-      return availableReferences
+      return availableReferences;
     }
 
-    const searchText = selectedText.toLowerCase()
-    return availableReferences.filter(ref =>
-      ref.title.toLowerCase().includes(searchText) ||
-      ref.authors.some(author =>
-        `${author.firstName} ${author.lastName}`.toLowerCase().includes(searchText)
-      ) ||
-      (ref.journal && ref.journal.toLowerCase().includes(searchText))
-    )
-  }, [availableReferences, selectedText])
+    const searchText = selectedText.toLowerCase();
+    return availableReferences.filter(
+      (ref) =>
+        ref.title.toLowerCase().includes(searchText) ||
+        ref.authors.some((author) =>
+          `${author.firstName} ${author.lastName}`
+            .toLowerCase()
+            .includes(searchText),
+        ) ||
+        (ref.journal && ref.journal.toLowerCase().includes(searchText)),
+    );
+  }, [availableReferences, selectedText]);
 
   const handleReferenceSelect = (reference: Reference) => {
-    setState(prev => ({
+    setState((prev) => ({
       ...prev,
       selectedReferences: prev.selectedReferences.includes(reference)
-        ? prev.selectedReferences.filter(r => r.id !== reference.id)
-        : [...prev.selectedReferences, reference]
-    }))
-  }
+        ? prev.selectedReferences.filter((r) => r.id !== reference.id)
+        : [...prev.selectedReferences, reference],
+    }));
+  };
 
   const handleRemoveReference = (referenceId: string) => {
-    setState(prev => ({
+    setState((prev) => ({
       ...prev,
-      selectedReferences: prev.selectedReferences.filter(r => r.id !== referenceId)
-    }))
-  }
+      selectedReferences: prev.selectedReferences.filter(
+        (r) => r.id !== referenceId,
+      ),
+    }));
+  };
 
   const handleCitationPreview = async () => {
-    if (state.selectedReferences.length === 0) return
+    if (state.selectedReferences.length === 0) return;
 
-    setState(prev => ({ ...prev, isProcessing: true, error: null }))
+    setState((prev) => ({ ...prev, isProcessing: true, error: null }));
 
     try {
       // Format citation using the citation formatter
-      const citation = await formatCitation(state.selectedReferences, currentCitationStyle)
-      const bibliography = await formatBibliography(state.selectedReferences, currentCitationStyle)
+      const citation = await formatCitation(
+        state.selectedReferences,
+        currentCitationStyle,
+      );
+      const bibliography = await formatBibliography(
+        state.selectedReferences,
+        currentCitationStyle,
+      );
 
-      setState(prev => ({
+      setState((prev) => ({
         ...prev,
         inlineCitation: citation,
         bibliographyEntry: bibliography,
-        isProcessing: false
-      }))
+        isProcessing: false,
+      }));
 
-      setShowPreview(true)
+      setShowPreview(true);
     } catch (error) {
-      setState(prev => ({
+      setState((prev) => ({
         ...prev,
-        error: error instanceof Error ? error.message : 'Failed to format citation',
-        isProcessing: false
-      }))
+        error:
+          error instanceof Error ? error.message : "Failed to format citation",
+        isProcessing: false,
+      }));
     }
-  }
+  };
 
   const handleInsertCitation = async () => {
-    if (!state.inlineCitation) return
+    if (!state.inlineCitation) return;
 
-    setState(prev => ({ ...prev, isProcessing: true }))
+    setState((prev) => ({ ...prev, isProcessing: true }));
 
     try {
-      const success = await onCitationInsert(state.inlineCitation)
+      const success = await onCitationInsert(state.inlineCitation);
       if (success) {
-        onClose()
+        onClose();
       }
     } catch (error) {
-      setState(prev => ({
+      setState((prev) => ({
         ...prev,
-        error: error instanceof Error ? error.message : 'Failed to insert citation',
-        isProcessing: false
-      }))
+        error:
+          error instanceof Error ? error.message : "Failed to insert citation",
+        isProcessing: false,
+      }));
     }
-  }
+  };
 
   const handleInsertBibliography = async () => {
-    if (!state.bibliographyEntry) return
+    if (!state.bibliographyEntry) return;
 
-    setState(prev => ({ ...prev, isProcessing: true }))
+    setState((prev) => ({ ...prev, isProcessing: true }));
 
     try {
-      const success = await onBibliographyInsert(state.bibliographyEntry)
+      const success = await onBibliographyInsert(state.bibliographyEntry);
       if (success) {
-        onClose()
+        onClose();
       }
     } catch (error) {
-      setState(prev => ({
+      setState((prev) => ({
         ...prev,
-        error: error instanceof Error ? error.message : 'Failed to insert bibliography',
-        isProcessing: false
-      }))
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to insert bibliography",
+        isProcessing: false,
+      }));
     }
-  }
+  };
 
   // Mock citation formatting (would be replaced with actual citation engine)
-  const formatCitation = async (references: Reference[], style: CitationStyle): Promise<string> => {
-    if (references.length === 0) return ''
+  const formatCitation = async (
+    references: Reference[],
+    style: CitationStyle,
+  ): Promise<string> => {
+    if (references.length === 0) return "";
 
-    const firstRef = references[0]
-    const firstAuthor = firstRef.authors[0]
-    const year = firstRef.publicationDate ? new Date(firstRef.publicationDate).getFullYear() : 'n.d.'
-
-    switch (style) {
-      case CitationStyle.APA:
-        return `(${firstAuthor?.lastName || 'Unknown'}, ${year})`
-      case CitationStyle.MLA:
-        return `(${firstAuthor?.lastName || 'Unknown'} ${year})`
-      case CitationStyle.CHICAGO:
-        return `(${firstAuthor?.lastName || 'Unknown'}, ${year})`
-      default:
-        return `(${firstAuthor?.lastName || 'Unknown'}, ${year})`
-    }
-  }
-
-  const formatBibliography = async (references: Reference[], style: CitationStyle): Promise<string> => {
-    if (references.length === 0) return ''
-
-    const firstRef = references[0]
-    const authors = firstRef.authors.map(author =>
-      `${author.lastName}, ${author.firstName}${author.middleName ? ` ${author.middleName}` : ''}`
-    ).join(', ')
-
-    const year = firstRef.publicationDate ? new Date(firstRef.publicationDate).getFullYear() : 'n.d.'
-    const title = firstRef.title
-    const journal = firstRef.journal || ''
-    const volume = firstRef.volume || ''
-    const issue = firstRef.issue || ''
-    const pages = firstRef.pages || ''
+    const firstRef = references[0];
+    const firstAuthor = firstRef.authors[0];
+    const year = firstRef.publicationDate
+      ? new Date(firstRef.publicationDate).getFullYear()
+      : "n.d.";
 
     switch (style) {
       case CitationStyle.APA:
-        return `${authors} (${year}). ${title}.${journal ? ` ${journal}` : ''}${volume ? `, ${volume}` : ''}${issue ? `(${issue})` : ''}${pages ? `, ${pages}` : ''}.`
+        return `(${firstAuthor?.lastName || "Unknown"}, ${year})`;
       case CitationStyle.MLA:
-        return `${authors}. "${title}." ${journal}${volume ? ` ${volume}` : ''}${issue ? `.${issue}` : ''}${pages ? ` (${pages})` : ''} ${year}.`
+        return `(${firstAuthor?.lastName || "Unknown"} ${year})`;
       case CitationStyle.CHICAGO:
-        return `${authors}. "${title}." ${journal} ${volume}${issue ? `, no. ${issue}` : ''} (${year}): ${pages}.`
+        return `(${firstAuthor?.lastName || "Unknown"}, ${year})`;
       default:
-        return `${authors} (${year}). ${title}.`
+        return `(${firstAuthor?.lastName || "Unknown"}, ${year})`;
     }
-  }
+  };
+
+  const formatBibliography = async (
+    references: Reference[],
+    style: CitationStyle,
+  ): Promise<string> => {
+    if (references.length === 0) return "";
+
+    const firstRef = references[0];
+    const authors = firstRef.authors
+      .map(
+        (author) =>
+          `${author.lastName}, ${author.firstName}${author.middleName ? ` ${author.middleName}` : ""}`,
+      )
+      .join(", ");
+
+    const year = firstRef.publicationDate
+      ? new Date(firstRef.publicationDate).getFullYear()
+      : "n.d.";
+    const title = firstRef.title;
+    const journal = firstRef.journal || "";
+    const volume = firstRef.volume || "";
+    const issue = firstRef.issue || "";
+    const pages = firstRef.pages || "";
+
+    switch (style) {
+      case CitationStyle.APA:
+        return `${authors} (${year}). ${title}.${journal ? ` ${journal}` : ""}${volume ? `, ${volume}` : ""}${issue ? `(${issue})` : ""}${pages ? `, ${pages}` : ""}.`;
+      case CitationStyle.MLA:
+        return `${authors}. "${title}." ${journal}${volume ? ` ${volume}` : ""}${issue ? `.${issue}` : ""}${pages ? ` (${pages})` : ""} ${year}.`;
+      case CitationStyle.CHICAGO:
+        return `${authors}. "${title}." ${journal} ${volume}${issue ? `, no. ${issue}` : ""} (${year}): ${pages}.`;
+      default:
+        return `${authors} (${year}). ${title}.`;
+    }
+  };
 
   return (
     <div className={`space-y-4 ${className}`}>
@@ -245,11 +274,15 @@ export const CitationInsertion: React.FC<CitationInsertionProps> = ({
           <h3 className="text-lg font-semibold">Insert Citation</h3>
           {selectedText && (
             <Badge variant="secondary" className="text-xs">
-              Selected: "{selectedText.length > 20 ? selectedText.substring(0, 20) + '...' : selectedText}"
+              Selected: "
+              {selectedText.length > 20
+                ? selectedText.substring(0, 20) + "..."
+                : selectedText}
+              "
             </Badge>
           )}
         </div>
-        <Button variant="ghost" size="sm" onClick={onClose}>
+        <Button aria-label="Close" variant="ghost" size="sm" onClick={onClose}>
           <X className="h-4 w-4" />
         </Button>
       </div>
@@ -276,20 +309,22 @@ export const CitationInsertion: React.FC<CitationInsertionProps> = ({
                 key={reference.id}
                 className={`p-3 border rounded-lg cursor-pointer transition-colors ${
                   state.selectedReferences.includes(reference)
-                    ? 'border-primary bg-primary/5'
-                    : 'border-border hover:bg-muted/50'
+                    ? "border-primary bg-primary/5"
+                    : "border-border hover:bg-muted/50"
                 }`}
                 onClick={() => handleReferenceSelect(reference)}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{reference.title}</p>
+                    <p className="text-sm font-medium truncate">
+                      {reference.title}
+                    </p>
                     <p className="text-xs text-muted-foreground">
-                      {reference.authors[0] ?
-                        `${reference.authors[0].lastName}, ${reference.authors[0].firstName}` :
-                        'Unknown author'
-                      }
-                      {reference.publicationDate && ` (${new Date(reference.publicationDate).getFullYear()})`}
+                      {reference.authors[0]
+                        ? `${reference.authors[0].lastName}, ${reference.authors[0].firstName}`
+                        : "Unknown author"}
+                      {reference.publicationDate &&
+                        ` (${new Date(reference.publicationDate).getFullYear()})`}
                     </p>
                   </div>
                   {state.selectedReferences.includes(reference) && (
@@ -312,7 +347,10 @@ export const CitationInsertion: React.FC<CitationInsertionProps> = ({
             <h4 className="text-sm font-medium">Selected References</h4>
             <div className="space-y-1">
               {state.selectedReferences.map((reference) => (
-                <div key={reference.id} className="flex items-center justify-between p-2 bg-muted/50 rounded">
+                <div
+                  key={reference.id}
+                  className="flex items-center justify-between p-2 bg-muted/50 rounded"
+                >
                   <span className="text-xs truncate">{reference.title}</span>
                   <Button
                     variant="ghost"
@@ -342,7 +380,7 @@ export const CitationInsertion: React.FC<CitationInsertionProps> = ({
           disabled={state.selectedReferences.length === 0 || state.isProcessing}
           className="flex-1"
         >
-          {state.isProcessing ? 'Processing...' : 'Preview Citation'}
+          {state.isProcessing ? "Processing..." : "Preview Citation"}
         </Button>
       </div>
 
@@ -413,5 +451,5 @@ export const CitationInsertion: React.FC<CitationInsertionProps> = ({
         </Card>
       )}
     </div>
-  )
-}
+  );
+};

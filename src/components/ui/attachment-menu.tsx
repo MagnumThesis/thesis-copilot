@@ -1,20 +1,20 @@
-"use client"
+"use client";
 
-import React, { useState, useEffect } from "react"
-import { 
-  Lightbulb, 
-  FileText, 
-  AlertTriangle, 
-  BookOpen, 
+import React, { useState, useEffect } from "react";
+import {
+  Lightbulb,
+  FileText,
+  AlertTriangle,
+  BookOpen,
   Paperclip,
   Check,
   X,
   Loader2,
   Pencil,
-  Sparkles
-} from "lucide-react"
+  Sparkles,
+} from "lucide-react";
 
-import { Button } from "@/components/ui/shadcn/button"
+import { Button } from "@/components/ui/shadcn/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,7 +22,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/shadcn/dropdown-menu"
+} from "@/components/ui/shadcn/dropdown-menu";
 import {
   Dialog,
   DialogContent,
@@ -30,33 +30,33 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { ScrollArea } from "@/components/ui/shadcn/scroll-area"
-import { Checkbox } from "@/components/ui/shadcn/checkbox"
-import { Badge } from "@/components/ui/shadcn/badge"
-import { Input } from "@/components/ui/shadcn/input"
-import { fetchIdeas, updateIdea, regenerateIdeaTitle } from "@/lib/idea-api"
-import { IdeaDefinition } from "@/lib/ai-types"
-import { ProofreadingConcern } from "@/lib/types/shared/common"
-import { Reference } from "@/lib/types/citation-types/reference-types"
-import { toast } from "sonner"
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/shadcn/scroll-area";
+import { Checkbox } from "@/components/ui/shadcn/checkbox";
+import { Badge } from "@/components/ui/shadcn/badge";
+import { Input } from "@/components/ui/shadcn/input";
+import { fetchIdeas, updateIdea, regenerateIdeaTitle } from "@/lib/idea-api";
+import { IdeaDefinition } from "@/lib/ai-types";
+import { ProofreadingConcern } from "@/lib/types/shared/common";
+import { Reference } from "@/lib/types/citation-types/reference-types";
+import { toast } from "sonner";
 
 /**
  * Represents an attached item from various sources (ideas, content, concerns, references)
  */
 export interface AttachedItem {
-  id: string
-  type: "idea" | "content" | "concern" | "reference"
-  title: string
-  description?: string
-  data: IdeaDefinition | string | ProofreadingConcern | Reference
+  id: string;
+  type: "idea" | "content" | "concern" | "reference";
+  title: string;
+  description?: string;
+  data: IdeaDefinition | string | ProofreadingConcern | Reference;
 }
 
 interface AttachmentMenuProps {
-  conversationId: string
-  attachedItems: AttachedItem[]
-  onAttachedItemsChange: (items: AttachedItem[]) => void
-  onFileUpload: () => Promise<void>
+  conversationId: string;
+  attachedItems: AttachedItem[];
+  onAttachedItemsChange: (items: AttachedItem[]) => void;
+  onFileUpload: () => Promise<void>;
 }
 
 /**
@@ -70,27 +70,29 @@ export function AttachmentMenu({
   onAttachedItemsChange,
   onFileUpload,
 }: AttachmentMenuProps) {
-  const [ideaDialogOpen, setIdeaDialogOpen] = useState(false)
-  const [contentDialogOpen, setContentDialogOpen] = useState(false)
-  const [concernDialogOpen, setConcernDialogOpen] = useState(false)
-  const [referenceDialogOpen, setReferenceDialogOpen] = useState(false)
+  const [ideaDialogOpen, setIdeaDialogOpen] = useState(false);
+  const [contentDialogOpen, setContentDialogOpen] = useState(false);
+  const [concernDialogOpen, setConcernDialogOpen] = useState(false);
+  const [referenceDialogOpen, setReferenceDialogOpen] = useState(false);
 
   const handleAttachItem = (item: AttachedItem) => {
     const exists = attachedItems.some(
-      (existing) => existing.id === item.id && existing.type === item.type
-    )
+      (existing) => existing.id === item.id && existing.type === item.type,
+    );
     if (!exists) {
-      onAttachedItemsChange([...attachedItems, item])
+      onAttachedItemsChange([...attachedItems, item]);
     }
-  }
+  };
 
   const handleRemoveItem = (itemId: string, itemType: string) => {
     onAttachedItemsChange(
-      attachedItems.filter((item) => !(item.id === itemId && item.type === itemType))
-    )
-  }
+      attachedItems.filter(
+        (item) => !(item.id === itemId && item.type === itemType),
+      ),
+    );
+  };
 
-  const getAttachedCount = () => attachedItems.length
+  const getAttachedCount = () => attachedItems.length;
 
   return (
     <>
@@ -105,8 +107,8 @@ export function AttachmentMenu({
           >
             <Paperclip className="h-4 w-4" />
             {getAttachedCount() > 0 && (
-              <Badge 
-                variant="default" 
+              <Badge
+                variant="default"
                 className="absolute -top-2 -right-2 h-5 w-5 p-0 flex items-center justify-center text-xs"
               >
                 {getAttachedCount()}
@@ -175,12 +177,14 @@ export function AttachmentMenu({
         open={referenceDialogOpen}
         onOpenChange={setReferenceDialogOpen}
         conversationId={conversationId}
-        selectedItems={attachedItems.filter((item) => item.type === "reference")}
+        selectedItems={attachedItems.filter(
+          (item) => item.type === "reference",
+        )}
         onSelect={handleAttachItem}
         onRemove={(id) => handleRemoveItem(id, "reference")}
       />
     </>
-  )
+  );
 }
 
 // ====================
@@ -188,12 +192,12 @@ export function AttachmentMenu({
 // ====================
 
 interface IdeaSelectorDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  conversationId: string
-  selectedItems: AttachedItem[]
-  onSelect: (item: AttachedItem) => void
-  onRemove: (id: string) => void
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  conversationId: string;
+  selectedItems: AttachedItem[];
+  onSelect: (item: AttachedItem) => void;
+  onRemove: (id: string) => void;
 }
 
 function IdeaSelectorDialog({
@@ -204,41 +208,43 @@ function IdeaSelectorDialog({
   onSelect,
   onRemove,
 }: IdeaSelectorDialogProps) {
-  const [ideas, setIdeas] = useState<IdeaDefinition[]>([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [editingId, setEditingId] = useState<string | number | null>(null)
-  const [editingTitle, setEditingTitle] = useState("")
-  const [isUpdating, setIsUpdating] = useState(false)
-  const [regeneratingId, setRegeneratingId] = useState<string | number | null>(null)
+  const [ideas, setIdeas] = useState<IdeaDefinition[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | number | null>(null);
+  const [editingTitle, setEditingTitle] = useState("");
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [regeneratingId, setRegeneratingId] = useState<string | number | null>(
+    null,
+  );
 
   useEffect(() => {
     if (open && conversationId) {
-      loadIdeas()
+      loadIdeas();
     }
-  }, [open, conversationId])
+  }, [open, conversationId]);
 
   const loadIdeas = async () => {
     try {
-      setLoading(true)
-      setError(null)
-      const fetchedIdeas = await fetchIdeas(conversationId)
-      setIdeas(fetchedIdeas)
+      setLoading(true);
+      setError(null);
+      const fetchedIdeas = await fetchIdeas(conversationId);
+      setIdeas(fetchedIdeas);
     } catch (err) {
-      setError("Failed to load ideas")
-      console.error(err)
+      setError("Failed to load ideas");
+      console.error(err);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
-  const isSelected = (id: string | number) => 
-    selectedItems.some((item) => item.id === String(id))
+  const isSelected = (id: string | number) =>
+    selectedItems.some((item) => item.id === String(id));
 
   const handleToggle = (idea: IdeaDefinition) => {
-    const ideaId = String(idea.id)
+    const ideaId = String(idea.id);
     if (isSelected(idea.id)) {
-      onRemove(ideaId)
+      onRemove(ideaId);
     } else {
       onSelect({
         id: ideaId,
@@ -246,67 +252,76 @@ function IdeaSelectorDialog({
         title: idea.title,
         description: idea.description,
         data: idea,
-      })
+      });
     }
-  }
+  };
 
   const handleStartEdit = (idea: IdeaDefinition, e: React.MouseEvent) => {
-    e.stopPropagation()
-    setEditingId(idea.id)
-    setEditingTitle(idea.title)
-  }
+    e.stopPropagation();
+    setEditingId(idea.id);
+    setEditingTitle(idea.title);
+  };
 
   const handleCancelEdit = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    setEditingId(null)
-    setEditingTitle("")
-  }
+    e.stopPropagation();
+    setEditingId(null);
+    setEditingTitle("");
+  };
 
   const handleSaveEdit = async (idea: IdeaDefinition, e: React.MouseEvent) => {
-    e.stopPropagation()
+    e.stopPropagation();
     if (!editingTitle.trim()) {
-      toast.error("Title cannot be empty")
-      return
+      toast.error("Title cannot be empty");
+      return;
     }
 
     try {
-      setIsUpdating(true)
-      await updateIdea(Number(idea.id), { title: editingTitle.trim() })
-      setIdeas(prev => prev.map(i => 
-        i.id === idea.id ? { ...i, title: editingTitle.trim() } : i
-      ))
-      setEditingId(null)
-      setEditingTitle("")
-      toast.success("Title updated successfully")
+      setIsUpdating(true);
+      await updateIdea(Number(idea.id), { title: editingTitle.trim() });
+      setIdeas((prev) =>
+        prev.map((i) =>
+          i.id === idea.id ? { ...i, title: editingTitle.trim() } : i,
+        ),
+      );
+      setEditingId(null);
+      setEditingTitle("");
+      toast.success("Title updated successfully");
     } catch (err) {
-      console.error("Failed to update title:", err)
-      toast.error("Failed to update title")
+      console.error("Failed to update title:", err);
+      toast.error("Failed to update title");
     } finally {
-      setIsUpdating(false)
+      setIsUpdating(false);
     }
-  }
+  };
 
-  const handleRegenerateTitle = async (idea: IdeaDefinition, e: React.MouseEvent) => {
-    e.stopPropagation()
+  const handleRegenerateTitle = async (
+    idea: IdeaDefinition,
+    e: React.MouseEvent,
+  ) => {
+    e.stopPropagation();
     if (!idea.description) {
-      toast.error("Cannot regenerate title without a description")
-      return
+      toast.error("Cannot regenerate title without a description");
+      return;
     }
 
     try {
-      setRegeneratingId(idea.id)
-      const result = await regenerateIdeaTitle(Number(idea.id), idea.description, conversationId)
-      setIdeas(prev => prev.map(i => 
-        i.id === idea.id ? { ...i, title: result.title } : i
-      ))
-      toast.success("Title regenerated successfully")
+      setRegeneratingId(idea.id);
+      const result = await regenerateIdeaTitle(
+        Number(idea.id),
+        idea.description,
+        conversationId,
+      );
+      setIdeas((prev) =>
+        prev.map((i) => (i.id === idea.id ? { ...i, title: result.title } : i)),
+      );
+      toast.success("Title regenerated successfully");
     } catch (err) {
-      console.error("Failed to regenerate title:", err)
-      toast.error("Failed to regenerate title")
+      console.error("Failed to regenerate title:", err);
+      toast.error("Failed to regenerate title");
     } finally {
-      setRegeneratingId(null)
+      setRegeneratingId(null);
     }
-  }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -350,7 +365,10 @@ function IdeaSelectorDialog({
                   />
                   <div className="flex-1 min-w-0">
                     {editingId === idea.id ? (
-                      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                      <div
+                        className="flex items-center gap-2"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <Input
                           value={editingTitle}
                           onChange={(e) => setEditingTitle(e.target.value)}
@@ -358,10 +376,15 @@ function IdeaSelectorDialog({
                           autoFocus
                           disabled={isUpdating}
                           onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              handleSaveEdit(idea, e as unknown as React.MouseEvent)
-                            } else if (e.key === 'Escape') {
-                              handleCancelEdit(e as unknown as React.MouseEvent)
+                            if (e.key === "Enter") {
+                              handleSaveEdit(
+                                idea,
+                                e as unknown as React.MouseEvent,
+                              );
+                            } else if (e.key === "Escape") {
+                              handleCancelEdit(
+                                e as unknown as React.MouseEvent,
+                              );
                             }
                           }}
                         />
@@ -379,6 +402,7 @@ function IdeaSelectorDialog({
                           )}
                         </Button>
                         <Button
+                          aria-label="Close"
                           variant="ghost"
                           size="icon"
                           className="h-7 w-7"
@@ -390,7 +414,7 @@ function IdeaSelectorDialog({
                       </div>
                     ) : (
                       <div className="flex items-center gap-2">
-                        <span 
+                        <span
                           className="font-medium text-sm truncate flex-1 cursor-pointer"
                           onClick={() => handleToggle(idea)}
                         >
@@ -413,7 +437,9 @@ function IdeaSelectorDialog({
                           size="icon"
                           className="h-6 w-6 shrink-0"
                           onClick={(e) => handleRegenerateTitle(idea, e)}
-                          disabled={regeneratingId === idea.id || !idea.description}
+                          disabled={
+                            regeneratingId === idea.id || !idea.description
+                          }
                           title="Regenerate title with AI"
                         >
                           {regeneratingId === idea.id ? (
@@ -425,7 +451,7 @@ function IdeaSelectorDialog({
                       </div>
                     )}
                     {idea.description && (
-                      <p 
+                      <p
                         className="text-xs text-muted-foreground mt-1 line-clamp-2 cursor-pointer"
                         onClick={() => handleToggle(idea)}
                       >
@@ -446,7 +472,7 @@ function IdeaSelectorDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
 
 // =======================
@@ -454,12 +480,12 @@ function IdeaSelectorDialog({
 // =======================
 
 interface ContentSelectorDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  conversationId: string
-  selectedItems: AttachedItem[]
-  onSelect: (item: AttachedItem) => void
-  onRemove: (id: string) => void
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  conversationId: string;
+  selectedItems: AttachedItem[];
+  onSelect: (item: AttachedItem) => void;
+  onRemove: (id: string) => void;
 }
 
 function ContentSelectorDialog({
@@ -470,54 +496,59 @@ function ContentSelectorDialog({
   onSelect,
   onRemove,
 }: ContentSelectorDialogProps) {
-  const [content, setContent] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [content, setContent] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (open && conversationId) {
-      loadContent()
+      loadContent();
     }
-  }, [open, conversationId])
+  }, [open, conversationId]);
 
   const loadContent = async () => {
     try {
-      setLoading(true)
-      setError(null)
-      const response = await fetch(`/api/builder-content/${encodeURIComponent(conversationId)}`)
+      setLoading(true);
+      setError(null);
+      const response = await fetch(
+        `/api/builder-content/${encodeURIComponent(conversationId)}`,
+      );
       if (response.ok) {
-        const data = await response.json()
+        const data = await response.json();
         if (data.success && data.content) {
-          setContent(data.content)
+          setContent(data.content);
         } else {
-          setContent(null)
+          setContent(null);
         }
       } else {
-        setContent(null)
+        setContent(null);
       }
     } catch (err) {
-      setError("Failed to load content")
-      console.error(err)
+      setError("Failed to load content");
+      console.error(err);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
-  const isSelected = selectedItems.some((item) => item.id === "builder-content")
+  const isSelected = selectedItems.some(
+    (item) => item.id === "builder-content",
+  );
 
   const handleToggle = () => {
     if (isSelected) {
-      onRemove("builder-content")
+      onRemove("builder-content");
     } else if (content) {
       onSelect({
         id: "builder-content",
         type: "content",
         title: "Builder Content",
-        description: content.substring(0, 100) + (content.length > 100 ? "..." : ""),
+        description:
+          content.substring(0, 100) + (content.length > 100 ? "..." : ""),
         data: content,
-      })
+      });
     }
-  }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -575,7 +606,7 @@ function ContentSelectorDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
 
 // =======================
@@ -583,12 +614,12 @@ function ContentSelectorDialog({
 // =======================
 
 interface ConcernSelectorDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  conversationId: string
-  selectedItems: AttachedItem[]
-  onSelect: (item: AttachedItem) => void
-  onRemove: (id: string) => void
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  conversationId: string;
+  selectedItems: AttachedItem[];
+  onSelect: (item: AttachedItem) => void;
+  onRemove: (id: string) => void;
 }
 
 function ConcernSelectorDialog({
@@ -599,73 +630,77 @@ function ConcernSelectorDialog({
   onSelect,
   onRemove,
 }: ConcernSelectorDialogProps) {
-  const [concerns, setConcerns] = useState<ProofreadingConcern[]>([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [concerns, setConcerns] = useState<ProofreadingConcern[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (open && conversationId) {
-      loadConcerns()
+      loadConcerns();
     }
-  }, [open, conversationId])
+  }, [open, conversationId]);
 
   const loadConcerns = async () => {
     try {
-      setLoading(true)
-      setError(null)
-      const response = await fetch(`/api/proofreader/concerns/${encodeURIComponent(conversationId)}`)
+      setLoading(true);
+      setError(null);
+      const response = await fetch(
+        `/api/proofreader/concerns/${encodeURIComponent(conversationId)}`,
+      );
       if (response.ok) {
-        const data = await response.json()
+        const data = await response.json();
         if (data.success && Array.isArray(data.concerns)) {
-          setConcerns(data.concerns)
+          setConcerns(data.concerns);
         } else {
-          setConcerns([])
+          setConcerns([]);
         }
       } else {
-        setConcerns([])
+        setConcerns([]);
       }
     } catch (err) {
-      setError("Failed to load concerns")
-      console.error(err)
+      setError("Failed to load concerns");
+      console.error(err);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
-  const isSelected = (id: string) => 
-    selectedItems.some((item) => item.id === id)
+  const isSelected = (id: string) =>
+    selectedItems.some((item) => item.id === id);
 
   const handleToggle = (concern: ProofreadingConcern) => {
     if (isSelected(concern.id)) {
-      onRemove(concern.id)
+      onRemove(concern.id);
     } else {
       // Use title or text for display, preferring title for AI-generated concerns
-      const displayText = concern.title || concern.text || concern.description || ''
-      const displayTitle = displayText.length > 50 
-        ? `${concern.category}: ${displayText.substring(0, 50)}...`
-        : `${concern.category}: ${displayText}`
+      const displayText =
+        concern.title || concern.text || concern.description || "";
+      const displayTitle =
+        displayText.length > 50
+          ? `${concern.category}: ${displayText.substring(0, 50)}...`
+          : `${concern.category}: ${displayText}`;
       onSelect({
         id: concern.id,
         type: "concern",
         title: displayTitle,
         description: concern.explanation || concern.description,
         data: concern,
-      })
+      });
     }
-  }
+  };
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
       case "critical":
-        return "text-red-500"
+        return "text-red-500";
       case "high":
-        return "text-orange-500"
+        return "text-orange-500";
       case "medium":
-        return "text-yellow-500"
+        return "text-yellow-500";
       default:
-        return "text-blue-500"
+        return "text-blue-500";
     }
-  }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -694,10 +729,13 @@ function ConcernSelectorDialog({
           ) : (
             <div className="space-y-2">
               {concerns.map((concern) => {
-                const isAIGenerated = (concern as any).aiGenerated === true || 
-                  (typeof concern.explanation === 'string' && concern.explanation.startsWith('(AI-generated)'))
-                const displayText = concern.title || concern.text || concern.description || ''
-                
+                const isAIGenerated =
+                  (concern as any).aiGenerated === true ||
+                  (typeof concern.explanation === "string" &&
+                    concern.explanation.startsWith("(AI-generated)"));
+                const displayText =
+                  concern.title || concern.text || concern.description || "";
+
                 return (
                   <div
                     key={concern.id}
@@ -717,8 +755,8 @@ function ConcernSelectorDialog({
                         <Badge variant="outline" className="text-xs">
                           {concern.category}
                         </Badge>
-                        <Badge 
-                          variant="outline" 
+                        <Badge
+                          variant="outline"
                           className={`text-xs ${getSeverityColor(concern.severity)}`}
                         >
                           {concern.severity}
@@ -731,14 +769,15 @@ function ConcernSelectorDialog({
                         )}
                       </div>
                       <p className="text-sm mt-1 line-clamp-2">{displayText}</p>
-                      {concern.description && concern.description !== displayText && (
-                        <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
-                          {concern.description}
-                        </p>
-                      )}
+                      {concern.description &&
+                        concern.description !== displayText && (
+                          <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
+                            {concern.description}
+                          </p>
+                        )}
                     </div>
                   </div>
-                )
+                );
               })}
             </div>
           )}
@@ -751,7 +790,7 @@ function ConcernSelectorDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
 
 // =========================
@@ -759,12 +798,12 @@ function ConcernSelectorDialog({
 // =========================
 
 interface ReferenceSelectorDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  conversationId: string
-  selectedItems: AttachedItem[]
-  onSelect: (item: AttachedItem) => void
-  onRemove: (id: string) => void
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  conversationId: string;
+  selectedItems: AttachedItem[];
+  onSelect: (item: AttachedItem) => void;
+  onRemove: (id: string) => void;
 }
 
 function ReferenceSelectorDialog({
@@ -775,61 +814,67 @@ function ReferenceSelectorDialog({
   onSelect,
   onRemove,
 }: ReferenceSelectorDialogProps) {
-  const [references, setReferences] = useState<Reference[]>([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [references, setReferences] = useState<Reference[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (open && conversationId) {
-      loadReferences()
+      loadReferences();
     }
-  }, [open, conversationId])
+  }, [open, conversationId]);
 
   const loadReferences = async () => {
     try {
-      setLoading(true)
-      setError(null)
+      setLoading(true);
+      setError(null);
       // Use correct API path: /api/referencer/references/:conversationId
-      const response = await fetch(`/api/referencer/references/${encodeURIComponent(conversationId)}`)
+      const response = await fetch(
+        `/api/referencer/references/${encodeURIComponent(conversationId)}`,
+      );
       if (response.ok) {
-        const data = await response.json()
+        const data = await response.json();
         if (data.success && Array.isArray(data.references)) {
-          setReferences(data.references)
+          setReferences(data.references);
         } else if (Array.isArray(data)) {
-          setReferences(data)
+          setReferences(data);
         } else {
-          setReferences([])
+          setReferences([]);
         }
       } else {
-        setReferences([])
+        setReferences([]);
       }
     } catch (err) {
-      setError("Failed to load references")
-      console.error(err)
+      setError("Failed to load references");
+      console.error(err);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
-  const isSelected = (id: string) => 
-    selectedItems.some((item) => item.id === id)
+  const isSelected = (id: string) =>
+    selectedItems.some((item) => item.id === id);
 
   const handleToggle = (reference: Reference) => {
     if (isSelected(reference.id)) {
-      onRemove(reference.id)
+      onRemove(reference.id);
     } else {
-      const authors = Array.isArray(reference.authors) 
-        ? reference.authors.map(a => typeof a === 'string' ? a : `${a.firstName} ${a.lastName}`).join(", ")
-        : ""
+      const authors = Array.isArray(reference.authors)
+        ? reference.authors
+            .map((a) =>
+              typeof a === "string" ? a : `${a.firstName} ${a.lastName}`,
+            )
+            .join(", ")
+        : "";
       onSelect({
         id: reference.id,
         type: "reference",
         title: reference.title,
         description: `${authors}${reference.publication_date ? ` (${new Date(reference.publication_date).getFullYear()})` : ""}`,
         data: reference,
-      })
+      });
     }
-  }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -858,9 +903,15 @@ function ReferenceSelectorDialog({
           ) : (
             <div className="space-y-2">
               {references.map((reference) => {
-                const authors = Array.isArray(reference.authors) 
-                  ? reference.authors.map(a => typeof a === 'string' ? a : `${a.firstName} ${a.lastName}`).join(", ")
-                  : ""
+                const authors = Array.isArray(reference.authors)
+                  ? reference.authors
+                      .map((a) =>
+                        typeof a === "string"
+                          ? a
+                          : `${a.firstName} ${a.lastName}`,
+                      )
+                      .join(", ")
+                  : "";
                 return (
                   <div
                     key={reference.id}
@@ -896,7 +947,7 @@ function ReferenceSelectorDialog({
                       )}
                     </div>
                   </div>
-                )
+                );
               })}
             </div>
           )}
@@ -909,5 +960,5 @@ function ReferenceSelectorDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
