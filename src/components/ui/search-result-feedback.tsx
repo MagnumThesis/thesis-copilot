@@ -1,100 +1,96 @@
-"use client"
+"use client";
 
-import React, { useState } from "react"
-import { Button } from "./shadcn/button"
-import { Card, CardContent, CardHeader, CardTitle } from "./shadcn/card"
-import { Badge } from "./shadcn/badge"
-import { Textarea } from "./shadcn/textarea"
-import { Label } from "./shadcn/label"
-import { 
-  ThumbsUp, 
-  ThumbsDown, 
-  Star, 
-  MessageSquare, 
+import React, { useState } from "react";
+import { Button } from "./shadcn/button";
+import { Card, CardContent, CardHeader, CardTitle } from "./shadcn/card";
+import { Badge } from "./shadcn/badge";
+import { Textarea } from "./shadcn/textarea";
+import { Label } from "./shadcn/label";
+import {
+  ThumbsUp,
+  ThumbsDown,
+  Star,
+  MessageSquare,
   X,
   Send,
-  AlertCircle
-} from "lucide-react"
+  AlertCircle,
+} from "lucide-react";
 
 export interface SearchResultFeedback {
-  resultId: string
-  isRelevant: boolean
-  qualityRating: number // 1-5 scale
-  comments?: string
-  timestamp: Date
+  resultId: string;
+  isRelevant: boolean;
+  qualityRating: number; // 1-5 scale
+  comments?: string;
+  timestamp: Date;
 }
 
 export interface SearchResultFeedbackProps {
-  resultId: string
-  resultTitle: string
-  onSubmitFeedback: (feedback: SearchResultFeedback) => Promise<void>
-  onCancel?: () => void
-  className?: string
+  resultId: string;
+  resultTitle: string;
+  onSubmitFeedback: (feedback: SearchResultFeedback) => Promise<void>;
+  onCancel?: () => void;
+  className?: string;
 }
 
-export const SearchResultFeedbackComponent: React.FC<SearchResultFeedbackProps> = ({
-  resultId,
-  resultTitle,
-  onSubmitFeedback,
-  onCancel,
-  className = ""
-}) => {
-  const [isRelevant, setIsRelevant] = useState<boolean | null>(null)
-  const [qualityRating, setQualityRating] = useState<number>(0)
-  const [comments, setComments] = useState("")
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [showDetailedForm, setShowDetailedForm] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+export const SearchResultFeedbackComponent: React.FC<
+  SearchResultFeedbackProps
+> = ({ resultId, resultTitle, onSubmitFeedback, onCancel, className = "" }) => {
+  const [isRelevant, setIsRelevant] = useState<boolean | null>(null);
+  const [qualityRating, setQualityRating] = useState<number>(0);
+  const [comments, setComments] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showDetailedForm, setShowDetailedForm] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleRelevanceClick = (relevant: boolean) => {
-    setIsRelevant(relevant)
-    setError(null)
-    
+    setIsRelevant(relevant);
+    setError(null);
+
     // If marking as not relevant, show detailed form for feedback
     if (!relevant) {
-      setShowDetailedForm(true)
+      setShowDetailedForm(true);
     }
-  }
+  };
 
   const handleStarClick = (rating: number) => {
-    setQualityRating(rating)
-    setError(null)
-  }
+    setQualityRating(rating);
+    setError(null);
+  };
 
   const handleQuickFeedback = async (relevant: boolean, rating: number = 3) => {
-    if (isSubmitting) return
+    if (isSubmitting) return;
 
-    setIsSubmitting(true)
-    setError(null)
+    setIsSubmitting(true);
+    setError(null);
 
     try {
       const feedback: SearchResultFeedback = {
         resultId,
         isRelevant: relevant,
         qualityRating: rating,
-        timestamp: new Date()
-      }
+        timestamp: new Date(),
+      };
 
-      await onSubmitFeedback(feedback)
+      await onSubmitFeedback(feedback);
     } catch (error) {
-      console.error('Error submitting quick feedback:', error)
-      setError('Failed to submit feedback. Please try again.')
+      console.error("Error submitting quick feedback:", error);
+      setError("Failed to submit feedback. Please try again.");
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   const handleDetailedSubmit = async () => {
-    if (isSubmitting || isRelevant === null) return
+    if (isSubmitting || isRelevant === null) return;
 
     // Validate required fields
     if (!isRelevant && qualityRating === 0) {
-      setError('Please provide a quality rating')
-      return
+      setError("Please provide a quality rating");
+      return;
     }
 
-    setIsSubmitting(true)
-    setError(null)
+    setIsSubmitting(true);
+    setError(null);
 
     try {
       const feedback: SearchResultFeedback = {
@@ -102,26 +98,26 @@ export const SearchResultFeedbackComponent: React.FC<SearchResultFeedbackProps> 
         isRelevant,
         qualityRating: qualityRating || 3,
         comments: comments.trim() || undefined,
-        timestamp: new Date()
-      }
+        timestamp: new Date(),
+      };
 
-      await onSubmitFeedback(feedback)
+      await onSubmitFeedback(feedback);
     } catch (error) {
-      console.error('Error submitting detailed feedback:', error)
-      setError('Failed to submit feedback. Please try again.')
+      console.error("Error submitting detailed feedback:", error);
+      setError("Failed to submit feedback. Please try again.");
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   const handleCancel = () => {
-    setIsRelevant(null)
-    setQualityRating(0)
-    setComments("")
-    setShowDetailedForm(false)
-    setError(null)
-    onCancel?.()
-  }
+    setIsRelevant(null);
+    setQualityRating(0);
+    setComments("");
+    setShowDetailedForm(false);
+    setError(null);
+    onCancel?.();
+  };
 
   const renderStarRating = (interactive: boolean = true) => {
     return (
@@ -133,17 +129,17 @@ export const SearchResultFeedbackComponent: React.FC<SearchResultFeedbackProps> 
             onClick={() => interactive && handleStarClick(star)}
             disabled={!interactive || isSubmitting}
             className={`p-1 rounded transition-colors ${
-              interactive && !isSubmitting 
-                ? 'hover:bg-gray-100 cursor-pointer' 
-                : 'cursor-default'
+              interactive && !isSubmitting
+                ? "hover:bg-gray-100 cursor-pointer"
+                : "cursor-default"
             }`}
             aria-label={`Rate ${star} out of 5 stars`}
           >
             <Star
               className={`h-4 w-4 ${
                 star <= qualityRating
-                  ? 'fill-yellow-400 text-yellow-400'
-                  : 'text-gray-300'
+                  ? "fill-yellow-400 text-yellow-400"
+                  : "text-gray-300"
               }`}
             />
           </button>
@@ -154,8 +150,8 @@ export const SearchResultFeedbackComponent: React.FC<SearchResultFeedbackProps> 
           </span>
         )}
       </div>
-    )
-  }
+    );
+  };
 
   // Quick feedback buttons (shown initially)
   if (!showDetailedForm && isRelevant === null) {
@@ -166,6 +162,7 @@ export const SearchResultFeedbackComponent: React.FC<SearchResultFeedbackProps> 
             Was this result helpful?
           </span>
           <Button
+            aria-label="Close"
             variant="ghost"
             size="sm"
             onClick={handleCancel}
@@ -215,7 +212,7 @@ export const SearchResultFeedbackComponent: React.FC<SearchResultFeedbackProps> 
           </div>
         )}
       </div>
-    )
+    );
   }
 
   // Detailed feedback form
@@ -224,12 +221,13 @@ export const SearchResultFeedbackComponent: React.FC<SearchResultFeedbackProps> 
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-medium">
-            Feedback for: {resultTitle.length > 50 
-              ? `${resultTitle.substring(0, 50)}...` 
-              : resultTitle
-            }
+            Feedback for:{" "}
+            {resultTitle.length > 50
+              ? `${resultTitle.substring(0, 50)}...`
+              : resultTitle}
           </CardTitle>
           <Button
+            aria-label="Close"
             variant="ghost"
             size="sm"
             onClick={handleCancel}
@@ -325,42 +323,45 @@ export const SearchResultFeedbackComponent: React.FC<SearchResultFeedbackProps> 
             className="flex items-center gap-2"
           >
             <Send className="h-4 w-4" />
-            {isSubmitting ? 'Submitting...' : 'Submit Feedback'}
+            {isSubmitting ? "Submitting..." : "Submit Feedback"}
           </Button>
         </div>
       </CardContent>
     </Card>
-  )
-}
+  );
+};
 
 // Quick feedback buttons component for inline use
 export interface QuickFeedbackButtonsProps {
-  resultId: string
-  onFeedback: (feedback: { isRelevant: boolean; rating: number }) => Promise<void>
-  disabled?: boolean
-  className?: string
+  resultId: string;
+  onFeedback: (feedback: {
+    isRelevant: boolean;
+    rating: number;
+  }) => Promise<void>;
+  disabled?: boolean;
+  className?: string;
 }
 
 export const QuickFeedbackButtons: React.FC<QuickFeedbackButtonsProps> = ({
   resultId,
   onFeedback,
   disabled = false,
-  className = ""
+  className = "",
 }) => {
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleQuickFeedback = async (isRelevant: boolean, rating: number) => {
-    if (isSubmitting || disabled) return
+    if (isSubmitting || disabled) return;
 
-    setIsSubmitting(true)
+    setIsSubmitting(true);
     try {
-      await onFeedback({ isRelevant, rating })
+      await onFeedback({ isRelevant, rating });
     } catch (error) {
-      console.error('Error submitting quick feedback:', error)
+      console.error("Error submitting quick feedback:", error);
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   return (
     <div className={`flex items-center gap-1 ${className}`}>
@@ -385,5 +386,5 @@ export const QuickFeedbackButtons: React.FC<QuickFeedbackButtonsProps> = ({
         <ThumbsDown className="h-3 w-3" />
       </Button>
     </div>
-  )
-}
+  );
+};

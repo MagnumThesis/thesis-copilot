@@ -1,145 +1,160 @@
-"use client"
+"use client";
 
-import React, { useState } from "react"
-import { Button } from "./shadcn/button"
-import { Card, CardContent, CardHeader, CardTitle } from "./shadcn/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./shadcn/select"
-import { Checkbox } from "./shadcn/checkbox"
-import { Label } from "./shadcn/label"
-import { Textarea } from "./shadcn/textarea"
-import { 
-  Download, 
-  FileText, 
-  FileSpreadsheet, 
-  Code, 
+import React, { useState } from "react";
+import { Button } from "./shadcn/button";
+import { Card, CardContent, CardHeader, CardTitle } from "./shadcn/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./shadcn/select";
+import { Checkbox } from "./shadcn/checkbox";
+import { Label } from "./shadcn/label";
+import { Textarea } from "./shadcn/textarea";
+import {
+  Download,
+  FileText,
+  FileSpreadsheet,
+  Code,
   Share2,
   Copy,
   Check,
-  X
-} from "lucide-react"
-import { ScholarSearchResult, CitationStyle } from "../../lib/ai-types"
+  X,
+} from "lucide-react";
+import { ScholarSearchResult, CitationStyle } from "../../lib/ai-types";
 
-export type ExportFormat = 'json' | 'csv' | 'bibtex' | 'ris' | 'txt' | 'markdown'
+export type ExportFormat =
+  | "json"
+  | "csv"
+  | "bibtex"
+  | "ris"
+  | "txt"
+  | "markdown";
 
 export interface ExportOptions {
-  format: ExportFormat
-  includeScores: boolean
-  includeAbstracts: boolean
-  includeUrls: boolean
-  includeDoi: boolean
-  includeKeywords: boolean
-  citationStyle?: CitationStyle
-  customFields?: string[]
-  filename?: string
+  format: ExportFormat;
+  includeScores: boolean;
+  includeAbstracts: boolean;
+  includeUrls: boolean;
+  includeDoi: boolean;
+  includeKeywords: boolean;
+  citationStyle?: CitationStyle;
+  customFields?: string[];
+  filename?: string;
 }
 
 interface SearchResultExportProps {
-  results: ScholarSearchResult[]
-  onExport: (results: ScholarSearchResult[], options: ExportOptions) => Promise<string>
-  onClose?: () => void
-  className?: string
+  results: ScholarSearchResult[];
+  onExport: (
+    results: ScholarSearchResult[],
+    options: ExportOptions,
+  ) => Promise<string>;
+  onClose?: () => void;
+  className?: string;
 }
 
 export const SearchResultExport: React.FC<SearchResultExportProps> = ({
   results,
   onExport,
   onClose,
-  className = ""
+  className = "",
 }) => {
   const [exportOptions, setExportOptions] = useState<ExportOptions>({
-    format: 'json',
+    format: "json",
     includeScores: true,
     includeAbstracts: true,
     includeUrls: true,
     includeDoi: true,
     includeKeywords: true,
     citationStyle: CitationStyle.APA,
-    filename: `search-results-${new Date().toISOString().split('T')[0]}`
-  })
-  
-  const [isExporting, setIsExporting] = useState(false)
-  const [exportedContent, setExportedContent] = useState<string | null>(null)
-  const [copied, setCopied] = useState(false)
+    filename: `search-results-${new Date().toISOString().split("T")[0]}`,
+  });
+
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportedContent, setExportedContent] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const handleExport = async () => {
-    setIsExporting(true)
+    setIsExporting(true);
     try {
-      const content = await onExport(results, exportOptions)
-      setExportedContent(content)
+      const content = await onExport(results, exportOptions);
+      setExportedContent(content);
     } catch (error) {
-      console.error('Export failed:', error)
+      console.error("Export failed:", error);
     } finally {
-      setIsExporting(false)
+      setIsExporting(false);
     }
-  }
+  };
 
   const handleDownload = () => {
-    if (!exportedContent) return
+    if (!exportedContent) return;
 
-    const blob = new Blob([exportedContent], { 
-      type: getContentType(exportOptions.format) 
-    })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${exportOptions.filename}.${exportOptions.format}`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
-  }
+    const blob = new Blob([exportedContent], {
+      type: getContentType(exportOptions.format),
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${exportOptions.filename}.${exportOptions.format}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
   const handleCopyToClipboard = async () => {
-    if (!exportedContent) return
+    if (!exportedContent) return;
 
     try {
-      await navigator.clipboard.writeText(exportedContent)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
+      await navigator.clipboard.writeText(exportedContent);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     } catch (error) {
-      console.error('Failed to copy to clipboard:', error)
+      console.error("Failed to copy to clipboard:", error);
     }
-  }
+  };
 
   const getContentType = (format: ExportFormat): string => {
     switch (format) {
-      case 'json':
-        return 'application/json'
-      case 'csv':
-        return 'text/csv'
-      case 'bibtex':
-        return 'application/x-bibtex'
-      case 'ris':
-        return 'application/x-research-info-systems'
-      case 'txt':
-        return 'text/plain'
-      case 'markdown':
-        return 'text/markdown'
+      case "json":
+        return "application/json";
+      case "csv":
+        return "text/csv";
+      case "bibtex":
+        return "application/x-bibtex";
+      case "ris":
+        return "application/x-research-info-systems";
+      case "txt":
+        return "text/plain";
+      case "markdown":
+        return "text/markdown";
       default:
-        return 'text/plain'
+        return "text/plain";
     }
-  }
+  };
 
   const getFormatIcon = (format: ExportFormat) => {
     switch (format) {
-      case 'json':
-      case 'bibtex':
-      case 'ris':
-        return <Code className="h-4 w-4" />
-      case 'csv':
-        return <FileSpreadsheet className="h-4 w-4" />
-      case 'txt':
-      case 'markdown':
-        return <FileText className="h-4 w-4" />
+      case "json":
+      case "bibtex":
+      case "ris":
+        return <Code className="h-4 w-4" />;
+      case "csv":
+        return <FileSpreadsheet className="h-4 w-4" />;
+      case "txt":
+      case "markdown":
+        return <FileText className="h-4 w-4" />;
       default:
-        return <FileText className="h-4 w-4" />
+        return <FileText className="h-4 w-4" />;
     }
-  }
+  };
 
   const updateExportOptions = (updates: Partial<ExportOptions>) => {
-    setExportOptions(prev => ({ ...prev, ...updates }))
-    setExportedContent(null) // Clear previous export when options change
-  }
+    setExportOptions((prev) => ({ ...prev, ...updates }));
+    setExportedContent(null); // Clear previous export when options change
+  };
 
   return (
     <div className={`space-y-4 ${className}`}>
@@ -151,20 +166,27 @@ export const SearchResultExport: React.FC<SearchResultExportProps> = ({
               Export Search Results ({results.length} results)
             </CardTitle>
             {onClose && (
-              <Button variant="ghost" size="sm" onClick={onClose}>
+              <Button
+                aria-label="Close"
+                variant="ghost"
+                size="sm"
+                onClick={onClose}
+              >
                 <X className="h-4 w-4" />
               </Button>
             )}
           </div>
         </CardHeader>
-        
+
         <CardContent className="space-y-4">
           {/* Format Selection */}
           <div className="space-y-2">
             <Label>Export Format</Label>
-            <Select 
-              value={exportOptions.format} 
-              onValueChange={(value) => updateExportOptions({ format: value as ExportFormat })}
+            <Select
+              value={exportOptions.format}
+              onValueChange={(value) =>
+                updateExportOptions({ format: value as ExportFormat })
+              }
             >
               <SelectTrigger>
                 <SelectValue />
@@ -211,12 +233,16 @@ export const SearchResultExport: React.FC<SearchResultExportProps> = ({
           </div>
 
           {/* Citation Style (for BibTeX, RIS, and text formats) */}
-          {(['bibtex', 'ris', 'txt', 'markdown'].includes(exportOptions.format)) && (
+          {["bibtex", "ris", "txt", "markdown"].includes(
+            exportOptions.format,
+          ) && (
             <div className="space-y-2">
               <Label>Citation Style</Label>
-              <Select 
-                value={exportOptions.citationStyle} 
-                onValueChange={(value) => updateExportOptions({ citationStyle: value as CitationStyle })}
+              <Select
+                value={exportOptions.citationStyle}
+                onValueChange={(value) =>
+                  updateExportOptions({ citationStyle: value as CitationStyle })
+                }
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -227,7 +253,9 @@ export const SearchResultExport: React.FC<SearchResultExportProps> = ({
                   <SelectItem value={CitationStyle.CHICAGO}>Chicago</SelectItem>
                   <SelectItem value={CitationStyle.HARVARD}>Harvard</SelectItem>
                   <SelectItem value={CitationStyle.IEEE}>IEEE</SelectItem>
-                  <SelectItem value={CitationStyle.VANCOUVER}>Vancouver</SelectItem>
+                  <SelectItem value={CitationStyle.VANCOUVER}>
+                    Vancouver
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -241,45 +269,65 @@ export const SearchResultExport: React.FC<SearchResultExportProps> = ({
                 <Checkbox
                   id="include-scores"
                   checked={exportOptions.includeScores}
-                  onCheckedChange={(checked) => updateExportOptions({ includeScores: !!checked })}
+                  onCheckedChange={(checked) =>
+                    updateExportOptions({ includeScores: !!checked })
+                  }
                 />
-                <Label htmlFor="include-scores" className="text-sm">Relevance scores</Label>
+                <Label htmlFor="include-scores" className="text-sm">
+                  Relevance scores
+                </Label>
               </div>
-              
+
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="include-abstracts"
                   checked={exportOptions.includeAbstracts}
-                  onCheckedChange={(checked) => updateExportOptions({ includeAbstracts: !!checked })}
+                  onCheckedChange={(checked) =>
+                    updateExportOptions({ includeAbstracts: !!checked })
+                  }
                 />
-                <Label htmlFor="include-abstracts" className="text-sm">Abstracts</Label>
+                <Label htmlFor="include-abstracts" className="text-sm">
+                  Abstracts
+                </Label>
               </div>
-              
+
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="include-urls"
                   checked={exportOptions.includeUrls}
-                  onCheckedChange={(checked) => updateExportOptions({ includeUrls: !!checked })}
+                  onCheckedChange={(checked) =>
+                    updateExportOptions({ includeUrls: !!checked })
+                  }
                 />
-                <Label htmlFor="include-urls" className="text-sm">URLs</Label>
+                <Label htmlFor="include-urls" className="text-sm">
+                  URLs
+                </Label>
               </div>
-              
+
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="include-doi"
                   checked={exportOptions.includeDoi}
-                  onCheckedChange={(checked) => updateExportOptions({ includeDoi: !!checked })}
+                  onCheckedChange={(checked) =>
+                    updateExportOptions({ includeDoi: !!checked })
+                  }
                 />
-                <Label htmlFor="include-doi" className="text-sm">DOI</Label>
+                <Label htmlFor="include-doi" className="text-sm">
+                  DOI
+                </Label>
               </div>
-              
+
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="include-keywords"
                   checked={exportOptions.includeKeywords}
-                  onCheckedChange={(checked) => updateExportOptions({ includeKeywords: !!checked })}
+                  onCheckedChange={(checked) =>
+                    updateExportOptions({ includeKeywords: !!checked })
+                  }
                 />
-                <Label htmlFor="include-keywords" className="text-sm">Keywords</Label>
+                <Label htmlFor="include-keywords" className="text-sm">
+                  Keywords
+                </Label>
               </div>
             </div>
           </div>
@@ -290,8 +338,10 @@ export const SearchResultExport: React.FC<SearchResultExportProps> = ({
             <input
               id="filename"
               type="text"
-              value={exportOptions.filename || ''}
-              onChange={(e) => updateExportOptions({ filename: e.target.value })}
+              value={exportOptions.filename || ""}
+              onChange={(e) =>
+                updateExportOptions({ filename: e.target.value })
+              }
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
               placeholder="search-results"
             />
@@ -304,7 +354,9 @@ export const SearchResultExport: React.FC<SearchResultExportProps> = ({
             className="w-full flex items-center gap-2"
           >
             {getFormatIcon(exportOptions.format)}
-            {isExporting ? 'Generating Export...' : `Generate ${exportOptions.format.toUpperCase()} Export`}
+            {isExporting
+              ? "Generating Export..."
+              : `Generate ${exportOptions.format.toUpperCase()} Export`}
           </Button>
         </CardContent>
       </Card>
@@ -319,7 +371,10 @@ export const SearchResultExport: React.FC<SearchResultExportProps> = ({
             {/* Preview */}
             <div className="max-h-64 overflow-y-auto">
               <Textarea
-                value={exportedContent.substring(0, 1000) + (exportedContent.length > 1000 ? '\n\n... (truncated)' : '')}
+                value={
+                  exportedContent.substring(0, 1000) +
+                  (exportedContent.length > 1000 ? "\n\n... (truncated)" : "")
+                }
                 readOnly
                 className="min-h-32 font-mono text-xs"
               />
@@ -334,7 +389,7 @@ export const SearchResultExport: React.FC<SearchResultExportProps> = ({
                 <Download className="h-4 w-4" />
                 Download File
               </Button>
-              
+
               <Button
                 variant="outline"
                 onClick={handleCopyToClipboard}
@@ -355,11 +410,12 @@ export const SearchResultExport: React.FC<SearchResultExportProps> = ({
             </div>
 
             <div className="text-xs text-muted-foreground">
-              Export contains {results.length} results ({exportedContent.length.toLocaleString()} characters)
+              Export contains {results.length} results (
+              {exportedContent.length.toLocaleString()} characters)
             </div>
           </CardContent>
         </Card>
       )}
     </div>
-  )
-}
+  );
+};
