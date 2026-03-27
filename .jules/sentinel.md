@@ -1,4 +1,4 @@
-## 2024-05-24 - Overly Permissive CORS with Credentials
-**Vulnerability:** The application is using `origin: '*'` together with `credentials: true` in Hono CORS configuration (`src/worker/routes/auth-routes.ts`).
-**Learning:** Using a wildcard origin with credentials enabled allows any website to make requests to the authenticated endpoints and include the user's cookies/credentials. This is a significant security risk and can lead to CSRF attacks or data theft.
-**Prevention:** Avoid using `origin: '*'` with `credentials: true`. Instead, implement a dynamic origin resolver function utilizing `c.env` or `import.meta.env` to strictly validate against allowed frontend URLs and development environments.
+## 2024-05-18 - Missing IDOR checks and Authentication on User Profile Endpoints
+**Vulnerability:** The endpoints `/api/auth/profile/:userId` (GET/PUT) and `/api/auth/change-password/:userId` lacked `requireAuth` middleware and any ownership checks (IDOR) between the authenticated user and the `userId` in the URL parameters.
+**Learning:** Even though endpoints might be logically considered "protected," without applying authentication middleware (`requireAuth`) and performing explicit ownership checks on parameterized routes (like `userId`), any user can arbitrarily read or mutate another user's profile and password.
+**Prevention:** Always enforce strict `requireAuth` on endpoints managing user resources. For parameterized endpoints, strictly validate that the resource ID derived from the URL (e.g., `userId`) matches the ID found in the established `AuthContext` before continuing with database operations.
