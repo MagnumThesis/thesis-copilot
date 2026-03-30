@@ -243,7 +243,6 @@ export function Chat({
             size="icon"
             variant="ghost"
             className="h-6 w-6"
-            aria-label="Rate response as helpful"
             onClick={() => onRateResponse(message.id, "thumbs-up")}
             aria-label="Rate response as helpful"
           >
@@ -253,7 +252,6 @@ export function Chat({
             size="icon"
             variant="ghost"
             className="h-6 w-6"
-            aria-label="Rate response as unhelpful"
             onClick={() => onRateResponse(message.id, "thumbs-down")}
             aria-label="Rate response as unhelpful"
           >

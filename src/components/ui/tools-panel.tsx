@@ -53,6 +53,7 @@ export const ToolsPanel: React.FC<ToolsPanelProps> = ({
         variant="ghost"
         size="icon"
         onClick={() => setIsOpen(!isOpen)}
+        aria-label={isOpen ? "Close tools panel" : "Open tools panel"}
         className={cn(
           "absolute top-4 z-10 h-8 w-8 rounded-full border bg-background shadow-sm hover:bg-muted transition-all duration-300",
           isOpen
