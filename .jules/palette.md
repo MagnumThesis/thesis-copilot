@@ -1,0 +1,3 @@
+## 2024-05-24 - Missing ARIA labels on dynamic array item removal and dialog close buttons
+**Learning:** In this application's components, a recurring pattern is rendering dynamic array items (like authors, tags, or shared emails) inside Badges with a nested icon-only `<button>` to remove them. Similarly, modal/dialog headers often use an `<X>` icon within a Button for closing. These frequently lack `aria-label`s, rendering them inaccessible to screen readers as the buttons contain no semantic text.
+**Action:** When creating or reviewing components with dynamic list manipulation or custom dialog headers, explicitly ensure that any `<button>` containing only an icon has a context-aware `aria-label` (e.g., `aria-label="Remove author"` or `aria-label="Close dialog"`).

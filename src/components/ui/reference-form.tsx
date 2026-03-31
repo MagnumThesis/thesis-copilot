@@ -229,7 +229,7 @@ export const ReferenceForm: React.FC<ReferenceFormProps> = ({
           <CardTitle>
             {isEditing ? 'Edit Reference' : 'Add New Reference'}
           </CardTitle>
-          <Button variant="ghost" size="sm" onClick={onClose}>
+          <Button variant="ghost" size="sm" onClick={onClose} aria-label="Close form">
             <X className="h-4 w-4" />
           </Button>
         </div>
@@ -294,6 +294,7 @@ export const ReferenceForm: React.FC<ReferenceFormProps> = ({
                       type="button"
                       onClick={() => removeAuthor(index)}
                       className="hover:text-destructive"
+                      aria-label="Remove author"
                     >
                       <X className="h-3 w-3" />
                     </button>
@@ -466,6 +467,7 @@ export const ReferenceForm: React.FC<ReferenceFormProps> = ({
                       type="button"
                       onClick={() => removeTag(index)}
                       className="hover:text-destructive"
+                      aria-label="Remove tag"
                     >
                       <X className="h-3 w-3" />
                     </button>
