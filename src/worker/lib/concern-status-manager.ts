@@ -112,72 +112,80 @@ export class ConcernStatusManagerImpl implements ConcernStatusManager {
     try {
       const concerns = await this.getConcernsByStatus(conversationId);
       
-      // Calculate overall statistics
       const total = concerns.length;
-      const toBeDone = concerns.filter(c => c.status === ConcernStatus.TO_BE_DONE).length;
-      const addressed = concerns.filter(c => c.status === ConcernStatus.ADDRESSED).length;
-      const rejected = concerns.filter(c => c.status === ConcernStatus.REJECTED).length;
+      let toBeDone = 0;
+      let addressed = 0;
+      let rejected = 0;
 
-      // Calculate statistics by category
-      const byCategory: Record<ConcernCategory, ConcernStatusBreakdown> = {} as Record<ConcernCategory, ConcernStatusBreakdown>;
-      
-      Object.values(ConcernCategory).forEach(category => {
-        const categoryData = concerns.filter(c => c.category === category);
-        const total = categoryData.length;
-        const toBeDone = categoryData.filter(c => c.status === ConcernStatus.TO_BE_DONE).length;
-        const addressed = categoryData.filter(c => c.status === ConcernStatus.ADDRESSED).length;
-        const rejected = categoryData.filter(c => c.status === ConcernStatus.REJECTED).length;
-        byCategory[category] = {
-          status: category as unknown as ConcernStatus, // This is a workaround - category is a ConcernCategory, not ConcernStatus
-          count: total,
-          percentage: total > 0 ? (addressed / total) * 100 : 0,
-          total,
-          toBeDone,
-          addressed,
-          rejected
-        };
-      });
-
-      // Calculate statistics by severity
-      const bySeverity: Record<ConcernSeverity, ConcernStatusBreakdown> = {} as Record<ConcernSeverity, ConcernStatusBreakdown>;
-      
-      Object.values(ConcernSeverity).forEach(severity => {
-        const severityData = concerns.filter(c => c.severity === severity);
-        const total = severityData.length;
-        const toBeDone = severityData.filter(c => c.status === ConcernStatus.TO_BE_DONE).length;
-        const addressed = severityData.filter(c => c.status === ConcernStatus.ADDRESSED).length;
-        const rejected = severityData.filter(c => c.status === ConcernStatus.REJECTED).length;
-        bySeverity[severity] = {
-          status: severity as unknown as ConcernStatus, // This is a workaround - severity is a ConcernSeverity, not ConcernStatus
-          count: total,
-          percentage: total > 0 ? (addressed / total) * 100 : 0,
-          total,
-          toBeDone,
-          addressed,
-          rejected
-        };
-      });
-
-      // Calculate concerns by status
       const concernsByStatus: Record<ConcernStatus, number> = {
-        [ConcernStatus.OPEN]: concerns.filter(c => c.status === ConcernStatus.OPEN).length,
-        [ConcernStatus.RESOLVED]: concerns.filter(c => c.status === ConcernStatus.RESOLVED).length,
-        [ConcernStatus.DISMISSED]: concerns.filter(c => c.status === ConcernStatus.DISMISSED).length,
-        [ConcernStatus.ADDRESSED]: addressed,
-        [ConcernStatus.REJECTED]: rejected,
-        [ConcernStatus.TO_BE_DONE]: toBeDone
+        [ConcernStatus.OPEN]: 0,
+        [ConcernStatus.RESOLVED]: 0,
+        [ConcernStatus.DISMISSED]: 0,
+        [ConcernStatus.ADDRESSED]: 0,
+        [ConcernStatus.REJECTED]: 0,
+        [ConcernStatus.TO_BE_DONE]: 0
       };
 
-      // Calculate concerns by category
       const concernsByCategory: Record<ConcernCategory, number> = {} as Record<ConcernCategory, number>;
+      const concernsBySeverity: Record<ConcernSeverity, number> = {} as Record<ConcernSeverity, number>;
+      
+      const byCategory: Record<ConcernCategory, ConcernStatusBreakdown> = {} as Record<ConcernCategory, ConcernStatusBreakdown>;
+      const bySeverity: Record<ConcernSeverity, ConcernStatusBreakdown> = {} as Record<ConcernSeverity, ConcernStatusBreakdown>;
+
+      // Initialize structures
       Object.values(ConcernCategory).forEach(category => {
-        concernsByCategory[category] = concerns.filter(c => c.category === category).length;
+        concernsByCategory[category] = 0;
+        byCategory[category] = {
+          status: category as unknown as ConcernStatus,
+          count: 0, percentage: 0, total: 0, toBeDone: 0, addressed: 0, rejected: 0
+        };
+      });
+      Object.values(ConcernSeverity).forEach(severity => {
+        concernsBySeverity[severity] = 0;
+        bySeverity[severity] = {
+          status: severity as unknown as ConcernStatus,
+          count: 0, percentage: 0, total: 0, toBeDone: 0, addressed: 0, rejected: 0
+        };
       });
 
-      // Calculate concerns by severity
-      const concernsBySeverity: Record<ConcernSeverity, number> = {} as Record<ConcernSeverity, number>;
+      // Single pass aggregation
+      for (const c of concerns) {
+        if (c.status === ConcernStatus.TO_BE_DONE) toBeDone++;
+        else if (c.status === ConcernStatus.ADDRESSED) addressed++;
+        else if (c.status === ConcernStatus.REJECTED) rejected++;
+
+        if (concernsByStatus[c.status] !== undefined) {
+          concernsByStatus[c.status]++;
+        }
+
+        if (c.category && byCategory[c.category]) {
+          concernsByCategory[c.category]++;
+          byCategory[c.category].total!++;
+          byCategory[c.category].count++;
+          if (c.status === ConcernStatus.TO_BE_DONE) byCategory[c.category].toBeDone!++;
+          else if (c.status === ConcernStatus.ADDRESSED) byCategory[c.category].addressed!++;
+          else if (c.status === ConcernStatus.REJECTED) byCategory[c.category].rejected!++;
+        }
+
+        if (c.severity && bySeverity[c.severity]) {
+          concernsBySeverity[c.severity]++;
+          bySeverity[c.severity].total!++;
+          bySeverity[c.severity].count++;
+          if (c.status === ConcernStatus.TO_BE_DONE) bySeverity[c.severity].toBeDone!++;
+          else if (c.status === ConcernStatus.ADDRESSED) bySeverity[c.severity].addressed!++;
+          else if (c.status === ConcernStatus.REJECTED) bySeverity[c.severity].rejected!++;
+        }
+      }
+
+      // Calculate percentages post-aggregation
+      Object.values(ConcernCategory).forEach(category => {
+        const catData = byCategory[category];
+        if (catData.total! > 0) catData.percentage = (catData.addressed! / catData.total!) * 100;
+      });
+
       Object.values(ConcernSeverity).forEach(severity => {
-        concernsBySeverity[severity] = concerns.filter(c => c.severity === severity).length;
+        const sevData = bySeverity[severity];
+        if (sevData.total! > 0) sevData.percentage = (sevData.addressed! / sevData.total!) * 100;
       });
 
       // Calculate resolution rate (simple calculation)
