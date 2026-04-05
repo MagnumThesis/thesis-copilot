@@ -16,6 +16,7 @@ import {
   type RegisterPayload,
   type LoginPayload,
 } from '../services/user-service';
+import { getAuthContext } from '../middleware/auth-middleware';
 
 /**
  * Register handler
@@ -98,11 +99,20 @@ export async function loginHandler(c: Context) {
 export async function getUserProfileHandler(c: Context) {
   try {
     const userId = c.req.param('userId');
+    const authContext = getAuthContext(c);
 
     if (!userId) {
       return c.json(
         { success: false, error: 'User ID is required' },
         400
+      );
+    }
+
+    // IDOR protection: ensure the authenticated user can only access their own profile
+    if (!authContext || authContext.userId !== userId) {
+      return c.json(
+        { success: false, error: 'Unauthorized access' },
+        403
       );
     }
 
@@ -124,12 +134,21 @@ export async function getUserProfileHandler(c: Context) {
 export async function updateUserProfileHandler(c: Context) {
   try {
     const userId = c.req.param('userId');
+    const authContext = getAuthContext(c);
     const body = await c.req.json();
 
     if (!userId) {
       return c.json(
         { success: false, error: 'User ID is required' },
         400
+      );
+    }
+
+    // IDOR protection: ensure the authenticated user can only update their own profile
+    if (!authContext || authContext.userId !== userId) {
+      return c.json(
+        { success: false, error: 'Unauthorized access' },
+        403
       );
     }
 
@@ -234,6 +253,7 @@ export async function logoutHandler(c: Context) {
 export async function changePasswordHandler(c: Context) {
   try {
     const userId = c.req.param('userId');
+    const authContext = getAuthContext(c);
     const body = await c.req.json();
     const { newPassword } = body;
 
@@ -241,6 +261,14 @@ export async function changePasswordHandler(c: Context) {
       return c.json(
         { success: false, error: 'User ID and new password are required' },
         400
+      );
+    }
+
+    // IDOR protection: ensure the authenticated user can only change their own password
+    if (!authContext || authContext.userId !== userId) {
+      return c.json(
+        { success: false, error: 'Unauthorized access' },
+        403
       );
     }
 
