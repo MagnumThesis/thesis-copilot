@@ -339,6 +339,7 @@ describe('EnhancedSearchHistoryManager', () => {
 
       const mockTopResults = [
         {
+          search_query: 'machine learning',
           result_title: 'Deep Learning for NLP',
           relevance_score: 0.95,
           added_to_library: true
@@ -673,13 +674,28 @@ describe('EnhancedSearchHistoryManager', () => {
           }
         ];
 
+        // Consolidated mock top results combining all queries
         const mockTopResults = [
           {
+            search_query: 'machine learning research',
             result_title: 'Advanced ML Techniques',
             relevance_score: 0.92,
             added_to_library: true
           },
           {
+            search_query: 'machine learning research',
+            result_title: 'ML in Healthcare',
+            relevance_score: 0.88,
+            added_to_library: false
+          },
+          {
+            search_query: 'deep learning applications',
+            result_title: 'Advanced ML Techniques',
+            relevance_score: 0.92,
+            added_to_library: true
+          },
+          {
+            search_query: 'deep learning applications',
             result_title: 'ML in Healthcare',
             relevance_score: 0.88,
             added_to_library: false
@@ -688,7 +704,6 @@ describe('EnhancedSearchHistoryManager', () => {
 
         mockPrepare.all
           .mockResolvedValueOnce({ results: mockPerformanceData })
-          .mockResolvedValueOnce({ results: mockTopResults })
           .mockResolvedValueOnce({ results: mockTopResults });
 
         const analytics = await manager.getQueryPerformanceAnalytics('user-1', 'conv-1', 30);
