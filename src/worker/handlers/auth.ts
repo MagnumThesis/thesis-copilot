@@ -2,6 +2,7 @@
  * Authentication Handlers - HTTP handlers for auth endpoints
  */
 import { Context } from 'hono';
+import { getAuthContext } from '../middleware/auth-middleware';
 import {
   registerUser,
   loginUser,
@@ -106,6 +107,11 @@ export async function getUserProfileHandler(c: Context) {
       );
     }
 
+    const authContext = getAuthContext(c);
+    if (!authContext || authContext.userId !== userId) {
+      return c.json({ success: false, error: 'Unauthorized access' }, 403);
+    }
+
     const result = await getUserProfile(userId);
 
     return c.json(result, 200);
@@ -131,6 +137,11 @@ export async function updateUserProfileHandler(c: Context) {
         { success: false, error: 'User ID is required' },
         400
       );
+    }
+
+    const authContext = getAuthContext(c);
+    if (!authContext || authContext.userId !== userId) {
+      return c.json({ success: false, error: 'Unauthorized access' }, 403);
     }
 
     const result = await updateUserProfile(userId, body);
@@ -242,6 +253,11 @@ export async function changePasswordHandler(c: Context) {
         { success: false, error: 'User ID and new password are required' },
         400
       );
+    }
+
+    const authContext = getAuthContext(c);
+    if (!authContext || authContext.userId !== userId) {
+      return c.json({ success: false, error: 'Unauthorized access' }, 403);
     }
 
     // Validate password
