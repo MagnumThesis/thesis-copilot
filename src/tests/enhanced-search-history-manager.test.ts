@@ -341,7 +341,8 @@ describe('EnhancedSearchHistoryManager', () => {
         {
           result_title: 'Deep Learning for NLP',
           relevance_score: 0.95,
-          added_to_library: true
+          added_to_library: true,
+          search_query: 'machine learning'
         }
       ];
 
