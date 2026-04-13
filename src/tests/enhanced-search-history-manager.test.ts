@@ -341,7 +341,8 @@ describe('EnhancedSearchHistoryManager', () => {
         {
           result_title: 'Deep Learning for NLP',
           relevance_score: 0.95,
-          added_to_library: true
+          added_to_library: true,
+          search_query: 'machine learning'
         }
       ];
 
@@ -677,12 +678,14 @@ describe('EnhancedSearchHistoryManager', () => {
           {
             result_title: 'Advanced ML Techniques',
             relevance_score: 0.92,
-            added_to_library: true
+            added_to_library: true,
+            search_query: 'machine learning research'
           },
           {
             result_title: 'ML in Healthcare',
             relevance_score: 0.88,
-            added_to_library: false
+            added_to_library: false,
+            search_query: 'machine learning research'
           }
         ];
 
