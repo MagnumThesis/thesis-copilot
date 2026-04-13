@@ -1,0 +1,4 @@
+
+## 2026-03-09 - Missing ARIA labels in dynamic UI component toggles
+**Learning:** Icon-only toggle buttons in layout components (like the `ChevronRight`/`ChevronLeft` button in `src/components/ui/tools-panel.tsx`) and quick-action icon buttons (like "Save/Cancel edit" and "Regenerate title" in `attachment-menu.tsx`) frequently lack `aria-label` attributes. Screen reader users would have no context for what these buttons do since they lack text nodes. Furthermore, for toggle buttons, dynamically updating the label (e.g. `aria-label={isOpen ? "Close tools panel" : "Open tools panel"}`) provides a much clearer experience than a static generic label.
+**Action:** Always provide `aria-label` for any `<Button size="icon">`. For buttons that toggle state, try to use a dynamic label that accurately describes the action the button will perform in its current state.
