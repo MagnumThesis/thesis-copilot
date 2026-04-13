@@ -1,13 +1,9 @@
-/**
- * Search Result Management API Handlers
- * Handles bookmarking, comparison, export, and sharing endpoints
- */
-
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { searchResultManagementService } from '../lib/search-result-management'
 import { ScholarSearchResult } from '../../lib/ai-types'
 import { ExportOptions, ShareOptions } from '../../types/search-result-types'
+import { requireAuth, getAuthContext } from '../middleware/auth-middleware'
 
 const app = new Hono()
 
@@ -19,12 +15,17 @@ app.use('*', cors({
 }))
 
 // Bookmark endpoints
-app.post('/bookmarks', async (c) => {
+app.post('/bookmarks', requireAuth, async (c) => {
   try {
     const { result, userId, tags, notes } = await c.req.json()
     
     if (!result || !userId) {
       return c.json({ success: false, error: 'Missing required fields' }, 400)
+    }
+
+    const authContext = getAuthContext(c)
+    if (authContext?.userId !== userId) {
+      return c.json({ success: false, error: 'Unauthorized: User ID mismatch' }, 403)
     }
 
     const bookmarkedResult = await searchResultManagementService.bookmarkResult(
@@ -47,12 +48,17 @@ app.post('/bookmarks', async (c) => {
   }
 })
 
-app.delete('/bookmarks', async (c) => {
+app.delete('/bookmarks', requireAuth, async (c) => {
   try {
     const { result, userId } = await c.req.json()
     
     if (!result || !userId) {
       return c.json({ success: false, error: 'Missing required fields' }, 400)
+    }
+
+    const authContext = getAuthContext(c)
+    if (authContext?.userId !== userId) {
+      return c.json({ success: false, error: 'Unauthorized: User ID mismatch' }, 403)
     }
 
     await searchResultManagementService.removeBookmark(
@@ -70,12 +76,17 @@ app.delete('/bookmarks', async (c) => {
   }
 })
 
-app.get('/bookmarks/:userId', async (c) => {
+app.get('/bookmarks/:userId', requireAuth, async (c) => {
   try {
     const userId = c.req.param('userId')
     
     if (!userId) {
       return c.json({ success: false, error: 'Missing user ID' }, 400)
+    }
+
+    const authContext = getAuthContext(c)
+    if (authContext?.userId !== userId) {
+      return c.json({ success: false, error: 'Unauthorized: User ID mismatch' }, 403)
     }
 
     const bookmarks = await searchResultManagementService.getBookmarkedResults(userId)
@@ -93,12 +104,17 @@ app.get('/bookmarks/:userId', async (c) => {
   }
 })
 
-app.post('/bookmarks/check', async (c) => {
+app.post('/bookmarks/check', requireAuth, async (c) => {
   try {
     const { result, userId } = await c.req.json()
     
     if (!result || !userId) {
       return c.json({ success: false, error: 'Missing required fields' }, 400)
+    }
+
+    const authContext = getAuthContext(c)
+    if (authContext?.userId !== userId) {
+      return c.json({ success: false, error: 'Unauthorized: User ID mismatch' }, 403)
     }
 
     const isBookmarked = await searchResultManagementService.isResultBookmarked(
@@ -120,12 +136,17 @@ app.post('/bookmarks/check', async (c) => {
 })
 
 // Comparison endpoints
-app.post('/comparison', async (c) => {
+app.post('/comparison', requireAuth, async (c) => {
   try {
     const { result, userId } = await c.req.json()
     
     if (!result || !userId) {
       return c.json({ success: false, error: 'Missing required fields' }, 400)
+    }
+
+    const authContext = getAuthContext(c)
+    if (authContext?.userId !== userId) {
+      return c.json({ success: false, error: 'Unauthorized: User ID mismatch' }, 403)
     }
 
     const comparisonResult = await searchResultManagementService.addToComparison(
@@ -146,12 +167,17 @@ app.post('/comparison', async (c) => {
   }
 })
 
-app.delete('/comparison', async (c) => {
+app.delete('/comparison', requireAuth, async (c) => {
   try {
     const { result, userId } = await c.req.json()
     
     if (!result || !userId) {
       return c.json({ success: false, error: 'Missing required fields' }, 400)
+    }
+
+    const authContext = getAuthContext(c)
+    if (authContext?.userId !== userId) {
+      return c.json({ success: false, error: 'Unauthorized: User ID mismatch' }, 403)
     }
 
     await searchResultManagementService.removeFromComparison(
@@ -169,12 +195,17 @@ app.delete('/comparison', async (c) => {
   }
 })
 
-app.get('/comparison/:userId', async (c) => {
+app.get('/comparison/:userId', requireAuth, async (c) => {
   try {
     const userId = c.req.param('userId')
     
     if (!userId) {
       return c.json({ success: false, error: 'Missing user ID' }, 400)
+    }
+
+    const authContext = getAuthContext(c)
+    if (authContext?.userId !== userId) {
+      return c.json({ success: false, error: 'Unauthorized: User ID mismatch' }, 403)
     }
 
     const comparisons = await searchResultManagementService.getComparisonResults(userId)
@@ -192,12 +223,17 @@ app.get('/comparison/:userId', async (c) => {
   }
 })
 
-app.delete('/comparison/:userId', async (c) => {
+app.delete('/comparison/:userId', requireAuth, async (c) => {
   try {
     const userId = c.req.param('userId')
     
     if (!userId) {
       return c.json({ success: false, error: 'Missing user ID' }, 400)
+    }
+
+    const authContext = getAuthContext(c)
+    if (authContext?.userId !== userId) {
+      return c.json({ success: false, error: 'Unauthorized: User ID mismatch' }, 403)
     }
 
     await searchResultManagementService.clearComparison(userId)
@@ -213,7 +249,7 @@ app.delete('/comparison/:userId', async (c) => {
 })
 
 // Export endpoint
-app.post('/export', async (c) => {
+app.post('/export', requireAuth, async (c) => {
   try {
     const { results, options } = await c.req.json()
     
@@ -242,12 +278,17 @@ app.post('/export', async (c) => {
 })
 
 // Sharing endpoints
-app.post('/share', async (c) => {
+app.post('/share', requireAuth, async (c) => {
   try {
     const { results, options, userId } = await c.req.json()
     
     if (!results || !options || !userId) {
       return c.json({ success: false, error: 'Missing required fields' }, 400)
+    }
+
+    const authContext = getAuthContext(c)
+    if (authContext?.userId !== userId) {
+      return c.json({ success: false, error: 'Unauthorized: User ID mismatch' }, 403)
     }
 
     const sharedResult = await searchResultManagementService.shareResults(
