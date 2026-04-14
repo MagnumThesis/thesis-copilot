@@ -315,43 +315,57 @@ export class EnhancedSearchHistoryManager extends SearchAnalyticsManager {
       `;
 
       const result = await this.getEnvironment().DB.prepare(query).bind(...params).all();
+      const rows = result.results || [];
+
+      if (rows.length === 0) return [];
+
+      // Get top results for all queries in a single query to prevent N+1 bottleneck
+      const searchQueries = rows.map((r: any) => r.search_query);
+      const placeholders = searchQueries.map(() => '?').join(', ');
       
-      // Get top results for each query
-      const queryAnalytics = await Promise.all(
-        (result.results || []).map(async (row: any) => {
-          const topResultsQuery = `
-            SELECT sr.result_title, sr.relevance_score, sr.added_to_library
-            FROM search_results sr
-            JOIN search_sessions ss ON sr.search_session_id = ss.id
-            WHERE ss.search_query = ? AND ss.user_id = ?
-            ${conversationId ? 'AND ss.conversation_id = ?' : ''}
-            ORDER BY sr.relevance_score DESC
-            LIMIT 3
-          `;
+      const topResultsQuery = `
+        SELECT * FROM (
+          SELECT
+            sr.result_title,
+            sr.relevance_score,
+            sr.added_to_library,
+            ss.search_query,
+            ROW_NUMBER() OVER (PARTITION BY ss.search_query ORDER BY sr.relevance_score DESC) as rn
+          FROM search_results sr
+          JOIN search_sessions ss ON sr.search_session_id = ss.id
+          WHERE ss.search_query IN (${placeholders}) AND ss.user_id = ?
+          ${conversationId ? 'AND ss.conversation_id = ?' : ''}
+        )
+        WHERE rn <= 3
+      `;
 
-          const topResultsParams = [row.search_query, userId];
-          if (conversationId) {
-            topResultsParams.push(conversationId);
-          }
+      const topResultsParams = [...searchQueries, userId];
+      if (conversationId) {
+        topResultsParams.push(conversationId);
+      }
 
-          const topResultsResult = await this.getEnvironment().DB.prepare(topResultsQuery).bind(...topResultsParams).all();
-          const topResults = (topResultsResult.results || []).map((r: any) => ({
-            title: r.result_title,
-            relevanceScore: r.relevance_score,
-            addedToLibrary: r.added_to_library
-          }));
+      const topResultsResult = await this.getEnvironment().DB.prepare(topResultsQuery).bind(...topResultsParams).all();
 
-          return {
-            query: row.search_query,
-            searchCount: row.search_count,
-            averageResults: row.avg_results || 0,
-            successRate: row.success_rate || 0,
-            averageProcessingTime: row.avg_processing_time || 0,
-            lastUsed: new Date(row.last_used),
-            topResults
-          };
-        })
-      );
+      const resultsMap = new Map<string, any[]>();
+      searchQueries.forEach(sq => resultsMap.set(sq, []));
+
+      (topResultsResult.results || []).forEach((r: any) => {
+        resultsMap.get(r.search_query)?.push({
+          title: r.result_title,
+          relevanceScore: r.relevance_score,
+          addedToLibrary: r.added_to_library
+        });
+      });
+
+      const queryAnalytics = rows.map((row: any) => ({
+        query: row.search_query,
+        searchCount: row.search_count,
+        averageResults: row.avg_results || 0,
+        successRate: row.success_rate || 0,
+        averageProcessingTime: row.avg_processing_time || 0,
+        lastUsed: new Date(row.last_used),
+        topResults: resultsMap.get(row.search_query) || []
+      }));
 
       return queryAnalytics;
     } catch (error) {
