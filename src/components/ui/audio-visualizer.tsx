@@ -234,8 +234,17 @@ export function AudioVisualizer({
   return (
     <div
       ref={containerRef}
-      className="h-full w-full cursor-pointer rounded-lg bg-background/80 backdrop-blur"
+      role="button"
+      tabIndex={0}
+      aria-label="Stop recording"
+      className="h-full w-full cursor-pointer rounded-lg bg-background/80 backdrop-blur focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
       onClick={onClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onClick()
+        }
+      }}
     >
       <canvas ref={canvasRef} className="h-full w-full" />
     </div>
