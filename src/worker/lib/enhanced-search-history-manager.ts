@@ -316,42 +316,51 @@ export class EnhancedSearchHistoryManager extends SearchAnalyticsManager {
 
       const result = await this.getEnvironment().DB.prepare(query).bind(...params).all();
       
-      // Get top results for each query
-      const queryAnalytics = await Promise.all(
-        (result.results || []).map(async (row: any) => {
-          const topResultsQuery = `
-            SELECT sr.result_title, sr.relevance_score, sr.added_to_library
-            FROM search_results sr
-            JOIN search_sessions ss ON sr.search_session_id = ss.id
-            WHERE ss.search_query = ? AND ss.user_id = ?
-            ${conversationId ? 'AND ss.conversation_id = ?' : ''}
-            ORDER BY sr.relevance_score DESC
-            LIMIT 3
-          `;
+      const rows = result.results || [];
+      if (rows.length === 0) return [];
 
-          const topResultsParams = [row.search_query, userId];
-          if (conversationId) {
-            topResultsParams.push(conversationId);
-          }
+      // ⚡ Bolt: Fixed N+1 queries using ROW_NUMBER window function to batch fetch top results for all queries
+      const searchQueries = rows.map((r: any) => r.search_query);
+      const placeholders = searchQueries.map(() => '?').join(',');
 
-          const topResultsResult = await this.getEnvironment().DB.prepare(topResultsQuery).bind(...topResultsParams).all();
-          const topResults = (topResultsResult.results || []).map((r: any) => ({
-            title: r.result_title,
-            relevanceScore: r.relevance_score,
-            addedToLibrary: r.added_to_library
-          }));
+      const topResultsParams = [...searchQueries, userId];
+      if (conversationId) {
+        topResultsParams.push(conversationId);
+      }
 
-          return {
-            query: row.search_query,
-            searchCount: row.search_count,
-            averageResults: row.avg_results || 0,
-            successRate: row.success_rate || 0,
-            averageProcessingTime: row.avg_processing_time || 0,
-            lastUsed: new Date(row.last_used),
-            topResults
-          };
-        })
-      );
+      const topResultsQuery = `
+        SELECT * FROM (
+          SELECT ss.search_query, sr.result_title, sr.relevance_score, sr.added_to_library,
+                 ROW_NUMBER() OVER (PARTITION BY ss.search_query ORDER BY sr.relevance_score DESC) as rn
+          FROM search_results sr
+          JOIN search_sessions ss ON sr.search_session_id = ss.id
+          WHERE ss.search_query IN (${placeholders}) AND ss.user_id = ?
+          ${conversationId ? 'AND ss.conversation_id = ?' : ''}
+        )
+        WHERE rn <= 3
+      `;
+
+      const topResultsResult = await this.getEnvironment().DB.prepare(topResultsQuery).bind(...topResultsParams).all();
+
+      const resultsByQuery = (topResultsResult.results || []).reduce((acc: any, r: any) => {
+        if (!acc[r.search_query]) acc[r.search_query] = [];
+        acc[r.search_query].push({
+          title: r.result_title,
+          relevanceScore: r.relevance_score,
+          addedToLibrary: r.added_to_library
+        });
+        return acc;
+      }, {});
+
+      const queryAnalytics = rows.map((row: any) => ({
+        query: row.search_query,
+        searchCount: row.search_count,
+        averageResults: row.avg_results || 0,
+        successRate: row.success_rate || 0,
+        averageProcessingTime: row.avg_processing_time || 0,
+        lastUsed: new Date(row.last_used),
+        topResults: resultsByQuery[row.search_query] || []
+      }));
 
       return queryAnalytics;
     } catch (error) {
