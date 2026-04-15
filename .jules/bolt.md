@@ -5,3 +5,6 @@
 ## 2026-03-22 - Redundant Array Traversals in getStatistics
 **Learning:** Performing multiple consecutive `.filter().length` operations on an array of objects where each filter condition involves an expensive operation (like `safeDate` parsing) leads to (kN)$ time complexity and redundant processing.
 **Action:** Consolidate multiple statistics calculations into a single (N)$ pass using a single loop (e.g., `forEach` or `reduce`). This minimizes traversals and ensures each expensive transformation (like date parsing) is performed exactly once per element.
+## 2026-04-15 - [Optimize N+1 DB Queries]
+**Learning:** Using window functions like `ROW_NUMBER() OVER(PARTITION BY ...)` with an `IN ()` clause allows efficient batching of N+1 database queries when fetching top N results for multiple distinct queries.
+**Action:** Prioritize batching with window functions when iterating over a list of items to retrieve top associated records from SQLite/D1.
