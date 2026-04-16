@@ -344,6 +344,7 @@ export const ReferenceExport: React.FC<ReferenceExportProps> = ({
                   disabled={references.length === 0}
                   variant="outline"
                   size="sm"
+                  aria-label="Copy to clipboard"
                 >
                   <Copy className="h-4 w-4" />
                 </Button>
