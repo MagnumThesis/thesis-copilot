@@ -316,42 +316,61 @@ export class EnhancedSearchHistoryManager extends SearchAnalyticsManager {
 
       const result = await this.getEnvironment().DB.prepare(query).bind(...params).all();
       
-      // Get top results for each query
-      const queryAnalytics = await Promise.all(
-        (result.results || []).map(async (row: any) => {
-          const topResultsQuery = `
-            SELECT sr.result_title, sr.relevance_score, sr.added_to_library
-            FROM search_results sr
-            JOIN search_sessions ss ON sr.search_session_id = ss.id
-            WHERE ss.search_query = ? AND ss.user_id = ?
-            ${conversationId ? 'AND ss.conversation_id = ?' : ''}
-            ORDER BY sr.relevance_score DESC
-            LIMIT 3
-          `;
+      const queries = result.results || [];
+      if (queries.length === 0) return [];
 
-          const topResultsParams = [row.search_query, userId];
-          if (conversationId) {
-            topResultsParams.push(conversationId);
-          }
+      const searchQueries = queries.map((r: any) => r.search_query);
+      const queryPlaceholders = searchQueries.map(() => '?').join(',');
 
-          const topResultsResult = await this.getEnvironment().DB.prepare(topResultsQuery).bind(...topResultsParams).all();
-          const topResults = (topResultsResult.results || []).map((r: any) => ({
-            title: r.result_title,
-            relevanceScore: r.relevance_score,
-            addedToLibrary: r.added_to_library
-          }));
+      // ⚡ Bolt Optimization: Replacing N+1 DB queries inside a Promise.all map loop
+      // with a single batched query using ROW_NUMBER() window function.
+      // This reduces database connections from O(N) to O(1) and decreases latency.
+      // The outer ORDER BY ensures that the returned results are correctly sorted.
+      const batchedTopResultsQuery = `
+        SELECT * FROM (
+          SELECT
+            ss.search_query,
+            sr.result_title,
+            sr.relevance_score,
+            sr.added_to_library,
+            ROW_NUMBER() OVER(PARTITION BY ss.search_query ORDER BY sr.relevance_score DESC) as rn
+          FROM search_results sr
+          JOIN search_sessions ss ON sr.search_session_id = ss.id
+          WHERE ss.search_query IN (${queryPlaceholders}) AND ss.user_id = ?
+          ${conversationId ? 'AND ss.conversation_id = ?' : ''}
+        )
+        WHERE rn <= 3
+        ORDER BY search_query, rn ASC
+      `;
 
-          return {
-            query: row.search_query,
-            searchCount: row.search_count,
-            averageResults: row.avg_results || 0,
-            successRate: row.success_rate || 0,
-            averageProcessingTime: row.avg_processing_time || 0,
-            lastUsed: new Date(row.last_used),
-            topResults
-          };
-        })
-      );
+      const batchedParams = [...searchQueries, userId];
+      if (conversationId) {
+        batchedParams.push(conversationId);
+      }
+
+      const batchedTopResultsResult = await this.getEnvironment().DB.prepare(batchedTopResultsQuery).bind(...batchedParams).all();
+
+      const topResultsMap = new Map<string, any[]>();
+      (batchedTopResultsResult.results || []).forEach((r: any) => {
+        if (!topResultsMap.has(r.search_query)) {
+          topResultsMap.set(r.search_query, []);
+        }
+        topResultsMap.get(r.search_query)!.push({
+          title: r.result_title,
+          relevanceScore: r.relevance_score,
+          addedToLibrary: r.added_to_library
+        });
+      });
+
+      const queryAnalytics = queries.map((row: any) => ({
+        query: row.search_query,
+        searchCount: row.search_count,
+        averageResults: row.avg_results || 0,
+        successRate: row.success_rate || 0,
+        averageProcessingTime: row.avg_processing_time || 0,
+        lastUsed: new Date(row.last_used),
+        topResults: topResultsMap.get(row.search_query) || []
+      }));
 
       return queryAnalytics;
     } catch (error) {
