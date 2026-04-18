@@ -149,8 +149,6 @@ export class AISearchReferenceManager {
     conversationId: string,
     options: AddReferenceFromSearchOptions = {}
   ): Promise<AddReferenceResult[]> {
-    const results: AddReferenceResult[] = [];
-
     // Convert all search results to scholar format for duplicate detection
     const scholarResults = searchResults.map(result => 
       this.convertToScholarSearchResult(result)
@@ -159,6 +157,12 @@ export class AISearchReferenceManager {
     // Detect duplicates within the batch
     const duplicateGroups = this.duplicateEngine.detectDuplicates(scholarResults);
     const processedIndices = new Set<number>();
+
+    // ⚡ Bolt Performance Optimization:
+    // Replaced sequential await inside loops with concurrent Promise.all execution.
+    // Impact: Eliminates N+1 sequential database/processing bottlenecks when adding
+    // batches of AI search results, significantly reducing total execution time.
+    const referencePromises: Promise<AddReferenceResult>[] = [];
 
     // Process duplicate groups first
     for (const group of duplicateGroups) {
@@ -175,28 +179,30 @@ export class AISearchReferenceManager {
         });
 
         // Add only the primary reference from each duplicate group
-        const result = await this.addReferenceFromSearchResult(
-          searchResults[primaryIndex],
-          conversationId,
-          options
+        referencePromises.push(
+          this.addReferenceFromSearchResult(
+            searchResults[primaryIndex],
+            conversationId,
+            options
+          )
         );
-        results.push(result);
       }
     }
 
     // Process remaining non-duplicate results
     for (let i = 0; i < searchResults.length; i++) {
       if (!processedIndices.has(i)) {
-        const result = await this.addReferenceFromSearchResult(
-          searchResults[i],
-          conversationId,
-          options
+        referencePromises.push(
+          this.addReferenceFromSearchResult(
+            searchResults[i],
+            conversationId,
+            options
+          )
         );
-        results.push(result);
       }
     }
 
-    return results;
+    return Promise.all(referencePromises);
   }
 
   /**
