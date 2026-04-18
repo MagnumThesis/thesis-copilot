@@ -229,7 +229,7 @@ export const ReferenceForm: React.FC<ReferenceFormProps> = ({
           <CardTitle>
             {isEditing ? 'Edit Reference' : 'Add New Reference'}
           </CardTitle>
-          <Button variant="ghost" size="sm" onClick={onClose}>
+          <Button variant="ghost" size="sm" onClick={onClose} aria-label="Close">
             <X className="h-4 w-4" />
           </Button>
         </div>
@@ -282,7 +282,7 @@ export const ReferenceForm: React.FC<ReferenceFormProps> = ({
                   placeholder="Add author name"
                   onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addAuthor())}
                 />
-                <Button type="button" onClick={addAuthor} size="sm">
+                <Button type="button" onClick={addAuthor} size="sm" aria-label="Add author">
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
@@ -294,6 +294,7 @@ export const ReferenceForm: React.FC<ReferenceFormProps> = ({
                       type="button"
                       onClick={() => removeAuthor(index)}
                       className="hover:text-destructive"
+                      aria-label={`Remove author ${typeof author === 'string' ? author : `${author.firstName} ${author.lastName}`}`}
                     >
                       <X className="h-3 w-3" />
                     </button>
@@ -454,7 +455,7 @@ export const ReferenceForm: React.FC<ReferenceFormProps> = ({
                   placeholder="Add tag"
                   onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
                 />
-                <Button type="button" onClick={addTag} size="sm">
+                <Button type="button" onClick={addTag} size="sm" aria-label="Add tag">
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
@@ -466,6 +467,7 @@ export const ReferenceForm: React.FC<ReferenceFormProps> = ({
                       type="button"
                       onClick={() => removeTag(index)}
                       className="hover:text-destructive"
+                      aria-label={`Remove tag ${tag}`}
                     >
                       <X className="h-3 w-3" />
                     </button>
