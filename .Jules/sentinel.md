@@ -1,0 +1,5 @@
+
+## 2025-05-24 - Missing Route-Level Authentication and IDOR on User Endpoints
+**Vulnerability:** Protected user endpoints (`/verify`, `/profile/:userId`, `/change-password/:userId`, and `/logout`) lacked route-level authentication middleware, and handlers (`getUserProfileHandler`, `updateUserProfileHandler`, `changePasswordHandler`) did not verify if the authenticated user matched the requested `:userId` parameter.
+**Learning:** The separation of route definitions and handlers can lead to missed authentication checks. The existence of a `:userId` path parameter does not imply authorization logic exists within the handler.
+**Prevention:** Always apply authentication middleware (`requireAuth`) explicitly at the route level for sensitive endpoints. Handlers operating on user-specific resources must explicitly validate that the requested resource ID matches the authenticated context's user ID (e.g., `authContext?.userId === requestedId`) to prevent Insecure Direct Object References (IDOR).
