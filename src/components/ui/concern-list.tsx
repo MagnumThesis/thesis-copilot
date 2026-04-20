@@ -94,6 +94,23 @@ export const ConcernList: React.FC<ConcernListProps> = ({
   const listId = generateId('concern-list')
 
   // Filter concerns based on all filters with performance monitoring
+
+  // Aggregate counts in a single pass to optimize O(N*M) filters down to O(N)
+  const counts = useMemo(() => {
+    let statusCounts: Record<string, number> = { all: concerns.length };
+    let categoryCounts: Record<string, number> = { all: concerns.length };
+    let severityCounts: Record<string, number> = { all: concerns.length };
+
+    for (let i = 0; i < concerns.length; i++) {
+      const c = concerns[i];
+      statusCounts[c.status] = (statusCounts[c.status] || 0) + 1;
+      categoryCounts[c.category] = (categoryCounts[c.category] || 0) + 1;
+      severityCounts[c.severity] = (severityCounts[c.severity] || 0) + 1;
+    }
+
+    return { statusCounts, categoryCounts, severityCounts };
+  }, [concerns]);
+
   const filteredConcerns = useMemo(() => {
     if (concerns.length > 100) {
       // Monitor performance for large lists
@@ -287,10 +304,7 @@ export const ConcernList: React.FC<ConcernListProps> = ({
     }
   }
 
-  const getStatusCount = (status: ConcernStatus | 'all') => {
-    if (status === 'all') return concerns.length
-    return concerns.filter(c => c.status === status).length
-  }
+  const getStatusCount = (status: ConcernStatus | 'all') => counts.statusCounts[status] || 0;
 
   const getCategoryLabel = (category: ConcernCategory | 'all') => {
     if (category === 'all') return 'All categories'
@@ -302,15 +316,9 @@ export const ConcernList: React.FC<ConcernListProps> = ({
     return severity.charAt(0).toUpperCase() + severity.slice(1)
   }
 
-  const getCategoryCount = (category: ConcernCategory | 'all') => {
-    if (category === 'all') return concerns.length
-    return concerns.filter(c => c.category === category).length
-  }
+  const getCategoryCount = (category: ConcernCategory | 'all') => counts.categoryCounts[category] || 0;
 
-  const getSeverityCount = (severity: ConcernSeverity | 'all') => {
-    if (severity === 'all') return concerns.length
-    return concerns.filter(c => c.severity === severity).length
-  }
+  const getSeverityCount = (severity: ConcernSeverity | 'all') => counts.severityCounts[severity] || 0;
 
   return (
     <div 
