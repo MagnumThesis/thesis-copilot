@@ -53,6 +53,7 @@ export const ToolsPanel: React.FC<ToolsPanelProps> = ({
         variant="ghost"
         size="icon"
         onClick={() => setIsOpen(!isOpen)}
+        aria-label={isOpen ? "Close tools panel" : "Open tools panel"}
         className={cn(
           "absolute top-4 z-10 h-8 w-8 rounded-full border bg-background shadow-sm hover:bg-muted transition-all duration-300",
           isOpen
@@ -96,19 +97,47 @@ export const ToolsPanel: React.FC<ToolsPanelProps> = ({
             {children || (
               <>
                 {/* Make Idealist clickable */}
-                <div onClick={handleIdealistClick} className="cursor-pointer">
+                <div
+                  onClick={handleIdealistClick}
+                  className="cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-lg"
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleIdealistClick(); } }}
+                  aria-label="Open Idealist tool"
+                >
                   <ToolCard title="Idealist" description="Provides comprehensive information and definitions for your idea definitions." />
                 </div>
                 {/* Make Builder clickable */}
-                <div onClick={handleBuilderClick} className="cursor-pointer">
+                <div
+                  onClick={handleBuilderClick}
+                  className="cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-lg"
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleBuilderClick(); } }}
+                  aria-label="Open Builder tool"
+                >
                   <ToolCard title="Builder" description="Assists in the iterative development and refinement of proposals." />
                 </div>
                 {/* Make Proofreader clickable */}
-                <div onClick={handleProofreaderClick} className="cursor-pointer">
+                <div
+                  onClick={handleProofreaderClick}
+                  className="cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-lg"
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleProofreaderClick(); } }}
+                  aria-label="Open Proofreader tool"
+                >
                   <ToolCard title="Proofreader" description="Identifies potential loopholes and flaws within your ideas." />
                 </div>
                 {/* Make Referencer clickable */}
-                <div onClick={handleReferencerClick} className="cursor-pointer">
+                <div
+                  onClick={handleReferencerClick}
+                  className="cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-lg"
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleReferencerClick(); } }}
+                  aria-label="Open Referencer tool"
+                >
                   <ToolCard title="Referencer" description="Searches for relevant academic papers and resources related to your ideas." />
                 </div>
               </>
