@@ -5,3 +5,6 @@
 ## 2026-03-22 - Redundant Array Traversals in getStatistics
 **Learning:** Performing multiple consecutive `.filter().length` operations on an array of objects where each filter condition involves an expensive operation (like `safeDate` parsing) leads to (kN)$ time complexity and redundant processing.
 **Action:** Consolidate multiple statistics calculations into a single (N)$ pass using a single loop (e.g., `forEach` or `reduce`). This minimizes traversals and ensures each expensive transformation (like date parsing) is performed exactly once per element.
+## 2026-04-22 - [Single Pass O(N) Array Aggregations]
+**Learning:** [Performing multiple consecutive `.filter().length` operations on arrays within loops or object properties leads to O(kN) time complexity. Consolidating these into a single pass using a reduce or single loop optimizes performance significantly.]
+**Action:** [When calculating multiple statistics or aggregations from a single array, use a single `reduce` or loop pass to accumulate all metrics rather than relying on sequential `.filter().length` chains.]
