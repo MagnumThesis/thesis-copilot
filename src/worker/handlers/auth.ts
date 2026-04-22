@@ -2,6 +2,7 @@
  * Authentication Handlers - HTTP handlers for auth endpoints
  */
 import { Context } from 'hono';
+import { getAuthContext } from '../middleware/auth-middleware';
 import {
   registerUser,
   loginUser,
@@ -106,6 +107,15 @@ export async function getUserProfileHandler(c: Context) {
       );
     }
 
+    // IDOR Check: Ensure user is only accessing their own profile
+    const authContext = getAuthContext(c);
+    if (!authContext || authContext.userId !== userId) {
+      return c.json(
+        { success: false, error: 'Unauthorized access' },
+        403
+      );
+    }
+
     const result = await getUserProfile(userId);
 
     return c.json(result, 200);
@@ -130,6 +140,15 @@ export async function updateUserProfileHandler(c: Context) {
       return c.json(
         { success: false, error: 'User ID is required' },
         400
+      );
+    }
+
+    // IDOR Check: Ensure user is only updating their own profile
+    const authContext = getAuthContext(c);
+    if (!authContext || authContext.userId !== userId) {
+      return c.json(
+        { success: false, error: 'Unauthorized access' },
+        403
       );
     }
 
@@ -241,6 +260,15 @@ export async function changePasswordHandler(c: Context) {
       return c.json(
         { success: false, error: 'User ID and new password are required' },
         400
+      );
+    }
+
+    // IDOR Check: Ensure user is only changing their own password
+    const authContext = getAuthContext(c);
+    if (!authContext || authContext.userId !== userId) {
+      return c.json(
+        { success: false, error: 'Unauthorized access' },
+        403
       );
     }
 
