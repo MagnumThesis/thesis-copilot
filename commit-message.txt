@@ -1,0 +1,7 @@
+🛡️ Sentinel: [HIGH] Fix missing authentication on sensitive user endpoints
+
+🚨 Severity: HIGH
+💡 Vulnerability: The application was missing the `requireAuth` middleware on protected routes in `src/worker/routes/auth-routes.ts` (e.g., `/verify`, `/profile/:userId`, `/change-password/:userId`, and `/logout`).
+🎯 Impact: Unauthenticated users could potentially access or interact with sensitive user-level endpoints.
+🔧 Fix: Explicitly applied the `requireAuth` middleware to all protected endpoints in the authentication routes.
+✅ Verification: Tested manually or automated that endpoints return 401 when missing valid auth token.
