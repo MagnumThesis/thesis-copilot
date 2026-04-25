@@ -240,6 +240,8 @@ export const SearchResultComparison: React.FC<SearchResultComparisonProps> = ({
                           size="sm"
                           onClick={() => onRemoveFromComparison(result)}
                           className="absolute top-2 right-2 h-6 w-6 p-0"
+                          aria-label={`Remove ${result.title} from comparison`}
+                          title="Remove from comparison"
                         >
                           <X className="h-4 w-4" />
                         </Button>
@@ -348,6 +350,8 @@ export const SearchResultComparison: React.FC<SearchResultComparisonProps> = ({
                           size="sm"
                           onClick={() => onRemoveFromComparison(result)}
                           className="h-6 w-6 p-0 ml-auto"
+                          aria-label={`Remove ${result.title} from comparison`}
+                          title="Remove from comparison"
                         >
                           <X className="h-4 w-4" />
                         </Button>
