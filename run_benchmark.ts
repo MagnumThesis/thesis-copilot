@@ -1,116 +1,118 @@
-import { PrivacyManager } from './src/worker/lib/privacy-manager.ts';
+import { ConcernSeverity, ConcernStatus, ConcernCategory } from "./src/lib/types/shared/common.ts";
 
-// Create a simple benchmark for the runAutomaticCleanup method
-async function runBenchmark() {
-  const numUsers = 100;
+function generateConcernStatisticsOld(concerns: any[]): any {
+  const total = concerns.length;
+  const toBeDone = concerns.filter(c => c.status === ConcernStatus.TO_BE_DONE).length;
+  const addressed = concerns.filter(c => c.status === ConcernStatus.ADDRESSED).length;
+  const rejected = concerns.filter(c => c.status === ConcernStatus.REJECTED).length;
 
-  // Create a mock env
-  const mockEnv = {
-    DB: {
-      prepare: () => ({
-        bind: () => ({
-          run: async () => ({ changes: 5 })
-        })
-      })
-    }
-  };
-
-  const privacyManager = new PrivacyManager(mockEnv);
-
-  // Mock the getSupabase behavior
-  const mockSupabase = {
-    from: (table: string) => {
-      if (table === 'privacy_settings') {
-        return {
-          select: () => ({
-            eq: () => ({
-              eq: async () => {
-                // Return 100 mock user settings
-                const mockSettings = Array.from({ length: numUsers }).map((_, i) => ({
-                  user_id: `user_${i}`,
-                  conversation_id: null,
-                  data_retention_days: 30
-                }));
-                return { data: mockSettings, error: null };
-              }
-            })
-          })
-        };
-      } else {
-        return {
-          delete: () => ({
-            match: () => ({
-              lt: async () => ({ error: null })
-            })
-          })
-        };
-      }
-    }
-  };
-
-  // Patch getSupabase via prototype if needed, or we just mock require
-  const supabaseModule = await import('./src/worker/lib/supabase.ts');
-  const origGetSupabase = supabaseModule.getSupabase;
-  // This might not work cleanly with ESM, but let's try an alternative benchmark
-
-  // We can just redefine the runAutomaticCleanup method for benchmark
-  const oldClearOldData = privacyManager.clearOldData;
-  privacyManager.clearOldData = async () => {
-    // Simulate some work
-    await new Promise(r => setTimeout(r, 10));
-    return { deletedCount: 5 };
-  };
-
-  const start = performance.now();
-  let totalDeleted = 0;
-  let usersProcessed = 0;
-  const mockSettings = Array.from({ length: numUsers }).map((_, i) => ({
-    user_id: `user_${i}`,
-    conversation_id: undefined,
-    data_retention_days: 30
-  }));
-
-  for (const setting of mockSettings) {
-    try {
-      const { deletedCount } = await privacyManager.clearOldData(
-        setting.user_id as string,
-        setting.data_retention_days as number,
-        setting.conversation_id as string | undefined
-      );
-      totalDeleted += deletedCount;
-      usersProcessed++;
-    } catch (error) {
-    }
-  }
-  const end = performance.now();
-
-  console.log(`Sequential baseline (simulated ${numUsers} users): ${(end - start).toFixed(2)}ms`);
-
-
-  const startParallel = performance.now();
-  totalDeleted = 0;
-  usersProcessed = 0;
-
-  const cleanupPromises = mockSettings.map(async (setting) => {
-    try {
-      const { deletedCount } = await privacyManager.clearOldData(
-        setting.user_id as string,
-        setting.data_retention_days as number,
-        setting.conversation_id as string | undefined
-      );
-      return deletedCount;
-    } catch (error) {
-      return 0;
-    }
+  // Generate breakdown by category
+  const byCategory = {} as Record<ConcernCategory, any>;
+  Object.values(ConcernCategory).forEach(category => {
+    const categoryData = concerns.filter(c => c.category === category);
+    byCategory[category] = {
+      total: categoryData.length,
+      toBeDone: categoryData.filter(c => c.status === ConcernStatus.TO_BE_DONE).length,
+      addressed: categoryData.filter(c => c.status === ConcernStatus.ADDRESSED).length,
+      rejected: categoryData.filter(c => c.status === ConcernStatus.REJECTED).length
+    };
   });
 
-  const results = await Promise.all(cleanupPromises);
-  totalDeleted = results.reduce((acc, count) => acc + count, 0);
-  usersProcessed = results.length;
+  // Generate breakdown by severity
+  const bySeverity = {} as Record<ConcernSeverity, any>;
+  Object.values(ConcernSeverity).forEach(severity => {
+    const severityData = concerns.filter(c => c.severity === severity);
+    bySeverity[severity] = {
+      total: severityData.length,
+      toBeDone: severityData.filter(c => c.status === ConcernStatus.TO_BE_DONE).length,
+      addressed: severityData.filter(c => c.status === ConcernStatus.ADDRESSED).length,
+      rejected: severityData.filter(c => c.status === ConcernStatus.REJECTED).length
+    };
+  });
 
-  const endParallel = performance.now();
-  console.log(`Parallel execution (simulated ${numUsers} users): ${(endParallel - startParallel).toFixed(2)}ms`);
-
+  return {
+    totalConcerns: total,
+    concernsByStatus: {
+      [ConcernStatus.OPEN]: 0, // Placeholder values
+      [ConcernStatus.RESOLVED]: 0,
+      [ConcernStatus.DISMISSED]: 0,
+      [ConcernStatus.ADDRESSED]: addressed,
+      [ConcernStatus.REJECTED]: rejected,
+      [ConcernStatus.TO_BE_DONE]: toBeDone
+    },
+    concernsByCategory: byCategory as Record<ConcernCategory, number>,
+    concernsBySeverity: bySeverity as Record<ConcernSeverity, number>,
+  };
 }
 
-runBenchmark().catch(console.error);
+function generateConcernStatisticsNew(concerns: any[]): any {
+  const total = concerns.length;
+
+  let toBeDone = 0;
+  let addressed = 0;
+  let rejected = 0;
+
+  const byCategory: Record<string, any> = {};
+  for (const cat of Object.values(ConcernCategory)) {
+      byCategory[cat] = { total: 0, toBeDone: 0, addressed: 0, rejected: 0 };
+  }
+
+  const bySeverity: Record<string, any> = {};
+  for (const sev of Object.values(ConcernSeverity)) {
+      bySeverity[sev] = { total: 0, toBeDone: 0, addressed: 0, rejected: 0 };
+  }
+
+  for (const c of concerns) {
+      if (c.status === ConcernStatus.TO_BE_DONE) {
+          toBeDone++;
+          if (byCategory[c.category]) byCategory[c.category].toBeDone++;
+          if (bySeverity[c.severity]) bySeverity[c.severity].toBeDone++;
+      } else if (c.status === ConcernStatus.ADDRESSED) {
+          addressed++;
+          if (byCategory[c.category]) byCategory[c.category].addressed++;
+          if (bySeverity[c.severity]) bySeverity[c.severity].addressed++;
+      } else if (c.status === ConcernStatus.REJECTED) {
+          rejected++;
+          if (byCategory[c.category]) byCategory[c.category].rejected++;
+          if (bySeverity[c.severity]) bySeverity[c.severity].rejected++;
+      }
+
+      if (byCategory[c.category]) byCategory[c.category].total++;
+      if (bySeverity[c.severity]) bySeverity[c.severity].total++;
+  }
+
+  return {
+    totalConcerns: total,
+    concernsByStatus: {
+      [ConcernStatus.OPEN]: 0, // Placeholder values
+      [ConcernStatus.RESOLVED]: 0,
+      [ConcernStatus.DISMISSED]: 0,
+      [ConcernStatus.ADDRESSED]: addressed,
+      [ConcernStatus.REJECTED]: rejected,
+      [ConcernStatus.TO_BE_DONE]: toBeDone
+    },
+    concernsByCategory: byCategory,
+    concernsBySeverity: bySeverity,
+  };
+}
+
+
+const mockConcerns = Array.from({ length: 10000 }).map(() => ({
+    status: Object.values(ConcernStatus)[Math.floor(Math.random() * 6)],
+    category: Object.values(ConcernCategory)[Math.floor(Math.random() * 10)],
+    severity: Object.values(ConcernSeverity)[Math.floor(Math.random() * 4)],
+}));
+
+const start1 = performance.now();
+for (let i = 0; i < 100; i++) {
+    generateConcernStatisticsOld(mockConcerns);
+}
+const end1 = performance.now();
+console.log(`Old: ${end1 - start1}ms`);
+
+const start2 = performance.now();
+for (let i = 0; i < 100; i++) {
+    generateConcernStatisticsNew(mockConcerns);
+}
+const end2 = performance.now();
+console.log(`New: ${end2 - start2}ms`);
