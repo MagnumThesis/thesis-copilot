@@ -781,59 +781,40 @@ export class PrivacyManager {
   async anonymizeUserData(userId: string): Promise<{ recordsAnonymized: number }> {
     try {
       const supabase = getSupabase(this.env);
-      const anonymizedUserId = `anon_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const anonymizedUserId = `anon_${Date.now()}_${crypto.randomUUID().substring(0, 8)}`;
       let totalAnonymized = 0;
 
-      // Anonymize search sessions
-      const { error: sessionsError } = await supabase
-        .from('search_sessions')
-        .update({ user_id: anonymizedUserId })
-        .eq('user_id', userId);
-      
+      // Parallelize independent database updates to minimize cumulative I/O latency
+      const [
+        { error: sessionsError },
+        { error: feedbackError },
+        { error: learningError },
+        { error: analyticsError },
+        { error: privacyError }
+      ] = await Promise.all([
+        supabase.from('search_sessions').update({ user_id: anonymizedUserId }).eq('user_id', userId),
+        supabase.from('search_feedback').update({ user_id: anonymizedUserId }).eq('user_id', userId),
+        supabase.from('user_feedback_learning').update({ user_id: anonymizedUserId }).eq('user_id', userId),
+        supabase.from('search_analytics').update({ user_id: anonymizedUserId }).eq('user_id', userId),
+        supabase.from('privacy_settings').delete().eq('user_id', userId)
+      ]);
+
       if (sessionsError) {
         console.error('Error anonymizing search sessions:', sessionsError);
         throw sessionsError;
       }
-
-      // Anonymize feedback
-      const { error: feedbackError } = await supabase
-        .from('search_feedback')
-        .update({ user_id: anonymizedUserId })
-        .eq('user_id', userId);
-      
       if (feedbackError) {
         console.error('Error anonymizing feedback:', feedbackError);
         throw feedbackError;
       }
-
-      // Anonymize learning data
-      const { error: learningError } = await supabase
-        .from('user_feedback_learning')
-        .update({ user_id: anonymizedUserId })
-        .eq('user_id', userId);
-      
       if (learningError) {
         console.error('Error anonymizing learning data:', learningError);
         throw learningError;
       }
-
-      // Anonymize analytics
-      const { error: analyticsError } = await supabase
-        .from('search_analytics')
-        .update({ user_id: anonymizedUserId })
-        .eq('user_id', userId);
-      
       if (analyticsError) {
         console.error('Error anonymizing analytics:', analyticsError);
         throw analyticsError;
       }
-
-      // Remove privacy settings (contains PII)
-      const { error: privacyError } = await supabase
-        .from('privacy_settings')
-        .delete()
-        .eq('user_id', userId);
-      
       if (privacyError) {
         console.error('Error removing privacy settings:', privacyError);
         throw privacyError;
