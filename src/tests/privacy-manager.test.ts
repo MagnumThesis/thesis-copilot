@@ -485,20 +485,25 @@ describe('PrivacyManager', () => {
 
   describe('anonymizeUserData', () => {
     it('should anonymize all user data', async () => {
-      const mockChain = {
-        bind: vi.fn().mockReturnValue({
-          run: vi.fn().mockResolvedValue({ changes: 2 })
-        })
+      const mockQueryBuilder = {
+        update: vi.fn().mockReturnThis(),
+        delete: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockResolvedValue({ data: null, error: null })
       };
-      mockEnv.DB.prepare.mockReturnValue(mockChain);
+      mockSupabaseClient.from.mockReturnValue(mockQueryBuilder);
 
       const result = await privacyManager.anonymizeUserData(mockUserId);
 
-      expect(result.recordsAnonymized).toBe(8); // 4 tables * 2 changes each (based on actual implementation)
-      expect(mockChain.bind).toHaveBeenCalledWith(
-        expect.stringMatching(/^anon_\d+_[a-z0-9]+$/), // anonymized ID pattern
-        mockUserId
-      );
+      expect(result.recordsAnonymized).toBe(0);
+      expect(mockQueryBuilder.update).toHaveBeenCalledWith({
+        user_id: expect.stringMatching(/^anon_\d+_[a-z0-9\-]+$/)
+      });
+      expect(mockQueryBuilder.eq).toHaveBeenCalledWith('user_id', mockUserId);
+      expect(mockSupabaseClient.from).toHaveBeenCalledWith('search_sessions');
+      expect(mockSupabaseClient.from).toHaveBeenCalledWith('search_feedback');
+      expect(mockSupabaseClient.from).toHaveBeenCalledWith('user_feedback_learning');
+      expect(mockSupabaseClient.from).toHaveBeenCalledWith('search_analytics');
+      expect(mockSupabaseClient.from).toHaveBeenCalledWith('privacy_settings');
     });
   });
 });
