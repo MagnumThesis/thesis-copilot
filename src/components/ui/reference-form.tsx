@@ -282,7 +282,7 @@ export const ReferenceForm: React.FC<ReferenceFormProps> = ({
                   placeholder="Add author name"
                   onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addAuthor())}
                 />
-                <Button type="button" onClick={addAuthor} size="sm">
+                <Button type="button" onClick={addAuthor} size="sm" aria-label="Add author" title="Add author">
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
@@ -293,7 +293,9 @@ export const ReferenceForm: React.FC<ReferenceFormProps> = ({
                     <button
                       type="button"
                       onClick={() => removeAuthor(index)}
-                      className="hover:text-destructive"
+                      className="hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+                      aria-label={`Remove author ${typeof author === 'string' ? author : author.lastName}`}
+                      title="Remove author"
                     >
                       <X className="h-3 w-3" />
                     </button>
@@ -454,7 +456,7 @@ export const ReferenceForm: React.FC<ReferenceFormProps> = ({
                   placeholder="Add tag"
                   onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
                 />
-                <Button type="button" onClick={addTag} size="sm">
+                <Button type="button" onClick={addTag} size="sm" aria-label="Add tag" title="Add tag">
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
@@ -465,7 +467,9 @@ export const ReferenceForm: React.FC<ReferenceFormProps> = ({
                     <button
                       type="button"
                       onClick={() => removeTag(index)}
-                      className="hover:text-destructive"
+                      className="hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+                      aria-label={`Remove tag ${tag}`}
+                      title="Remove tag"
                     >
                       <X className="h-3 w-3" />
                     </button>
