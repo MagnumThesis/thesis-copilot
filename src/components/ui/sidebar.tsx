@@ -370,6 +370,7 @@ function SidebarTrigger({
       data-slot="sidebar-trigger"
       variant="ghost"
       size="icon"
+      aria-label="Toggle Sidebar"
       className={cn("size-7", className)}
       onClick={(event: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
         onClick?.(event)
