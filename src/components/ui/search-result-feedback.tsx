@@ -170,6 +170,8 @@ export const SearchResultFeedbackComponent: React.FC<SearchResultFeedbackProps> 
             size="sm"
             onClick={handleCancel}
             className="h-6 w-6 p-0"
+            aria-label="Close feedback"
+            title="Close feedback"
           >
             <X className="h-3 w-3" />
           </Button>
@@ -234,6 +236,8 @@ export const SearchResultFeedbackComponent: React.FC<SearchResultFeedbackProps> 
             size="sm"
             onClick={handleCancel}
             className="h-6 w-6 p-0"
+            aria-label="Close feedback"
+            title="Close feedback"
           >
             <X className="h-3 w-3" />
           </Button>
