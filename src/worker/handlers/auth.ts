@@ -2,6 +2,7 @@
  * Authentication Handlers - HTTP handlers for auth endpoints
  */
 import { Context } from 'hono';
+import { getAuthContext } from '../middleware/auth-middleware';
 import {
   registerUser,
   loginUser,
@@ -99,6 +100,11 @@ export async function getUserProfileHandler(c: Context) {
   try {
     const userId = c.req.param('userId');
 
+    const authContext = getAuthContext(c);
+    if (!authContext || authContext.userId !== userId) {
+      return c.json({ success: false, error: 'Forbidden: Cannot access other users\' data' }, 403);
+    }
+
     if (!userId) {
       return c.json(
         { success: false, error: 'User ID is required' },
@@ -125,6 +131,11 @@ export async function updateUserProfileHandler(c: Context) {
   try {
     const userId = c.req.param('userId');
     const body = await c.req.json();
+
+    const authContext = getAuthContext(c);
+    if (!authContext || authContext.userId !== userId) {
+      return c.json({ success: false, error: 'Forbidden: Cannot modify other users\' data' }, 403);
+    }
 
     if (!userId) {
       return c.json(
@@ -236,6 +247,11 @@ export async function changePasswordHandler(c: Context) {
     const userId = c.req.param('userId');
     const body = await c.req.json();
     const { newPassword } = body;
+
+    const authContext = getAuthContext(c);
+    if (!authContext || authContext.userId !== userId) {
+      return c.json({ success: false, error: 'Forbidden: Cannot modify other users\' passwords' }, 403);
+    }
 
     if (!userId || !newPassword) {
       return c.json(
