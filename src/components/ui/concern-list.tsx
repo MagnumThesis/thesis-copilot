@@ -477,6 +477,7 @@ export const ConcernList: React.FC<ConcernListProps> = ({
                 <button
                   onClick={() => onFilterChange('all')}
                   className="ml-1 hover:text-red-600"
+                  aria-label={"Remove filter for Status " + getStatusLabel(statusFilter)}
                 >
                   ×
                 </button>
@@ -488,6 +489,7 @@ export const ConcernList: React.FC<ConcernListProps> = ({
                 <button
                   onClick={() => setCategoryFilter('all')}
                   className="ml-1 hover:text-red-600"
+                  aria-label={"Remove filter for Category " + getCategoryLabel(categoryFilter)}
                 >
                   ×
                 </button>
@@ -499,6 +501,7 @@ export const ConcernList: React.FC<ConcernListProps> = ({
                 <button
                   onClick={() => setSeverityFilter('all')}
                   className="ml-1 hover:text-red-600"
+                  aria-label={"Remove filter for Severity " + getSeverityLabel(severityFilter)}
                 >
                   ×
                 </button>
