@@ -212,7 +212,7 @@ export class ErrorMiddleware {
    * Generates a unique request ID
    */
   private static generateRequestId(): string {
-    return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    return crypto.randomUUID();
   }
 
   /**
