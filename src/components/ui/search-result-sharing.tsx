@@ -352,6 +352,8 @@ export const SearchResultSharing: React.FC<SearchResultSharingProps> = ({
                         <button
                           onClick={() => handleRemoveEmail(email)}
                           className="ml-1 hover:text-red-600"
+                          aria-label={`Remove email ${email}`}
+                          title={`Remove email ${email}`}
                         >
                           <X className="h-3 w-3" />
                         </button>
