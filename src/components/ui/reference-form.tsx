@@ -294,6 +294,8 @@ export const ReferenceForm: React.FC<ReferenceFormProps> = ({
                       type="button"
                       onClick={() => removeAuthor(index)}
                       className="hover:text-destructive"
+                      aria-label={`Remove author ${typeof author === 'string' ? author : `${author.firstName} ${author.lastName}`}`}
+                      title={`Remove author ${typeof author === 'string' ? author : `${author.firstName} ${author.lastName}`}`}
                     >
                       <X className="h-3 w-3" />
                     </button>
@@ -466,6 +468,8 @@ export const ReferenceForm: React.FC<ReferenceFormProps> = ({
                       type="button"
                       onClick={() => removeTag(index)}
                       className="hover:text-destructive"
+                      aria-label={`Remove tag ${tag}`}
+                      title={`Remove tag ${tag}`}
                     >
                       <X className="h-3 w-3" />
                     </button>
