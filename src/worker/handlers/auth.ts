@@ -2,6 +2,7 @@
  * Authentication Handlers - HTTP handlers for auth endpoints
  */
 import { Context } from 'hono';
+import { getAuthContext } from '../middleware/auth-middleware';
 import {
   registerUser,
   loginUser,
@@ -106,6 +107,16 @@ export async function getUserProfileHandler(c: Context) {
       );
     }
 
+    // Security Fix (Sentinel): Prevent IDOR.
+    // Ensure that the requested resource ID matches the authenticated user's ID.
+    const authContext = getAuthContext(c);
+    if (!authContext || authContext.userId !== userId) {
+      return c.json(
+        { success: false, error: 'Unauthorized access to user profile' },
+        403
+      );
+    }
+
     const result = await getUserProfile(userId);
 
     return c.json(result, 200);
@@ -130,6 +141,16 @@ export async function updateUserProfileHandler(c: Context) {
       return c.json(
         { success: false, error: 'User ID is required' },
         400
+      );
+    }
+
+    // Security Fix (Sentinel): Prevent IDOR.
+    // Ensure that the requested resource ID matches the authenticated user's ID.
+    const authContext = getAuthContext(c);
+    if (!authContext || authContext.userId !== userId) {
+      return c.json(
+        { success: false, error: 'Unauthorized access to user profile' },
+        403
       );
     }
 
@@ -241,6 +262,16 @@ export async function changePasswordHandler(c: Context) {
       return c.json(
         { success: false, error: 'User ID and new password are required' },
         400
+      );
+    }
+
+    // Security Fix (Sentinel): Prevent IDOR.
+    // Ensure that the requested resource ID matches the authenticated user's ID.
+    const authContext = getAuthContext(c);
+    if (!authContext || authContext.userId !== userId) {
+      return c.json(
+        { success: false, error: 'Unauthorized access to user profile' },
+        403
       );
     }
 
