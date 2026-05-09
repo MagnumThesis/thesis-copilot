@@ -781,7 +781,7 @@ export class PrivacyManager {
   async anonymizeUserData(userId: string): Promise<{ recordsAnonymized: number }> {
     try {
       const supabase = getSupabase(this.env);
-      const anonymizedUserId = `anon_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const anonymizedUserId = `anon_${crypto.randomUUID()}`;
       let totalAnonymized = 0;
 
       // Anonymize search sessions
