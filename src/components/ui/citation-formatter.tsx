@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from './shadcn/button';
 import { Label } from './shadcn/label';
 import { Card, CardContent, CardHeader, CardTitle } from './shadcn/card';
@@ -109,6 +109,10 @@ export const CitationFormatter: React.FC<CitationFormatterProps> = ({
   const [loading, setLoading] = useState(false);
   const [copiedToClipboard, setCopiedToClipboard] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'citations' | 'bibliography'>('citations');
+
+  const selectedReferenceMap = useMemo(() => {
+    return new Map(selectedReferences.map(r => [r.id, r]));
+  }, [selectedReferences]);
 
   // Available citation styles
   const citationStyles = [
@@ -334,7 +338,7 @@ export const CitationFormatter: React.FC<CitationFormatterProps> = ({
                 <div
                   key={reference.id}
                   className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
-                    selectedReferences.find(r => r.id === reference.id)
+                    selectedReferenceMap.has(reference.id)
                       ? 'border-blue-300 bg-blue-50'
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
@@ -395,7 +399,7 @@ export const CitationFormatter: React.FC<CitationFormatterProps> = ({
           {activeTab === 'citations' && (
             <div className="space-y-4">
               {Array.from(formattingResults.entries()).map(([referenceId, result]) => {
-                const reference = selectedReferences.find(r => r.id === referenceId);
+                const reference = selectedReferenceMap.get(referenceId);
                 if (!reference) return null;
 
                 return (
