@@ -5,3 +5,7 @@
 ## 2026-03-22 - Redundant Array Traversals in getStatistics
 **Learning:** Performing multiple consecutive `.filter().length` operations on an array of objects where each filter condition involves an expensive operation (like `safeDate` parsing) leads to (kN)$ time complexity and redundant processing.
 **Action:** Consolidate multiple statistics calculations into a single (N)$ pass using a single loop (e.g., `forEach` or `reduce`). This minimizes traversals and ensures each expensive transformation (like date parsing) is performed exactly once per element.
+
+## 2024-05-24 - Array Lookups in Render Loops
+**Learning:** Using `Array.find` to check for item selection inside a rendering `.map()` loop results in O(N^2) time complexity during every render cycle.
+**Action:** Memoize array lookups into a `Map` (keyed by `id`) via `useMemo` to provide O(1) access during render loops, replacing inefficient O(N) `Array.find` calls.
