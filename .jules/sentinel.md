@@ -1,4 +1,4 @@
-## 2024-05-24 - Overly Permissive CORS with Credentials
-**Vulnerability:** The application is using `origin: '*'` together with `credentials: true` in Hono CORS configuration (`src/worker/routes/auth-routes.ts`).
-**Learning:** Using a wildcard origin with credentials enabled allows any website to make requests to the authenticated endpoints and include the user's cookies/credentials. This is a significant security risk and can lead to CSRF attacks or data theft.
-**Prevention:** Avoid using `origin: '*'` with `credentials: true`. Instead, implement a dynamic origin resolver function utilizing `c.env` or `import.meta.env` to strictly validate against allowed frontend URLs and development environments.
+## 2024-05-12 - Missing Authentication and IDOR in Auth Handlers
+**Vulnerability:** Protected routes lacked the `requireAuth` middleware and handlers (`getUserProfileHandler`, `updateUserProfileHandler`, `changePasswordHandler`) did not validate if the requested `userId` matched the authenticated user, causing an Insecure Direct Object Reference (IDOR) vulnerability.
+**Learning:** Cloudflare Workers/Hono routing doesn't enforce authentication implicitly; middleware must be explicitly attached to protected endpoints, and handlers must verify ownership before acting on parameters.
+**Prevention:** Always use `requireAuth` middleware for sensitive endpoints and explicitly check `authContext.userId === requestedUserId` within handlers to ensure a fail-closed access control model.

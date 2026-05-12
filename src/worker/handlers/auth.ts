@@ -2,6 +2,7 @@
  * Authentication Handlers - HTTP handlers for auth endpoints
  */
 import { Context } from 'hono';
+import { getAuthContext } from '../middleware/auth-middleware';
 import {
   registerUser,
   loginUser,
@@ -98,6 +99,14 @@ export async function loginHandler(c: Context) {
 export async function getUserProfileHandler(c: Context) {
   try {
     const userId = c.req.param('userId');
+    const authContext = getAuthContext(c);
+
+    if (!authContext || authContext.userId !== userId) {
+      return c.json(
+        { success: false, error: 'Unauthorized access' },
+        403
+      );
+    }
 
     if (!userId) {
       return c.json(
@@ -124,6 +133,15 @@ export async function getUserProfileHandler(c: Context) {
 export async function updateUserProfileHandler(c: Context) {
   try {
     const userId = c.req.param('userId');
+    const authContext = getAuthContext(c);
+
+    if (!authContext || authContext.userId !== userId) {
+      return c.json(
+        { success: false, error: 'Unauthorized access' },
+        403
+      );
+    }
+
     const body = await c.req.json();
 
     if (!userId) {
@@ -234,6 +252,15 @@ export async function logoutHandler(c: Context) {
 export async function changePasswordHandler(c: Context) {
   try {
     const userId = c.req.param('userId');
+    const authContext = getAuthContext(c);
+
+    if (!authContext || authContext.userId !== userId) {
+      return c.json(
+        { success: false, error: 'Unauthorized access' },
+        403
+      );
+    }
+
     const body = await c.req.json();
     const { newPassword } = body;
 
