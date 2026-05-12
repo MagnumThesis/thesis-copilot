@@ -350,8 +350,11 @@ export const SearchResultSharing: React.FC<SearchResultSharingProps> = ({
                       <Badge key={index} variant="outline" className="flex items-center gap-1">
                         {email}
                         <button
+                          type="button"
                           onClick={() => handleRemoveEmail(email)}
                           className="ml-1 hover:text-red-600"
+                          aria-label={`Remove ${email}`}
+                          title={`Remove ${email}`}
                         >
                           <X className="h-3 w-3" />
                         </button>

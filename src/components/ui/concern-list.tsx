@@ -475,8 +475,11 @@ export const ConcernList: React.FC<ConcernListProps> = ({
               <Badge variant="secondary" className="text-xs">
                 Status: {getStatusLabel(statusFilter)}
                 <button
+                  type="button"
                   onClick={() => onFilterChange('all')}
                   className="ml-1 hover:text-red-600"
+                  aria-label="Clear status filter"
+                  title="Clear status filter"
                 >
                   ×
                 </button>
@@ -486,8 +489,11 @@ export const ConcernList: React.FC<ConcernListProps> = ({
               <Badge variant="secondary" className="text-xs">
                 Category: {getCategoryLabel(categoryFilter)}
                 <button
+                  type="button"
                   onClick={() => setCategoryFilter('all')}
                   className="ml-1 hover:text-red-600"
+                  aria-label="Clear category filter"
+                  title="Clear category filter"
                 >
                   ×
                 </button>
@@ -497,8 +503,11 @@ export const ConcernList: React.FC<ConcernListProps> = ({
               <Badge variant="secondary" className="text-xs">
                 Severity: {getSeverityLabel(severityFilter)}
                 <button
+                  type="button"
                   onClick={() => setSeverityFilter('all')}
                   className="ml-1 hover:text-red-600"
+                  aria-label="Clear severity filter"
+                  title="Clear severity filter"
                 >
                   ×
                 </button>
