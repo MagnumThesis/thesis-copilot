@@ -4,6 +4,7 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { corsOriginResolver } from '../utils/cors-resolver';
+import { requireAuth } from '../middleware/auth-middleware';
 import {
   registerHandler,
   loginHandler,
@@ -52,6 +53,10 @@ authApi.options('/reset-password', (c) => new Response(null, { status: 204 }));
 /**
  * Protected routes (authentication required)
  */
+authApi.use('/verify', requireAuth);
+authApi.use('/profile/*', requireAuth);
+authApi.use('/change-password/*', requireAuth);
+authApi.use('/logout', requireAuth);
 
 // Verify token
 authApi.post('/verify', verifyTokenHandler);
