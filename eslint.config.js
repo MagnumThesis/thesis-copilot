@@ -7,8 +7,9 @@ import jsdoc from "eslint-plugin-jsdoc";
 
 export default tseslint.config(
   { ignores: ["dist"] },
+  jsdoc.configs["flat/recommended"],
   {
-    extends: [js.configs.recommended, ...tseslint.configs.recommended, "plugin:jsdoc/recommended"],
+    extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ["**/*.{ts,tsx}"],
     languageOptions: {
       ecmaVersion: 2020,
