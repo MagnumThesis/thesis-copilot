@@ -334,6 +334,8 @@ export const ReferenceDetail: React.FC<ReferenceDetailProps> = ({
             variant="ghost"
             size="sm"
             onClick={onClose}
+            aria-label="Close reference detail"
+            title="Close reference detail"
           >
             <X className="h-4 w-4" />
           </Button>
@@ -503,6 +505,8 @@ export const ReferenceDetail: React.FC<ReferenceDetailProps> = ({
                       <button
                         onClick={() => handleRemoveTag(tag)}
                         className="ml-2 hover:text-destructive"
+                        aria-label={`Remove tag ${tag}`}
+                        title={`Remove tag ${tag}`}
                       >
                         <X className="h-3 w-3" />
                       </button>
