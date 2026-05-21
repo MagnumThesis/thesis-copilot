@@ -287,9 +287,24 @@ export const ConcernList: React.FC<ConcernListProps> = ({
     }
   }
 
+  const counts = useMemo(() => {
+    const statusCounts = new Map<string, number>();
+    const categoryCounts = new Map<string, number>();
+    const severityCounts = new Map<string, number>();
+
+    for (let i = 0; i < concerns.length; i++) {
+      const c = concerns[i];
+      statusCounts.set(c.status, (statusCounts.get(c.status) || 0) + 1);
+      categoryCounts.set(c.category, (categoryCounts.get(c.category) || 0) + 1);
+      severityCounts.set(c.severity, (severityCounts.get(c.severity) || 0) + 1);
+    }
+
+    return { statusCounts, categoryCounts, severityCounts, total: concerns.length };
+  }, [concerns]);
+
   const getStatusCount = (status: ConcernStatus | 'all') => {
-    if (status === 'all') return concerns.length
-    return concerns.filter(c => c.status === status).length
+    if (status === 'all') return counts.total;
+    return counts.statusCounts.get(status) || 0;
   }
 
   const getCategoryLabel = (category: ConcernCategory | 'all') => {
@@ -303,13 +318,13 @@ export const ConcernList: React.FC<ConcernListProps> = ({
   }
 
   const getCategoryCount = (category: ConcernCategory | 'all') => {
-    if (category === 'all') return concerns.length
-    return concerns.filter(c => c.category === category).length
+    if (category === 'all') return counts.total;
+    return counts.categoryCounts.get(category) || 0;
   }
 
   const getSeverityCount = (severity: ConcernSeverity | 'all') => {
-    if (severity === 'all') return concerns.length
-    return concerns.filter(c => c.severity === severity).length
+    if (severity === 'all') return counts.total;
+    return counts.severityCounts.get(severity) || 0;
   }
 
   return (
