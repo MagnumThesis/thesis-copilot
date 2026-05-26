@@ -1,10 +1,30 @@
 import { Context } from 'hono';
 import { getSupabase, SupabaseEnv } from '../lib/supabase';
 import { Env } from '../types/env';
+import { getAuthContext } from '../middleware/auth-middleware';
 
 export async function getMessagesHandler(c: Context<{ Bindings: Env & SupabaseEnv }>) {
     const chatId = c.req.param("id");
     const supabase = getSupabase(c.env);
+
+    const authContext = getAuthContext(c);
+    const userId = authContext?.userId;
+
+    if (!userId) {
+        return c.json({ error: "Unauthorized" }, 401);
+    }
+
+    // Verify chat belongs to authenticated user to prevent IDOR
+    const { data: chatData, error: chatError } = await supabase
+        .from("chats")
+        .select("id")
+        .eq("id", chatId)
+        .eq("user_id", userId)
+        .single();
+
+    if (chatError || !chatData) {
+        return c.json({ error: "Chat not found or access denied" }, 404);
+    }
 
     const { data, error } = await supabase
         .from("messages")
