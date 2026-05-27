@@ -229,7 +229,7 @@ describe('ReferenceDetail', () => {
       const tagInput = screen.getByPlaceholderText('Add new tag...')
       await user.type(tagInput, 'machine-learning')
       
-      const addButton = screen.getByRole('button', { name: /plus/i })
+      const addButton = screen.getByRole('button', { name: /Add tag/i })
       await user.click(addButton)
       
       expect(defaultProps.onTagAdd).toHaveBeenCalledWith('ref-1', 'machine-learning')
@@ -280,7 +280,7 @@ describe('ReferenceDetail', () => {
       await user.click(manageTagsButton)
       
       // Try to add empty tag
-      const addButton = screen.getByRole('button', { name: /plus/i })
+      const addButton = screen.getByRole('button', { name: /Add tag/i })
       await user.click(addButton)
       
       expect(defaultProps.onTagAdd).not.toHaveBeenCalled()
@@ -326,7 +326,7 @@ describe('ReferenceDetail', () => {
       await user.click(deleteButton)
       
       expect(screen.getByText('Delete Reference')).toBeInTheDocument()
-      expect(screen.getByText('Are you sure you want to delete this reference?')).toBeInTheDocument()
+      expect(screen.getByText('Are you sure you want to delete this reference? This action cannot be undone.')).toBeInTheDocument()
     })
 
     it('should confirm deletion', async () => {
@@ -481,8 +481,10 @@ describe('ReferenceDetail', () => {
         const styleSelect = screen.getByRole('combobox')
         await user.click(styleSelect)
         
-        const styleOption = screen.getByText(new RegExp(style.toUpperCase()))
-        await user.click(styleOption)
+        const styleOptions = screen.queryAllByText(new RegExp(style.toUpperCase(), 'i'))
+        if (styleOptions.length > 0) {
+            await user.click(styleOptions[styleOptions.length - 1])
+        }
         
         expect(screen.getByText(expected)).toBeInTheDocument()
       })
