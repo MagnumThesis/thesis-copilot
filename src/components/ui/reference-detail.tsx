@@ -334,6 +334,8 @@ export const ReferenceDetail: React.FC<ReferenceDetailProps> = ({
             variant="ghost"
             size="sm"
             onClick={onClose}
+            aria-label="Close details"
+            title="Close details"
           >
             <X className="h-4 w-4" />
           </Button>
@@ -445,6 +447,8 @@ export const ReferenceDetail: React.FC<ReferenceDetailProps> = ({
                       size="sm"
                       onClick={() => window.open(`https://doi.org/${reference.doi}`, '_blank')}
                       className="h-6 w-6 p-0"
+                      aria-label="Open DOI link"
+                      title="Open DOI link"
                     >
                       <ExternalLink className="h-3 w-3" />
                     </Button>
@@ -469,6 +473,8 @@ export const ReferenceDetail: React.FC<ReferenceDetailProps> = ({
                       size="sm"
                       onClick={handleExternalLink}
                       className="h-6 w-6 p-0 flex-shrink-0"
+                      aria-label="Open URL"
+                      title="Open URL"
                     >
                       <ExternalLink className="h-3 w-3" />
                     </Button>
@@ -503,6 +509,8 @@ export const ReferenceDetail: React.FC<ReferenceDetailProps> = ({
                       <button
                         onClick={() => handleRemoveTag(tag)}
                         className="ml-2 hover:text-destructive"
+                        aria-label="Remove tag"
+                        title="Remove tag"
                       >
                         <X className="h-3 w-3" />
                       </button>
@@ -523,7 +531,7 @@ export const ReferenceDetail: React.FC<ReferenceDetailProps> = ({
                     onKeyPress={(e) => e.key === 'Enter' && handleAddTag()}
                     className="flex-1"
                   />
-                  <Button onClick={handleAddTag} size="sm">
+                  <Button onClick={handleAddTag} size="sm" aria-label="Add tag" title="Add tag">
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
@@ -569,6 +577,8 @@ export const ReferenceDetail: React.FC<ReferenceDetailProps> = ({
                     size="sm"
                     onClick={handleCopyCitation}
                     className="flex-shrink-0"
+                    aria-label="Copy citation"
+                    title="Copy citation"
                   >
                     <Copy className="h-4 w-4" />
                   </Button>
