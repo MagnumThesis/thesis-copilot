@@ -328,9 +328,16 @@ export class SearchAnalyticsManager {
       // Calculate metrics
       const totalSearches = sessions.length;
       const totalResults = sessions.reduce((sum, session) => sum + (session.results_count || 0), 0);
-      const resultsViewed = results.filter(result => result.user_action === 'viewed').length;
-      const resultsAdded = results.filter(result => result.user_action === 'added').length;
-      const resultsRejected = results.filter(result => result.user_action === 'rejected').length;
+
+      let resultsViewed = 0;
+      let resultsAdded = 0;
+      let resultsRejected = 0;
+
+      for (const result of results) {
+        if (result.user_action === 'viewed') resultsViewed++;
+        else if (result.user_action === 'added') resultsAdded++;
+        else if (result.user_action === 'rejected') resultsRejected++;
+      }
 
       return {
         totalSearches,
@@ -396,13 +403,26 @@ export class SearchAnalyticsManager {
       }
       
       // Calculate averages
-      const avgOverallSatisfaction = feedbackData.reduce((sum, item) => sum + (item.overall_satisfaction || 0), 0) / totalFeedbackCount;
-      const avgRelevanceRating = feedbackData.reduce((sum, item) => sum + (item.relevance_rating || 0), 0) / totalFeedbackCount;
-      const avgQualityRating = feedbackData.reduce((sum, item) => sum + (item.quality_rating || 0), 0) / totalFeedbackCount;
-      const avgEaseOfUseRating = feedbackData.reduce((sum, item) => sum + (item.ease_of_use_rating || 0), 0) / totalFeedbackCount;
+      let totalOverallSatisfaction = 0;
+      let totalRelevanceRating = 0;
+      let totalQualityRating = 0;
+      let totalEaseOfUseRating = 0;
+      let wouldRecommendCount = 0;
+
+      for (const item of feedbackData) {
+        totalOverallSatisfaction += (item.overall_satisfaction || 0);
+        totalRelevanceRating += (item.relevance_rating || 0);
+        totalQualityRating += (item.quality_rating || 0);
+        totalEaseOfUseRating += (item.ease_of_use_rating || 0);
+        if (item.would_recommend) wouldRecommendCount++;
+      }
+
+      const avgOverallSatisfaction = totalOverallSatisfaction / totalFeedbackCount;
+      const avgRelevanceRating = totalRelevanceRating / totalFeedbackCount;
+      const avgQualityRating = totalQualityRating / totalFeedbackCount;
+      const avgEaseOfUseRating = totalEaseOfUseRating / totalFeedbackCount;
       
       // Calculate recommendation rate
-      const wouldRecommendCount = feedbackData.filter(item => item.would_recommend).length;
       const recommendationRate = (wouldRecommendCount / totalFeedbackCount) * 100;
 
       return {
@@ -447,13 +467,18 @@ export class SearchAnalyticsManager {
       
       // Calculate statistics
       const totalSearches = sessions.length;
-      const successfulSearches = sessions.filter(session => session.search_success).length;
-      const avgResults = totalSearches > 0 
-        ? sessions.reduce((sum, session) => sum + ((session.results_count ?? 0) as number), 0) / totalSearches 
-        : 0;
-      const avgProcessingTime = totalSearches > 0 
-        ? sessions.reduce((sum, session) => sum + ((session.processing_time_ms ?? 0) as number), 0) / totalSearches 
-        : 0;
+      let successfulSearches = 0;
+      let totalResultsCount = 0;
+      let totalProcessingTime = 0;
+
+      for (const session of sessions) {
+        if (session.search_success) successfulSearches++;
+        totalResultsCount += ((session.results_count ?? 0) as number);
+        totalProcessingTime += ((session.processing_time_ms ?? 0) as number);
+      }
+
+      const avgResults = totalSearches > 0 ? totalResultsCount / totalSearches : 0;
+      const avgProcessingTime = totalSearches > 0 ? totalProcessingTime / totalSearches : 0;
       
       // Get search queries for popular topics
       let queriesQuery = supabase
