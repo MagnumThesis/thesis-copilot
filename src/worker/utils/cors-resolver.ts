@@ -13,12 +13,13 @@ export const corsOriginResolver = (origin: string, c: Context) => {
     allowedOrigins.push(envFrontendUrl);
   }
 
-  // Allow requests with no origin (like mobile apps or curl requests)
-  // or if the origin is in our allowed list
-  if (!origin || allowedOrigins.includes(origin)) {
-    return origin || '*';
+  // If origin is in our allowed list, return it
+  if (origin && allowedOrigins.includes(origin)) {
+    return origin;
   }
 
-  // Default fallback - returning a string is safer than returning true
+  // Do not return a wildcard '*' because we use credentials: true,
+  // which creates a security vulnerability when paired together.
+  // Default fallback - returning a safe string is required
   return allowedOrigins[0];
 };
