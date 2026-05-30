@@ -534,18 +534,30 @@ export class FeedbackLearningSystem {
 
       // Calculate metrics from the data
       const totalFeedback = data.length;
-      const positiveRatings = data.filter(item => item.is_relevant && item.quality_rating >= 4).length;
-      const negativeRatings = data.filter(item => !item.is_relevant || item.quality_rating <= 2).length;
-      const averageRating = totalFeedback > 0 
-        ? data.reduce((sum, item) => sum + item.quality_rating, 0) / totalFeedback 
-        : 0;
+      let positiveRatings = 0;
+      let negativeRatings = 0;
+      let totalRatingScore = 0;
+
+      for (const item of data) {
+        if (item.is_relevant && item.quality_rating >= 4) {
+          positiveRatings++;
+        }
+        if (!item.is_relevant || item.quality_rating <= 2) {
+          negativeRatings++;
+        }
+        totalRatingScore += item.quality_rating;
+      }
+
+      const averageRating = totalFeedback > 0 ? totalRatingScore / totalFeedback : 0;
 
       // Calculate confidence level based on feedback volume and consistency
       const confidenceLevel = Math.min(1, totalFeedback / 20) * 
         (totalFeedback > 0 ? (positiveRatings / totalFeedback) : 0);
 
       // Calculate improvement trend (simplified)
-      const improvementTrend = averageRating > 3 ? 0.1 : -0.1;
+      // Note: If there's no feedback, we shouldn't necessarily penalize the trend.
+      // Keeping backward compatibility with existing tests that expect -0.1 for averageRating=0.
+      const improvementTrend = totalFeedback === 0 ? -0.1 : (averageRating > 3 ? 0.1 : -0.1);
 
       return {
         totalFeedbackCount: totalFeedback,
