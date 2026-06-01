@@ -371,6 +371,8 @@ function IdeaSelectorDialog({
                           className="h-7 w-7"
                           onClick={(e) => handleSaveEdit(idea, e)}
                           disabled={isUpdating}
+                          aria-label="Save title"
+                          title="Save title"
                         >
                           {isUpdating ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
@@ -384,6 +386,8 @@ function IdeaSelectorDialog({
                           className="h-7 w-7"
                           onClick={handleCancelEdit}
                           disabled={isUpdating}
+                          aria-label="Cancel editing"
+                          title="Cancel editing"
                         >
                           <X className="h-4 w-4 text-destructive" />
                         </Button>
@@ -404,6 +408,7 @@ function IdeaSelectorDialog({
                           size="icon"
                           className="h-6 w-6 shrink-0"
                           onClick={(e) => handleStartEdit(idea, e)}
+                          aria-label={`Edit title for ${idea.title}`}
                           title="Edit title"
                         >
                           <Pencil className="h-3 w-3" />
@@ -414,6 +419,7 @@ function IdeaSelectorDialog({
                           className="h-6 w-6 shrink-0"
                           onClick={(e) => handleRegenerateTitle(idea, e)}
                           disabled={regeneratingId === idea.id || !idea.description}
+                          aria-label={`Regenerate title for ${idea.title} with AI`}
                           title="Regenerate title with AI"
                         >
                           {regeneratingId === idea.id ? (
