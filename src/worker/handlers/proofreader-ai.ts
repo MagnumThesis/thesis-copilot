@@ -574,46 +574,81 @@ function generateSeverityBreakdown(concerns: ProofreadingConcern[]): Record<Conc
  */
 function generateConcernStatistics(concerns: any[]): ConcernStatistics {
   const total = concerns.length;
-  const toBeDone = concerns.filter(c => c.status === ConcernStatus.TO_BE_DONE).length;
-  const addressed = concerns.filter(c => c.status === ConcernStatus.ADDRESSED).length;
-  const rejected = concerns.filter(c => c.status === ConcernStatus.REJECTED).length;
-  
-  // Generate breakdown by category
+
+  let toBeDone = 0;
+  let addressed = 0;
+  let rejected = 0;
+  let open = 0;
+  let resolved = 0;
+  let dismissed = 0;
+
   const byCategory = {} as Record<ConcernCategory, any>;
+  const concernsByCategory = {} as Record<ConcernCategory, number>;
+
   Object.values(ConcernCategory).forEach(category => {
-    const categoryData = concerns.filter(c => c.category === category);
+    concernsByCategory[category] = 0;
     byCategory[category] = {
-      total: categoryData.length,
-      toBeDone: categoryData.filter(c => c.status === ConcernStatus.TO_BE_DONE).length,
-      addressed: categoryData.filter(c => c.status === ConcernStatus.ADDRESSED).length,
-      rejected: categoryData.filter(c => c.status === ConcernStatus.REJECTED).length
+      total: 0,
+      toBeDone: 0,
+      addressed: 0,
+      rejected: 0
     };
   });
-  
-  // Generate breakdown by severity
+
   const bySeverity = {} as Record<ConcernSeverity, any>;
+  const concernsBySeverity = {} as Record<ConcernSeverity, number>;
+
   Object.values(ConcernSeverity).forEach(severity => {
-    const severityData = concerns.filter(c => c.severity === severity);
+    concernsBySeverity[severity] = 0;
     bySeverity[severity] = {
-      total: severityData.length,
-      toBeDone: severityData.filter(c => c.status === ConcernStatus.TO_BE_DONE).length,
-      addressed: severityData.filter(c => c.status === ConcernStatus.ADDRESSED).length,
-      rejected: severityData.filter(c => c.status === ConcernStatus.REJECTED).length
+      total: 0,
+      toBeDone: 0,
+      addressed: 0,
+      rejected: 0
     };
   });
+
+  for (let i = 0; i < concerns.length; i++) {
+    const c = concerns[i];
+
+    if (c.status === ConcernStatus.TO_BE_DONE) toBeDone++;
+    else if (c.status === ConcernStatus.ADDRESSED) addressed++;
+    else if (c.status === ConcernStatus.REJECTED) rejected++;
+    else if (c.status === ConcernStatus.OPEN) open++;
+    else if (c.status === ConcernStatus.RESOLVED) resolved++;
+    else if (c.status === ConcernStatus.DISMISSED) dismissed++;
+
+    if (c.category && byCategory[c.category]) {
+      concernsByCategory[c.category]++;
+      const cat = byCategory[c.category];
+      cat.total++;
+      if (c.status === ConcernStatus.TO_BE_DONE) cat.toBeDone++;
+      else if (c.status === ConcernStatus.ADDRESSED) cat.addressed++;
+      else if (c.status === ConcernStatus.REJECTED) cat.rejected++;
+    }
+
+    if (c.severity && bySeverity[c.severity]) {
+      concernsBySeverity[c.severity]++;
+      const sev = bySeverity[c.severity];
+      sev.total++;
+      if (c.status === ConcernStatus.TO_BE_DONE) sev.toBeDone++;
+      else if (c.status === ConcernStatus.ADDRESSED) sev.addressed++;
+      else if (c.status === ConcernStatus.REJECTED) sev.rejected++;
+    }
+  }
   
   return {
     totalConcerns: total,
     concernsByStatus: {
-      [ConcernStatus.OPEN]: 0, // Placeholder values
-      [ConcernStatus.RESOLVED]: 0,
-      [ConcernStatus.DISMISSED]: 0,
+      [ConcernStatus.OPEN]: open,
+      [ConcernStatus.RESOLVED]: resolved,
+      [ConcernStatus.DISMISSED]: dismissed,
       [ConcernStatus.ADDRESSED]: addressed,
       [ConcernStatus.REJECTED]: rejected,
       [ConcernStatus.TO_BE_DONE]: toBeDone
     },
-    concernsByCategory: byCategory as Record<ConcernCategory, number>,
-    concernsBySeverity: bySeverity as Record<ConcernSeverity, number>,
+    concernsByCategory: concernsByCategory as Record<ConcernCategory, number>,
+    concernsBySeverity: concernsBySeverity as Record<ConcernSeverity, number>,
     resolutionRate: total > 0 ? (addressed + rejected) / total : 0,
     averageResolutionTime: 0, // Placeholder value
     total,
