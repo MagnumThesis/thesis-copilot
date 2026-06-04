@@ -395,7 +395,7 @@ describe('ConcernStatusManager Type Safety', () => {
     expect(validStatuses).toContain(ConcernStatus.TO_BE_DONE);
     expect(validStatuses).toContain(ConcernStatus.ADDRESSED);
     expect(validStatuses).toContain(ConcernStatus.REJECTED);
-    expect(validStatuses).toHaveLength(3);
+    expect(validStatuses).toHaveLength(6);
   });
 
   it('should enforce correct category values', () => {
@@ -403,7 +403,7 @@ describe('ConcernStatusManager Type Safety', () => {
     expect(validCategories).toContain(ConcernCategory.CLARITY);
     expect(validCategories).toContain(ConcernCategory.GRAMMAR);
     expect(validCategories).toContain(ConcernCategory.STRUCTURE);
-    expect(validCategories).toHaveLength(9);
+    expect(validCategories).toHaveLength(10);
   });
 
   it('should enforce correct severity values', () => {
