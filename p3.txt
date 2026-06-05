@@ -1,0 +1,30 @@
+      return {
+        totalConcerns,
+        concernsByStatus,
+        concernsByCategory,
+        concernsBySeverity,
+        resolutionRate,
+        averageResolutionTime,
+        total,
+        toBeDone,
+        addressed,
+        rejected,
+        byCategory,
+        bySeverity
+      };
+
+    } catch (error) {
+      console.error('Error calculating concern statistics:', error);
+      throw error instanceof Error ? error : new Error('Unknown error calculating statistics');
+    }
+  }
+
+  /**
+   * Get a specific concern by ID
+   */
+  async getConcernById(concernId: string): Promise<ProofreadingConcern | null> {
+    if (!concernId) {
+      throw new Error('Concern ID is required');
+    }
+
+    try {
