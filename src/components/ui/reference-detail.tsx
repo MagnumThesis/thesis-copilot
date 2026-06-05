@@ -503,6 +503,7 @@ export const ReferenceDetail: React.FC<ReferenceDetailProps> = ({
                       <button
                         onClick={() => handleRemoveTag(tag)}
                         className="ml-2 hover:text-destructive"
+                        aria-label="Remove tag"
                       >
                         <X className="h-3 w-3" />
                       </button>
