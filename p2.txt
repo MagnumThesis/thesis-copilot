@@ -1,0 +1,39 @@
+          status: severity as unknown as ConcernStatus, // This is a workaround - severity is a ConcernSeverity, not ConcernStatus
+          count: total,
+          percentage: total > 0 ? (addressed / total) * 100 : 0,
+          total,
+          toBeDone,
+          addressed,
+          rejected
+        };
+      });
+
+      // Calculate concerns by status
+      const concernsByStatus: Record<ConcernStatus, number> = {
+        [ConcernStatus.OPEN]: concerns.filter(c => c.status === ConcernStatus.OPEN).length,
+        [ConcernStatus.RESOLVED]: concerns.filter(c => c.status === ConcernStatus.RESOLVED).length,
+        [ConcernStatus.DISMISSED]: concerns.filter(c => c.status === ConcernStatus.DISMISSED).length,
+        [ConcernStatus.ADDRESSED]: addressed,
+        [ConcernStatus.REJECTED]: rejected,
+        [ConcernStatus.TO_BE_DONE]: toBeDone
+      };
+
+      // Calculate concerns by category
+      const concernsByCategory: Record<ConcernCategory, number> = {} as Record<ConcernCategory, number>;
+      Object.values(ConcernCategory).forEach(category => {
+        concernsByCategory[category] = concerns.filter(c => c.category === category).length;
+      });
+
+      // Calculate concerns by severity
+      const concernsBySeverity: Record<ConcernSeverity, number> = {} as Record<ConcernSeverity, number>;
+      Object.values(ConcernSeverity).forEach(severity => {
+        concernsBySeverity[severity] = concerns.filter(c => c.severity === severity).length;
+      });
+
+      // Calculate resolution rate (simple calculation)
+      const totalConcerns = total;
+      const resolvedConcerns = addressed + rejected;
+      const resolutionRate = totalConcerns > 0 ? (resolvedConcerns / totalConcerns) * 100 : 0;
+
+      // Calculate average resolution time (simplified - using a fixed value for now)
+      const averageResolutionTime = 0; // Would need actual timestamps to calculate this properly
