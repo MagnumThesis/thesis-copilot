@@ -405,6 +405,7 @@ function IdeaSelectorDialog({
                           className="h-6 w-6 shrink-0"
                           onClick={(e) => handleStartEdit(idea, e)}
                           title="Edit title"
+                          aria-label="Edit title"
                         >
                           <Pencil className="h-3 w-3" />
                         </Button>
@@ -415,6 +416,7 @@ function IdeaSelectorDialog({
                           onClick={(e) => handleRegenerateTitle(idea, e)}
                           disabled={regeneratingId === idea.id || !idea.description}
                           title="Regenerate title with AI"
+                          aria-label="Regenerate title with AI"
                         >
                           {regeneratingId === idea.id ? (
                             <Loader2 className="h-3 w-3 animate-spin" />
