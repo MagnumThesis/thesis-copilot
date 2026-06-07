@@ -2,6 +2,7 @@
  * Authentication Handlers - HTTP handlers for auth endpoints
  */
 import { Context } from 'hono';
+import { getAuthContext } from '../middleware/auth-middleware';
 import {
   registerUser,
   loginUser,
@@ -98,12 +99,17 @@ export async function loginHandler(c: Context) {
 export async function getUserProfileHandler(c: Context) {
   try {
     const userId = c.req.param('userId');
+    const authContext = getAuthContext(c);
 
     if (!userId) {
       return c.json(
         { success: false, error: 'User ID is required' },
         400
       );
+    }
+
+    if (!authContext || authContext.userId !== userId) {
+      return c.json({ success: false, error: 'Unauthorized access to user profile' }, 403);
     }
 
     const result = await getUserProfile(userId);
@@ -125,12 +131,17 @@ export async function updateUserProfileHandler(c: Context) {
   try {
     const userId = c.req.param('userId');
     const body = await c.req.json();
+    const authContext = getAuthContext(c);
 
     if (!userId) {
       return c.json(
         { success: false, error: 'User ID is required' },
         400
       );
+    }
+
+    if (!authContext || authContext.userId !== userId) {
+      return c.json({ success: false, error: 'Unauthorized access to update user profile' }, 403);
     }
 
     const result = await updateUserProfile(userId, body);
@@ -236,12 +247,17 @@ export async function changePasswordHandler(c: Context) {
     const userId = c.req.param('userId');
     const body = await c.req.json();
     const { newPassword } = body;
+    const authContext = getAuthContext(c);
 
     if (!userId || !newPassword) {
       return c.json(
         { success: false, error: 'User ID and new password are required' },
         400
       );
+    }
+
+    if (!authContext || authContext.userId !== userId) {
+      return c.json({ success: false, error: 'Unauthorized attempt to change password' }, 403);
     }
 
     // Validate password
