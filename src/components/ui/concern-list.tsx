@@ -287,9 +287,28 @@ export const ConcernList: React.FC<ConcernListProps> = ({
     }
   }
 
+  // ⚡ Bolt: Performance optimization
+  // What: Aggregates status, category, and severity counts in a single O(N) pass.
+  // Why: Replaces ~20 individual `.filter().length` traversals per render loop.
+  // Impact: Reduces complexity from O(k*N) to O(N) by calculating all statistics concurrently.
+  const counts = useMemo(() => {
+    const statusCounts: Record<string, number> = {};
+    const categoryCounts: Record<string, number> = {};
+    const severityCounts: Record<string, number> = {};
+
+    for (let i = 0; i < concerns.length; i++) {
+      const c = concerns[i];
+      statusCounts[c.status] = (statusCounts[c.status] || 0) + 1;
+      categoryCounts[c.category] = (categoryCounts[c.category] || 0) + 1;
+      severityCounts[c.severity] = (severityCounts[c.severity] || 0) + 1;
+    }
+
+    return { statusCounts, categoryCounts, severityCounts };
+  }, [concerns]);
+
   const getStatusCount = (status: ConcernStatus | 'all') => {
     if (status === 'all') return concerns.length
-    return concerns.filter(c => c.status === status).length
+    return counts.statusCounts[status as string] || 0
   }
 
   const getCategoryLabel = (category: ConcernCategory | 'all') => {
@@ -304,12 +323,12 @@ export const ConcernList: React.FC<ConcernListProps> = ({
 
   const getCategoryCount = (category: ConcernCategory | 'all') => {
     if (category === 'all') return concerns.length
-    return concerns.filter(c => c.category === category).length
+    return counts.categoryCounts[category as string] || 0
   }
 
   const getSeverityCount = (severity: ConcernSeverity | 'all') => {
     if (severity === 'all') return concerns.length
-    return concerns.filter(c => c.severity === severity).length
+    return counts.severityCounts[severity as string] || 0
   }
 
   return (
