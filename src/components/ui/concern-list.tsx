@@ -93,6 +93,23 @@ export const ConcernList: React.FC<ConcernListProps> = ({
   const concernRefs = useRef<(HTMLDivElement | null)[]>([])
   const listId = generateId('concern-list')
 
+  // Memoize statistics in a single O(N) pass to avoid redundant .filter() traversals
+  const concernStats = useMemo(() => {
+    const stats = {
+      status: {} as Record<string, number>,
+      category: {} as Record<string, number>,
+      severity: {} as Record<string, number>
+    };
+
+    for (const concern of concerns) {
+      stats.status[concern.status] = (stats.status[concern.status] || 0) + 1;
+      stats.category[concern.category] = (stats.category[concern.category] || 0) + 1;
+      stats.severity[concern.severity] = (stats.severity[concern.severity] || 0) + 1;
+    }
+
+    return stats;
+  }, [concerns]);
+
   // Filter concerns based on all filters with performance monitoring
   const filteredConcerns = useMemo(() => {
     if (concerns.length > 100) {
@@ -289,7 +306,7 @@ export const ConcernList: React.FC<ConcernListProps> = ({
 
   const getStatusCount = (status: ConcernStatus | 'all') => {
     if (status === 'all') return concerns.length
-    return concerns.filter(c => c.status === status).length
+    return concernStats.status[status] || 0
   }
 
   const getCategoryLabel = (category: ConcernCategory | 'all') => {
@@ -304,12 +321,12 @@ export const ConcernList: React.FC<ConcernListProps> = ({
 
   const getCategoryCount = (category: ConcernCategory | 'all') => {
     if (category === 'all') return concerns.length
-    return concerns.filter(c => c.category === category).length
+    return concernStats.category[category] || 0
   }
 
   const getSeverityCount = (severity: ConcernSeverity | 'all') => {
     if (severity === 'all') return concerns.length
-    return concerns.filter(c => c.severity === severity).length
+    return concernStats.severity[severity] || 0
   }
 
   return (
