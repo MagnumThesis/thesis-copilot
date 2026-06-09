@@ -414,7 +414,11 @@ const ReasoningBlock = ({ part }: { part: ReasoningPart }) => {
       >
         <div className="flex items-center p-2">
           <CollapsibleTrigger asChild>
-            <button className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+            <button
+              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+              aria-label={isOpen ? "Collapse thinking process" : "Expand thinking process"}
+              aria-expanded={isOpen}
+            >
               <ChevronRight className="h-4 w-4 transition-transform group-data-[state=open]:rotate-90" />
               <span>Thinking</span>
             </button>
@@ -576,7 +580,11 @@ function AttachedContextDisplay({ attachments }: AttachedContextDisplayProps) {
     <div className="mb-2 flex flex-col items-end gap-1">
       <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
         <CollapsibleTrigger asChild>
-          <button className="flex flex-wrap items-center gap-1.5 rounded-lg border bg-muted/50 px-2 py-1 text-xs text-muted-foreground hover:bg-muted transition-colors">
+          <button
+            className="flex flex-wrap items-center gap-1.5 rounded-lg border bg-muted/50 px-2 py-1 text-xs text-muted-foreground hover:bg-muted transition-colors"
+            aria-label={isExpanded ? "Hide attached items" : "Show attached items"}
+            aria-expanded={isExpanded}
+          >
             <span className="font-medium">Attached:</span>
             {attachments.map((attachment, index) => (
               <Badge 
