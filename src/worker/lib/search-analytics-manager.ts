@@ -328,9 +328,18 @@ export class SearchAnalyticsManager {
       // Calculate metrics
       const totalSearches = sessions.length;
       const totalResults = sessions.reduce((sum, session) => sum + (session.results_count || 0), 0);
-      const resultsViewed = results.filter(result => result.user_action === 'viewed').length;
-      const resultsAdded = results.filter(result => result.user_action === 'added').length;
-      const resultsRejected = results.filter(result => result.user_action === 'rejected').length;
+
+      // ⚡ Bolt: Replaced multiple O(N) filter passes with a single O(N) reduce to calculate metrics concurrently.
+      // Reduces array traversals from 3 passes to 1 pass, improving performance on large result sets.
+      const { resultsViewed, resultsAdded, resultsRejected } = results.reduce(
+        (acc, result) => {
+          if (result.user_action === 'viewed') acc.resultsViewed++;
+          else if (result.user_action === 'added') acc.resultsAdded++;
+          else if (result.user_action === 'rejected') acc.resultsRejected++;
+          return acc;
+        },
+        { resultsViewed: 0, resultsAdded: 0, resultsRejected: 0 }
+      );
 
       return {
         totalSearches,
