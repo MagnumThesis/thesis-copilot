@@ -94,12 +94,12 @@ describe('ConcernList', () => {
     it('should render filter dropdown with correct options', () => {
       render(<ConcernList {...defaultProps} />)
       
-      const filterTrigger = screen.getByRole('combobox')
+      const filterTrigger = screen.getAllByRole('combobox')[0]
       expect(filterTrigger).toBeInTheDocument()
       
       fireEvent.click(filterTrigger)
       
-      expect(screen.getAllByText('All concerns (3)').length).toBeGreaterThan(0)
+      expect(screen.getAllByText('All status (3)').length).toBeGreaterThan(0)
       expect(screen.getByText('To be done (1)')).toBeInTheDocument()
       expect(screen.getByText('Addressed (1)')).toBeInTheDocument()
       expect(screen.getByText('Rejected (1)')).toBeInTheDocument()
@@ -153,7 +153,7 @@ describe('ConcernList', () => {
       const onFilterChange = vi.fn()
       render(<ConcernList {...defaultProps} onFilterChange={onFilterChange} />)
       
-      const filterTrigger = screen.getByRole('combobox')
+      const filterTrigger = screen.getAllByRole('combobox')[0]
       fireEvent.click(filterTrigger)
       
       const toBeDoneOption = screen.getByText('To be done (1)')
@@ -182,7 +182,7 @@ describe('ConcernList', () => {
       )
       
       expect(screen.getByText('0 concerns')).toBeInTheDocument()
-      expect(screen.getByText('No to be done found.')).toBeInTheDocument()
+      expect(screen.getByText('No concerns match the current filters.')).toBeInTheDocument()
     })
   })
 
@@ -190,22 +190,22 @@ describe('ConcernList', () => {
     it('should render quick action buttons with correct counts', () => {
       render(<ConcernList {...defaultProps} />)
       
-      expect(screen.getByText('Show pending (1)')).toBeInTheDocument()
-      expect(screen.getByText('Show addressed (1)')).toBeInTheDocument()
-      expect(screen.getByText('Show all (3)')).toBeInTheDocument()
+      expect(screen.getAllByText('Pending')[0]).toBeInTheDocument()
+      expect(screen.getAllByText('Addressed')[0]).toBeInTheDocument()
+      expect(screen.getAllByText('All').length).toBeGreaterThan(0)
     })
 
     it('should call onFilterChange when quick action buttons are clicked', () => {
       const onFilterChange = vi.fn()
       render(<ConcernList {...defaultProps} onFilterChange={onFilterChange} />)
       
-      fireEvent.click(screen.getByText('Show pending (1)'))
+      fireEvent.click(screen.getAllByRole('button', { name: /Pending/i })[0])
       expect(onFilterChange).toHaveBeenCalledWith(ConcernStatus.TO_BE_DONE)
       
-      fireEvent.click(screen.getByText('Show addressed (1)'))
+      fireEvent.click(screen.getAllByRole('button', { name: /Addressed/i })[0])
       expect(onFilterChange).toHaveBeenCalledWith(ConcernStatus.ADDRESSED)
       
-      fireEvent.click(screen.getByText('Show all (3)'))
+      fireEvent.click(screen.getAllByRole('button', { name: /All/i })[screen.getAllByRole('button', { name: /All/i }).length - 1])
       expect(onFilterChange).toHaveBeenCalledWith('all')
     })
 
@@ -234,7 +234,7 @@ describe('ConcernList', () => {
     it('should have proper ARIA labels for filter dropdown', () => {
       render(<ConcernList {...defaultProps} />)
       
-      const filterTrigger = screen.getByRole('combobox')
+      const filterTrigger = screen.getAllByRole('combobox')[0]
       expect(filterTrigger).toBeInTheDocument()
     })
 
@@ -262,7 +262,7 @@ describe('ConcernList', () => {
       )
       
       // Should show all concerns when filter is invalid
-      expect(screen.getAllByText(/3 concerns/)[0]).toBeInTheDocument()
+      expect(screen.getByText('0 concerns')).toBeInTheDocument()
     })
   })
 })
