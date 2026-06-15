@@ -371,6 +371,7 @@ function IdeaSelectorDialog({
                           className="h-7 w-7"
                           onClick={(e) => handleSaveEdit(idea, e)}
                           disabled={isUpdating}
+                          aria-label="Save title edit"
                         >
                           {isUpdating ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
@@ -384,6 +385,7 @@ function IdeaSelectorDialog({
                           className="h-7 w-7"
                           onClick={handleCancelEdit}
                           disabled={isUpdating}
+                          aria-label="Cancel title edit"
                         >
                           <X className="h-4 w-4 text-destructive" />
                         </Button>

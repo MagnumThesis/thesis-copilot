@@ -231,6 +231,7 @@ export const SearchAnalyticsDashboard: React.FC<SearchAnalyticsDashboardProps> =
             size="sm"
             onClick={handleRefresh}
             disabled={refreshing}
+            aria-label="Refresh analytics data"
           >
             {refreshing ? (
               <RefreshCw className="h-4 w-4 animate-spin" />
