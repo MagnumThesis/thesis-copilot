@@ -534,11 +534,19 @@ export class FeedbackLearningSystem {
 
       // Calculate metrics from the data
       const totalFeedback = data.length;
-      const positiveRatings = data.filter(item => item.is_relevant && item.quality_rating >= 4).length;
-      const negativeRatings = data.filter(item => !item.is_relevant || item.quality_rating <= 2).length;
-      const averageRating = totalFeedback > 0 
-        ? data.reduce((sum, item) => sum + item.quality_rating, 0) / totalFeedback 
-        : 0;
+
+      // BOLT OPTIMIZATION: Replaced 2 filters and 1 reduce (O(3N)) with a single O(N) pass
+      let positiveRatings = 0;
+      let negativeRatings = 0;
+      let sumRating = 0;
+
+      for (const item of data) {
+        if (item.is_relevant && item.quality_rating >= 4) positiveRatings++;
+        if (!item.is_relevant || item.quality_rating <= 2) negativeRatings++;
+        sumRating += item.quality_rating;
+      }
+
+      const averageRating = totalFeedback > 0 ? sumRating / totalFeedback : 0;
 
       // Calculate confidence level based on feedback volume and consistency
       const confidenceLevel = Math.min(1, totalFeedback / 20) * 
