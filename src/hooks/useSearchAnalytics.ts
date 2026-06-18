@@ -304,13 +304,22 @@ export const useSearchResultTracking = (sessionId: string) => {
   }, [sessionId]);
 
   const getTrackingStats = useCallback(() => {
+    // Optimization: Pre-initialize stats and compute in a single O(N) pass
+    // instead of O(4N) multiple array traversals
     const stats = {
-      totalViews: tracking.filter(t => t.action === 'viewed').length,
-      totalAdded: tracking.filter(t => t.action === 'added').length,
-      totalRejected: tracking.filter(t => t.action === 'rejected').length,
-      totalBookmarked: tracking.filter(t => t.action === 'bookmarked').length,
+      totalViews: 0,
+      totalAdded: 0,
+      totalRejected: 0,
+      totalBookmarked: 0,
       conversionRate: 0
     };
+
+    for (const t of tracking) {
+      if (t.action === 'viewed') stats.totalViews++;
+      else if (t.action === 'added') stats.totalAdded++;
+      else if (t.action === 'rejected') stats.totalRejected++;
+      else if (t.action === 'bookmarked') stats.totalBookmarked++;
+    }
 
     const totalInteractions = stats.totalViews + stats.totalAdded + stats.totalRejected;
     if (totalInteractions > 0) {

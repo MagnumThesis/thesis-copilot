@@ -287,9 +287,25 @@ export const ConcernList: React.FC<ConcernListProps> = ({
     }
   }
 
+  // Optimization: Calculate stats with a single O(N) pass and memoize it
+  // instead of O(N*M) multiple `.filter().length` executions during rendering.
+  const stats = useMemo(() => {
+    const statusCounts: Record<string, number> = {};
+    const categoryCounts: Record<string, number> = {};
+    const severityCounts: Record<string, number> = {};
+
+    for (const c of concerns) {
+      statusCounts[c.status] = (statusCounts[c.status] || 0) + 1;
+      categoryCounts[c.category] = (categoryCounts[c.category] || 0) + 1;
+      severityCounts[c.severity] = (severityCounts[c.severity] || 0) + 1;
+    }
+
+    return { statusCounts, categoryCounts, severityCounts };
+  }, [concerns]);
+
   const getStatusCount = (status: ConcernStatus | 'all') => {
     if (status === 'all') return concerns.length
-    return concerns.filter(c => c.status === status).length
+    return stats.statusCounts[status] || 0;
   }
 
   const getCategoryLabel = (category: ConcernCategory | 'all') => {
@@ -304,12 +320,12 @@ export const ConcernList: React.FC<ConcernListProps> = ({
 
   const getCategoryCount = (category: ConcernCategory | 'all') => {
     if (category === 'all') return concerns.length
-    return concerns.filter(c => c.category === category).length
+    return stats.categoryCounts[category] || 0;
   }
 
   const getSeverityCount = (severity: ConcernSeverity | 'all') => {
     if (severity === 'all') return concerns.length
-    return concerns.filter(c => c.severity === severity).length
+    return stats.severityCounts[severity] || 0;
   }
 
   return (
