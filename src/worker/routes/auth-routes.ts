@@ -16,6 +16,7 @@ import {
   requestPasswordResetHandler,
   resetPasswordHandler,
 } from '../handlers/auth';
+import { requireAuth } from '../middleware/auth-middleware';
 
 const authApi = new Hono();
 
@@ -58,15 +59,15 @@ authApi.post('/verify', verifyTokenHandler);
 authApi.options('/verify', (c) => new Response(null, { status: 204 }));
 
 // Get user profile
-authApi.get('/profile/:userId', getUserProfileHandler);
+authApi.get('/profile/:userId', requireAuth, getUserProfileHandler);
 authApi.options('/profile/:userId', (c) => new Response(null, { status: 204 }));
 
 // Update user profile
-authApi.put('/profile/:userId', updateUserProfileHandler);
+authApi.put('/profile/:userId', requireAuth, updateUserProfileHandler);
 authApi.options('/profile/:userId', (c) => new Response(null, { status: 204 }));
 
 // Change password
-authApi.post('/change-password/:userId', changePasswordHandler);
+authApi.post('/change-password/:userId', requireAuth, changePasswordHandler);
 authApi.options('/change-password/:userId', (c) => new Response(null, { status: 204 }));
 
 // Logout
