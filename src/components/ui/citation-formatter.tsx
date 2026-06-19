@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from './shadcn/button';
 import { Label } from './shadcn/label';
 import { Card, CardContent, CardHeader, CardTitle } from './shadcn/card';
@@ -109,6 +109,15 @@ export const CitationFormatter: React.FC<CitationFormatterProps> = ({
   const [loading, setLoading] = useState(false);
   const [copiedToClipboard, setCopiedToClipboard] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'citations' | 'bibliography'>('citations');
+
+  // Memoized map for O(1) lookups during render
+  // This optimizes the render loop by avoiding O(N) Array.find calls
+  // Expected impact: Speeds up rendering when displaying multiple citations
+  const selectedReferencesMap = useMemo(() => {
+    const map = new Map<string, Reference>();
+    selectedReferences.forEach(ref => map.set(ref.id, ref));
+    return map;
+  }, [selectedReferences]);
 
   // Available citation styles
   const citationStyles = [
@@ -334,7 +343,7 @@ export const CitationFormatter: React.FC<CitationFormatterProps> = ({
                 <div
                   key={reference.id}
                   className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
-                    selectedReferences.find(r => r.id === reference.id)
+                    selectedReferencesMap.has(reference.id)
                       ? 'border-blue-300 bg-blue-50'
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
@@ -395,7 +404,7 @@ export const CitationFormatter: React.FC<CitationFormatterProps> = ({
           {activeTab === 'citations' && (
             <div className="space-y-4">
               {Array.from(formattingResults.entries()).map(([referenceId, result]) => {
-                const reference = selectedReferences.find(r => r.id === referenceId);
+                const reference = selectedReferencesMap.get(referenceId);
                 if (!reference) return null;
 
                 return (
