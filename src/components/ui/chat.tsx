@@ -245,7 +245,6 @@ export function Chat({
             className="h-6 w-6"
             aria-label="Rate response as helpful"
             onClick={() => onRateResponse(message.id, "thumbs-up")}
-            aria-label="Rate response as helpful"
           >
             <ThumbsUp className="h-4 w-4" />
           </Button>
@@ -255,7 +254,6 @@ export function Chat({
             className="h-6 w-6"
             aria-label="Rate response as unhelpful"
             onClick={() => onRateResponse(message.id, "thumbs-down")}
-            aria-label="Rate response as unhelpful"
           >
             <ThumbsDown className="h-4 w-4" />
           </Button>
