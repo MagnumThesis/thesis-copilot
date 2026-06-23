@@ -328,9 +328,23 @@ export class SearchAnalyticsManager {
       // Calculate metrics
       const totalSearches = sessions.length;
       const totalResults = sessions.reduce((sum, session) => sum + (session.results_count || 0), 0);
-      const resultsViewed = results.filter(result => result.user_action === 'viewed').length;
-      const resultsAdded = results.filter(result => result.user_action === 'added').length;
-      const resultsRejected = results.filter(result => result.user_action === 'rejected').length;
+
+      // ⚡ Bolt Performance Optimization: Replace multiple O(N) array filter traversals
+      // with a single O(N) loop that tallies all user action dimensions concurrently,
+      // reducing time complexity from O(3N) to O(N).
+      let resultsViewed = 0;
+      let resultsAdded = 0;
+      let resultsRejected = 0;
+
+      for (const result of results) {
+        if (result.user_action === 'viewed') {
+          resultsViewed++;
+        } else if (result.user_action === 'added') {
+          resultsAdded++;
+        } else if (result.user_action === 'rejected') {
+          resultsRejected++;
+        }
+      }
 
       return {
         totalSearches,
