@@ -5,3 +5,7 @@
 ## 2026-03-09 - Missing ARIA labels in dynamic/interactive chat components
 **Learning:** Icon-only buttons in the core Chat component (`src/components/ui/chat.tsx`), particularly actions like "Thumbs up", "Thumbs down", and "Scroll to bottom", were missing `aria-label` attributes. Screen reader users would have no context for what these buttons do since they lack text nodes.
 **Action:** When implementing new features or components with interactive icon-only buttons (`size="icon"`), proactively add descriptive `aria-label` attributes.
+
+## 2026-03-09 - Dynamic ARIA labels for toggle panels
+**Learning:** Collapsible panel toggle buttons with only icons (like ChevronRight/Left) lack built-in accessibility semantics and tooltips. Static aria-labels are insufficient because the button's action changes based on state.
+**Action:** Always use dynamic `aria-label` and `title` attributes (e.g. `isOpen ? 'Close' : 'Open'`) on icon-only toggle buttons to accurately reflect the active state for screen readers and native hover tooltips.
