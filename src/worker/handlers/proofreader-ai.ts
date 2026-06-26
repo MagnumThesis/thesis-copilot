@@ -574,33 +574,48 @@ function generateSeverityBreakdown(concerns: ProofreadingConcern[]): Record<Conc
  */
 function generateConcernStatistics(concerns: any[]): ConcernStatistics {
   const total = concerns.length;
-  const toBeDone = concerns.filter(c => c.status === ConcernStatus.TO_BE_DONE).length;
-  const addressed = concerns.filter(c => c.status === ConcernStatus.ADDRESSED).length;
-  const rejected = concerns.filter(c => c.status === ConcernStatus.REJECTED).length;
+  let toBeDone = 0;
+  let addressed = 0;
+  let rejected = 0;
   
-  // Generate breakdown by category
+  // Initialize breakdown by category
   const byCategory = {} as Record<ConcernCategory, any>;
+  const concernsByCategory = {} as Record<ConcernCategory, number>;
   Object.values(ConcernCategory).forEach(category => {
-    const categoryData = concerns.filter(c => c.category === category);
-    byCategory[category] = {
-      total: categoryData.length,
-      toBeDone: categoryData.filter(c => c.status === ConcernStatus.TO_BE_DONE).length,
-      addressed: categoryData.filter(c => c.status === ConcernStatus.ADDRESSED).length,
-      rejected: categoryData.filter(c => c.status === ConcernStatus.REJECTED).length
-    };
+    byCategory[category] = { total: 0, toBeDone: 0, addressed: 0, rejected: 0 };
+    concernsByCategory[category] = 0;
   });
   
-  // Generate breakdown by severity
+  // Initialize breakdown by severity
   const bySeverity = {} as Record<ConcernSeverity, any>;
+  const concernsBySeverity = {} as Record<ConcernSeverity, number>;
   Object.values(ConcernSeverity).forEach(severity => {
-    const severityData = concerns.filter(c => c.severity === severity);
-    bySeverity[severity] = {
-      total: severityData.length,
-      toBeDone: severityData.filter(c => c.status === ConcernStatus.TO_BE_DONE).length,
-      addressed: severityData.filter(c => c.status === ConcernStatus.ADDRESSED).length,
-      rejected: severityData.filter(c => c.status === ConcernStatus.REJECTED).length
-    };
+    bySeverity[severity] = { total: 0, toBeDone: 0, addressed: 0, rejected: 0 };
+    concernsBySeverity[severity] = 0;
   });
+
+  // Single O(N) loop to compute statistics instead of multiple O(N) filter traversals
+  for (const c of concerns) {
+    if (c.status === ConcernStatus.TO_BE_DONE) toBeDone++;
+    else if (c.status === ConcernStatus.ADDRESSED) addressed++;
+    else if (c.status === ConcernStatus.REJECTED) rejected++;
+
+    if (c.category && byCategory[c.category]) {
+      byCategory[c.category].total++;
+      concernsByCategory[c.category]++;
+      if (c.status === ConcernStatus.TO_BE_DONE) byCategory[c.category].toBeDone++;
+      else if (c.status === ConcernStatus.ADDRESSED) byCategory[c.category].addressed++;
+      else if (c.status === ConcernStatus.REJECTED) byCategory[c.category].rejected++;
+    }
+
+    if (c.severity && bySeverity[c.severity]) {
+      bySeverity[c.severity].total++;
+      concernsBySeverity[c.severity]++;
+      if (c.status === ConcernStatus.TO_BE_DONE) bySeverity[c.severity].toBeDone++;
+      else if (c.status === ConcernStatus.ADDRESSED) bySeverity[c.severity].addressed++;
+      else if (c.status === ConcernStatus.REJECTED) bySeverity[c.severity].rejected++;
+    }
+  }
   
   return {
     totalConcerns: total,
@@ -612,8 +627,8 @@ function generateConcernStatistics(concerns: any[]): ConcernStatistics {
       [ConcernStatus.REJECTED]: rejected,
       [ConcernStatus.TO_BE_DONE]: toBeDone
     },
-    concernsByCategory: byCategory as Record<ConcernCategory, number>,
-    concernsBySeverity: bySeverity as Record<ConcernSeverity, number>,
+    concernsByCategory: concernsByCategory,
+    concernsBySeverity: concernsBySeverity,
     resolutionRate: total > 0 ? (addressed + rejected) / total : 0,
     averageResolutionTime: 0, // Placeholder value
     total,
