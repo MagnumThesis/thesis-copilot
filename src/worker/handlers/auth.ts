@@ -16,6 +16,7 @@ import {
   type RegisterPayload,
   type LoginPayload,
 } from '../services/user-service';
+import { getAuthContext } from '../middleware/auth-middleware';
 
 /**
  * Register handler
@@ -98,11 +99,19 @@ export async function loginHandler(c: Context) {
 export async function getUserProfileHandler(c: Context) {
   try {
     const userId = c.req.param('userId');
+    const authContext = getAuthContext(c);
 
     if (!userId) {
       return c.json(
         { success: false, error: 'User ID is required' },
         400
+      );
+    }
+
+    if (!authContext || authContext.userId !== userId) {
+      return c.json(
+        { success: false, error: 'Unauthorized access' },
+        403
       );
     }
 
@@ -125,11 +134,19 @@ export async function updateUserProfileHandler(c: Context) {
   try {
     const userId = c.req.param('userId');
     const body = await c.req.json();
+    const authContext = getAuthContext(c);
 
     if (!userId) {
       return c.json(
         { success: false, error: 'User ID is required' },
         400
+      );
+    }
+
+    if (!authContext || authContext.userId !== userId) {
+      return c.json(
+        { success: false, error: 'Unauthorized access' },
+        403
       );
     }
 
@@ -236,11 +253,19 @@ export async function changePasswordHandler(c: Context) {
     const userId = c.req.param('userId');
     const body = await c.req.json();
     const { newPassword } = body;
+    const authContext = getAuthContext(c);
 
     if (!userId || !newPassword) {
       return c.json(
         { success: false, error: 'User ID and new password are required' },
         400
+      );
+    }
+
+    if (!authContext || authContext.userId !== userId) {
+      return c.json(
+        { success: false, error: 'Unauthorized access' },
+        403
       );
     }
 
