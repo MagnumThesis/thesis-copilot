@@ -327,10 +327,22 @@ export class SearchAnalyticsManager {
       
       // Calculate metrics
       const totalSearches = sessions.length;
-      const totalResults = sessions.reduce((sum, session) => sum + (session.results_count || 0), 0);
-      const resultsViewed = results.filter(result => result.user_action === 'viewed').length;
-      const resultsAdded = results.filter(result => result.user_action === 'added').length;
-      const resultsRejected = results.filter(result => result.user_action === 'rejected').length;
+
+      // Optimize array traversals: single pass instead of multiple .reduce() and .filter()
+      let totalResults = 0;
+      for (let i = 0; i < sessions.length; i++) {
+        totalResults += sessions[i].results_count || 0;
+      }
+
+      let resultsViewed = 0;
+      let resultsAdded = 0;
+      let resultsRejected = 0;
+      for (let i = 0; i < results.length; i++) {
+        const action = results[i].user_action;
+        if (action === 'viewed') resultsViewed++;
+        else if (action === 'added') resultsAdded++;
+        else if (action === 'rejected') resultsRejected++;
+      }
 
       return {
         totalSearches,
@@ -447,13 +459,21 @@ export class SearchAnalyticsManager {
       
       // Calculate statistics
       const totalSearches = sessions.length;
-      const successfulSearches = sessions.filter(session => session.search_success).length;
-      const avgResults = totalSearches > 0 
-        ? sessions.reduce((sum, session) => sum + ((session.results_count ?? 0) as number), 0) / totalSearches 
-        : 0;
-      const avgProcessingTime = totalSearches > 0 
-        ? sessions.reduce((sum, session) => sum + ((session.processing_time_ms ?? 0) as number), 0) / totalSearches 
-        : 0;
+
+      // Optimize array traversals: single pass instead of multiple .filter() and .reduce()
+      let successfulSearches = 0;
+      let totalResultsCount = 0;
+      let totalProcessingTime = 0;
+
+      for (let i = 0; i < sessions.length; i++) {
+        const session = sessions[i];
+        if (session.search_success) successfulSearches++;
+        totalResultsCount += (session.results_count ?? 0) as number;
+        totalProcessingTime += (session.processing_time_ms ?? 0) as number;
+      }
+
+      const avgResults = totalSearches > 0 ? totalResultsCount / totalSearches : 0;
+      const avgProcessingTime = totalSearches > 0 ? totalProcessingTime / totalSearches : 0;
       
       // Get search queries for popular topics
       let queriesQuery = supabase
