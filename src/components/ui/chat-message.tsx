@@ -415,7 +415,7 @@ const ReasoningBlock = ({ part }: { part: ReasoningPart }) => {
         <div className="flex items-center p-2">
           <CollapsibleTrigger asChild>
             <button className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
-              <ChevronRight className="h-4 w-4 transition-transform group-data-[state=open]:rotate-90" />
+              <ChevronRight className="h-4 w-4 transition-transform group-data-[state=open]:rotate-90" aria-hidden="true" />
               <span>Thinking</span>
             </button>
           </CollapsibleTrigger>
@@ -593,6 +593,7 @@ function AttachedContextDisplay({ attachments }: AttachedContextDisplayProps) {
                 "h-3 w-3 transition-transform",
                 isExpanded && "rotate-90"
               )} 
+              aria-hidden="true"
             />
           </button>
         </CollapsibleTrigger>
