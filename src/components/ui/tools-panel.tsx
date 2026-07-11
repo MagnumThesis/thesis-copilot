@@ -53,6 +53,10 @@ export const ToolsPanel: React.FC<ToolsPanelProps> = ({
         variant="ghost"
         size="icon"
         onClick={() => setIsOpen(!isOpen)}
+        aria-label={isOpen ? "Close tools panel" : "Open tools panel"}
+        title={isOpen ? "Close tools panel" : "Open tools panel"}
+        aria-expanded={isOpen}
+        aria-controls="tools-panel-content"
         className={cn(
           "absolute top-4 z-10 h-8 w-8 rounded-full border bg-background shadow-sm hover:bg-muted transition-all duration-300",
           isOpen
@@ -69,6 +73,7 @@ export const ToolsPanel: React.FC<ToolsPanelProps> = ({
 
       {/* Panel */}
       <motion.div
+        id="tools-panel-content"
         initial={false}
         animate={isOpen ? "open" : "closed"}
         variants={{
