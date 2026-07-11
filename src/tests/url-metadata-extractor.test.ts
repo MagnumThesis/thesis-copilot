@@ -48,6 +48,11 @@ describe('URL Metadata Extractor', () => {
       expect(validateAndSanitizeUrl('https://127.0.0.1').isValid).toBe(false);
       expect(validateAndSanitizeUrl('https://192.168.1.1').isValid).toBe(false);
       expect(validateAndSanitizeUrl('https://10.0.0.1').isValid).toBe(false);
+      expect(validateAndSanitizeUrl('http://169.254.169.254').isValid).toBe(false);
+      expect(validateAndSanitizeUrl('http://0.0.0.0').isValid).toBe(false);
+      expect(validateAndSanitizeUrl('http://[::1]').isValid).toBe(false);
+      expect(validateAndSanitizeUrl('http://app.local').isValid).toBe(false);
+      expect(validateAndSanitizeUrl('http://metadata.internal').isValid).toBe(false);
     });
 
     it('should handle malformed URLs gracefully', () => {
