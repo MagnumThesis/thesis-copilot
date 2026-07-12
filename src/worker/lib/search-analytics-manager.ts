@@ -328,9 +328,18 @@ export class SearchAnalyticsManager {
       // Calculate metrics
       const totalSearches = sessions.length;
       const totalResults = sessions.reduce((sum, session) => sum + (session.results_count || 0), 0);
-      const resultsViewed = results.filter(result => result.user_action === 'viewed').length;
-      const resultsAdded = results.filter(result => result.user_action === 'added').length;
-      const resultsRejected = results.filter(result => result.user_action === 'rejected').length;
+
+      // O(N) optimization: single-pass counting to avoid multiple array traversals
+      let resultsViewed = 0;
+      let resultsAdded = 0;
+      let resultsRejected = 0;
+
+      for (let i = 0; i < results.length; i++) {
+        const action = results[i].user_action;
+        if (action === 'viewed') resultsViewed++;
+        else if (action === 'added') resultsAdded++;
+        else if (action === 'rejected') resultsRejected++;
+      }
 
       return {
         totalSearches,

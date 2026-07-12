@@ -114,9 +114,18 @@ export class ConcernStatusManagerImpl implements ConcernStatusManager {
       
       // Calculate overall statistics
       const total = concerns.length;
-      const toBeDone = concerns.filter(c => c.status === ConcernStatus.TO_BE_DONE).length;
-      const addressed = concerns.filter(c => c.status === ConcernStatus.ADDRESSED).length;
-      const rejected = concerns.filter(c => c.status === ConcernStatus.REJECTED).length;
+
+      // O(N) optimization: single-pass counting to avoid multiple array traversals
+      let toBeDone = 0;
+      let addressed = 0;
+      let rejected = 0;
+
+      for (let i = 0; i < total; i++) {
+        const status = concerns[i].status;
+        if (status === ConcernStatus.TO_BE_DONE) toBeDone++;
+        else if (status === ConcernStatus.ADDRESSED) addressed++;
+        else if (status === ConcernStatus.REJECTED) rejected++;
+      }
 
       // Calculate statistics by category
       const byCategory: Record<ConcernCategory, ConcernStatusBreakdown> = {} as Record<ConcernCategory, ConcernStatusBreakdown>;
@@ -124,17 +133,27 @@ export class ConcernStatusManagerImpl implements ConcernStatusManager {
       Object.values(ConcernCategory).forEach(category => {
         const categoryData = concerns.filter(c => c.category === category);
         const total = categoryData.length;
-        const toBeDone = categoryData.filter(c => c.status === ConcernStatus.TO_BE_DONE).length;
-        const addressed = categoryData.filter(c => c.status === ConcernStatus.ADDRESSED).length;
-        const rejected = categoryData.filter(c => c.status === ConcernStatus.REJECTED).length;
+
+        // O(N) optimization: single-pass counting for categories
+        let catToBeDone = 0;
+        let catAddressed = 0;
+        let catRejected = 0;
+
+        for (let i = 0; i < total; i++) {
+          const status = categoryData[i].status;
+          if (status === ConcernStatus.TO_BE_DONE) catToBeDone++;
+          else if (status === ConcernStatus.ADDRESSED) catAddressed++;
+          else if (status === ConcernStatus.REJECTED) catRejected++;
+        }
+
         byCategory[category] = {
           status: category as unknown as ConcernStatus, // This is a workaround - category is a ConcernCategory, not ConcernStatus
           count: total,
-          percentage: total > 0 ? (addressed / total) * 100 : 0,
+          percentage: total > 0 ? (catAddressed / total) * 100 : 0,
           total,
-          toBeDone,
-          addressed,
-          rejected
+          toBeDone: catToBeDone,
+          addressed: catAddressed,
+          rejected: catRejected
         };
       });
 
@@ -144,25 +163,47 @@ export class ConcernStatusManagerImpl implements ConcernStatusManager {
       Object.values(ConcernSeverity).forEach(severity => {
         const severityData = concerns.filter(c => c.severity === severity);
         const total = severityData.length;
-        const toBeDone = severityData.filter(c => c.status === ConcernStatus.TO_BE_DONE).length;
-        const addressed = severityData.filter(c => c.status === ConcernStatus.ADDRESSED).length;
-        const rejected = severityData.filter(c => c.status === ConcernStatus.REJECTED).length;
+
+        // O(N) optimization: single-pass counting for severity
+        let sevToBeDone = 0;
+        let sevAddressed = 0;
+        let sevRejected = 0;
+
+        for (let i = 0; i < total; i++) {
+          const status = severityData[i].status;
+          if (status === ConcernStatus.TO_BE_DONE) sevToBeDone++;
+          else if (status === ConcernStatus.ADDRESSED) sevAddressed++;
+          else if (status === ConcernStatus.REJECTED) sevRejected++;
+        }
+
         bySeverity[severity] = {
           status: severity as unknown as ConcernStatus, // This is a workaround - severity is a ConcernSeverity, not ConcernStatus
           count: total,
-          percentage: total > 0 ? (addressed / total) * 100 : 0,
+          percentage: total > 0 ? (sevAddressed / total) * 100 : 0,
           total,
-          toBeDone,
-          addressed,
-          rejected
+          toBeDone: sevToBeDone,
+          addressed: sevAddressed,
+          rejected: sevRejected
         };
       });
 
+      // O(N) optimization: single-pass counting for the remaining statuses
+      let open = 0;
+      let resolved = 0;
+      let dismissed = 0;
+
+      for (let i = 0; i < concerns.length; i++) {
+        const status = concerns[i].status;
+        if (status === ConcernStatus.OPEN) open++;
+        else if (status === ConcernStatus.RESOLVED) resolved++;
+        else if (status === ConcernStatus.DISMISSED) dismissed++;
+      }
+
       // Calculate concerns by status
       const concernsByStatus: Record<ConcernStatus, number> = {
-        [ConcernStatus.OPEN]: concerns.filter(c => c.status === ConcernStatus.OPEN).length,
-        [ConcernStatus.RESOLVED]: concerns.filter(c => c.status === ConcernStatus.RESOLVED).length,
-        [ConcernStatus.DISMISSED]: concerns.filter(c => c.status === ConcernStatus.DISMISSED).length,
+        [ConcernStatus.OPEN]: open,
+        [ConcernStatus.RESOLVED]: resolved,
+        [ConcernStatus.DISMISSED]: dismissed,
         [ConcernStatus.ADDRESSED]: addressed,
         [ConcernStatus.REJECTED]: rejected,
         [ConcernStatus.TO_BE_DONE]: toBeDone

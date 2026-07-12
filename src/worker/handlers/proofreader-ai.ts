@@ -574,19 +574,39 @@ function generateSeverityBreakdown(concerns: ProofreadingConcern[]): Record<Conc
  */
 function generateConcernStatistics(concerns: any[]): ConcernStatistics {
   const total = concerns.length;
-  const toBeDone = concerns.filter(c => c.status === ConcernStatus.TO_BE_DONE).length;
-  const addressed = concerns.filter(c => c.status === ConcernStatus.ADDRESSED).length;
-  const rejected = concerns.filter(c => c.status === ConcernStatus.REJECTED).length;
+
+  // O(N) optimization: single-pass counting for overall concerns
+  let toBeDone = 0;
+  let addressed = 0;
+  let rejected = 0;
+  for (let i = 0; i < total; i++) {
+    const status = concerns[i].status;
+    if (status === ConcernStatus.TO_BE_DONE) toBeDone++;
+    else if (status === ConcernStatus.ADDRESSED) addressed++;
+    else if (status === ConcernStatus.REJECTED) rejected++;
+  }
   
   // Generate breakdown by category
   const byCategory = {} as Record<ConcernCategory, any>;
   Object.values(ConcernCategory).forEach(category => {
     const categoryData = concerns.filter(c => c.category === category);
+
+    // O(N) optimization: single-pass counting for category metrics
+    let catToBeDone = 0;
+    let catAddressed = 0;
+    let catRejected = 0;
+    for (let i = 0; i < categoryData.length; i++) {
+      const status = categoryData[i].status;
+      if (status === ConcernStatus.TO_BE_DONE) catToBeDone++;
+      else if (status === ConcernStatus.ADDRESSED) catAddressed++;
+      else if (status === ConcernStatus.REJECTED) catRejected++;
+    }
+
     byCategory[category] = {
       total: categoryData.length,
-      toBeDone: categoryData.filter(c => c.status === ConcernStatus.TO_BE_DONE).length,
-      addressed: categoryData.filter(c => c.status === ConcernStatus.ADDRESSED).length,
-      rejected: categoryData.filter(c => c.status === ConcernStatus.REJECTED).length
+      toBeDone: catToBeDone,
+      addressed: catAddressed,
+      rejected: catRejected
     };
   });
   
@@ -594,11 +614,23 @@ function generateConcernStatistics(concerns: any[]): ConcernStatistics {
   const bySeverity = {} as Record<ConcernSeverity, any>;
   Object.values(ConcernSeverity).forEach(severity => {
     const severityData = concerns.filter(c => c.severity === severity);
+
+    // O(N) optimization: single-pass counting for severity metrics
+    let sevToBeDone = 0;
+    let sevAddressed = 0;
+    let sevRejected = 0;
+    for (let i = 0; i < severityData.length; i++) {
+      const status = severityData[i].status;
+      if (status === ConcernStatus.TO_BE_DONE) sevToBeDone++;
+      else if (status === ConcernStatus.ADDRESSED) sevAddressed++;
+      else if (status === ConcernStatus.REJECTED) sevRejected++;
+    }
+
     bySeverity[severity] = {
       total: severityData.length,
-      toBeDone: severityData.filter(c => c.status === ConcernStatus.TO_BE_DONE).length,
-      addressed: severityData.filter(c => c.status === ConcernStatus.ADDRESSED).length,
-      rejected: severityData.filter(c => c.status === ConcernStatus.REJECTED).length
+      toBeDone: sevToBeDone,
+      addressed: sevAddressed,
+      rejected: sevRejected
     };
   });
   
