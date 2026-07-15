@@ -1,7 +1,6 @@
-## 2024-03-09 - AppSidebar Unnecessary Recalculations
-**Learning:** React sidebars that manage their own local state (like editing states) and also filter parent-provided arrays (like `items`) must memoize the filtering operation, otherwise every local state change triggers an O(N) recalculation.
-**Action:** Always wrap array filtering and derived object creation in `useMemo` when they depend on props in a component that frequently re-renders due to unrelated local state changes.
-
-## 2026-03-22 - Redundant Array Traversals in getStatistics
-**Learning:** Performing multiple consecutive `.filter().length` operations on an array of objects where each filter condition involves an expensive operation (like `safeDate` parsing) leads to (kN)$ time complexity and redundant processing.
-**Action:** Consolidate multiple statistics calculations into a single (N)$ pass using a single loop (e.g., `forEach` or `reduce`). This minimizes traversals and ensures each expensive transformation (like date parsing) is performed exactly once per element.
+## 2024-05-20 - Refactored array filter chains into single loop
+**Learning:** Found multiple instances of `.filter().length` chained on the same array to calculate statistics in `generateConcernStatistics` and `getConcernStatistics`. This resulted in O(k*N) complexity where k was the number of categories and severities.
+**Action:** Replaced these chains with a single O(N) traversal, creating tallies in a single pass. This is a common pattern in statistics calculations and significantly reduces redundant traversals.
+## 2024-05-20 - Refactored array filter chains into single loop
+**Learning:** Found multiple instances of `.filter().length` chained on the same array to calculate statistics in `generateConcernStatistics` and `getConcernStatistics`. This resulted in O(k*N) complexity where k was the number of categories and severities.
+**Action:** Replaced these chains with a single O(N) traversal, creating tallies in a single pass. This is a common pattern in statistics calculations and significantly reduces redundant traversals.
