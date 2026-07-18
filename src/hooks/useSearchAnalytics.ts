@@ -305,12 +305,21 @@ export const useSearchResultTracking = (sessionId: string) => {
 
   const getTrackingStats = useCallback(() => {
     const stats = {
-      totalViews: tracking.filter(t => t.action === 'viewed').length,
-      totalAdded: tracking.filter(t => t.action === 'added').length,
-      totalRejected: tracking.filter(t => t.action === 'rejected').length,
-      totalBookmarked: tracking.filter(t => t.action === 'bookmarked').length,
+      totalViews: 0,
+      totalAdded: 0,
+      totalRejected: 0,
+      totalBookmarked: 0,
       conversionRate: 0
     };
+
+    // ⚡ Bolt: Consolidate multiple filter passes into a single loop to reduce time complexity from O(4N) to O(N)
+    for (let i = 0; i < tracking.length; i++) {
+      const action = tracking[i].action;
+      if (action === 'viewed') stats.totalViews++;
+      else if (action === 'added') stats.totalAdded++;
+      else if (action === 'rejected') stats.totalRejected++;
+      else if (action === 'bookmarked') stats.totalBookmarked++;
+    }
 
     const totalInteractions = stats.totalViews + stats.totalAdded + stats.totalRejected;
     if (totalInteractions > 0) {
