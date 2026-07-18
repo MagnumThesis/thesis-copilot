@@ -83,12 +83,19 @@ export function validateAndSanitizeUrl(url: string): { isValid: boolean; sanitiz
       return { isValid: false, error: 'Only HTTP and HTTPS protocols are allowed' };
     }
 
-    // Check for localhost or private IPs (basic security)
+    // Check for localhost, private IPs, and internal domains (SSRF protection)
     if (urlObj.hostname === 'localhost' || 
         urlObj.hostname.startsWith('127.') || 
         urlObj.hostname.startsWith('192.168.') ||
         urlObj.hostname.startsWith('10.') ||
-        urlObj.hostname.match(/^172\.(1[6-9]|2[0-9]|3[0-1])\./)) {
+        urlObj.hostname.startsWith('169.254.') ||
+        urlObj.hostname === '0.0.0.0' ||
+        urlObj.hostname === '[::1]' ||
+        urlObj.hostname.match(/^172\.(1[6-9]|2[0-9]|3[0-1])\./) ||
+        urlObj.hostname.endsWith('.internal') ||
+        urlObj.hostname.endsWith('.local') ||
+        urlObj.hostname === 'internal' ||
+        urlObj.hostname === 'local') {
       return { isValid: false, error: 'Private or local URLs are not allowed' };
     }
 
