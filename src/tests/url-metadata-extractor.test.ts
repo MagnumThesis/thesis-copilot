@@ -50,6 +50,14 @@ describe('URL Metadata Extractor', () => {
       expect(validateAndSanitizeUrl('https://10.0.0.1').isValid).toBe(false);
     });
 
+    it('should reject cloud metadata, 0.0.0.0, IPv6 loopback and internal domains to prevent SSRF', () => {
+      expect(validateAndSanitizeUrl('http://169.254.169.254/latest/meta-data/').isValid).toBe(false);
+      expect(validateAndSanitizeUrl('http://0.0.0.0').isValid).toBe(false);
+      expect(validateAndSanitizeUrl('http://[::1]').isValid).toBe(false);
+      expect(validateAndSanitizeUrl('http://redis.internal').isValid).toBe(false);
+      expect(validateAndSanitizeUrl('http://my-service.local').isValid).toBe(false);
+    });
+
     it('should handle malformed URLs gracefully', () => {
       const result = validateAndSanitizeUrl('https://');
       expect(result.isValid).toBe(false);
