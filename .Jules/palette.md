@@ -5,3 +5,6 @@
 ## 2026-03-09 - Missing ARIA labels in dynamic/interactive chat components
 **Learning:** Icon-only buttons in the core Chat component (`src/components/ui/chat.tsx`), particularly actions like "Thumbs up", "Thumbs down", and "Scroll to bottom", were missing `aria-label` attributes. Screen reader users would have no context for what these buttons do since they lack text nodes.
 **Action:** When implementing new features or components with interactive icon-only buttons (`size="icon"`), proactively add descriptive `aria-label` attributes.
+## 2026-07-29 - Dynamic ARIA labels for badge list items
+**Learning:** Icon-only remove buttons within dynamically generated list items (like badges or tags) require specific `aria-label` and `title` attributes that include the item's name/context so screen reader users know exactly which item they are removing.
+**Action:** Always provide dynamically interpolated context (e.g., `Remove tag ${tagName}`) in `aria-label` for list item action buttons rather than a static label.
