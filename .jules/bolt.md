@@ -5,3 +5,7 @@
 ## 2026-03-22 - Redundant Array Traversals in getStatistics
 **Learning:** Performing multiple consecutive `.filter().length` operations on an array of objects where each filter condition involves an expensive operation (like `safeDate` parsing) leads to (kN)$ time complexity and redundant processing.
 **Action:** Consolidate multiple statistics calculations into a single (N)$ pass using a single loop (e.g., `forEach` or `reduce`). This minimizes traversals and ensures each expensive transformation (like date parsing) is performed exactly once per element.
+
+## 2026-07-29 - Optimize Grouped Statistics in Render Logic
+**Learning:** Using multiple chained `.filter(c => c.field === value).length` calls inside render functions or getters creates an O(k * N) bottleneck (where k is the number of enum values). This redundant array traversal can degrade UI performance, especially in list components handling hundreds of elements like `ConcernList`.
+**Action:** Always refactor multiple boolean `.filter()` count lookups into a single-pass loop utilizing `useMemo` to tally frequencies into a dictionary/record, which reduces the time complexity to O(N).
