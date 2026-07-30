@@ -83,17 +83,23 @@ export function validateAndSanitizeUrl(url: string): { isValid: boolean; sanitiz
       return { isValid: false, error: 'Only HTTP and HTTPS protocols are allowed' };
     }
 
-    // Check for localhost or private IPs (basic security)
-    if (urlObj.hostname === 'localhost' || 
-        urlObj.hostname.startsWith('127.') || 
-        urlObj.hostname.startsWith('192.168.') ||
-        urlObj.hostname.startsWith('10.') ||
-        urlObj.hostname.match(/^172\.(1[6-9]|2[0-9]|3[0-1])\./)) {
+    // Check for localhost, private IPs, link-local, and internal domains (SSRF protection)
+    const hn = urlObj.hostname;
+    if (hn === 'localhost' ||
+        hn.startsWith('127.') ||
+        hn.startsWith('192.168.') ||
+        hn.startsWith('10.') ||
+        hn.match(/^172\.(1[6-9]|2[0-9]|3[0-1])\./) ||
+        hn.startsWith('169.254.') ||
+        hn === '0.0.0.0' ||
+        hn === '[::1]' ||
+        hn.endsWith('.local') ||
+        hn.endsWith('.internal')) {
       return { isValid: false, error: 'Private or local URLs are not allowed' };
     }
 
     return { isValid: true, sanitizedUrl: urlObj.toString() };
-  } catch (error) {
+  } catch {
     return { isValid: false, error: 'Invalid URL format' };
   }
 }
