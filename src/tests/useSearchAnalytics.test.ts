@@ -511,7 +511,7 @@ describe('useSearchHistory', () => {
       });
       
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('searchQuery=machine%20learning')
+        expect.stringContaining('searchQuery=machine+learning')
       );
       expect(global.fetch).toHaveBeenCalledWith(
         expect.stringContaining('successOnly=true')

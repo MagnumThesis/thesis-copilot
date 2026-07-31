@@ -304,11 +304,26 @@ export const useSearchResultTracking = (sessionId: string) => {
   }, [sessionId]);
 
   const getTrackingStats = useCallback(() => {
+    // ⚡ Bolt: Single pass O(N) loop reduces redundant array traversals
+    // and eliminates intermediate array allocations compared to consecutive .filter() calls.
+    let totalViews = 0;
+    let totalAdded = 0;
+    let totalRejected = 0;
+    let totalBookmarked = 0;
+
+    for (let i = 0; i < tracking.length; i++) {
+      const action = tracking[i].action;
+      if (action === 'viewed') totalViews++;
+      else if (action === 'added') totalAdded++;
+      else if (action === 'rejected') totalRejected++;
+      else if (action === 'bookmarked') totalBookmarked++;
+    }
+
     const stats = {
-      totalViews: tracking.filter(t => t.action === 'viewed').length,
-      totalAdded: tracking.filter(t => t.action === 'added').length,
-      totalRejected: tracking.filter(t => t.action === 'rejected').length,
-      totalBookmarked: tracking.filter(t => t.action === 'bookmarked').length,
+      totalViews,
+      totalAdded,
+      totalRejected,
+      totalBookmarked,
       conversionRate: 0
     };
 
