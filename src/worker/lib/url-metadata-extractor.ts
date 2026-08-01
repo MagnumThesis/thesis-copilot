@@ -85,10 +85,15 @@ export function validateAndSanitizeUrl(url: string): { isValid: boolean; sanitiz
 
     // Check for localhost or private IPs (basic security)
     if (urlObj.hostname === 'localhost' || 
+        urlObj.hostname === '0.0.0.0' ||
+        urlObj.hostname === '[::1]' ||
         urlObj.hostname.startsWith('127.') || 
         urlObj.hostname.startsWith('192.168.') ||
         urlObj.hostname.startsWith('10.') ||
-        urlObj.hostname.match(/^172\.(1[6-9]|2[0-9]|3[0-1])\./)) {
+        urlObj.hostname.match(/^172\.(1[6-9]|2[0-9]|3[0-1])\./) ||
+        urlObj.hostname.startsWith('169.254.') ||
+        urlObj.hostname.endsWith('.local') ||
+        urlObj.hostname.endsWith('.internal')) {
       return { isValid: false, error: 'Private or local URLs are not allowed' };
     }
 
