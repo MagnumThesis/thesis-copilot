@@ -5,3 +5,6 @@
 ## 2026-03-22 - Redundant Array Traversals in getStatistics
 **Learning:** Performing multiple consecutive `.filter().length` operations on an array of objects where each filter condition involves an expensive operation (like `safeDate` parsing) leads to (kN)$ time complexity and redundant processing.
 **Action:** Consolidate multiple statistics calculations into a single (N)$ pass using a single loop (e.g., `forEach` or `reduce`). This minimizes traversals and ensures each expensive transformation (like date parsing) is performed exactly once per element.
+## 2025-02-15 - Replace Multiple Array Filter Length Calls with Single-Pass Loop
+**Learning:** Chaining `.filter().length` in a sequence for different conditions (especially inside `.forEach` loops) creates significant overhead because it processes the entire array repeatedly. In TypeScript/JavaScript, consolidating these into a single O(N) loop dramatically improves performance, converting O(kN) time complexity to O(N).
+**Action:** When calculating grouped statistics over an array (like tallying user actions or statuses by category), look out for chained or repeated `.filter().length` statements. Optimize by replacing them with a single-pass `for` loop that categorizes elements incrementally.

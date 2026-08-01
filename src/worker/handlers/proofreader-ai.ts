@@ -574,33 +574,45 @@ function generateSeverityBreakdown(concerns: ProofreadingConcern[]): Record<Conc
  */
 function generateConcernStatistics(concerns: any[]): ConcernStatistics {
   const total = concerns.length;
-  const toBeDone = concerns.filter(c => c.status === ConcernStatus.TO_BE_DONE).length;
-  const addressed = concerns.filter(c => c.status === ConcernStatus.ADDRESSED).length;
-  const rejected = concerns.filter(c => c.status === ConcernStatus.REJECTED).length;
+  let toBeDone = 0, addressed = 0, rejected = 0;
   
-  // Generate breakdown by category
   const byCategory = {} as Record<ConcernCategory, any>;
   Object.values(ConcernCategory).forEach(category => {
-    const categoryData = concerns.filter(c => c.category === category);
-    byCategory[category] = {
-      total: categoryData.length,
-      toBeDone: categoryData.filter(c => c.status === ConcernStatus.TO_BE_DONE).length,
-      addressed: categoryData.filter(c => c.status === ConcernStatus.ADDRESSED).length,
-      rejected: categoryData.filter(c => c.status === ConcernStatus.REJECTED).length
-    };
+    byCategory[category] = { total: 0, toBeDone: 0, addressed: 0, rejected: 0 };
   });
   
-  // Generate breakdown by severity
   const bySeverity = {} as Record<ConcernSeverity, any>;
   Object.values(ConcernSeverity).forEach(severity => {
-    const severityData = concerns.filter(c => c.severity === severity);
-    bySeverity[severity] = {
-      total: severityData.length,
-      toBeDone: severityData.filter(c => c.status === ConcernStatus.TO_BE_DONE).length,
-      addressed: severityData.filter(c => c.status === ConcernStatus.ADDRESSED).length,
-      rejected: severityData.filter(c => c.status === ConcernStatus.REJECTED).length
-    };
+    bySeverity[severity] = { total: 0, toBeDone: 0, addressed: 0, rejected: 0 };
   });
+
+  for (let i = 0; i < total; i++) {
+    const c = concerns[i];
+    const s = c.status;
+    const isToBeDone = s === ConcernStatus.TO_BE_DONE;
+    const isAddressed = s === ConcernStatus.ADDRESSED;
+    const isRejected = s === ConcernStatus.REJECTED;
+
+    if (isToBeDone) toBeDone++;
+    else if (isAddressed) addressed++;
+    else if (isRejected) rejected++;
+
+    const catObj = byCategory[c.category];
+    if (catObj) {
+      catObj.total++;
+      if (isToBeDone) catObj.toBeDone++;
+      else if (isAddressed) catObj.addressed++;
+      else if (isRejected) catObj.rejected++;
+    }
+
+    const sevObj = bySeverity[c.severity];
+    if (sevObj) {
+      sevObj.total++;
+      if (isToBeDone) sevObj.toBeDone++;
+      else if (isAddressed) sevObj.addressed++;
+      else if (isRejected) sevObj.rejected++;
+    }
+  }
   
   return {
     totalConcerns: total,
