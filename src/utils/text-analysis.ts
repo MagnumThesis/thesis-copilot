@@ -16,6 +16,27 @@ export interface TextAnalysis {
   sentenceCount: number;
 }
 
+const STOP_WORDS = new Set([
+  'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by',
+  'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does',
+  'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must', 'can'
+]);
+
+const ACADEMIC_TERMS = new Set([
+  'research', 'study', 'analysis', 'methodology', 'results', 'conclusion',
+  'theory', 'model', 'framework', 'approach', 'system', 'process',
+  'development', 'implementation', 'evaluation', 'assessment'
+]);
+
+const POSITIVE_WORDS = new Set(['good', 'great', 'excellent', 'effective', 'successful', 'beneficial', 'positive']);
+const NEGATIVE_WORDS = new Set(['bad', 'poor', 'ineffective', 'unsuccessful', 'harmful', 'negative', 'problematic']);
+
+const COMMON_NOUNS = new Set([
+  'research', 'study', 'analysis', 'method', 'system', 'model', 'theory',
+  'process', 'development', 'implementation', 'evaluation', 'assessment',
+  'approach', 'framework', 'result', 'conclusion', 'data', 'information'
+]);
+
 /**
  * Analyze text content and extract relevant information
  */
@@ -41,13 +62,7 @@ export function analyzeText(content: string): TextAnalysis {
  */
 export function extractKeywords(tokens: string[]): string[] {
   // Remove stop words
-  const stopWords = new Set([
-    'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by',
-    'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does',
-    'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must', 'can'
-  ]);
-
-  const filteredTokens = tokens.filter(token => !stopWords.has(token.toLowerCase()));
+  const filteredTokens = tokens.filter(token => !STOP_WORDS.has(token.toLowerCase()));
 
   // Calculate term frequency
   const termFreq: Record<string, number> = {};
@@ -72,17 +87,19 @@ export function extractKeyPhrases(content: string): string[] {
 
   // Extract bigrams
   for (let i = 0; i < tokens.length - 1; i++) {
-    const phrase = `${tokens[i]} ${tokens[i + 1]}`;
-    if (isMeaningfulPhrase(phrase)) {
-      phrases.push(phrase);
+    const firstWord = tokens[i].toLowerCase();
+    const secondWord = tokens[i+1].toLowerCase();
+    if (!STOP_WORDS.has(firstWord) && !STOP_WORDS.has(secondWord)) {
+      phrases.push(`${tokens[i]} ${tokens[i + 1]}`);
     }
   }
 
   // Extract trigrams
   for (let i = 0; i < tokens.length - 2; i++) {
-    const phrase = `${tokens[i]} ${tokens[i + 1]} ${tokens[i + 2]}`;
-    if (isMeaningfulPhrase(phrase)) {
-      phrases.push(phrase);
+    const firstWord = tokens[i].toLowerCase();
+    const lastWord = tokens[i+2].toLowerCase();
+    if (!STOP_WORDS.has(firstWord) && !STOP_WORDS.has(lastWord)) {
+      phrases.push(`${tokens[i]} ${tokens[i + 1]} ${tokens[i + 2]}`);
     }
   }
 
@@ -94,19 +111,13 @@ export function extractKeyPhrases(content: string): string[] {
  */
 export function extractTopics(tokens: string[]): string[] {
   // Simple topic extraction based on noun phrases and common academic terms
-  const academicTerms = new Set([
-    'research', 'study', 'analysis', 'methodology', 'results', 'conclusion',
-    'theory', 'model', 'framework', 'approach', 'system', 'process',
-    'development', 'implementation', 'evaluation', 'assessment'
-  ]);
-
   const topics = new Set<string>();
 
   tokens.forEach((token, index) => {
     const lowerToken = token.toLowerCase();
 
     // Add academic terms
-    if (academicTerms.has(lowerToken)) {
+    if (ACADEMIC_TERMS.has(lowerToken)) {
       topics.add(token);
     }
 
@@ -170,16 +181,13 @@ function tokenize(content: string): string[] {
  */
 function analyzeSentiment(content: string): number {
   // Simple sentiment analysis using positive/negative word lists
-  const positiveWords = new Set(['good', 'great', 'excellent', 'effective', 'successful', 'beneficial', 'positive']);
-  const negativeWords = new Set(['bad', 'poor', 'ineffective', 'unsuccessful', 'harmful', 'negative', 'problematic']);
-
   const tokens = tokenize(content.toLowerCase());
   let positiveCount = 0;
   let negativeCount = 0;
 
   tokens.forEach(token => {
-    if (positiveWords.has(token)) positiveCount++;
-    if (negativeWords.has(token)) negativeCount++;
+    if (POSITIVE_WORDS.has(token)) positiveCount++;
+    if (NEGATIVE_WORDS.has(token)) negativeCount++;
   });
 
   const total = positiveCount + negativeCount;
@@ -203,37 +211,11 @@ function calculateReadability(content: string): number {
 }
 
 /**
- * Check if a phrase is meaningful
- */
-function isMeaningfulPhrase(phrase: string): boolean {
-  const words = phrase.split(' ');
-  if (words.length < 2) return false;
-
-  // Filter out phrases with stop words at beginning or end
-  const stopWords = new Set([
-    'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by',
-    'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does',
-    'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must', 'can'
-  ]);
-
-  const firstWord = words[0].toLowerCase();
-  const lastWord = words[words.length - 1].toLowerCase();
-
-  return !stopWords.has(firstWord) && !stopWords.has(lastWord);
-}
-
-/**
  * Simple noun detection (basic implementation)
  */
 function isNoun(word: string): boolean {
   // This is a very basic implementation
   // In a real-world scenario, you'd want to use a proper POS tagger
-  const commonNouns = new Set([
-    'research', 'study', 'analysis', 'method', 'system', 'model', 'theory',
-    'process', 'development', 'implementation', 'evaluation', 'assessment',
-    'approach', 'framework', 'result', 'conclusion', 'data', 'information'
-  ]);
-
-  return commonNouns.has(word.toLowerCase()) ||
+  return COMMON_NOUNS.has(word.toLowerCase()) ||
          word.length > 3; // Rough heuristic for proper nouns
 }
