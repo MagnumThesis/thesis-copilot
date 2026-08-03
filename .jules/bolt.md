@@ -5,3 +5,6 @@
 ## 2026-03-22 - Redundant Array Traversals in getStatistics
 **Learning:** Performing multiple consecutive `.filter().length` operations on an array of objects where each filter condition involves an expensive operation (like `safeDate` parsing) leads to (kN)$ time complexity and redundant processing.
 **Action:** Consolidate multiple statistics calculations into a single (N)$ pass using a single loop (e.g., `forEach` or `reduce`). This minimizes traversals and ensures each expensive transformation (like date parsing) is performed exactly once per element.
+## 2024-08-03 - Avoid Multiple Passes on Arrays in React Render Paths
+**Learning:** React hooks like `useSearchAnalytics` process aggregations via `getTrackingStats`, which originally ran `.filter().length` multiple times across the same data points, causing O(kN) complexity in a hot path.
+**Action:** Replace sequential `filter().length` aggregations with a single pass `for` loop to accumulate multiple statistics efficiently in O(N).
