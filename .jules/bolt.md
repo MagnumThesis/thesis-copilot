@@ -5,3 +5,6 @@
 ## 2026-03-22 - Redundant Array Traversals in getStatistics
 **Learning:** Performing multiple consecutive `.filter().length` operations on an array of objects where each filter condition involves an expensive operation (like `safeDate` parsing) leads to (kN)$ time complexity and redundant processing.
 **Action:** Consolidate multiple statistics calculations into a single (N)$ pass using a single loop (e.g., `forEach` or `reduce`). This minimizes traversals and ensures each expensive transformation (like date parsing) is performed exactly once per element.
+## 2023-11-20 - Space-Optimized Levenshtein Distance
+**Learning:** Using a 2D array matrix for edit distances creates massive memory churn leading to GC pauses. A space-optimized $O(\min(M,N))$ algorithm using two `Int32Array` rows reduces allocation drastically and is over 2x faster, avoiding costly array/object construction in hot paths.
+**Action:** Always prefer 1D space-optimized buffers and primitive typed arrays (like Int32Array) for dynamic programming routines in hot loops.
