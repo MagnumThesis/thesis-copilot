@@ -5,3 +5,6 @@
 ## 2026-03-22 - Redundant Array Traversals in getStatistics
 **Learning:** Performing multiple consecutive `.filter().length` operations on an array of objects where each filter condition involves an expensive operation (like `safeDate` parsing) leads to (kN)$ time complexity and redundant processing.
 **Action:** Consolidate multiple statistics calculations into a single (N)$ pass using a single loop (e.g., `forEach` or `reduce`). This minimizes traversals and ensures each expensive transformation (like date parsing) is performed exactly once per element.
+## 2024-08-05 - Replacing Chained Array Methods in Analytics Loops
+**Learning:** Found an O(3N) pattern in `getConversionMetrics` where `.filter().length` was chained multiple times to tally different user actions over the same array. In an analytics context where datasets can grow significantly, redundant traversals impact backend execution time.
+**Action:** Consolidate multiple tallying filter operations into a single-pass loop (O(N)) to optimize compute.
