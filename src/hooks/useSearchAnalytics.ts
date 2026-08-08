@@ -304,11 +304,21 @@ export const useSearchResultTracking = (sessionId: string) => {
   }, [sessionId]);
 
   const getTrackingStats = useCallback(() => {
+    // ⚡ Bolt Optimization: Replace consecutive .filter().length with a single reduce.
+    // This avoids redundant O(N) passes over the tracking array.
+    const counts = tracking.reduce(
+      (acc, t) => {
+        if (t.action === 'viewed') acc.totalViews++;
+        else if (t.action === 'added') acc.totalAdded++;
+        else if (t.action === 'rejected') acc.totalRejected++;
+        else if (t.action === 'bookmarked') acc.totalBookmarked++;
+        return acc;
+      },
+      { totalViews: 0, totalAdded: 0, totalRejected: 0, totalBookmarked: 0 }
+    );
+
     const stats = {
-      totalViews: tracking.filter(t => t.action === 'viewed').length,
-      totalAdded: tracking.filter(t => t.action === 'added').length,
-      totalRejected: tracking.filter(t => t.action === 'rejected').length,
-      totalBookmarked: tracking.filter(t => t.action === 'bookmarked').length,
+      ...counts,
       conversionRate: 0
     };
 

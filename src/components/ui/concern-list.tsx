@@ -287,9 +287,24 @@ export const ConcernList: React.FC<ConcernListProps> = ({
     }
   }
 
+  // ⚡ Bolt Optimization: Consolidate multiple .filter().length calls into a single O(N) pass.
+  // This reduces array traversal time significantly for large lists.
+  const counts = useMemo(() => {
+    return concerns.reduce((acc, c) => {
+      acc.status[c.status] = (acc.status[c.status] || 0) + 1;
+      acc.category[c.category] = (acc.category[c.category] || 0) + 1;
+      acc.severity[c.severity] = (acc.severity[c.severity] || 0) + 1;
+      return acc;
+    }, {
+      status: {} as Record<string, number>,
+      category: {} as Record<string, number>,
+      severity: {} as Record<string, number>
+    });
+  }, [concerns]);
+
   const getStatusCount = (status: ConcernStatus | 'all') => {
     if (status === 'all') return concerns.length
-    return concerns.filter(c => c.status === status).length
+    return counts.status[status] || 0
   }
 
   const getCategoryLabel = (category: ConcernCategory | 'all') => {
@@ -304,12 +319,12 @@ export const ConcernList: React.FC<ConcernListProps> = ({
 
   const getCategoryCount = (category: ConcernCategory | 'all') => {
     if (category === 'all') return concerns.length
-    return concerns.filter(c => c.category === category).length
+    return counts.category[category] || 0
   }
 
   const getSeverityCount = (severity: ConcernSeverity | 'all') => {
     if (severity === 'all') return concerns.length
-    return concerns.filter(c => c.severity === severity).length
+    return counts.severity[severity] || 0
   }
 
   return (
