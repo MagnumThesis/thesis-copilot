@@ -232,6 +232,8 @@ export const ReferenceList: React.FC<ReferenceListProps> = ({
                     variant="ghost"
                     size="sm"
                     onClick={() => onEdit(reference.id)}
+                    aria-label={`Edit reference ${reference.title}`}
+                    title={`Edit reference ${reference.title}`}
                   >
                     <Edit className="h-4 w-4" />
                   </Button>
@@ -239,6 +241,8 @@ export const ReferenceList: React.FC<ReferenceListProps> = ({
                     variant="ghost"
                     size="sm"
                     onClick={() => handleDelete(reference.id)}
+                    aria-label={`Delete reference ${reference.title}`}
+                    title={`Delete reference ${reference.title}`}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>

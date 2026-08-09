@@ -503,6 +503,8 @@ export const ReferenceDetail: React.FC<ReferenceDetailProps> = ({
                       <button
                         onClick={() => handleRemoveTag(tag)}
                         className="ml-2 hover:text-destructive"
+                        aria-label={`Remove tag ${tag}`}
+                        title={`Remove tag ${tag}`}
                       >
                         <X className="h-3 w-3" />
                       </button>
@@ -523,7 +525,7 @@ export const ReferenceDetail: React.FC<ReferenceDetailProps> = ({
                     onKeyPress={(e) => e.key === 'Enter' && handleAddTag()}
                     className="flex-1"
                   />
-                  <Button onClick={handleAddTag} size="sm">
+                  <Button onClick={handleAddTag} size="sm" aria-label="Add tag" title="Add tag">
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
