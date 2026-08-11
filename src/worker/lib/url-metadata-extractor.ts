@@ -84,11 +84,18 @@ export function validateAndSanitizeUrl(url: string): { isValid: boolean; sanitiz
     }
 
     // Check for localhost or private IPs (basic security)
-    if (urlObj.hostname === 'localhost' || 
-        urlObj.hostname.startsWith('127.') || 
-        urlObj.hostname.startsWith('192.168.') ||
-        urlObj.hostname.startsWith('10.') ||
-        urlObj.hostname.match(/^172\.(1[6-9]|2[0-9]|3[0-1])\./)) {
+    const hostname = urlObj.hostname.toLowerCase();
+    if (hostname === 'localhost' ||
+        hostname.startsWith('127.') ||
+        hostname.startsWith('192.168.') ||
+        hostname.startsWith('10.') ||
+        hostname.startsWith('169.254.') ||
+        hostname.match(/^172\.(1[6-9]|2[0-9]|3[0-1])\./) ||
+        hostname === '0.0.0.0' ||
+        hostname === '[::1]' ||
+        hostname === '[::]' ||
+        hostname.endsWith('.internal') ||
+        hostname.endsWith('.local')) {
       return { isValid: false, error: 'Private or local URLs are not allowed' };
     }
 
