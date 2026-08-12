@@ -371,6 +371,8 @@ function IdeaSelectorDialog({
                           className="h-7 w-7"
                           onClick={(e) => handleSaveEdit(idea, e)}
                           disabled={isUpdating}
+                          aria-label={`Save title for ${idea.title}`}
+                          title={`Save title for ${idea.title}`}
                         >
                           {isUpdating ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
@@ -384,6 +386,8 @@ function IdeaSelectorDialog({
                           className="h-7 w-7"
                           onClick={handleCancelEdit}
                           disabled={isUpdating}
+                          aria-label={`Cancel editing title for ${idea.title}`}
+                          title={`Cancel editing title for ${idea.title}`}
                         >
                           <X className="h-4 w-4 text-destructive" />
                         </Button>
@@ -404,7 +408,8 @@ function IdeaSelectorDialog({
                           size="icon"
                           className="h-6 w-6 shrink-0"
                           onClick={(e) => handleStartEdit(idea, e)}
-                          title="Edit title"
+                          title={`Edit title for ${idea.title}`}
+                          aria-label={`Edit title for ${idea.title}`}
                         >
                           <Pencil className="h-3 w-3" />
                         </Button>
@@ -414,7 +419,8 @@ function IdeaSelectorDialog({
                           className="h-6 w-6 shrink-0"
                           onClick={(e) => handleRegenerateTitle(idea, e)}
                           disabled={regeneratingId === idea.id || !idea.description}
-                          title="Regenerate title with AI"
+                          title={`Regenerate title for ${idea.title} with AI`}
+                          aria-label={`Regenerate title for ${idea.title} with AI`}
                         >
                           {regeneratingId === idea.id ? (
                             <Loader2 className="h-3 w-3 animate-spin" />
