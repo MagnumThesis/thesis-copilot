@@ -494,15 +494,25 @@ billingApi.post('/webhook', async (c) => {
       // Prepare signed payload
       const signedPayload = `${t}.${payload}`;
       const expected = crypto.createHmac('sha256', STRIPE_WEBHOOK_SECRET).update(signedPayload).digest('hex');
+      const expectedBuffer = Buffer.from(expected);
+      const v1Buffer = Buffer.from(v1);
 
       // compare signatures in a timing-safe way
-      const valid = crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(v1));
+      if (expectedBuffer.length !== v1Buffer.length) {
+        throw new Error('Invalid webhook signature length');
+      }
+
+      const valid = crypto.timingSafeEqual(expectedBuffer, v1Buffer);
       if (!valid) throw new Error('Invalid webhook signature');
     }
 
     event = JSON.parse(payload);
   } catch (err: any) {
     console.error('Webhook signature/parse error', err);
+    // Secure fail: If secret is configured but validation threw, reject request
+    if (STRIPE_WEBHOOK_SECRET) {
+      return c.text('Invalid signature or payload', 400);
+    }
     // If webhook secret not configured we still attempt to parse the event (dev-friendly)
     if (!event) {
       try { event = JSON.parse(payload); } catch (e) { return c.text('Invalid payload', 400); }
