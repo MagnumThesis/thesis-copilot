@@ -476,7 +476,9 @@ export const ConcernList: React.FC<ConcernListProps> = ({
                 Status: {getStatusLabel(statusFilter)}
                 <button
                   onClick={() => onFilterChange('all')}
-                  className="ml-1 hover:text-red-600"
+                  className="ml-1 rounded-sm hover:text-red-600 focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                  aria-label={`Remove Status filter: ${getStatusLabel(statusFilter)}`}
+                  title="Remove filter"
                 >
                   ×
                 </button>
@@ -487,7 +489,9 @@ export const ConcernList: React.FC<ConcernListProps> = ({
                 Category: {getCategoryLabel(categoryFilter)}
                 <button
                   onClick={() => setCategoryFilter('all')}
-                  className="ml-1 hover:text-red-600"
+                  className="ml-1 rounded-sm hover:text-red-600 focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                  aria-label={`Remove Category filter: ${getCategoryLabel(categoryFilter)}`}
+                  title="Remove filter"
                 >
                   ×
                 </button>
@@ -498,7 +502,9 @@ export const ConcernList: React.FC<ConcernListProps> = ({
                 Severity: {getSeverityLabel(severityFilter)}
                 <button
                   onClick={() => setSeverityFilter('all')}
-                  className="ml-1 hover:text-red-600"
+                  className="ml-1 rounded-sm hover:text-red-600 focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                  aria-label={`Remove Severity filter: ${getSeverityLabel(severityFilter)}`}
+                  title="Remove filter"
                 >
                   ×
                 </button>
