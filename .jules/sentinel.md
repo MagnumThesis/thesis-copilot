@@ -2,3 +2,7 @@
 **Vulnerability:** The application is using `origin: '*'` together with `credentials: true` in Hono CORS configuration (`src/worker/routes/auth-routes.ts`).
 **Learning:** Using a wildcard origin with credentials enabled allows any website to make requests to the authenticated endpoints and include the user's cookies/credentials. This is a significant security risk and can lead to CSRF attacks or data theft.
 **Prevention:** Avoid using `origin: '*'` with `credentials: true`. Instead, implement a dynamic origin resolver function utilizing `c.env` or `import.meta.env` to strictly validate against allowed frontend URLs and development environments.
+## 2026-08-14 - SSRF via Link-Local and Internal Domains
+**Vulnerability:** The URL validation logic for metadata extraction (`validateAndSanitizeUrl`) missed checking for link-local addresses (169.254.x.x), 0.0.0.0, IPv6 loopback ([::1]), and internal domains (`.internal`, `.local`), making it vulnerable to Server-Side Request Forgery (SSRF) allowing access to cloud metadata APIs or internal services.
+**Learning:** Checking only for standard private IP ranges (10.x, 172.16.x, 192.168.x) and 127.x.x.x is insufficient. Cloud environments use 169.254.x.x for critical metadata access. IPv6 localhost or all-interfaces (0.0.0.0) bypasses basic checks, as do internal domains.
+**Prevention:** Implement comprehensive hostname validation that includes IPv4 link-local (169.254.0.0/16), IPv6 localhost (`[::1]`), all interfaces (`0.0.0.0`), and internal TLDs (`.internal`, `.local`) before fetching external URLs.
