@@ -85,6 +85,11 @@ export function validateAndSanitizeUrl(url: string): { isValid: boolean; sanitiz
 
     // Check for localhost or private IPs (basic security)
     if (urlObj.hostname === 'localhost' || 
+        urlObj.hostname === '0.0.0.0' ||
+        urlObj.hostname === '[::1]' ||
+        urlObj.hostname.endsWith('.internal') ||
+        urlObj.hostname.endsWith('.local') ||
+        urlObj.hostname.startsWith('169.254.') ||
         urlObj.hostname.startsWith('127.') || 
         urlObj.hostname.startsWith('192.168.') ||
         urlObj.hostname.startsWith('10.') ||
