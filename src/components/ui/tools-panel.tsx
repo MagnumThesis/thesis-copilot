@@ -53,6 +53,8 @@ export const ToolsPanel: React.FC<ToolsPanelProps> = ({
         variant="ghost"
         size="icon"
         onClick={() => setIsOpen(!isOpen)}
+        aria-label={isOpen ? "Close tools panel" : "Open tools panel"}
+        title={isOpen ? "Close tools panel" : "Open tools panel"}
         className={cn(
           "absolute top-4 z-10 h-8 w-8 rounded-full border bg-background shadow-sm hover:bg-muted transition-all duration-300",
           isOpen
@@ -96,21 +98,21 @@ export const ToolsPanel: React.FC<ToolsPanelProps> = ({
             {children || (
               <>
                 {/* Make Idealist clickable */}
-                <div onClick={handleIdealistClick} className="cursor-pointer">
+                <button type="button" onClick={handleIdealistClick} className="w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground cursor-pointer">
                   <ToolCard title="Idealist" description="Provides comprehensive information and definitions for your idea definitions." />
-                </div>
+                </button>
                 {/* Make Builder clickable */}
-                <div onClick={handleBuilderClick} className="cursor-pointer">
+                <button type="button" onClick={handleBuilderClick} className="w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground cursor-pointer">
                   <ToolCard title="Builder" description="Assists in the iterative development and refinement of proposals." />
-                </div>
+                </button>
                 {/* Make Proofreader clickable */}
-                <div onClick={handleProofreaderClick} className="cursor-pointer">
+                <button type="button" onClick={handleProofreaderClick} className="w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground cursor-pointer">
                   <ToolCard title="Proofreader" description="Identifies potential loopholes and flaws within your ideas." />
-                </div>
+                </button>
                 {/* Make Referencer clickable */}
-                <div onClick={handleReferencerClick} className="cursor-pointer">
+                <button type="button" onClick={handleReferencerClick} className="w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground cursor-pointer">
                   <ToolCard title="Referencer" description="Searches for relevant academic papers and resources related to your ideas." />
-                </div>
+                </button>
               </>
             )}
           </div>
