@@ -287,9 +287,28 @@ export const ConcernList: React.FC<ConcernListProps> = ({
     }
   }
 
+  // ⚡ Bolt: Performance optimization
+  // Pre-compute all counts in a single O(N) pass to avoid multiple O(kN) filter operations during render
+  const concernStats = useMemo(() => {
+    const stats = {
+      status: {} as Record<ConcernStatus, number>,
+      category: {} as Record<ConcernCategory, number>,
+      severity: {} as Record<ConcernSeverity, number>,
+    };
+
+    // Single pass tallying
+    concerns.forEach(c => {
+      stats.status[c.status] = (stats.status[c.status] || 0) + 1;
+      stats.category[c.category] = (stats.category[c.category] || 0) + 1;
+      stats.severity[c.severity] = (stats.severity[c.severity] || 0) + 1;
+    });
+
+    return stats;
+  }, [concerns]);
+
   const getStatusCount = (status: ConcernStatus | 'all') => {
-    if (status === 'all') return concerns.length
-    return concerns.filter(c => c.status === status).length
+    if (status === 'all') return concerns.length;
+    return concernStats.status[status] || 0;
   }
 
   const getCategoryLabel = (category: ConcernCategory | 'all') => {
@@ -303,13 +322,13 @@ export const ConcernList: React.FC<ConcernListProps> = ({
   }
 
   const getCategoryCount = (category: ConcernCategory | 'all') => {
-    if (category === 'all') return concerns.length
-    return concerns.filter(c => c.category === category).length
+    if (category === 'all') return concerns.length;
+    return concernStats.category[category] || 0;
   }
 
   const getSeverityCount = (severity: ConcernSeverity | 'all') => {
-    if (severity === 'all') return concerns.length
-    return concerns.filter(c => c.severity === severity).length
+    if (severity === 'all') return concerns.length;
+    return concernStats.severity[severity] || 0;
   }
 
   return (
