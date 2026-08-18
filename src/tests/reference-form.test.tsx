@@ -267,7 +267,7 @@ describe('ReferenceForm', () => {
       expect(screen.getByText(/author 2/i)).toBeInTheDocument()
       
       // Remove first author
-      const removeButtons = screen.getAllByRole('button', { name: '' }) // X buttons
+      const removeButtons = screen.getAllByRole('button', { name: /remove author/i }) // X buttons
       await user.click(removeButtons[0])
       
       // Should still have one author but renumbered
@@ -352,7 +352,7 @@ describe('ReferenceForm', () => {
       expect(screen.getByText('academic')).toBeInTheDocument()
       
       // Remove tag
-      const removeTagButtons = screen.getAllByRole('button', { name: '' })
+      const removeTagButtons = screen.getAllByRole('button', { name: /remove tag/i })
       await user.click(removeTagButtons[0])
       
       expect(screen.queryByText('research')).not.toBeInTheDocument()

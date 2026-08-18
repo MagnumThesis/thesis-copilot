@@ -287,18 +287,22 @@ export const ReferenceForm: React.FC<ReferenceFormProps> = ({
                 </Button>
               </div>
               <div className="flex flex-wrap gap-2">
-                {(formData.authors || []).map((author, index) => (
+                {(formData.authors || []).map((author, index) => {
+                  const authorName = typeof author === 'string' ? author : `${author.firstName} ${author.lastName}`;
+                  return (
                   <Badge key={index} variant="secondary" className="flex items-center gap-1">
-                    {typeof author === 'string' ? author : `${author.firstName} ${author.lastName}`}
+                    {authorName}
                     <button
                       type="button"
                       onClick={() => removeAuthor(index)}
                       className="hover:text-destructive"
+                      aria-label={`Remove author ${authorName}`}
+                      title={`Remove author ${authorName}`}
                     >
                       <X className="h-3 w-3" />
                     </button>
                   </Badge>
-                ))}
+                )})}
               </div>
             </div>
 
@@ -466,6 +470,8 @@ export const ReferenceForm: React.FC<ReferenceFormProps> = ({
                       type="button"
                       onClick={() => removeTag(index)}
                       className="hover:text-destructive"
+                      aria-label={`Remove tag ${tag}`}
+                      title={`Remove tag ${tag}`}
                     >
                       <X className="h-3 w-3" />
                     </button>
