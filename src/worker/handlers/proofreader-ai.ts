@@ -573,34 +573,43 @@ function generateSeverityBreakdown(concerns: ProofreadingConcern[]): Record<Conc
  * Generate concern statistics from database records
  */
 function generateConcernStatistics(concerns: any[]): ConcernStatistics {
+  // ⚡ Bolt: Performance optimization - replace O(k*N) multiple .filter().length array traversals with a single O(N) pass.
   const total = concerns.length;
-  const toBeDone = concerns.filter(c => c.status === ConcernStatus.TO_BE_DONE).length;
-  const addressed = concerns.filter(c => c.status === ConcernStatus.ADDRESSED).length;
-  const rejected = concerns.filter(c => c.status === ConcernStatus.REJECTED).length;
-  
-  // Generate breakdown by category
+  let toBeDone = 0;
+  let addressed = 0;
+  let rejected = 0;
+
   const byCategory = {} as Record<ConcernCategory, any>;
-  Object.values(ConcernCategory).forEach(category => {
-    const categoryData = concerns.filter(c => c.category === category);
-    byCategory[category] = {
-      total: categoryData.length,
-      toBeDone: categoryData.filter(c => c.status === ConcernStatus.TO_BE_DONE).length,
-      addressed: categoryData.filter(c => c.status === ConcernStatus.ADDRESSED).length,
-      rejected: categoryData.filter(c => c.status === ConcernStatus.REJECTED).length
-    };
-  });
-  
-  // Generate breakdown by severity
   const bySeverity = {} as Record<ConcernSeverity, any>;
-  Object.values(ConcernSeverity).forEach(severity => {
-    const severityData = concerns.filter(c => c.severity === severity);
-    bySeverity[severity] = {
-      total: severityData.length,
-      toBeDone: severityData.filter(c => c.status === ConcernStatus.TO_BE_DONE).length,
-      addressed: severityData.filter(c => c.status === ConcernStatus.ADDRESSED).length,
-      rejected: severityData.filter(c => c.status === ConcernStatus.REJECTED).length
-    };
+
+  Object.values(ConcernCategory).forEach(category => {
+    byCategory[category] = { total: 0, toBeDone: 0, addressed: 0, rejected: 0 };
   });
+
+  Object.values(ConcernSeverity).forEach(severity => {
+    bySeverity[severity] = { total: 0, toBeDone: 0, addressed: 0, rejected: 0 };
+  });
+
+  for (const concern of concerns) {
+    const { status, category, severity } = concern;
+    if (status === ConcernStatus.TO_BE_DONE) toBeDone++;
+    else if (status === ConcernStatus.ADDRESSED) addressed++;
+    else if (status === ConcernStatus.REJECTED) rejected++;
+
+    if (category && category in byCategory) {
+      byCategory[category].total++;
+      if (status === ConcernStatus.TO_BE_DONE) byCategory[category].toBeDone++;
+      else if (status === ConcernStatus.ADDRESSED) byCategory[category].addressed++;
+      else if (status === ConcernStatus.REJECTED) byCategory[category].rejected++;
+    }
+
+    if (severity && severity in bySeverity) {
+      bySeverity[severity].total++;
+      if (status === ConcernStatus.TO_BE_DONE) bySeverity[severity].toBeDone++;
+      else if (status === ConcernStatus.ADDRESSED) bySeverity[severity].addressed++;
+      else if (status === ConcernStatus.REJECTED) bySeverity[severity].rejected++;
+    }
+  }
   
   return {
     totalConcerns: total,
