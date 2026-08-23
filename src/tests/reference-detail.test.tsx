@@ -229,7 +229,7 @@ describe('ReferenceDetail', () => {
       const tagInput = screen.getByPlaceholderText('Add new tag...')
       await user.type(tagInput, 'machine-learning')
       
-      const addButton = screen.getByRole('button', { name: /plus/i })
+      const addButton = screen.getByRole('button', { name: /add tag/i })
       await user.click(addButton)
       
       expect(defaultProps.onTagAdd).toHaveBeenCalledWith('ref-1', 'machine-learning')
@@ -280,7 +280,7 @@ describe('ReferenceDetail', () => {
       await user.click(manageTagsButton)
       
       // Try to add empty tag
-      const addButton = screen.getByRole('button', { name: /plus/i })
+      const addButton = screen.getByRole('button', { name: /add tag/i })
       await user.click(addButton)
       
       expect(defaultProps.onTagAdd).not.toHaveBeenCalled()
