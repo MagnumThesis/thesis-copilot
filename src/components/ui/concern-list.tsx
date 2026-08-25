@@ -287,9 +287,25 @@ export const ConcernList: React.FC<ConcernListProps> = ({
     }
   }
 
+  // ⚡ Bolt: Performance optimization - Consolidate O(kN) multiple filters into single O(N) pass
+  const stats = useMemo(() => {
+    const statusCounts: Record<string, number> = {}
+    const categoryCounts: Record<string, number> = {}
+    const severityCounts: Record<string, number> = {}
+
+    for (let i = 0; i < concerns.length; i++) {
+      const concern = concerns[i]
+      statusCounts[concern.status] = (statusCounts[concern.status] || 0) + 1
+      categoryCounts[concern.category] = (categoryCounts[concern.category] || 0) + 1
+      severityCounts[concern.severity] = (severityCounts[concern.severity] || 0) + 1
+    }
+
+    return { statusCounts, categoryCounts, severityCounts }
+  }, [concerns])
+
   const getStatusCount = (status: ConcernStatus | 'all') => {
     if (status === 'all') return concerns.length
-    return concerns.filter(c => c.status === status).length
+    return stats.statusCounts[status] || 0
   }
 
   const getCategoryLabel = (category: ConcernCategory | 'all') => {
@@ -304,12 +320,12 @@ export const ConcernList: React.FC<ConcernListProps> = ({
 
   const getCategoryCount = (category: ConcernCategory | 'all') => {
     if (category === 'all') return concerns.length
-    return concerns.filter(c => c.category === category).length
+    return stats.categoryCounts[category] || 0
   }
 
   const getSeverityCount = (severity: ConcernSeverity | 'all') => {
     if (severity === 'all') return concerns.length
-    return concerns.filter(c => c.severity === severity).length
+    return stats.severityCounts[severity] || 0
   }
 
   return (
