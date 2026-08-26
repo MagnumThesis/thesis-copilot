@@ -176,6 +176,7 @@ export const SearchFiltersPanel: React.FC<SearchFiltersPanelProps> = ({
                       variant="ghost"
                       size="sm"
                       className="h-auto p-0 ml-1"
+                      aria-label={`Remove author ${author}`}
                       onClick={() => {
                         const updatedAuthors = localFilters.authors?.filter((_, i) => i !== index) || []
                         handleFilterChange('authors', updatedAuthors)
@@ -212,6 +213,7 @@ export const SearchFiltersPanel: React.FC<SearchFiltersPanelProps> = ({
                       variant="ghost"
                       size="sm"
                       className="h-auto p-0 ml-1"
+                      aria-label={`Remove journal ${journal}`}
                       onClick={() => {
                         const updatedJournals = localFilters.journals?.filter((_, i) => i !== index) || []
                         handleFilterChange('journals', updatedJournals)
