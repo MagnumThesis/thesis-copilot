@@ -1,7 +1,7 @@
-1. **What:** Wrap `filteredItems` and `data` in `useMemo` in `AppSidebar`.
-   - Update `AppSidebar` to import `useMemo` from `react`
-   - Wrap the filtering logic for `filteredItems` with `useMemo(() => items.filter(...), [items, searchQuery])`
-   - Wrap the `data` creation with `useMemo(() => ({ navMain: ... }), [filteredItems])`
-2. **Why:** To prevent unnecessary filtering operations and object allocations on every render of `AppSidebar` (which can happen frequently if the parent component re-renders or if other local state like `isUpdating` changes). This is particularly impactful when the `items` list is large.
-3. **Impact:** Improves React rendering performance by caching the filtered list and data object unless their dependencies change.
-4. **Measurement:** Verify by running `npm run lint` and `npm run test -- --run` and optionally visual verification if required.
+1. **Add `aria-label` to icon-only buttons in `src/components/ui/search-result-bookmark.tsx`**:
+   - The buttons for bookmarking, viewing, comparing, sharing, and removing bookmarks currently have `title` attributes but lack `aria-label` for screen reader accessibility. Adding `aria-label` mapping to the same value as the `title` attribute will improve accessibility for these icon-only and mixed-content buttons.
+2. **Remove temporary test file**:
+   - `rm temp.test.tsx`
+3. **Verify and Run Tests**:
+   - Run `pnpm lint` and `pnpm test` to ensure everything works correctly.
+4. **Complete pre-commit steps to ensure proper testing, verification, review, and reflection are done.**
