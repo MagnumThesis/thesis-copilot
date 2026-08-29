@@ -81,6 +81,7 @@ export const SearchResultBookmark: React.FC<SearchResultBookmarkProps> = ({
         disabled={disabled || isProcessing}
         className="flex items-center gap-1"
         title={isBookmarked ? "Remove bookmark" : "Bookmark result"}
+        aria-label={isBookmarked ? "Remove bookmark" : "Bookmark result"}
       >
         {isBookmarked ? (
           <BookmarkCheck className="h-4 w-4" />
@@ -97,6 +98,7 @@ export const SearchResultBookmark: React.FC<SearchResultBookmarkProps> = ({
           onClick={handleView}
           disabled={disabled}
           title="View details"
+          aria-label="View details"
         >
           <Eye className="h-4 w-4" />
         </Button>
@@ -109,6 +111,7 @@ export const SearchResultBookmark: React.FC<SearchResultBookmarkProps> = ({
           onClick={handleCompare}
           disabled={disabled}
           title="Add to comparison"
+          aria-label="Add to comparison"
         >
           <GitCompare className="h-4 w-4" />
         </Button>
@@ -121,6 +124,7 @@ export const SearchResultBookmark: React.FC<SearchResultBookmarkProps> = ({
           onClick={handleShare}
           disabled={disabled}
           title="Share result"
+          aria-label="Share result"
         >
           <Share2 className="h-4 w-4" />
         </Button>
@@ -231,6 +235,7 @@ export const BookmarkedResultsList: React.FC<BookmarkedResultsListProps> = ({
                       size="sm"
                       onClick={() => onView(result)}
                       title="View details"
+                      aria-label="View details"
                     >
                       <Eye className="h-4 w-4" />
                     </Button>
@@ -242,6 +247,7 @@ export const BookmarkedResultsList: React.FC<BookmarkedResultsListProps> = ({
                       size="sm"
                       onClick={() => onCompare(result)}
                       title="Add to comparison"
+                      aria-label="Add to comparison"
                     >
                       <GitCompare className="h-4 w-4" />
                     </Button>
@@ -253,6 +259,7 @@ export const BookmarkedResultsList: React.FC<BookmarkedResultsListProps> = ({
                       size="sm"
                       onClick={() => onShare(result)}
                       title="Share result"
+                      aria-label="Share result"
                     >
                       <Share2 className="h-4 w-4" />
                     </Button>
@@ -264,6 +271,7 @@ export const BookmarkedResultsList: React.FC<BookmarkedResultsListProps> = ({
                       size="sm"
                       onClick={() => onAddReference(result)}
                       title="Add to references"
+                      aria-label="Add to references"
                     >
                       Add Reference
                     </Button>
@@ -275,6 +283,7 @@ export const BookmarkedResultsList: React.FC<BookmarkedResultsListProps> = ({
                     onClick={() => handleRemoveBookmark(result)}
                     disabled={removingBookmark === result.bookmarkId}
                     title="Remove bookmark"
+                    aria-label="Remove bookmark"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
