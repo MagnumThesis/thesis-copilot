@@ -96,21 +96,21 @@ export const ToolsPanel: React.FC<ToolsPanelProps> = ({
             {children || (
               <>
                 {/* Make Idealist clickable */}
-                <div onClick={handleIdealistClick} className="cursor-pointer">
+                <button type="button" onClick={handleIdealistClick} className="w-full text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors hover:bg-accent/50">
                   <ToolCard title="Idealist" description="Provides comprehensive information and definitions for your idea definitions." />
-                </div>
+                </button>
                 {/* Make Builder clickable */}
-                <div onClick={handleBuilderClick} className="cursor-pointer">
+                <button type="button" onClick={handleBuilderClick} className="w-full text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors hover:bg-accent/50">
                   <ToolCard title="Builder" description="Assists in the iterative development and refinement of proposals." />
-                </div>
+                </button>
                 {/* Make Proofreader clickable */}
-                <div onClick={handleProofreaderClick} className="cursor-pointer">
+                <button type="button" onClick={handleProofreaderClick} className="w-full text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors hover:bg-accent/50">
                   <ToolCard title="Proofreader" description="Identifies potential loopholes and flaws within your ideas." />
-                </div>
+                </button>
                 {/* Make Referencer clickable */}
-                <div onClick={handleReferencerClick} className="cursor-pointer">
+                <button type="button" onClick={handleReferencerClick} className="w-full text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors hover:bg-accent/50">
                   <ToolCard title="Referencer" description="Searches for relevant academic papers and resources related to your ideas." />
-                </div>
+                </button>
               </>
             )}
           </div>
