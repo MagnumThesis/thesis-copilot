@@ -88,7 +88,14 @@ export function validateAndSanitizeUrl(url: string): { isValid: boolean; sanitiz
         urlObj.hostname.startsWith('127.') || 
         urlObj.hostname.startsWith('192.168.') ||
         urlObj.hostname.startsWith('10.') ||
-        urlObj.hostname.match(/^172\.(1[6-9]|2[0-9]|3[0-1])\./)) {
+        urlObj.hostname.match(/^172\.(1[6-9]|2[0-9]|3[0-1])\./) ||
+        urlObj.hostname === '[::1]' ||
+        urlObj.hostname === '0.0.0.0' ||
+        urlObj.hostname === '169.254.169.254' ||
+        urlObj.hostname.startsWith('[fd') ||
+        urlObj.hostname.startsWith('[fc') ||
+        urlObj.hostname.startsWith('[fe80') ||
+        urlObj.hostname.match(/^\[::ffff:127\./)) {
       return { isValid: false, error: 'Private or local URLs are not allowed' };
     }
 
