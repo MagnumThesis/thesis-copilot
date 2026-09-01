@@ -368,8 +368,12 @@ export const CitationFormatter: React.FC<CitationFormatterProps> = ({
       {selectedReferences.length > 0 && (
         <div className="space-y-4">
           {/* Simple Tab Navigation */}
-          <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
+          <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg" role="tablist" aria-label="Citation Formatter Tabs">
             <button
+              role="tab"
+              aria-selected={activeTab === 'citations'}
+              aria-controls="citations-panel"
+              id="citations-tab"
               className={`flex-1 py-2 px-4 text-sm font-medium rounded-md transition-colors ${
                 activeTab === 'citations'
                   ? 'bg-white text-gray-900 shadow-sm'
@@ -380,6 +384,10 @@ export const CitationFormatter: React.FC<CitationFormatterProps> = ({
               Individual Citations
             </button>
             <button
+              role="tab"
+              aria-selected={activeTab === 'bibliography'}
+              aria-controls="bibliography-panel"
+              id="bibliography-tab"
               className={`flex-1 py-2 px-4 text-sm font-medium rounded-md transition-colors ${
                 activeTab === 'bibliography'
                   ? 'bg-white text-gray-900 shadow-sm'
@@ -393,7 +401,7 @@ export const CitationFormatter: React.FC<CitationFormatterProps> = ({
 
           {/* Citations Tab */}
           {activeTab === 'citations' && (
-            <div className="space-y-4">
+            <div id="citations-panel" role="tabpanel" aria-labelledby="citations-tab" className="space-y-4">
               {Array.from(formattingResults.entries()).map(([referenceId, result]) => {
                 const reference = selectedReferences.find(r => r.id === referenceId);
                 if (!reference) return null;
@@ -479,7 +487,7 @@ export const CitationFormatter: React.FC<CitationFormatterProps> = ({
 
           {/* Bibliography Tab */}
           {activeTab === 'bibliography' && (
-            <Card>
+            <Card id="bibliography-panel" role="tabpanel" aria-labelledby="bibliography-tab">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base">Generated Bibliography</CardTitle>
