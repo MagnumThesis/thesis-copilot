@@ -5,3 +5,6 @@
 ## 2026-03-22 - Redundant Array Traversals in getStatistics
 **Learning:** Performing multiple consecutive `.filter().length` operations on an array of objects where each filter condition involves an expensive operation (like `safeDate` parsing) leads to (kN)$ time complexity and redundant processing.
 **Action:** Consolidate multiple statistics calculations into a single (N)$ pass using a single loop (e.g., `forEach` or `reduce`). This minimizes traversals and ensures each expensive transformation (like date parsing) is performed exactly once per element.
+## 2026-09-01 - Avoid O(kN) chained filters in render
+**Learning:** In components like ConcernList, repeatedly calling `.filter().length` for various grouping categories during render leads to O(kN) redundant array traversals, degrading performance for large datasets.
+**Action:** Consolidate array traversals into a single `.reduce()` iteration to dynamically build a statistics map, caching the result with `useMemo` to achieve O(N) time complexity.
