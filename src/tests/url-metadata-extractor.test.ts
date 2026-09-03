@@ -48,6 +48,11 @@ describe('URL Metadata Extractor', () => {
       expect(validateAndSanitizeUrl('https://127.0.0.1').isValid).toBe(false);
       expect(validateAndSanitizeUrl('https://192.168.1.1').isValid).toBe(false);
       expect(validateAndSanitizeUrl('https://10.0.0.1').isValid).toBe(false);
+      expect(validateAndSanitizeUrl('http://0.0.0.0').isValid).toBe(false);
+      expect(validateAndSanitizeUrl('http://169.254.169.254.nip.io/latest/meta-data/').isValid).toBe(false);
+      expect(validateAndSanitizeUrl('http://127.0.0.1.nip.io').isValid).toBe(false);
+      // Tests for bare IPs will fail early on Invalid URL format because of the regex (which doesn't allow bare IP),
+      // but they are correctly marked as invalid.
     });
 
     it('should handle malformed URLs gracefully', () => {
