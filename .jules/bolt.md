@@ -5,3 +5,6 @@
 ## 2026-03-22 - Redundant Array Traversals in getStatistics
 **Learning:** Performing multiple consecutive `.filter().length` operations on an array of objects where each filter condition involves an expensive operation (like `safeDate` parsing) leads to (kN)$ time complexity and redundant processing.
 **Action:** Consolidate multiple statistics calculations into a single (N)$ pass using a single loop (e.g., `forEach` or `reduce`). This minimizes traversals and ensures each expensive transformation (like date parsing) is performed exactly once per element.
+## 2026-09-03 - Consolidate multiple filter.length calls into a single loop
+**Learning:** Calling `.filter().length` multiple times inside a React render function or getter functions used during render causes O(k*N) complexity. Using an object like `Object.values(ConcernCategory)` and assuming it is a runtime array without checking can cause crashes if it's a TypeScript type.
+**Action:** Consolidate array traversal into a single pass using a `for` loop or `.reduce()` to tally counts into a plain object, and wrap it in `useMemo` to cache the result, improving time complexity to O(N). Always build the object dynamically inside the iteration instead of relying on TypeScript enums which might not exist at runtime.
