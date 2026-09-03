@@ -5,3 +5,7 @@
 ## 2026-03-09 - Missing ARIA labels in dynamic/interactive chat components
 **Learning:** Icon-only buttons in the core Chat component (`src/components/ui/chat.tsx`), particularly actions like "Thumbs up", "Thumbs down", and "Scroll to bottom", were missing `aria-label` attributes. Screen reader users would have no context for what these buttons do since they lack text nodes.
 **Action:** When implementing new features or components with interactive icon-only buttons (`size="icon"`), proactively add descriptive `aria-label` attributes.
+
+## 2026-09-03 - Native Accessibility for Clickable Cards
+**Learning:** Using `div` with `onClick` for clickable card elements breaks native keyboard navigation (Tab focus and Enter/Space activation) and semantic roles.
+**Action:** Always wrap interactive card components in native `<button type="button">` tags, applying utility classes (e.g., `w-full text-left focus-visible:ring-2`) to preserve the visual layout while ensuring correct semantic accessibility.
