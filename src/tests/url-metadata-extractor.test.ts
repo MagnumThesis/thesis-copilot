@@ -48,6 +48,15 @@ describe('URL Metadata Extractor', () => {
       expect(validateAndSanitizeUrl('https://127.0.0.1').isValid).toBe(false);
       expect(validateAndSanitizeUrl('https://192.168.1.1').isValid).toBe(false);
       expect(validateAndSanitizeUrl('https://10.0.0.1').isValid).toBe(false);
+      expect(validateAndSanitizeUrl('http://0.0.0.0:8080').isValid).toBe(false);
+      expect(validateAndSanitizeUrl('http://[::1]').isValid).toBe(false);
+      expect(validateAndSanitizeUrl('http://169.254.169.254').isValid).toBe(false);
+      expect(validateAndSanitizeUrl('http://127.0.0.1.nip.io').isValid).toBe(false);
+    });
+
+    it('should allow valid domains that begin with numbers', () => {
+      expect(validateAndSanitizeUrl('https://10.example.com').isValid).toBe(true);
+      expect(validateAndSanitizeUrl('https://127.0.0.2.com').isValid).toBe(true);
     });
 
     it('should handle malformed URLs gracefully', () => {

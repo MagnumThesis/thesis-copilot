@@ -8,7 +8,8 @@ import { ReferenceMetadata, ReferenceType, Author } from '../../lib/ai-types.js'
 // URL validation regex patterns
 const URL_PATTERNS = {
   HTTP: /^https?:\/\//i,
-  DOMAIN: /^https?:\/\/([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(\/.*)?$/,
+  // More permissive domain matching to allow valid IP addresses or localhost before the URL constructor handles them, but not plain non-domain strings
+  DOMAIN: /^https?:\/\/([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(:\d+)?(\/.*)?|https?:\/\/\[[a-fA-F0-9:]+\](:\d+)?(\/.*)?|https?:\/\/(127\.0\.0\.1|localhost|0\.0\.0\.0|169\.254\.\d+\.\d+|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2[0-9]|3[0-1])\.\d+\.\d+)(:\d+)?(\/.*)?$/,
   ACADEMIC: /\.(edu|org|gov)$/i,
   JOURNAL: /\.(springer|elsevier|wiley|nature|science|ieee|acm)\./i
 };
@@ -83,13 +84,49 @@ export function validateAndSanitizeUrl(url: string): { isValid: boolean; sanitiz
       return { isValid: false, error: 'Only HTTP and HTTPS protocols are allowed' };
     }
 
-    // Check for localhost or private IPs (basic security)
-    if (urlObj.hostname === 'localhost' || 
-        urlObj.hostname.startsWith('127.') || 
-        urlObj.hostname.startsWith('192.168.') ||
-        urlObj.hostname.startsWith('10.') ||
-        urlObj.hostname.match(/^172\.(1[6-9]|2[0-9]|3[0-1])\./)) {
+    // Check for localhost, private IPs, and SSRF metadata endpoints (basic security)
+    const hostLower = urlObj.hostname.toLowerCase();
+
+    // Direct blocks for local/any addresses
+    if (hostLower === 'localhost' || hostLower === '0.0.0.0' || hostLower === '[::1]' || hostLower === '::1') {
       return { isValid: false, error: 'Private or local URLs are not allowed' };
+    }
+
+    // Subdomain based IP mapping / exact matches without naive startsWith blocking valid domains
+    if (
+      hostLower.includes('127.0.0.1') ||
+      hostLower.includes('169.254.') ||
+      hostLower.startsWith('::ffff:127.') ||
+      hostLower.startsWith('::ffff:169.254.') ||
+      hostLower.startsWith('::ffff:10.') ||
+      hostLower.startsWith('::ffff:192.168.') ||
+      hostLower.startsWith('::ffff:172.') ||
+      hostLower.startsWith('[fc00:') ||
+      hostLower.startsWith('[fd00:') ||
+      hostLower.startsWith('[fe80:')
+    ) {
+      return { isValid: false, error: 'Private or local URLs are not allowed' };
+    }
+
+    // Only apply IP block ranges if the hostname is strictly formatted as an IPv4 address
+    const isIPv4Format = /^(\d{1,3}\.){3}\d{1,3}$/.test(hostLower);
+    if (isIPv4Format) {
+      if (
+        hostLower.startsWith('127.') ||
+        hostLower.startsWith('10.') ||
+        hostLower.startsWith('192.168.') ||
+        hostLower.startsWith('169.254.')
+      ) {
+        return { isValid: false, error: 'Private or local URLs are not allowed' };
+      }
+
+      const parts = hostLower.split('.');
+      if (parts[0] === '172') {
+        const second = parseInt(parts[1], 10);
+        if (second >= 16 && second <= 31) {
+          return { isValid: false, error: 'Private or local URLs are not allowed' };
+        }
+      }
     }
 
     return { isValid: true, sanitizedUrl: urlObj.toString() };
