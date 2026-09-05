@@ -19,6 +19,7 @@ export const corsOriginResolver = (origin: string, c: Context) => {
     return origin || '*';
   }
 
-  // Default fallback - returning a string is safer than returning true
-  return allowedOrigins[0];
+  // 🛡️ Sentinel: Fix Overly Permissive CORS with Credentials
+  // Explicitly return null for disallowed origins when credentials: true is configured
+  return null;
 };
