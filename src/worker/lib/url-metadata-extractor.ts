@@ -83,12 +83,24 @@ export function validateAndSanitizeUrl(url: string): { isValid: boolean; sanitiz
       return { isValid: false, error: 'Only HTTP and HTTPS protocols are allowed' };
     }
 
-    // Check for localhost or private IPs (basic security)
-    if (urlObj.hostname === 'localhost' || 
-        urlObj.hostname.startsWith('127.') || 
-        urlObj.hostname.startsWith('192.168.') ||
-        urlObj.hostname.startsWith('10.') ||
-        urlObj.hostname.match(/^172\.(1[6-9]|2[0-9]|3[0-1])\./)) {
+    // 🛡️ Sentinel: Prevent SSRF by explicitly blocking localhost, private IPs, and cloud metadata IPs
+    const hostname = urlObj.hostname;
+    const isBlocked =
+        hostname === 'localhost' ||
+        hostname === '0.0.0.0' ||
+        // IPv4 local/private/metadata blocks:
+        /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+        /^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+        /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+        /^172\.(1[6-9]|2[0-9]|3[0-1])\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+        /^169\.254\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+        // IPv6 blocks:
+        hostname === '[::1]' ||
+        /^\[::ffff:/.test(hostname) ||
+        /^\[f[cd]/.test(hostname) || // ULA
+        /^\[fe80/.test(hostname);   // Link-local
+
+    if (isBlocked) {
       return { isValid: false, error: 'Private or local URLs are not allowed' };
     }
 
