@@ -573,33 +573,51 @@ function generateSeverityBreakdown(concerns: ProofreadingConcern[]): Record<Conc
  * Generate concern statistics from database records
  */
 function generateConcernStatistics(concerns: any[]): ConcernStatistics {
+  // ⚡ Bolt: Consolidated O(N) single-pass iteration for performance optimization
   const total = concerns.length;
-  const toBeDone = concerns.filter(c => c.status === ConcernStatus.TO_BE_DONE).length;
-  const addressed = concerns.filter(c => c.status === ConcernStatus.ADDRESSED).length;
-  const rejected = concerns.filter(c => c.status === ConcernStatus.REJECTED).length;
+  let toBeDone = 0;
+  let addressed = 0;
+  let rejected = 0;
   
-  // Generate breakdown by category
   const byCategory = {} as Record<ConcernCategory, any>;
-  Object.values(ConcernCategory).forEach(category => {
-    const categoryData = concerns.filter(c => c.category === category);
-    byCategory[category] = {
-      total: categoryData.length,
-      toBeDone: categoryData.filter(c => c.status === ConcernStatus.TO_BE_DONE).length,
-      addressed: categoryData.filter(c => c.status === ConcernStatus.ADDRESSED).length,
-      rejected: categoryData.filter(c => c.status === ConcernStatus.REJECTED).length
-    };
-  });
-  
-  // Generate breakdown by severity
   const bySeverity = {} as Record<ConcernSeverity, any>;
+
+  for (const concern of concerns) {
+    if (concern.status === ConcernStatus.TO_BE_DONE) toBeDone++;
+    else if (concern.status === ConcernStatus.ADDRESSED) addressed++;
+    else if (concern.status === ConcernStatus.REJECTED) rejected++;
+
+    if (concern.category) {
+      if (!byCategory[concern.category]) {
+        byCategory[concern.category] = { total: 0, toBeDone: 0, addressed: 0, rejected: 0 };
+      }
+      byCategory[concern.category].total++;
+      if (concern.status === ConcernStatus.TO_BE_DONE) byCategory[concern.category].toBeDone++;
+      else if (concern.status === ConcernStatus.ADDRESSED) byCategory[concern.category].addressed++;
+      else if (concern.status === ConcernStatus.REJECTED) byCategory[concern.category].rejected++;
+    }
+
+    if (concern.severity) {
+      if (!bySeverity[concern.severity]) {
+        bySeverity[concern.severity] = { total: 0, toBeDone: 0, addressed: 0, rejected: 0 };
+      }
+      bySeverity[concern.severity].total++;
+      if (concern.status === ConcernStatus.TO_BE_DONE) bySeverity[concern.severity].toBeDone++;
+      else if (concern.status === ConcernStatus.ADDRESSED) bySeverity[concern.severity].addressed++;
+      else if (concern.status === ConcernStatus.REJECTED) bySeverity[concern.severity].rejected++;
+    }
+  }
+
+  Object.values(ConcernCategory).forEach(category => {
+    if (!byCategory[category]) {
+      byCategory[category] = { total: 0, toBeDone: 0, addressed: 0, rejected: 0 };
+    }
+  });
+
   Object.values(ConcernSeverity).forEach(severity => {
-    const severityData = concerns.filter(c => c.severity === severity);
-    bySeverity[severity] = {
-      total: severityData.length,
-      toBeDone: severityData.filter(c => c.status === ConcernStatus.TO_BE_DONE).length,
-      addressed: severityData.filter(c => c.status === ConcernStatus.ADDRESSED).length,
-      rejected: severityData.filter(c => c.status === ConcernStatus.REJECTED).length
-    };
+    if (!bySeverity[severity]) {
+      bySeverity[severity] = { total: 0, toBeDone: 0, addressed: 0, rejected: 0 };
+    }
   });
   
   return {

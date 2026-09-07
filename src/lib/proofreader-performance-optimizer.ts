@@ -450,7 +450,7 @@ export class ProofreaderPerformanceOptimizer {
         this.updateAverageAnalysisTime(analysisTime);
         
         // Cache successful results
-        if (enableCaching && result.success) {
+        if (enableCaching && result && result.success) {
           this.cacheAnalysisResult(request, result);
         }
 
