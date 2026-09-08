@@ -84,11 +84,24 @@ export function validateAndSanitizeUrl(url: string): { isValid: boolean; sanitiz
     }
 
     // Check for localhost or private IPs (basic security)
-    if (urlObj.hostname === 'localhost' || 
-        urlObj.hostname.startsWith('127.') || 
-        urlObj.hostname.startsWith('192.168.') ||
-        urlObj.hostname.startsWith('10.') ||
-        urlObj.hostname.match(/^172\.(1[6-9]|2[0-9]|3[0-1])\./)) {
+    const hostname = urlObj.hostname.toLowerCase();
+
+    // Explicitly block AWS/GCP metadata IP, IPv4 zero address, and explicit loopback/private ranges
+    const isPrivateOrLocalIP =
+      hostname === 'localhost' ||
+      hostname === '169.254.169.254' ||
+      hostname === '0.0.0.0' ||
+      /^127\.\d+\.\d+\.\d+$/.test(hostname) ||
+      /^192\.168\.\d+\.\d+$/.test(hostname) ||
+      /^10\.\d+\.\d+\.\d+$/.test(hostname) ||
+      /^172\.(1[6-9]|2[0-9]|3[0-1])\.\d+\.\d+$/.test(hostname) ||
+      hostname.includes('[::1]') ||
+      hostname.includes('[::ffff:127.0.0.1]') ||
+      /^\[fc[0-9a-f]{2}:/.test(hostname) ||
+      /^\[fd[0-9a-f]{2}:/.test(hostname) ||
+      /^\[fe80:/.test(hostname);
+
+    if (isPrivateOrLocalIP) {
       return { isValid: false, error: 'Private or local URLs are not allowed' };
     }
 
