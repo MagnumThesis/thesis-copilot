@@ -65,7 +65,7 @@ const mockConcerns: any[] = [
   {
     id: 'concern-2',
     conversation_id: 'conv-123',
-    category: 'academic_style',
+    category: 'academic_tone',
     severity: 'high',
     title: 'Informal language usage',
     description: 'Document contains informal expressions',
@@ -466,7 +466,7 @@ describe('Proofreader AI Handler', () => {
         eq: vi.fn(() => ({ 
           data: [
             { category: 'clarity', severity: 'medium', status: 'to_be_done' },
-            { category: 'academic_style', severity: 'high', status: 'addressed' }
+            { category: 'academic_tone', severity: 'high', status: 'addressed' }
           ], 
           error: null 
         }))
