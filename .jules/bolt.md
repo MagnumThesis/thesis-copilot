@@ -5,3 +5,7 @@
 ## 2026-03-22 - Redundant Array Traversals in getStatistics
 **Learning:** Performing multiple consecutive `.filter().length` operations on an array of objects where each filter condition involves an expensive operation (like `safeDate` parsing) leads to (kN)$ time complexity and redundant processing.
 **Action:** Consolidate multiple statistics calculations into a single (N)$ pass using a single loop (e.g., `forEach` or `reduce`). This minimizes traversals and ensures each expensive transformation (like date parsing) is performed exactly once per element.
+
+## 2026-09-10 - O(k*N) iteration antipattern
+**Learning:** Generating statistics (e.g., breakdown by Category and Severity) by looping through enumerations and doing multiple `array.filter(condition).length` traversals causes O(k*N) operations. When generating concern breakdown statistics in `proofreader-ai.ts` and `concern-status-manager.ts`, the code was traversing the concerns array 30+ times.
+**Action:** Replace multiple `.filter().length` chains with a single `for...of` or `.reduce()` pass over the array, tallying stats incrementally (e.g. `stats[item.category].total++`). This brings time complexity down to O(N). Ensure objects are pre-initialized for type safety instead of relying on runtime undefined checks.
