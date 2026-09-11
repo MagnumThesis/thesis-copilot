@@ -1,7 +1,3 @@
-## 2024-03-09 - AppSidebar Unnecessary Recalculations
-**Learning:** React sidebars that manage their own local state (like editing states) and also filter parent-provided arrays (like `items`) must memoize the filtering operation, otherwise every local state change triggers an O(N) recalculation.
-**Action:** Always wrap array filtering and derived object creation in `useMemo` when they depend on props in a component that frequently re-renders due to unrelated local state changes.
-
-## 2026-03-22 - Redundant Array Traversals in getStatistics
-**Learning:** Performing multiple consecutive `.filter().length` operations on an array of objects where each filter condition involves an expensive operation (like `safeDate` parsing) leads to (kN)$ time complexity and redundant processing.
-**Action:** Consolidate multiple statistics calculations into a single (N)$ pass using a single loop (e.g., `forEach` or `reduce`). This minimizes traversals and ensures each expensive transformation (like date parsing) is performed exactly once per element.
+## 2026-09-11 - Consolidating React Render Computations
+**Learning:** Multiple array traversals (e.g., `filter().length`) inside a React component's render path or frequently called helper functions can quietly compound into O(kN) time complexity, especially when building statistics or counts for UI elements like filter dropdowns or summary stats.
+**Action:** Consolidate array iterations into a single O(N) pass (e.g., using a simple `for` loop or `.reduce()`) to build a frequency map/statistics object, and memoize the result with `useMemo` based on the source data. Look up from this cached object in O(1) time instead.
