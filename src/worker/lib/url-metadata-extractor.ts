@@ -83,12 +83,17 @@ export function validateAndSanitizeUrl(url: string): { isValid: boolean; sanitiz
       return { isValid: false, error: 'Only HTTP and HTTPS protocols are allowed' };
     }
 
-    // Check for localhost or private IPs (basic security)
-    if (urlObj.hostname === 'localhost' || 
-        urlObj.hostname.startsWith('127.') || 
-        urlObj.hostname.startsWith('192.168.') ||
-        urlObj.hostname.startsWith('10.') ||
-        urlObj.hostname.match(/^172\.(1[6-9]|2[0-9]|3[0-1])\./)) {
+    // Check for localhost, private IPs, and cloud metadata (SSRF protection)
+    const hostname = urlObj.hostname;
+    const isLocalhost = hostname === 'localhost' || hostname === '[::1]' || hostname === '0.0.0.0';
+    const isIpv4Loopback = /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname);
+    const isIpv4Private = /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+                          /^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+                          /^172\.(1[6-9]|2[0-9]|3[0-1])\.\d{1,3}\.\d{1,3}$/.test(hostname);
+    const isMetadataIp = /^169\.254\.\d{1,3}\.\d{1,3}$/.test(hostname);
+    const isIpv6Private = /^\[(?:fd|fc|fe80|::ffff:7f00:)/i.test(hostname);
+
+    if (isLocalhost || isIpv4Loopback || isIpv4Private || isMetadataIp || isIpv6Private) {
       return { isValid: false, error: 'Private or local URLs are not allowed' };
     }
 
