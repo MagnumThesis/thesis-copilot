@@ -368,8 +368,12 @@ export const CitationFormatter: React.FC<CitationFormatterProps> = ({
       {selectedReferences.length > 0 && (
         <div className="space-y-4">
           {/* Simple Tab Navigation */}
-          <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
+          <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg" role="tablist" aria-label="Citation Views">
             <button
+              role="tab"
+              aria-selected={activeTab === 'citations'}
+              aria-controls="panel-citations"
+              id="tab-citations"
               className={`flex-1 py-2 px-4 text-sm font-medium rounded-md transition-colors ${
                 activeTab === 'citations'
                   ? 'bg-white text-gray-900 shadow-sm'
@@ -380,6 +384,10 @@ export const CitationFormatter: React.FC<CitationFormatterProps> = ({
               Individual Citations
             </button>
             <button
+              role="tab"
+              aria-selected={activeTab === 'bibliography'}
+              aria-controls="panel-bibliography"
+              id="tab-bibliography"
               className={`flex-1 py-2 px-4 text-sm font-medium rounded-md transition-colors ${
                 activeTab === 'bibliography'
                   ? 'bg-white text-gray-900 shadow-sm'
@@ -392,14 +400,21 @@ export const CitationFormatter: React.FC<CitationFormatterProps> = ({
           </div>
 
           {/* Citations Tab */}
-          {activeTab === 'citations' && (
-            <div className="space-y-4">
-              {Array.from(formattingResults.entries()).map(([referenceId, result]) => {
-                const reference = selectedReferences.find(r => r.id === referenceId);
-                if (!reference) return null;
+          <div
+            id="panel-citations"
+            role="tabpanel"
+            aria-labelledby="tab-citations"
+            className="space-y-4"
+            hidden={activeTab !== 'citations'}
+          >
+            {activeTab === 'citations' && (
+              <>
+                {Array.from(formattingResults.entries()).map(([referenceId, result]) => {
+                  const reference = selectedReferences.find(r => r.id === referenceId);
+                  if (!reference) return null;
 
-                return (
-                  <Card key={referenceId} className={getValidationColor(result.validation)}>
+                  return (
+                    <Card key={referenceId} className={getValidationColor(result.validation)}>
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
@@ -472,15 +487,22 @@ export const CitationFormatter: React.FC<CitationFormatterProps> = ({
                       )}
                     </CardContent>
                   </Card>
-                );
-              })}
-            </div>
-          )}
+                  );
+                })}
+              </>
+            )}
+          </div>
 
           {/* Bibliography Tab */}
-          {activeTab === 'bibliography' && (
-            <Card>
-              <CardHeader>
+          <div
+            id="panel-bibliography"
+            role="tabpanel"
+            aria-labelledby="tab-bibliography"
+            hidden={activeTab !== 'bibliography'}
+          >
+            {activeTab === 'bibliography' && (
+              <Card>
+                <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base">Generated Bibliography</CardTitle>
                   <div className="flex items-center gap-2">
@@ -536,7 +558,8 @@ export const CitationFormatter: React.FC<CitationFormatterProps> = ({
                 )}
               </CardContent>
             </Card>
-          )}
+            )}
+          </div>
         </div>
       )}
 
