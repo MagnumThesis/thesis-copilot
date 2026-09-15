@@ -5,3 +5,6 @@
 ## 2026-03-22 - Redundant Array Traversals in getStatistics
 **Learning:** Performing multiple consecutive `.filter().length` operations on an array of objects where each filter condition involves an expensive operation (like `safeDate` parsing) leads to (kN)$ time complexity and redundant processing.
 **Action:** Consolidate multiple statistics calculations into a single (N)$ pass using a single loop (e.g., `forEach` or `reduce`). This minimizes traversals and ensures each expensive transformation (like date parsing) is performed exactly once per element.
+## 2026-09-15 - Optimize array statistics gathering
+**Learning:** Chaining `.filter().length` in React components (like `ConcernList`) can lead to O(kN) performance where k is the number of categories. This becomes a bottleneck for large datasets and re-renders.
+**Action:** Instead, compute group statistics in a single-pass `useMemo` using `.reduce()` or a `for` loop to achieve O(N) time complexity, avoiding redundant traversals.
