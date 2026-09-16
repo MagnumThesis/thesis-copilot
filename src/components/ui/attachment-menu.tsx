@@ -15,6 +15,7 @@ import {
 } from "lucide-react"
 
 import { Button } from "@/components/ui/shadcn/button"
+import { AccessibleTooltip } from "@/components/ui/accessible-tooltip"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -365,28 +366,34 @@ function IdeaSelectorDialog({
                             }
                           }}
                         />
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={(e) => handleSaveEdit(idea, e)}
-                          disabled={isUpdating}
-                        >
-                          {isUpdating ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Check className="h-4 w-4 text-green-600" />
-                          )}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={handleCancelEdit}
-                          disabled={isUpdating}
-                        >
-                          <X className="h-4 w-4 text-destructive" />
-                        </Button>
+                        <AccessibleTooltip content="Save title">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={(e) => handleSaveEdit(idea, e)}
+                            disabled={isUpdating}
+                            aria-label="Save title"
+                          >
+                            {isUpdating ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Check className="h-4 w-4 text-green-500" />
+                            )}
+                          </Button>
+                        </AccessibleTooltip>
+                        <AccessibleTooltip content="Cancel editing">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={handleCancelEdit}
+                            disabled={isUpdating}
+                            aria-label="Cancel editing"
+                          >
+                            <X className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </AccessibleTooltip>
                       </div>
                     ) : (
                       <div className="flex items-center gap-2">
@@ -399,29 +406,33 @@ function IdeaSelectorDialog({
                         <Badge variant="outline" className="text-xs shrink-0">
                           {idea.type}
                         </Badge>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6 shrink-0"
-                          onClick={(e) => handleStartEdit(idea, e)}
-                          title="Edit title"
-                        >
-                          <Pencil className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6 shrink-0"
-                          onClick={(e) => handleRegenerateTitle(idea, e)}
-                          disabled={regeneratingId === idea.id || !idea.description}
-                          title="Regenerate title with AI"
-                        >
-                          {regeneratingId === idea.id ? (
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                          ) : (
-                            <Sparkles className="h-3 w-3" />
-                          )}
-                        </Button>
+                        <AccessibleTooltip content="Edit title">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 shrink-0"
+                            onClick={(e) => handleStartEdit(idea, e)}
+                            aria-label="Edit title"
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                        </AccessibleTooltip>
+                        <AccessibleTooltip content="Regenerate title with AI">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 shrink-0"
+                            onClick={(e) => handleRegenerateTitle(idea, e)}
+                            disabled={regeneratingId === idea.id || !idea.description}
+                            aria-label="Regenerate title with AI"
+                          >
+                            {regeneratingId === idea.id ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <Sparkles className="h-3 w-3" />
+                            )}
+                          </Button>
+                        </AccessibleTooltip>
                       </div>
                     )}
                     {idea.description && (
