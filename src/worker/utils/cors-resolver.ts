@@ -19,6 +19,6 @@ export const corsOriginResolver = (origin: string, c: Context) => {
     return origin || '*';
   }
 
-  // Default fallback - returning a string is safer than returning true
-  return allowedOrigins[0];
+  // Default fallback - returning null omits Access-Control-Allow-Origin header
+  return null;
 };
