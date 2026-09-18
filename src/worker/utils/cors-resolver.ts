@@ -16,9 +16,9 @@ export const corsOriginResolver = (origin: string, c: Context) => {
   // Allow requests with no origin (like mobile apps or curl requests)
   // or if the origin is in our allowed list
   if (!origin || allowedOrigins.includes(origin)) {
-    return origin || '*';
+    return origin || null;
   }
 
-  // Default fallback - returning a string is safer than returning true
-  return allowedOrigins[0];
+  // Disallow request - return null instead of a fallback origin
+  return null;
 };
