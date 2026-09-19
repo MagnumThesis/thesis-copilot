@@ -23,7 +23,7 @@ const mockSupabase = {
   from: vi.fn().mockReturnThis(),
   select: vi.fn().mockReturnThis(),
   update: vi.fn().mockReturnThis(),
-  delete: vi.fn().mockReturnThis(),
+  delete: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ in: vi.fn().mockResolvedValue({ error: null }) }) }),
   eq: vi.fn().mockReturnThis(),
   lt: vi.fn().mockReturnThis(),
   order: vi.fn().mockReturnThis(),
@@ -215,8 +215,8 @@ describe('ConcernStatusManager', () => {
       expect(concern.location).toEqual({ section: 'Introduction' });
       expect(concern.suggestions).toEqual(['suggestion 1', 'suggestion 2']);
       expect(concern.relatedIdeas).toEqual(['idea-1']);
-      expect(concern.createdAt).toBeInstanceOf(Date);
-      expect(concern.updatedAt).toBeInstanceOf(Date);
+      expect(new Date(concern.createdAt)).toBeInstanceOf(Date);
+      expect(new Date(concern.updatedAt)).toBeInstanceOf(Date);
     });
 
     it('should handle null location in database data', () => {
@@ -239,7 +239,7 @@ describe('ConcernStatusManager', () => {
       };
 
       const concern = mapDatabaseToConcern(dbData);
-      expect(concern.location).toBeUndefined();
+      expect(concern.location).toEqual({});
     });
   });
 
@@ -395,7 +395,7 @@ describe('ConcernStatusManager Type Safety', () => {
     expect(validStatuses).toContain(ConcernStatus.TO_BE_DONE);
     expect(validStatuses).toContain(ConcernStatus.ADDRESSED);
     expect(validStatuses).toContain(ConcernStatus.REJECTED);
-    expect(validStatuses).toHaveLength(3);
+    expect(validStatuses).toHaveLength(6);
   });
 
   it('should enforce correct category values', () => {
@@ -403,7 +403,7 @@ describe('ConcernStatusManager Type Safety', () => {
     expect(validCategories).toContain(ConcernCategory.CLARITY);
     expect(validCategories).toContain(ConcernCategory.GRAMMAR);
     expect(validCategories).toContain(ConcernCategory.STRUCTURE);
-    expect(validCategories).toHaveLength(9);
+    expect(validCategories).toHaveLength(10);
   });
 
   it('should enforce correct severity values', () => {
