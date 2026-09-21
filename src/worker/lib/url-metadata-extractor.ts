@@ -83,12 +83,27 @@ export function validateAndSanitizeUrl(url: string): { isValid: boolean; sanitiz
       return { isValid: false, error: 'Only HTTP and HTTPS protocols are allowed' };
     }
 
-    // Check for localhost or private IPs (basic security)
-    if (urlObj.hostname === 'localhost' || 
-        urlObj.hostname.startsWith('127.') || 
-        urlObj.hostname.startsWith('192.168.') ||
-        urlObj.hostname.startsWith('10.') ||
-        urlObj.hostname.match(/^172\.(1[6-9]|2[0-9]|3[0-1])\./)) {
+    const hostname = urlObj.hostname.toLowerCase();
+
+    // Check for localhost, IPv4 loopback, private, and metadata IPs
+    const isIPv4Loopback = /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname);
+    const isIPv4Private = /^(10\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3})$/.test(hostname);
+    const isIPv4Zero = /^0\.0\.0\.0$/.test(hostname);
+    const isIPv4Metadata = /^169\.254\.\d{1,3}\.\d{1,3}$/.test(hostname);
+
+    // Check for IPv6 localhost, private, and mapped IPv4
+    const isIPv6Loopback = /^\[(::1|::)\]$/.test(hostname);
+    const isIPv6Private = /^\[(fc|fd|fe[89ab])[0-9a-f:]*\]$/i.test(hostname);
+    const isIPv4Mapped = /^\[::ffff:[0-9a-f:.]+\]$/i.test(hostname);
+
+    if (hostname === 'localhost' ||
+        isIPv4Loopback ||
+        isIPv4Private ||
+        isIPv4Zero ||
+        isIPv4Metadata ||
+        isIPv6Loopback ||
+        isIPv6Private ||
+        isIPv4Mapped) {
       return { isValid: false, error: 'Private or local URLs are not allowed' };
     }
 
