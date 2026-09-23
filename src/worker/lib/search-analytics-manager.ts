@@ -325,12 +325,21 @@ export class SearchAnalyticsManager {
         throw resultsError;
       }
       
-      // Calculate metrics
+      // ⚡ Bolt: Consolidate multiple statistics calculations into a single O(N) pass to prevent O(kN) redundant traversals
       const totalSearches = sessions.length;
-      const totalResults = sessions.reduce((sum, session) => sum + (session.results_count || 0), 0);
-      const resultsViewed = results.filter(result => result.user_action === 'viewed').length;
-      const resultsAdded = results.filter(result => result.user_action === 'added').length;
-      const resultsRejected = results.filter(result => result.user_action === 'rejected').length;
+      let totalResults = 0;
+      for (const session of sessions) {
+        totalResults += (session.results_count || 0);
+      }
+
+      let resultsViewed = 0;
+      let resultsAdded = 0;
+      let resultsRejected = 0;
+      for (const result of results) {
+        if (result.user_action === 'viewed') resultsViewed++;
+        else if (result.user_action === 'added') resultsAdded++;
+        else if (result.user_action === 'rejected') resultsRejected++;
+      }
 
       return {
         totalSearches,
@@ -395,14 +404,23 @@ export class SearchAnalyticsManager {
         };
       }
       
+      // ⚡ Bolt: Consolidate multiple statistics calculations into a single O(N) pass to prevent O(kN) redundant traversals
+      let sumOverall = 0, sumRelevance = 0, sumQuality = 0, sumEase = 0, wouldRecommendCount = 0;
+      for (const item of feedbackData) {
+        sumOverall += (item.overall_satisfaction || 0);
+        sumRelevance += (item.relevance_rating || 0);
+        sumQuality += (item.quality_rating || 0);
+        sumEase += (item.ease_of_use_rating || 0);
+        if (item.would_recommend) wouldRecommendCount++;
+      }
+
       // Calculate averages
-      const avgOverallSatisfaction = feedbackData.reduce((sum, item) => sum + (item.overall_satisfaction || 0), 0) / totalFeedbackCount;
-      const avgRelevanceRating = feedbackData.reduce((sum, item) => sum + (item.relevance_rating || 0), 0) / totalFeedbackCount;
-      const avgQualityRating = feedbackData.reduce((sum, item) => sum + (item.quality_rating || 0), 0) / totalFeedbackCount;
-      const avgEaseOfUseRating = feedbackData.reduce((sum, item) => sum + (item.ease_of_use_rating || 0), 0) / totalFeedbackCount;
+      const avgOverallSatisfaction = sumOverall / totalFeedbackCount;
+      const avgRelevanceRating = sumRelevance / totalFeedbackCount;
+      const avgQualityRating = sumQuality / totalFeedbackCount;
+      const avgEaseOfUseRating = sumEase / totalFeedbackCount;
       
       // Calculate recommendation rate
-      const wouldRecommendCount = feedbackData.filter(item => item.would_recommend).length;
       const recommendationRate = (wouldRecommendCount / totalFeedbackCount) * 100;
 
       return {
