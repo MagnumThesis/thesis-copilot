@@ -13,12 +13,12 @@ export const corsOriginResolver = (origin: string, c: Context) => {
     allowedOrigins.push(envFrontendUrl);
   }
 
-  // Allow requests with no origin (like mobile apps or curl requests)
-  // or if the origin is in our allowed list
-  if (!origin || allowedOrigins.includes(origin)) {
-    return origin || '*';
+  // If the origin is in our allowed list, we can return it.
+  if (origin && allowedOrigins.includes(origin)) {
+    return origin;
   }
 
-  // Default fallback - returning a string is safer than returning true
-  return allowedOrigins[0];
+  // Returning null tells Hono to omit the Access-Control-Allow-Origin header entirely
+  // which denies access. This is safer than falling back to '*' with credentials: true.
+  return null;
 };
