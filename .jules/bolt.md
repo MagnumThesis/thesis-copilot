@@ -5,3 +5,7 @@
 ## 2026-03-22 - Redundant Array Traversals in getStatistics
 **Learning:** Performing multiple consecutive `.filter().length` operations on an array of objects where each filter condition involves an expensive operation (like `safeDate` parsing) leads to (kN)$ time complexity and redundant processing.
 **Action:** Consolidate multiple statistics calculations into a single (N)$ pass using a single loop (e.g., `forEach` or `reduce`). This minimizes traversals and ensures each expensive transformation (like date parsing) is performed exactly once per element.
+
+## 2026-09-24 - Slow Date Formatting in Loops
+**Learning:** Calling `toLocaleDateString` in a loop over large datasets (e.g., in `getActivitySummary`) causes significant performance bottlenecks (~5s for 50k items). Additionally, `sort` operations using `safeDate` within the comparator can be optimized by finding the maximum value in a single pass.
+**Action:** Replace `toLocaleDateString` with an array lookup using `date.getDay()` when determining weekdays in tight loops, and consolidate `sort` and multiple iterations into a single O(N) loop to drastically reduce processing time.

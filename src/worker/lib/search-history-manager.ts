@@ -376,40 +376,40 @@ export class SearchHistoryManager {
       };
     }
 
-    const lastSearchDate = userHistory
-      .sort((a, b) => {
-        const aTime = safeDate(a.timestamp)?.getTime() ?? 0;
-        const bTime = safeDate(b.timestamp)?.getTime() ?? 0;
-        return bTime - aTime;
-      })[0].timestamp;
-
-    // Calculate most active day of week
+    // ⚡ Bolt: Consolidated multiple iterations into a single O(N) pass and replaced slow `toLocaleDateString` with fast `getDay()` array lookup.
     const dayCounts = new Map<string, number>();
-    userHistory.forEach(search => {
+    const sourceCounts = new Map<string, number>();
+    const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    let latestTime = 0;
+    let lastSearchDate: Date | null = null;
+
+    for (const search of userHistory) {
       const date = safeDate(search.timestamp);
       if (date) {
-        const day = date.toLocaleDateString('en-US', { weekday: 'long' });
+        const time = date.getTime();
+        if (time > latestTime) {
+          latestTime = time;
+          lastSearchDate = date;
+        }
+
+        const day = daysOfWeek[date.getDay()];
         dayCounts.set(day, (dayCounts.get(day) || 0) + 1);
       }
-    });
+
+      for (const source of search.sources) {
+        sourceCounts.set(source, (sourceCounts.get(source) || 0) + 1);
+      }
+    }
 
     const mostActiveDay = Array.from(dayCounts.entries())
       .sort(([, a], [, b]) => b - a)[0]?.[0] || null;
-
-    // Calculate favorite source
-    const sourceCounts = new Map<string, number>();
-    userHistory.forEach(search => {
-      search.sources.forEach(source => {
-        sourceCounts.set(source, (sourceCounts.get(source) || 0) + 1);
-      });
-    });
 
     const favoriteSource = Array.from(sourceCounts.entries())
       .sort(([, a], [, b]) => b - a)[0]?.[0] as 'ideas' | 'builder' || null;
 
     return {
       totalSearches: userHistory.length,
-      lastSearchDate: safeDate(lastSearchDate),
+      lastSearchDate,
       mostActiveDay,
       favoriteSource
     };
