@@ -12,6 +12,7 @@ import { useAutoScroll } from "@/hooks/use-auto-scroll"
 import { Button } from "@/components/ui/shadcn/button"
 import { type Message } from "@/components/ui/chat-message"
 import { CopyButton } from "@/components/ui/copy-button"
+import { AccessibleTooltip } from "@/components/ui/accessible-tooltip"
 import { MessageInput } from "@/components/ui/message-input"
 import { MessageList } from "@/components/ui/message-list"
 import { PromptSuggestions } from "@/components/ui/prompt-suggestions"
@@ -239,26 +240,28 @@ export function Chat({
               copyMessage="Copied response to clipboard!"
             />
           </div>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-6 w-6"
-            aria-label="Rate response as helpful"
-            onClick={() => onRateResponse(message.id, "thumbs-up")}
-            aria-label="Rate response as helpful"
-          >
-            <ThumbsUp className="h-4 w-4" />
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-6 w-6"
-            aria-label="Rate response as unhelpful"
-            onClick={() => onRateResponse(message.id, "thumbs-down")}
-            aria-label="Rate response as unhelpful"
-          >
-            <ThumbsDown className="h-4 w-4" />
-          </Button>
+          <AccessibleTooltip content="Rate response as helpful">
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-6 w-6"
+              aria-label="Rate response as helpful"
+              onClick={() => onRateResponse(message.id, "thumbs-up")}
+            >
+              <ThumbsUp className="h-4 w-4" />
+            </Button>
+          </AccessibleTooltip>
+          <AccessibleTooltip content="Rate response as unhelpful">
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-6 w-6"
+              aria-label="Rate response as unhelpful"
+              onClick={() => onRateResponse(message.id, "thumbs-down")}
+            >
+              <ThumbsDown className="h-4 w-4" />
+            </Button>
+          </AccessibleTooltip>
         </>
       ) : (
         <CopyButton
@@ -365,15 +368,17 @@ export function ChatMessages({
       {!shouldAutoScroll && (
         <div className="pointer-events-none flex flex-1 items-end justify-end [grid-column:1/1] [grid-row:1/1]">
           <div className="sticky bottom-0 left-0 flex w-full justify-end">
-            <Button
-              onClick={scrollToBottom}
-              className="pointer-events-auto h-8 w-8 rounded-full ease-in-out animate-in fade-in-0 slide-in-from-bottom-1"
-              size="icon"
-              variant="ghost"
-              aria-label="Scroll to bottom of chat"
-            >
-              <ArrowDown className="h-4 w-4" />
-            </Button>
+            <AccessibleTooltip content="Scroll to bottom of chat">
+              <Button
+                onClick={scrollToBottom}
+                className="pointer-events-auto h-8 w-8 rounded-full ease-in-out animate-in fade-in-0 slide-in-from-bottom-1"
+                size="icon"
+                variant="ghost"
+                aria-label="Scroll to bottom of chat"
+              >
+                <ArrowDown className="h-4 w-4" />
+              </Button>
+            </AccessibleTooltip>
           </div>
         </div>
       )}
