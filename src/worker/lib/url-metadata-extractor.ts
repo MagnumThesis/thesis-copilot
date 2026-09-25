@@ -84,11 +84,19 @@ export function validateAndSanitizeUrl(url: string): { isValid: boolean; sanitiz
     }
 
     // Check for localhost or private IPs (basic security)
+    // 🛡️ Sentinel: Block alternative loopbacks, cloud metadata, and IPv6 variants to prevent SSRF
     if (urlObj.hostname === 'localhost' || 
-        urlObj.hostname.startsWith('127.') || 
-        urlObj.hostname.startsWith('192.168.') ||
-        urlObj.hostname.startsWith('10.') ||
-        urlObj.hostname.match(/^172\.(1[6-9]|2[0-9]|3[0-1])\./)) {
+        urlObj.hostname.match(/^127\.\d+\.\d+\.\d+$/) ||
+        urlObj.hostname.match(/^192\.168\.\d+\.\d+$/) ||
+        urlObj.hostname.match(/^10\.\d+\.\d+\.\d+$/) ||
+        urlObj.hostname.match(/^172\.(1[6-9]|2[0-9]|3[0-1])\.\d+\.\d+$/) ||
+        urlObj.hostname === '0.0.0.0' ||
+        urlObj.hostname.match(/^169\.254\.\d+\.\d+$/) ||
+        urlObj.hostname.match(/^\[::1\]$/) ||
+        urlObj.hostname.match(/^\[::ffff:.*\]$/) ||
+        urlObj.hostname.match(/^\[fc[0-9a-f]{2}:.*\]$/i) ||
+        urlObj.hostname.match(/^\[fd[0-9a-f]{2}:.*\]$/i) ||
+        urlObj.hostname.match(/^\[fe80:.*\]$/i)) {
       return { isValid: false, error: 'Private or local URLs are not allowed' };
     }
 
