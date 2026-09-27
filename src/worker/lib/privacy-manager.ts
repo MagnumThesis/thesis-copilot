@@ -421,40 +421,38 @@ export class PrivacyManager {
         userFilter += `,conversation_id.eq.${conversationId}`;
       }
 
-      // Clear old learning data
-      const { error: learningError } = await supabase
-        .from('user_feedback_learning')
-        .delete()
-        .match({ user_id: userId })
-        .lt('created_at', cutoffDate.toISOString());
-      
-      if (learningError) {
-        console.error('Error clearing old learning data:', learningError);
-        throw learningError;
+      // ⚡ Bolt: Execute data cleanup queries in parallel
+      const [learningResult, filtersResult, sessionsResult] = await Promise.all([
+        supabase
+          .from('user_feedback_learning')
+          .delete()
+          .match({ user_id: userId })
+          .lt('created_at', cutoffDate.toISOString()),
+        supabase
+          .from('adaptive_filters')
+          .delete()
+          .match({ user_id: userId })
+          .lt('created_at', cutoffDate.toISOString()),
+        supabase
+          .from('search_sessions')
+          .delete()
+          .match({ user_id: userId })
+          .lt('created_at', cutoffDate.toISOString())
+      ]);
+
+      if (learningResult.error) {
+        console.error('Error clearing old learning data:', learningResult.error);
+        throw learningResult.error;
       }
 
-      // Clear old adaptive filters
-      const { error: filtersError } = await supabase
-        .from('adaptive_filters')
-        .delete()
-        .match({ user_id: userId })
-        .lt('created_at', cutoffDate.toISOString());
-      
-      if (filtersError) {
-        console.error('Error clearing old adaptive filters:', filtersError);
-        throw filtersError;
+      if (filtersResult.error) {
+        console.error('Error clearing old adaptive filters:', filtersResult.error);
+        throw filtersResult.error;
       }
 
-      // Clear old search sessions and related data
-      const { error: sessionsError } = await supabase
-        .from('search_sessions')
-        .delete()
-        .match({ user_id: userId })
-        .lt('created_at', cutoffDate.toISOString());
-      
-      if (sessionsError) {
-        console.error('Error clearing old search sessions:', sessionsError);
-        throw sessionsError;
+      if (sessionsResult.error) {
+        console.error('Error clearing old search sessions:', sessionsResult.error);
+        throw sessionsResult.error;
       }
 
       console.log(`Cleared old records for user ${userId} (older than ${retentionDays} days)`);
@@ -784,59 +782,38 @@ export class PrivacyManager {
       const anonymizedUserId = `anon_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       let totalAnonymized = 0;
 
-      // Anonymize search sessions
-      const { error: sessionsError } = await supabase
-        .from('search_sessions')
-        .update({ user_id: anonymizedUserId })
-        .eq('user_id', userId);
+      // ⚡ Bolt: Execute anonymization queries in parallel
+      const [sessionsResult, feedbackResult, learningResult, analyticsResult, privacyResult] = await Promise.all([
+        supabase.from('search_sessions').update({ user_id: anonymizedUserId }).eq('user_id', userId),
+        supabase.from('search_feedback').update({ user_id: anonymizedUserId }).eq('user_id', userId),
+        supabase.from('user_feedback_learning').update({ user_id: anonymizedUserId }).eq('user_id', userId),
+        supabase.from('search_analytics').update({ user_id: anonymizedUserId }).eq('user_id', userId),
+        supabase.from('privacy_settings').delete().eq('user_id', userId)
+      ]);
       
-      if (sessionsError) {
-        console.error('Error anonymizing search sessions:', sessionsError);
-        throw sessionsError;
+      if (sessionsResult.error) {
+        console.error('Error anonymizing search sessions:', sessionsResult.error);
+        throw sessionsResult.error;
       }
 
-      // Anonymize feedback
-      const { error: feedbackError } = await supabase
-        .from('search_feedback')
-        .update({ user_id: anonymizedUserId })
-        .eq('user_id', userId);
-      
-      if (feedbackError) {
-        console.error('Error anonymizing feedback:', feedbackError);
-        throw feedbackError;
+      if (feedbackResult.error) {
+        console.error('Error anonymizing feedback:', feedbackResult.error);
+        throw feedbackResult.error;
       }
 
-      // Anonymize learning data
-      const { error: learningError } = await supabase
-        .from('user_feedback_learning')
-        .update({ user_id: anonymizedUserId })
-        .eq('user_id', userId);
-      
-      if (learningError) {
-        console.error('Error anonymizing learning data:', learningError);
-        throw learningError;
+      if (learningResult.error) {
+        console.error('Error anonymizing learning data:', learningResult.error);
+        throw learningResult.error;
       }
 
-      // Anonymize analytics
-      const { error: analyticsError } = await supabase
-        .from('search_analytics')
-        .update({ user_id: anonymizedUserId })
-        .eq('user_id', userId);
-      
-      if (analyticsError) {
-        console.error('Error anonymizing analytics:', analyticsError);
-        throw analyticsError;
+      if (analyticsResult.error) {
+        console.error('Error anonymizing analytics:', analyticsResult.error);
+        throw analyticsResult.error;
       }
 
-      // Remove privacy settings (contains PII)
-      const { error: privacyError } = await supabase
-        .from('privacy_settings')
-        .delete()
-        .eq('user_id', userId);
-      
-      if (privacyError) {
-        console.error('Error removing privacy settings:', privacyError);
-        throw privacyError;
+      if (privacyResult.error) {
+        console.error('Error removing privacy settings:', privacyResult.error);
+        throw privacyResult.error;
       }
 
       console.log(`Anonymized records for user ${userId}`);
