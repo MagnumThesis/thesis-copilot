@@ -83,12 +83,31 @@ export function validateAndSanitizeUrl(url: string): { isValid: boolean; sanitiz
       return { isValid: false, error: 'Only HTTP and HTTPS protocols are allowed' };
     }
 
-    // Check for localhost or private IPs (basic security)
-    if (urlObj.hostname === 'localhost' || 
-        urlObj.hostname.startsWith('127.') || 
-        urlObj.hostname.startsWith('192.168.') ||
-        urlObj.hostname.startsWith('10.') ||
-        urlObj.hostname.match(/^172\.(1[6-9]|2[0-9]|3[0-1])\./)) {
+    // 🛡️ Sentinel: Fix SSRF by accurately blocking private IPs, cloud metadata, and 0.0.0.0
+    const hostname = urlObj.hostname.toLowerCase();
+    let isPrivate = false;
+
+    if (hostname === 'localhost') {
+      isPrivate = true;
+    } else if (/^\[.*\]$/.test(hostname)) {
+      if (hostname === '[::1]' || hostname.includes('::ffff:127.') || hostname.startsWith('[fe80:') || hostname.startsWith('[fc00:') || hostname.startsWith('[fd00:')) {
+        isPrivate = true;
+      }
+    } else if (/^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(hostname)) {
+      const parts = hostname.split('.').map(Number);
+      if (
+        parts[0] === 127 ||
+        parts[0] === 10 ||
+        (parts[0] === 192 && parts[1] === 168) ||
+        (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) ||
+        (parts[0] === 169 && parts[1] === 254) ||
+        parts[0] === 0
+      ) {
+        isPrivate = true;
+      }
+    }
+
+    if (isPrivate) {
       return { isValid: false, error: 'Private or local URLs are not allowed' };
     }
 
