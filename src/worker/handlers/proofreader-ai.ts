@@ -574,44 +574,80 @@ function generateSeverityBreakdown(concerns: ProofreadingConcern[]): Record<Conc
  */
 function generateConcernStatistics(concerns: any[]): ConcernStatistics {
   const total = concerns.length;
-  const toBeDone = concerns.filter(c => c.status === ConcernStatus.TO_BE_DONE).length;
-  const addressed = concerns.filter(c => c.status === ConcernStatus.ADDRESSED).length;
-  const rejected = concerns.filter(c => c.status === ConcernStatus.REJECTED).length;
-  
-  // Generate breakdown by category
+
+  // Initialize structures
+  const concernsByStatus = {
+    [ConcernStatus.OPEN]: 0,
+    [ConcernStatus.RESOLVED]: 0,
+    [ConcernStatus.DISMISSED]: 0,
+    [ConcernStatus.ADDRESSED]: 0,
+    [ConcernStatus.REJECTED]: 0,
+    [ConcernStatus.TO_BE_DONE]: 0
+  } as Record<ConcernStatus, number>;
+
+  const concernsByCategory = {} as Record<ConcernCategory, number>;
   const byCategory = {} as Record<ConcernCategory, any>;
   Object.values(ConcernCategory).forEach(category => {
-    const categoryData = concerns.filter(c => c.category === category);
-    byCategory[category] = {
-      total: categoryData.length,
-      toBeDone: categoryData.filter(c => c.status === ConcernStatus.TO_BE_DONE).length,
-      addressed: categoryData.filter(c => c.status === ConcernStatus.ADDRESSED).length,
-      rejected: categoryData.filter(c => c.status === ConcernStatus.REJECTED).length
-    };
+    concernsByCategory[category] = 0;
+    byCategory[category] = { total: 0, toBeDone: 0, addressed: 0, rejected: 0 };
   });
-  
-  // Generate breakdown by severity
+
+  const concernsBySeverity = {} as Record<ConcernSeverity, number>;
   const bySeverity = {} as Record<ConcernSeverity, any>;
   Object.values(ConcernSeverity).forEach(severity => {
-    const severityData = concerns.filter(c => c.severity === severity);
-    bySeverity[severity] = {
-      total: severityData.length,
-      toBeDone: severityData.filter(c => c.status === ConcernStatus.TO_BE_DONE).length,
-      addressed: severityData.filter(c => c.status === ConcernStatus.ADDRESSED).length,
-      rejected: severityData.filter(c => c.status === ConcernStatus.REJECTED).length
-    };
+    concernsBySeverity[severity] = 0;
+    bySeverity[severity] = { total: 0, toBeDone: 0, addressed: 0, rejected: 0 };
   });
-  
+
+  // Single pass to count everything
+  for (const concern of concerns) {
+    if (concern.status && concern.status in concernsByStatus) {
+      concernsByStatus[concern.status as ConcernStatus]++;
+    }
+
+    if (concern.category && concern.category in byCategory) {
+      const cat = concern.category as ConcernCategory;
+      concernsByCategory[cat]++;
+      byCategory[cat].total++;
+
+      if (concern.status === ConcernStatus.TO_BE_DONE) {
+        byCategory[cat].toBeDone++;
+      } else if (concern.status === ConcernStatus.ADDRESSED) {
+        byCategory[cat].addressed++;
+      } else if (concern.status === ConcernStatus.REJECTED) {
+        byCategory[cat].rejected++;
+      }
+    }
+
+    if (concern.severity && concern.severity in bySeverity) {
+      const sev = concern.severity as ConcernSeverity;
+      concernsBySeverity[sev]++;
+      bySeverity[sev].total++;
+
+      if (concern.status === ConcernStatus.TO_BE_DONE) {
+        bySeverity[sev].toBeDone++;
+      } else if (concern.status === ConcernStatus.ADDRESSED) {
+        bySeverity[sev].addressed++;
+      } else if (concern.status === ConcernStatus.REJECTED) {
+        bySeverity[sev].rejected++;
+      }
+    }
+  }
+
+  const toBeDone = concernsByStatus[ConcernStatus.TO_BE_DONE];
+  const addressed = concernsByStatus[ConcernStatus.ADDRESSED];
+  const rejected = concernsByStatus[ConcernStatus.REJECTED];
+
+  // Placeholder values from original are preserved but mapped properly if they were present
+  // Note: the original set OPEN, RESOLVED, DISMISSED to 0 unconditionally at the end,
+  // but if we want to be fully backward compatible in return structure:
+  concernsByStatus[ConcernStatus.OPEN] = 0;
+  concernsByStatus[ConcernStatus.RESOLVED] = 0;
+  concernsByStatus[ConcernStatus.DISMISSED] = 0;
+
   return {
     totalConcerns: total,
-    concernsByStatus: {
-      [ConcernStatus.OPEN]: 0, // Placeholder values
-      [ConcernStatus.RESOLVED]: 0,
-      [ConcernStatus.DISMISSED]: 0,
-      [ConcernStatus.ADDRESSED]: addressed,
-      [ConcernStatus.REJECTED]: rejected,
-      [ConcernStatus.TO_BE_DONE]: toBeDone
-    },
+    concernsByStatus,
     concernsByCategory: byCategory as Record<ConcernCategory, number>,
     concernsBySeverity: bySeverity as Record<ConcernSeverity, number>,
     resolutionRate: total > 0 ? (addressed + rejected) / total : 0,
