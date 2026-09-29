@@ -328,9 +328,17 @@ export class SearchAnalyticsManager {
       // Calculate metrics
       const totalSearches = sessions.length;
       const totalResults = sessions.reduce((sum, session) => sum + (session.results_count || 0), 0);
-      const resultsViewed = results.filter(result => result.user_action === 'viewed').length;
-      const resultsAdded = results.filter(result => result.user_action === 'added').length;
-      const resultsRejected = results.filter(result => result.user_action === 'rejected').length;
+
+      // ⚡ Bolt: Consolidated multiple array traversals into a single O(N) pass
+      let resultsViewed = 0;
+      let resultsAdded = 0;
+      let resultsRejected = 0;
+
+      for (const result of results) {
+        if (result.user_action === 'viewed') resultsViewed++;
+        else if (result.user_action === 'added') resultsAdded++;
+        else if (result.user_action === 'rejected') resultsRejected++;
+      }
 
       return {
         totalSearches,
@@ -395,14 +403,28 @@ export class SearchAnalyticsManager {
         };
       }
       
+      // ⚡ Bolt: Consolidated multiple array traversals into a single O(N) pass
+      let sumOverallSatisfaction = 0;
+      let sumRelevanceRating = 0;
+      let sumQualityRating = 0;
+      let sumEaseOfUseRating = 0;
+      let wouldRecommendCount = 0;
+
+      for (const item of feedbackData) {
+        sumOverallSatisfaction += (item.overall_satisfaction || 0);
+        sumRelevanceRating += (item.relevance_rating || 0);
+        sumQualityRating += (item.quality_rating || 0);
+        sumEaseOfUseRating += (item.ease_of_use_rating || 0);
+        if (item.would_recommend) wouldRecommendCount++;
+      }
+
       // Calculate averages
-      const avgOverallSatisfaction = feedbackData.reduce((sum, item) => sum + (item.overall_satisfaction || 0), 0) / totalFeedbackCount;
-      const avgRelevanceRating = feedbackData.reduce((sum, item) => sum + (item.relevance_rating || 0), 0) / totalFeedbackCount;
-      const avgQualityRating = feedbackData.reduce((sum, item) => sum + (item.quality_rating || 0), 0) / totalFeedbackCount;
-      const avgEaseOfUseRating = feedbackData.reduce((sum, item) => sum + (item.ease_of_use_rating || 0), 0) / totalFeedbackCount;
+      const avgOverallSatisfaction = sumOverallSatisfaction / totalFeedbackCount;
+      const avgRelevanceRating = sumRelevanceRating / totalFeedbackCount;
+      const avgQualityRating = sumQualityRating / totalFeedbackCount;
+      const avgEaseOfUseRating = sumEaseOfUseRating / totalFeedbackCount;
       
       // Calculate recommendation rate
-      const wouldRecommendCount = feedbackData.filter(item => item.would_recommend).length;
       const recommendationRate = (wouldRecommendCount / totalFeedbackCount) * 100;
 
       return {
@@ -447,13 +469,20 @@ export class SearchAnalyticsManager {
       
       // Calculate statistics
       const totalSearches = sessions.length;
-      const successfulSearches = sessions.filter(session => session.search_success).length;
-      const avgResults = totalSearches > 0 
-        ? sessions.reduce((sum, session) => sum + ((session.results_count ?? 0) as number), 0) / totalSearches 
-        : 0;
-      const avgProcessingTime = totalSearches > 0 
-        ? sessions.reduce((sum, session) => sum + ((session.processing_time_ms ?? 0) as number), 0) / totalSearches 
-        : 0;
+
+      // ⚡ Bolt: Consolidated multiple array traversals into a single O(N) pass
+      let successfulSearches = 0;
+      let sumResultsCount = 0;
+      let sumProcessingTime = 0;
+
+      for (const session of sessions) {
+        if (session.search_success) successfulSearches++;
+        sumResultsCount += ((session.results_count ?? 0) as number);
+        sumProcessingTime += ((session.processing_time_ms ?? 0) as number);
+      }
+
+      const avgResults = totalSearches > 0 ? sumResultsCount / totalSearches : 0;
+      const avgProcessingTime = totalSearches > 0 ? sumProcessingTime / totalSearches : 0;
       
       // Get search queries for popular topics
       let queriesQuery = supabase
