@@ -83,12 +83,30 @@ export function validateAndSanitizeUrl(url: string): { isValid: boolean; sanitiz
       return { isValid: false, error: 'Only HTTP and HTTPS protocols are allowed' };
     }
 
-    // Check for localhost or private IPs (basic security)
-    if (urlObj.hostname === 'localhost' || 
-        urlObj.hostname.startsWith('127.') || 
-        urlObj.hostname.startsWith('192.168.') ||
-        urlObj.hostname.startsWith('10.') ||
-        urlObj.hostname.match(/^172\.(1[6-9]|2[0-9]|3[0-1])\./)) {
+    // 🛡️ Sentinel: Fix SSRF vulnerability by implementing strict IP validation
+    // Previously, startsWith('127.') incorrectly blocked valid domains like '127.0.0.1.com'
+    // and failed to block alternative private IP formats like IPv6 localhost or 169.254.x.x
+    const ipv4Pattern = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+    const isIPv4 = ipv4Pattern.test(urlObj.hostname);
+
+    let isPrivate = false;
+    if (urlObj.hostname === 'localhost' || urlObj.hostname === '::1' || urlObj.hostname === '[::1]' || urlObj.hostname.includes(':')) {
+      isPrivate = true; // Block localhost and all IPv6 as a simple protection against IPv6 SSRF
+    } else if (isIPv4) {
+      const parts = urlObj.hostname.split('.').map(Number);
+      if (
+        parts[0] === 127 || // Loopback
+        parts[0] === 10 || // Private class A
+        (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) || // Private class B
+        (parts[0] === 192 && parts[1] === 168) || // Private class C
+        (parts[0] === 169 && parts[1] === 254) || // Link-local (AWS metadata, etc.)
+        parts[0] === 0 // 0.0.0.0
+      ) {
+        isPrivate = true;
+      }
+    }
+
+    if (isPrivate) {
       return { isValid: false, error: 'Private or local URLs are not allowed' };
     }
 
