@@ -1,7 +1,13 @@
-1. **What:** Wrap `filteredItems` and `data` in `useMemo` in `AppSidebar`.
-   - Update `AppSidebar` to import `useMemo` from `react`
-   - Wrap the filtering logic for `filteredItems` with `useMemo(() => items.filter(...), [items, searchQuery])`
-   - Wrap the `data` creation with `useMemo(() => ({ navMain: ... }), [filteredItems])`
-2. **Why:** To prevent unnecessary filtering operations and object allocations on every render of `AppSidebar` (which can happen frequently if the parent component re-renders or if other local state like `isUpdating` changes). This is particularly impactful when the `items` list is large.
-3. **Impact:** Improves React rendering performance by caching the filtered list and data object unless their dependencies change.
-4. **Measurement:** Verify by running `npm run lint` and `npm run test -- --run` and optionally visual verification if required.
+1. **Fix missing aria-labels on icon-only buttons in Attachment Menu (`src/components/ui/attachment-menu.tsx`)**
+   - The "Save edit" check button is missing an `aria-label`. It should be `aria-label="Save edit"`.
+   - The "Cancel edit" cross button is missing an `aria-label`. It should be `aria-label="Cancel edit"`.
+   - The "Edit title" pencil button is using `title="Edit title"` but is missing an `aria-label`. It should have `aria-label="Edit title"`.
+   - The "Regenerate title with AI" sparkles button is using `title="Regenerate title with AI"` but is missing an `aria-label`. It should have `aria-label="Regenerate title with AI"`.
+2. **Update Palette Journal**
+   - Add an entry to `.Jules/palette.md` noting the importance of adding `aria-label`s to dynamic map-generated icon-only buttons (the edit/save/cancel/regenerate buttons in lists) for accessibility.
+3. **Verify the UI**
+   - Run `pnpm test`
+   - Run `pnpm lint`
+4. **Complete pre-commit steps to ensure proper testing, verification, review, and reflection are done.**
+5. **Submit PR**
+   - Using title "🎨 Palette: Add ARIA labels to attachment menu icon-only buttons"
