@@ -13,10 +13,12 @@ export const corsOriginResolver = (origin: string, c: Context) => {
     allowedOrigins.push(envFrontendUrl);
   }
 
+  // 🛡️ Sentinel: Never return '*' for origin when credentials: true is used,
+  // as it violates CORS security policy and allows credential theft.
   // Allow requests with no origin (like mobile apps or curl requests)
   // or if the origin is in our allowed list
   if (!origin || allowedOrigins.includes(origin)) {
-    return origin || '*';
+    return origin || allowedOrigins[0];
   }
 
   // Default fallback - returning a string is safer than returning true

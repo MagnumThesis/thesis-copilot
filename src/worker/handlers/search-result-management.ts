@@ -8,12 +8,14 @@ import { cors } from 'hono/cors'
 import { searchResultManagementService } from '../lib/search-result-management'
 import { ScholarSearchResult } from '../../lib/ai-types'
 import { ExportOptions, ShareOptions } from '../../types/search-result-types'
+import { corsOriginResolver } from '../utils/cors-resolver'
 
 const app = new Hono()
 
 // Enable CORS
 app.use('*', cors({
-  origin: ['http://localhost:5173', 'https://localhost:5173'],
+  // 🛡️ Sentinel: Centralized CORS origin resolution to ensure consistent security
+  origin: corsOriginResolver,
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization'],
 }))
