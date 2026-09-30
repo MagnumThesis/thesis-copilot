@@ -22,11 +22,18 @@ function formatAttachedItemsContext(attachedItems: AttachedItem[]): string {
 
   const sections: string[] = [];
 
-  // Group by type
-  const ideas = attachedItems.filter((item) => item.type === "idea");
-  const contents = attachedItems.filter((item) => item.type === "content");
-  const concerns = attachedItems.filter((item) => item.type === "concern");
-  const references = attachedItems.filter((item) => item.type === "reference");
+  // ⚡ Bolt: Group by type in a single pass to avoid O(4N) traversals
+  const ideas: AttachedItem[] = [];
+  const contents: AttachedItem[] = [];
+  const concerns: AttachedItem[] = [];
+  const references: AttachedItem[] = [];
+
+  for (const item of attachedItems) {
+    if (item.type === "idea") ideas.push(item);
+    else if (item.type === "content") contents.push(item);
+    else if (item.type === "concern") concerns.push(item);
+    else if (item.type === "reference") references.push(item);
+  }
 
   if (ideas.length > 0) {
     sections.push(
@@ -109,15 +116,23 @@ function formatAttachedItemsSummary(attachedItems: AttachedItem[]): string {
   if (!attachedItems || attachedItems.length === 0) return "";
 
   const parts: string[] = [];
-  const ideas = attachedItems.filter((item) => item.type === "idea");
-  const contents = attachedItems.filter((item) => item.type === "content");
-  const concerns = attachedItems.filter((item) => item.type === "concern");
-  const references = attachedItems.filter((item) => item.type === "reference");
+  // ⚡ Bolt: Count item types in a single pass to avoid O(4N) traversals
+  let ideasCount = 0;
+  let contentsCount = 0;
+  let concernsCount = 0;
+  let referencesCount = 0;
 
-  if (ideas.length > 0) parts.push(`📌 ${ideas.length} idea${ideas.length > 1 ? "s" : ""}`);
-  if (contents.length > 0) parts.push(`📄 ${contents.length} content`);
-  if (concerns.length > 0) parts.push(`⚠️ ${concerns.length} concern${concerns.length > 1 ? "s" : ""}`);
-  if (references.length > 0) parts.push(`📚 ${references.length} reference${references.length > 1 ? "s" : ""}`);
+  for (const item of attachedItems) {
+    if (item.type === "idea") ideasCount++;
+    else if (item.type === "content") contentsCount++;
+    else if (item.type === "concern") concernsCount++;
+    else if (item.type === "reference") referencesCount++;
+  }
+
+  if (ideasCount > 0) parts.push(`📌 ${ideasCount} idea${ideasCount > 1 ? "s" : ""}`);
+  if (contentsCount > 0) parts.push(`📄 ${contentsCount} content`);
+  if (concernsCount > 0) parts.push(`⚠️ ${concernsCount} concern${concernsCount > 1 ? "s" : ""}`);
+  if (referencesCount > 0) parts.push(`📚 ${referencesCount} reference${referencesCount > 1 ? "s" : ""}`);
 
   return parts.length > 0 ? `[Attached: ${parts.join(", ")}]` : "";
 }
