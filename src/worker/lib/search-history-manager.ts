@@ -376,33 +376,36 @@ export class SearchHistoryManager {
       };
     }
 
-    const lastSearchDate = userHistory
-      .sort((a, b) => {
-        const aTime = safeDate(a.timestamp)?.getTime() ?? 0;
-        const bTime = safeDate(b.timestamp)?.getTime() ?? 0;
-        return bTime - aTime;
-      })[0].timestamp;
-
-    // Calculate most active day of week
+    // ⚡ Bolt: Consolidated multiple iterations into a single pass
+    // 💡 What: Single loop for finding lastSearchDate, most active day, and favorite source
+    // 🎯 Why: Prevents redundant array traversals and O(N log N) sorting just to find max date
+    // 📊 Impact: Reduces time complexity to O(N) and minimizes expensive safeDate parsing
+    // 🔬 Measurement: Observe faster execution of getActivitySummary in large history lists
+    let lastSearchDate: any = null;
+    let maxTime = -1;
     const dayCounts = new Map<string, number>();
+    const sourceCounts = new Map<string, number>();
+
     userHistory.forEach(search => {
       const date = safeDate(search.timestamp);
       if (date) {
+        const time = date.getTime();
+        if (time > maxTime) {
+          maxTime = time;
+          lastSearchDate = search.timestamp;
+        }
+
         const day = date.toLocaleDateString('en-US', { weekday: 'long' });
         dayCounts.set(day, (dayCounts.get(day) || 0) + 1);
       }
-    });
 
-    const mostActiveDay = Array.from(dayCounts.entries())
-      .sort(([, a], [, b]) => b - a)[0]?.[0] || null;
-
-    // Calculate favorite source
-    const sourceCounts = new Map<string, number>();
-    userHistory.forEach(search => {
       search.sources.forEach(source => {
         sourceCounts.set(source, (sourceCounts.get(source) || 0) + 1);
       });
     });
+
+    const mostActiveDay = Array.from(dayCounts.entries())
+      .sort(([, a], [, b]) => b - a)[0]?.[0] || null;
 
     const favoriteSource = Array.from(sourceCounts.entries())
       .sort(([, a], [, b]) => b - a)[0]?.[0] as 'ideas' | 'builder' || null;
