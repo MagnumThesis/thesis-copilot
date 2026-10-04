@@ -84,11 +84,21 @@ export function validateAndSanitizeUrl(url: string): { isValid: boolean; sanitiz
     }
 
     // Check for localhost or private IPs (basic security)
-    if (urlObj.hostname === 'localhost' || 
-        urlObj.hostname.startsWith('127.') || 
-        urlObj.hostname.startsWith('192.168.') ||
-        urlObj.hostname.startsWith('10.') ||
-        urlObj.hostname.match(/^172\.(1[6-9]|2[0-9]|3[0-1])\./)) {
+    const hostname = urlObj.hostname.toLowerCase();
+
+    // 🛡️ Sentinel: Fix overly broad SSRF checks to prevent blocking legitimate
+    // domains like "10.com" while ensuring robust protection against local IPs.
+    if (
+      hostname === 'localhost' ||
+      /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+      /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+      /^172\.(1[6-9]|2[0-9]|3[0-1])\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+      /^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+      /^169\.254\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+      /^0\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+      hostname === '0' ||
+      hostname === '[::1]'
+    ) {
       return { isValid: false, error: 'Private or local URLs are not allowed' };
     }
 
