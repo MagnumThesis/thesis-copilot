@@ -83,12 +83,29 @@ export function validateAndSanitizeUrl(url: string): { isValid: boolean; sanitiz
       return { isValid: false, error: 'Only HTTP and HTTPS protocols are allowed' };
     }
 
-    // Check for localhost or private IPs (basic security)
-    if (urlObj.hostname === 'localhost' || 
-        urlObj.hostname.startsWith('127.') || 
-        urlObj.hostname.startsWith('192.168.') ||
-        urlObj.hostname.startsWith('10.') ||
-        urlObj.hostname.match(/^172\.(1[6-9]|2[0-9]|3[0-1])\./)) {
+    // 🛡️ Sentinel: Prevent SSRF by validating the hostname against private/local IPs.
+    // Ensure we capture IPv6 loopback, and canonical/non-canonical IP formats,
+    // avoiding naïve `.startsWith` checks which can bypass validation (e.g. `10.com`)
+    // or DNS-based SSRF (e.g. 169.254.169.254.nip.io).
+    const isLocalhost = urlObj.hostname === 'localhost' || urlObj.hostname === '[::1]' || urlObj.hostname === '[::]';
+
+    // Check for integer representations of IPs (e.g. 2130706433)
+    let isPrivateIntegerIP = false;
+    if (/^0x[0-9a-f]+$/i.test(urlObj.hostname) || /^\d+$/.test(urlObj.hostname)) {
+      const ipNum = parseInt(urlObj.hostname, urlObj.hostname.toLowerCase().startsWith('0x') ? 16 : (urlObj.hostname.startsWith('0') && urlObj.hostname !== '0' ? 8 : 10));
+      if ((ipNum >= 2130706432 && ipNum <= 2147483647) || // 127.0.0.0/8
+          (ipNum >= 167772160 && ipNum <= 184549375) ||   // 10.0.0.0/8
+          (ipNum >= 2886729728 && ipNum <= 2887778303) || // 172.16.0.0/12
+          (ipNum >= 3232235520 && ipNum <= 3232301055) || // 192.168.0.0/16
+          (ipNum >= 2851995648 && ipNum <= 2852061183) || // 169.254.0.0/16
+          (ipNum >= 0 && ipNum <= 16777215)) {            // 0.0.0.0/8
+        isPrivateIntegerIP = true;
+      }
+    }
+
+    const privateIPRegex = /(^|\.)(127\.([0-9]{1,3}\.){0,2}[0-9]{1,3}|10\.([0-9]{1,3}\.){0,2}[0-9]{1,3}|169\.254\.([0-9]{1,3}\.)?[0-9]{1,3}|192\.168\.([0-9]{1,3}\.)?[0-9]{1,3}|172\.(1[6-9]|2[0-9]|3[0-1])\.([0-9]{1,3}\.)?[0-9]{1,3}|0\.([0-9]{1,3}\.){0,2}[0-9]{1,3})($|\.)/i;
+
+    if (isLocalhost || isPrivateIntegerIP || privateIPRegex.test(urlObj.hostname)) {
       return { isValid: false, error: 'Private or local URLs are not allowed' };
     }
 
