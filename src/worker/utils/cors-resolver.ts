@@ -13,10 +13,17 @@ export const corsOriginResolver = (origin: string, c: Context) => {
     allowedOrigins.push(envFrontendUrl);
   }
 
-  // Allow requests with no origin (like mobile apps or curl requests)
-  // or if the origin is in our allowed list
-  if (!origin || allowedOrigins.includes(origin)) {
-    return origin || '*';
+  // 🛡️ Sentinel: Prevent returning '*' with 'credentials: true' which allows cross-origin
+  // requests with credentials from any site.
+  // Allow requests if the origin is in our allowed list
+  if (allowedOrigins.includes(origin)) {
+    return origin;
+  }
+
+  // If no origin is provided (like curl or mobile apps), we can return the first allowed origin
+  // instead of '*' to prevent a wildcard with credentials: true.
+  if (!origin) {
+    return allowedOrigins[0];
   }
 
   // Default fallback - returning a string is safer than returning true
