@@ -5,3 +5,7 @@
 ## 2026-03-22 - Redundant Array Traversals in getStatistics
 **Learning:** Performing multiple consecutive `.filter().length` operations on an array of objects where each filter condition involves an expensive operation (like `safeDate` parsing) leads to (kN)$ time complexity and redundant processing.
 **Action:** Consolidate multiple statistics calculations into a single (N)$ pass using a single loop (e.g., `forEach` or `reduce`). This minimizes traversals and ensures each expensive transformation (like date parsing) is performed exactly once per element.
+
+## 2026-10-07 - Avoid Object Instantiation Inside Sort Callbacks
+**Learning:** Calling functions like `safeDate()` that instantiate `Date` objects inside array `.sort()` callbacks on large datasets creates significant performance bottlenecks due to O(N log N) redundant parsing and garbage collection overhead.
+**Action:** When sorting by derived properties (like parsed dates), pre-map the array (Schwartzian transform) to compute the values once (O(N)), or refactor simple min/max lookups into an O(N) traversal.
