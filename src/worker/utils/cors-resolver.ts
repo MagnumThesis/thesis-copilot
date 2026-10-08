@@ -15,10 +15,17 @@ export const corsOriginResolver = (origin: string, c: Context) => {
 
   // Allow requests with no origin (like mobile apps or curl requests)
   // or if the origin is in our allowed list
-  if (!origin || allowedOrigins.includes(origin)) {
-    return origin || '*';
+  if (!origin) {
+    // 🛡️ Sentinel: Returning undefined instead of '*' when origin is missing
+    // to prevent combining a wildcard origin with credentials, which is a critical security vulnerability.
+    return undefined;
   }
 
-  // Default fallback - returning a string is safer than returning true
-  return allowedOrigins[0];
+  if (allowedOrigins.includes(origin)) {
+    return origin;
+  }
+
+  // Default fallback - returning undefined is safer than returning the first allowed origin
+  // for an unrecognized origin, as it blocks the request.
+  return undefined;
 };
