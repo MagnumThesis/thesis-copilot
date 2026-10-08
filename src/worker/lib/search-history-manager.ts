@@ -169,20 +169,27 @@ export class SearchHistoryManager {
     let searchesThisWeek = 0;
     let searchesThisMonth = 0;
 
-    userHistory.forEach(h => {
-      const timestamp = safeDate(h.timestamp);
-      if (!timestamp) return;
+    // ⚡ Bolt: Cache primitive timestamps to avoid redundant object allocations and valueOf calls
+    const todayTime = today.getTime();
+    const weekAgoTime = weekAgo.getTime();
+    const monthAgoTime = monthAgo.getTime();
 
-      if (timestamp >= today) {
+    // ⚡ Bolt: Use a standard for-loop over forEach to reduce callback allocation overhead
+    for (let i = 0; i < userHistory.length; i++) {
+      const timestamp = safeDate(userHistory[i].timestamp);
+      if (!timestamp) continue;
+
+      const tsTime = timestamp.getTime();
+      if (tsTime >= todayTime) {
         searchesToday++;
       }
-      if (timestamp >= weekAgo) {
+      if (tsTime >= weekAgoTime) {
         searchesThisWeek++;
       }
-      if (timestamp >= monthAgo) {
+      if (tsTime >= monthAgoTime) {
         searchesThisMonth++;
       }
-    });
+    }
 
     // Ensure we return 0 instead of undefined for averageResults and successRate
     return {
