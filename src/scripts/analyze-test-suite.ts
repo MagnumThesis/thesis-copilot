@@ -29,7 +29,7 @@ async function analyzeTestSuite() {
   project.addSourceFilesAtPaths(testFiles);
 
   const allTestMetadata: TestMetadata[] = [];
-  let allTests: { filePath: string; name: string; content: string }[] = [];
+  const allTests: { filePath: string; name: string; content: string }[] = [];
 
   for (const sourceFile of project.getSourceFiles()) {
     const metadata = analyzeSourceFile(sourceFile);

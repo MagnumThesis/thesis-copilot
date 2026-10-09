@@ -72,8 +72,8 @@ export class EnhancedGoogleScholarClient {
   ): Promise<SearchResult> {
     const startTime = Date.now();
     let retryCount = 0;
-    let fallbackUsed = false;
-    let degradedMode = false;
+    const fallbackUsed = false;
+    const degradedMode = false;
     let lastError: AISearcherError | undefined;
 
     const context = {

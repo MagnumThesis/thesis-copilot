@@ -217,7 +217,7 @@ describe('ProofreaderPerformanceOptimizer', () => {
   describe('Status Update Debouncing', () => {
     it('should debounce rapid status updates', async () => {
       const mockUpdateFn = vi.fn().mockResolvedValue(undefined);
-      let updateCount = 0;
+      const updateCount = 0;
 
       // Make multiple rapid updates
       const promises = [

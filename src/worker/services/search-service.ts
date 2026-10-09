@@ -214,7 +214,7 @@ export class SearchService {
 
       let searchQuery = body.query;
       let generatedQueries: SearchQuery[] = [];
-      let extractedContent: ExtractedContent[] = [];
+      const extractedContent: ExtractedContent[] = [];
 
       // If no query provided but content sources are available, generate query
       if (!searchQuery && body.contentSources && body.contentSources.length > 0) {
@@ -249,7 +249,7 @@ export class SearchService {
           if (extractedContent.length > 0) {
             const queryOptions = body.queryOptions || {};
             
-            let cachedQueries = this.performanceOptimizer.getCachedQueryGeneration(
+            const cachedQueries = this.performanceOptimizer.getCachedQueryGeneration(
               extractedContent,
               queryOptions
             );

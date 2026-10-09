@@ -41,7 +41,7 @@ interface MasterTestReport {
 }
 
 describe('Proofreader Master Test Suite - Task 13', () => {
-  let testResults: TestSuiteResult[] = []
+  const testResults: TestSuiteResult[] = []
   let startTime: number
 
   beforeAll(() => {
