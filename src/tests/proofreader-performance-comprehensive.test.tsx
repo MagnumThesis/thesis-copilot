@@ -570,15 +570,15 @@ describe('Proofreader Performance Tests', () => {
 
       // Rapid status changes on same concern
       await mockUser.click(statusButtons[0])
-      let addressedOption = screen.getByRole('option', { name: /addressed/i })
+      const addressedOption = screen.getByRole('option', { name: /addressed/i })
       await mockUser.click(addressedOption)
 
       await mockUser.click(statusButtons[0])
-      let rejectedOption = screen.getByRole('option', { name: /rejected/i })
+      const rejectedOption = screen.getByRole('option', { name: /rejected/i })
       await mockUser.click(rejectedOption)
 
       await mockUser.click(statusButtons[0])
-      let toBeDoneOption = screen.getByRole('option', { name: /to be done/i })
+      const toBeDoneOption = screen.getByRole('option', { name: /to be done/i })
       await mockUser.click(toBeDoneOption)
 
       // Should debounce rapid changes

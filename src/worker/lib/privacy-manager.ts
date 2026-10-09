@@ -70,7 +70,7 @@ export class PrivacyManager {
 
       // Always fetch account-level settings (conversation_id IS NULL)
       // This ensures consent is shared across all conversations
-      let query = supabase
+      const query = supabase
         .from('privacy_settings')
         .select('*')
         .eq('user_id', userId)
@@ -339,7 +339,7 @@ export class PrivacyManager {
   async clearAllData(userId: string, conversationId?: string): Promise<{ deletedCount: number }> {
     try {
       const supabase = getSupabase(this.env);
-      let totalDeleted = 0;
+      const totalDeleted = 0;
 
       // Build filter conditions
       let userFilter = `user_id.eq.${userId}`;
@@ -415,7 +415,7 @@ export class PrivacyManager {
       
       // Build filter conditions
       let userFilter = `user_id.eq.${userId}`;
-      let dateFilter = `created_at.lt.${cutoffDate.toISOString()}`;
+      const dateFilter = `created_at.lt.${cutoffDate.toISOString()}`;
       
       if (conversationId) {
         userFilter += `,conversation_id.eq.${conversationId}`;
@@ -529,7 +529,7 @@ export class PrivacyManager {
       if (sessionIdsData && sessionIdsData.length > 0) {
         const sessionIdList = sessionIdsData.map(s => s.id);
         
-        let resultsQuery = supabase
+        const resultsQuery = supabase
           .from('search_results')
           .select('*')
           .in('search_session_id', sessionIdList)
@@ -547,7 +547,7 @@ export class PrivacyManager {
       if (sessionIdsData && sessionIdsData.length > 0) {
         const sessionIdList = sessionIdsData.map(s => s.id);
         
-        let feedbackQuery = supabase
+        const feedbackQuery = supabase
           .from('search_feedback')
           .select('*')
           .in('search_session_id', sessionIdList)
@@ -782,7 +782,7 @@ export class PrivacyManager {
     try {
       const supabase = getSupabase(this.env);
       const anonymizedUserId = `anon_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      let totalAnonymized = 0;
+      const totalAnonymized = 0;
 
       // Anonymize search sessions
       const { error: sessionsError } = await supabase

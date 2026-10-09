@@ -313,7 +313,7 @@ export class SearchAnalyticsManager {
       
       // Get search results with user actions
       const sessionIds = sessions.map(session => session.id);
-      let resultsQuery = supabase
+      const resultsQuery = supabase
         .from('search_results')
         .select('user_action')
         .in('search_session_id', sessionIds);
