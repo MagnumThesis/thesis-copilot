@@ -22,11 +22,21 @@ function formatAttachedItemsContext(attachedItems: AttachedItem[]): string {
 
   const sections: string[] = [];
 
-  // Group by type
-  const ideas = attachedItems.filter((item) => item.type === "idea");
-  const contents = attachedItems.filter((item) => item.type === "content");
-  const concerns = attachedItems.filter((item) => item.type === "concern");
-  const references = attachedItems.filter((item) => item.type === "reference");
+  // ⚡ Bolt: Consolidated multiple filter passes into a single loop to avoid redundant array traversals
+  // 🎯 Why: Replaces O(4N) array traversals with O(N) when grouping items by type
+  // 📊 Impact: Improves rendering performance when chat has many attachments
+  // 🔬 Measurement: Observe faster initial format execution in profiler
+  const ideas: AttachedItem[] = [];
+  const contents: AttachedItem[] = [];
+  const concerns: AttachedItem[] = [];
+  const references: AttachedItem[] = [];
+
+  for (const item of attachedItems) {
+    if (item.type === "idea") ideas.push(item);
+    else if (item.type === "content") contents.push(item);
+    else if (item.type === "concern") concerns.push(item);
+    else if (item.type === "reference") references.push(item);
+  }
 
   if (ideas.length > 0) {
     sections.push(
@@ -109,15 +119,23 @@ function formatAttachedItemsSummary(attachedItems: AttachedItem[]): string {
   if (!attachedItems || attachedItems.length === 0) return "";
 
   const parts: string[] = [];
-  const ideas = attachedItems.filter((item) => item.type === "idea");
-  const contents = attachedItems.filter((item) => item.type === "content");
-  const concerns = attachedItems.filter((item) => item.type === "concern");
-  const references = attachedItems.filter((item) => item.type === "reference");
 
-  if (ideas.length > 0) parts.push(`📌 ${ideas.length} idea${ideas.length > 1 ? "s" : ""}`);
-  if (contents.length > 0) parts.push(`📄 ${contents.length} content`);
-  if (concerns.length > 0) parts.push(`⚠️ ${concerns.length} concern${concerns.length > 1 ? "s" : ""}`);
-  if (references.length > 0) parts.push(`📚 ${references.length} reference${references.length > 1 ? "s" : ""}`);
+  // ⚡ Bolt: Consolidated multiple filter passes into a single loop to avoid redundant array traversals
+  // 🎯 Why: Replaces O(4N) array traversals with O(N) when counting items by type
+  // 📊 Impact: Improves rendering performance of the attachment summary text
+  // 🔬 Measurement: Observe faster initial format execution in profiler
+  let ideasCount = 0, contentsCount = 0, concernsCount = 0, referencesCount = 0;
+  for (const item of attachedItems) {
+    if (item.type === "idea") ideasCount++;
+    else if (item.type === "content") contentsCount++;
+    else if (item.type === "concern") concernsCount++;
+    else if (item.type === "reference") referencesCount++;
+  }
+
+  if (ideasCount > 0) parts.push(`📌 ${ideasCount} idea${ideasCount > 1 ? "s" : ""}`);
+  if (contentsCount > 0) parts.push(`📄 ${contentsCount} content`);
+  if (concernsCount > 0) parts.push(`⚠️ ${concernsCount} concern${concernsCount > 1 ? "s" : ""}`);
+  if (referencesCount > 0) parts.push(`📚 ${referencesCount} reference${referencesCount > 1 ? "s" : ""}`);
 
   return parts.length > 0 ? `[Attached: ${parts.join(", ")}]` : "";
 }

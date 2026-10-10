@@ -5,3 +5,6 @@
 ## 2026-03-22 - Redundant Array Traversals in getStatistics
 **Learning:** Performing multiple consecutive `.filter().length` operations on an array of objects where each filter condition involves an expensive operation (like `safeDate` parsing) leads to (kN)$ time complexity and redundant processing.
 **Action:** Consolidate multiple statistics calculations into a single (N)$ pass using a single loop (e.g., `forEach` or `reduce`). This minimizes traversals and ensures each expensive transformation (like date parsing) is performed exactly once per element.
+## 2026-10-10 - O(4N) Array Traversals in UI Rendering
+**Learning:** Performing multiple consecutive `.filter()` operations on arrays when grouping items by type (e.g., `items.filter(i => i.type === 'idea')`) leads to O(kN) redundant array traversals and performance degradation during rendering, especially for large arrays of chat attachments.
+**Action:** Consolidate multiple filter passes into a single loop to bucket or count items simultaneously. This minimizes array traversals to O(N) and drastically improves execution time.

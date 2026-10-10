@@ -1,7 +1,11 @@
-1. **What:** Wrap `filteredItems` and `data` in `useMemo` in `AppSidebar`.
-   - Update `AppSidebar` to import `useMemo` from `react`
-   - Wrap the filtering logic for `filteredItems` with `useMemo(() => items.filter(...), [items, searchQuery])`
-   - Wrap the `data` creation with `useMemo(() => ({ navMain: ... }), [filteredItems])`
-2. **Why:** To prevent unnecessary filtering operations and object allocations on every render of `AppSidebar` (which can happen frequently if the parent component re-renders or if other local state like `isUpdating` changes). This is particularly impactful when the `items` list is large.
-3. **Impact:** Improves React rendering performance by caching the filtered list and data object unless their dependencies change.
-4. **Measurement:** Verify by running `npm run lint` and `npm run test -- --run` and optionally visual verification if required.
+1. Modify `formatAttachedItemsContext` in `src/react-app/pages/Chatbot.tsx`
+   - Refactor to use a single loop to group items by type instead of four separate `.filter()` calls. This eliminates redundant array traversals and prevents O(N) performance degradation with a large number of items.
+
+2. Modify `formatAttachedItemsSummary` in `src/react-app/pages/Chatbot.tsx`
+   - Refactor to use a single loop to count items by type instead of four separate `.filter()` calls.
+
+3. Complete pre commit steps
+   - Complete pre-commit steps to ensure proper testing, verification, review, and reflection are done.
+
+4. Submit the change
+   - Submit the PR with the performance optimization for array traversals.
