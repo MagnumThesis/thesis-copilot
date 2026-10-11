@@ -85,35 +85,38 @@ export class SearchHistoryManager {
     }
 
     const totalSearches = userHistory.length;
-    const successfulSearches = userHistory.filter(h => h.results && h.results.total > 0).length;
-    const successRate = totalSearches > 0 ? successfulSearches / totalSearches : 0;
-
-    // Calculate popular topics
+    // ⚡ Bolt: Consolidate redundant array traversals into a single O(N) pass
+    let successfulSearches = 0;
+    let totalResultsSum = 0;
     const topicCounts = new Map<string, number>();
+    const sourceCounts = new Map<string, number>();
+
     userHistory.forEach(search => {
+      // 1. Calculate successful searches and total results
+      if (search.results && search.results.total > 0) {
+        successfulSearches++;
+      }
+      totalResultsSum += (search.results?.total || 0);
+
+      // 2. Count popular topics
       const topics = this.extractTopicsFromQuery(search.query);
       topics.forEach(topic => {
         topicCounts.set(topic, (topicCounts.get(topic) || 0) + 1);
       });
+
+      // 3. Count top sources
+      search.sources.forEach(source => {
+        sourceCounts.set(source, (sourceCounts.get(source) || 0) + 1);
+      });
     });
+
+    const successRate = totalSearches > 0 ? successfulSearches / totalSearches : 0;
+    const averageResults = totalSearches > 0 ? totalResultsSum / totalSearches : 0;
 
     const popularTopics = Array.from(topicCounts.entries())
       .sort(([, a], [, b]) => b - a)
       .slice(0, 10)
       .map(([topic]) => topic);
-
-    // Calculate average results
-    const averageResults = totalSearches > 0 
-      ? userHistory.reduce((sum, h) => sum + (h.results?.total || 0), 0) / totalSearches
-      : 0;
-
-    // Calculate top sources
-    const sourceCounts = new Map<string, number>();
-    userHistory.forEach(search => {
-      search.sources.forEach(source => {
-        sourceCounts.set(source, (sourceCounts.get(source) || 0) + 1);
-      });
-    });
 
     const topSources = Array.from(sourceCounts.entries())
       .sort(([, a], [, b]) => b - a)
@@ -376,33 +379,36 @@ export class SearchHistoryManager {
       };
     }
 
-    const lastSearchDate = userHistory
-      .sort((a, b) => {
-        const aTime = safeDate(a.timestamp)?.getTime() ?? 0;
-        const bTime = safeDate(b.timestamp)?.getTime() ?? 0;
-        return bTime - aTime;
-      })[0].timestamp;
-
-    // Calculate most active day of week
+    // ⚡ Bolt: Consolidate O(N log N) sort and redundant traversals into a single O(N) pass
+    let maxTime = -1;
+    let lastSearchDate: any = null;
     const dayCounts = new Map<string, number>();
+    const sourceCounts = new Map<string, number>();
+
     userHistory.forEach(search => {
       const date = safeDate(search.timestamp);
+
+      // 1. Find latest search date
+      const time = date?.getTime() ?? 0;
+      if (time > maxTime) {
+        maxTime = time;
+        lastSearchDate = search.timestamp;
+      }
+
+      // 2. Count active days
       if (date) {
         const day = date.toLocaleDateString('en-US', { weekday: 'long' });
         dayCounts.set(day, (dayCounts.get(day) || 0) + 1);
       }
-    });
 
-    const mostActiveDay = Array.from(dayCounts.entries())
-      .sort(([, a], [, b]) => b - a)[0]?.[0] || null;
-
-    // Calculate favorite source
-    const sourceCounts = new Map<string, number>();
-    userHistory.forEach(search => {
+      // 3. Count sources
       search.sources.forEach(source => {
         sourceCounts.set(source, (sourceCounts.get(source) || 0) + 1);
       });
     });
+
+    const mostActiveDay = Array.from(dayCounts.entries())
+      .sort(([, a], [, b]) => b - a)[0]?.[0] || null;
 
     const favoriteSource = Array.from(sourceCounts.entries())
       .sort(([, a], [, b]) => b - a)[0]?.[0] as 'ideas' | 'builder' || null;
