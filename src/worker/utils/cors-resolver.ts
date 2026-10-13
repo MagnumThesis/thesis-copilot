@@ -13,10 +13,16 @@ export const corsOriginResolver = (origin: string, c: Context) => {
     allowedOrigins.push(envFrontendUrl);
   }
 
+  // 🛡️ Sentinel: Returning '*' with credentials: true is a critical vulnerability.
+  // We return a specific allowed origin (or undefined if no origin) to prevent CSRF and data theft.
   // Allow requests with no origin (like mobile apps or curl requests)
   // or if the origin is in our allowed list
-  if (!origin || allowedOrigins.includes(origin)) {
-    return origin || '*';
+  if (!origin) {
+    return undefined as any;
+  }
+
+  if (allowedOrigins.includes(origin)) {
+    return origin;
   }
 
   // Default fallback - returning a string is safer than returning true
