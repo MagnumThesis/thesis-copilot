@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight, Wrench } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/shadcn/button"
 import { ToolCard } from "./tool-card"
+import { AccessibleTooltip } from "./accessible-tooltip"
 
 // Dynamically import heavy components to reduce initial bundle size
 const Idealist = lazy(() => import("./idealist").then(m => ({ default: m.Idealist })))
@@ -49,23 +50,27 @@ export const ToolsPanel: React.FC<ToolsPanelProps> = ({
   return (
     <div className={cn("relative", className)}>
       {/* Toggle Button */}
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={() => setIsOpen(!isOpen)}
-        className={cn(
-          "absolute top-4 z-10 h-8 w-8 rounded-full border bg-background shadow-sm hover:bg-muted transition-all duration-300",
-          isOpen
-            ? "-left-4" // Center when open
-            : "-left-10" // More to the right when closed
-        )}
-      >
-        {isOpen ? (
-          <ChevronRight className="h-4 w-4" />
-        ) : (
-          <ChevronLeft className="h-4 w-4" />
-        )}
-      </Button>
+      <AccessibleTooltip content={isOpen ? "Close tools panel" : "Open tools panel"}>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setIsOpen(!isOpen)}
+          aria-label={isOpen ? "Close tools panel" : "Open tools panel"}
+          aria-expanded={isOpen}
+          className={cn(
+            "absolute top-4 z-10 h-8 w-8 rounded-full border bg-background shadow-sm hover:bg-muted transition-all duration-300",
+            isOpen
+              ? "-left-4" // Center when open
+              : "-left-10" // More to the right when closed
+          )}
+        >
+          {isOpen ? (
+            <ChevronRight className="h-4 w-4" />
+          ) : (
+            <ChevronLeft className="h-4 w-4" />
+          )}
+        </Button>
+      </AccessibleTooltip>
 
       {/* Panel */}
       <motion.div

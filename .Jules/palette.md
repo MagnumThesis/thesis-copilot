@@ -5,3 +5,7 @@
 ## 2026-03-09 - Missing ARIA labels in dynamic/interactive chat components
 **Learning:** Icon-only buttons in the core Chat component (`src/components/ui/chat.tsx`), particularly actions like "Thumbs up", "Thumbs down", and "Scroll to bottom", were missing `aria-label` attributes. Screen reader users would have no context for what these buttons do since they lack text nodes.
 **Action:** When implementing new features or components with interactive icon-only buttons (`size="icon"`), proactively add descriptive `aria-label` attributes.
+
+## 2026-10-13 - Missing ARIA labels and tooltips in floating icon buttons
+**Learning:** Floating icon-only buttons used for toggling panels (e.g., ToolsPanel) often lack `aria-label` attributes and tooltip context. Without these, screen reader users miss crucial state context (e.g. `aria-expanded`) and sighted users might be confused about the button's action.
+**Action:** When implementing collapsible sidebars or floating action buttons, always wrap them in `AccessibleTooltip`, provide dynamic `aria-label`s based on their state, and use `aria-expanded` attributes.
