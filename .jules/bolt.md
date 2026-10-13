@@ -5,3 +5,6 @@
 ## 2026-03-22 - Redundant Array Traversals in getStatistics
 **Learning:** Performing multiple consecutive `.filter().length` operations on an array of objects where each filter condition involves an expensive operation (like `safeDate` parsing) leads to (kN)$ time complexity and redundant processing.
 **Action:** Consolidate multiple statistics calculations into a single (N)$ pass using a single loop (e.g., `forEach` or `reduce`). This minimizes traversals and ensures each expensive transformation (like date parsing) is performed exactly once per element.
+## 2026-10-13 - Redundant Date Parsing and Traversals in SearchHistoryManager
+**Learning:** Performing multiple consecutive array traversals containing expensive Date parsing (`safeDate`) or full sorts just to find latest elements severely degrades performance, especially for larger in-memory user histories. Repeated `.getTime()` calculations during `.sort` without a mapped array creates overhead.
+**Action:** Consolidate multiple analytics accumulations into a single $O(N)$ loop (`for...of`) and map elements to primitive time integers before sorting or filtering. Cache primitive times before loops when performing bound checks.

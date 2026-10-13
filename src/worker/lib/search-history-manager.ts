@@ -169,17 +169,24 @@ export class SearchHistoryManager {
     let searchesThisWeek = 0;
     let searchesThisMonth = 0;
 
+    // ⚡ Bolt: Cache integer timestamps to avoid full Date object comparisons
+    const todayTime = today.getTime();
+    const weekAgoTime = weekAgo.getTime();
+    const monthAgoTime = monthAgo.getTime();
+
     userHistory.forEach(h => {
       const timestamp = safeDate(h.timestamp);
       if (!timestamp) return;
 
-      if (timestamp >= today) {
+      // ⚡ Bolt: Use .getTime() once to compare primitives
+      const time = timestamp.getTime();
+      if (time >= todayTime) {
         searchesToday++;
       }
-      if (timestamp >= weekAgo) {
+      if (time >= weekAgoTime) {
         searchesThisWeek++;
       }
-      if (timestamp >= monthAgo) {
+      if (time >= monthAgoTime) {
         searchesThisMonth++;
       }
     });
@@ -239,18 +246,15 @@ export class SearchHistoryManager {
    */
   async getRecentSearches(userId: string, hours: number = 24): Promise<SearchHistoryItem[]> {
     const userHistory = this.history.get(userId) || [];
-    const cutoff = new Date(Date.now() - hours * 60 * 60 * 1000);
+    // ⚡ Bolt: Use primitive integer timestamps to avoid duplicate parsing
+    const cutoffTime = Date.now() - hours * 60 * 60 * 1000;
 
+    // ⚡ Bolt: Map original item with pre-parsed timestamp to run sort & filter faster
     return userHistory
-      .filter(item => {
-        const timestamp = safeDate(item.timestamp);
-        return timestamp && item.timestamp >= cutoff;
-      })
-      .sort((a, b) => {
-        const aTime = safeDate(a.timestamp)?.getTime() || 0;
-        const bTime = safeDate(b.timestamp)?.getTime() || 0;
-        return bTime - aTime;
-      });
+      .map(item => ({ item, time: safeDate(item.timestamp)?.getTime() || 0 }))
+      .filter(mapped => mapped.time >= cutoffTime)
+      .sort((a, b) => b.time - a.time)
+      .map(mapped => mapped.item);
   }
 
   /**
@@ -376,40 +380,41 @@ export class SearchHistoryManager {
       };
     }
 
-    const lastSearchDate = userHistory
-      .sort((a, b) => {
-        const aTime = safeDate(a.timestamp)?.getTime() ?? 0;
-        const bTime = safeDate(b.timestamp)?.getTime() ?? 0;
-        return bTime - aTime;
-      })[0].timestamp;
-
-    // Calculate most active day of week
+    // ⚡ Bolt: Single O(N) pass, maintaining statistics dynamically
+    let latestTime = -1;
+    let lastSearchDateObj: Date | null = null;
     const dayCounts = new Map<string, number>();
-    userHistory.forEach(search => {
+    const sourceCounts = new Map<string, number>();
+
+    for (const search of userHistory) {
       const date = safeDate(search.timestamp);
+
       if (date) {
+        // ⚡ Bolt: Maintain primitive maximum time to avoid O(N log N) sorts
+        const time = date.getTime();
+        if (time > latestTime) {
+          latestTime = time;
+          lastSearchDateObj = date;
+        }
+
         const day = date.toLocaleDateString('en-US', { weekday: 'long' });
         dayCounts.set(day, (dayCounts.get(day) || 0) + 1);
       }
-    });
 
-    const mostActiveDay = Array.from(dayCounts.entries())
-      .sort(([, a], [, b]) => b - a)[0]?.[0] || null;
-
-    // Calculate favorite source
-    const sourceCounts = new Map<string, number>();
-    userHistory.forEach(search => {
       search.sources.forEach(source => {
         sourceCounts.set(source, (sourceCounts.get(source) || 0) + 1);
       });
-    });
+    }
+
+    const mostActiveDay = Array.from(dayCounts.entries())
+      .sort(([, a], [, b]) => b - a)[0]?.[0] || null;
 
     const favoriteSource = Array.from(sourceCounts.entries())
       .sort(([, a], [, b]) => b - a)[0]?.[0] as 'ideas' | 'builder' || null;
 
     return {
       totalSearches: userHistory.length,
-      lastSearchDate: safeDate(lastSearchDate),
+      lastSearchDate: lastSearchDateObj,
       mostActiveDay,
       favoriteSource
     };
