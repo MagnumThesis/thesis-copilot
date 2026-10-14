@@ -5,3 +5,7 @@
 ## 2026-03-09 - Missing ARIA labels in dynamic/interactive chat components
 **Learning:** Icon-only buttons in the core Chat component (`src/components/ui/chat.tsx`), particularly actions like "Thumbs up", "Thumbs down", and "Scroll to bottom", were missing `aria-label` attributes. Screen reader users would have no context for what these buttons do since they lack text nodes.
 **Action:** When implementing new features or components with interactive icon-only buttons (`size="icon"`), proactively add descriptive `aria-label` attributes.
+
+## 2026-10-14 - Missing ARIA labels in authentication form toggles
+**Learning:** Icon-only password visibility toggle buttons in authentication forms (Login/Register) were missing `aria-label` and `title` attributes, leaving screen reader users without context for these actions.
+**Action:** Always ensure that icon-only toggle buttons have dynamic `aria-label` and `title` attributes that update according to their state (e.g., "Show password" vs "Hide password").
