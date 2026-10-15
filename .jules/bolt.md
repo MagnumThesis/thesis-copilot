@@ -5,3 +5,7 @@
 ## 2026-03-22 - Redundant Array Traversals in getStatistics
 **Learning:** Performing multiple consecutive `.filter().length` operations on an array of objects where each filter condition involves an expensive operation (like `safeDate` parsing) leads to (kN)$ time complexity and redundant processing.
 **Action:** Consolidate multiple statistics calculations into a single (N)$ pass using a single loop (e.g., `forEach` or `reduce`). This minimizes traversals and ensures each expensive transformation (like date parsing) is performed exactly once per element.
+
+## 2026-10-15 - Array Iteration Performance in Statistics Processing
+**Learning:** Calculating category/status/severity statistics by running multiple `.filter().length` combinations inside `.forEach` loops creates `O(k * N)` time complexity, triggering hundreds of redundant traversals of the same elements on large collections.
+**Action:** Always compute comprehensive metric breakdowns with a single `O(N)` loop (e.g., using `reduce` or `.forEach`) that tracks all aggregations simultaneously, especially when returning dashboard or analytics payload data.
