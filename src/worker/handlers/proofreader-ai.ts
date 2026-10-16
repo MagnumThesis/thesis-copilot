@@ -573,35 +573,55 @@ function generateSeverityBreakdown(concerns: ProofreadingConcern[]): Record<Conc
  * Generate concern statistics from database records
  */
 function generateConcernStatistics(concerns: any[]): ConcernStatistics {
+  // ⚡ Bolt: Consolidated multiple .filter().length array traversals into a single O(N) loop
+  // to reduce time complexity and avoid redundant iterations for statistics calculations.
+
   const total = concerns.length;
-  const toBeDone = concerns.filter(c => c.status === ConcernStatus.TO_BE_DONE).length;
-  const addressed = concerns.filter(c => c.status === ConcernStatus.ADDRESSED).length;
-  const rejected = concerns.filter(c => c.status === ConcernStatus.REJECTED).length;
+  let toBeDone = 0;
+  let addressed = 0;
+  let rejected = 0;
   
   // Generate breakdown by category
   const byCategory = {} as Record<ConcernCategory, any>;
   Object.values(ConcernCategory).forEach(category => {
-    const categoryData = concerns.filter(c => c.category === category);
-    byCategory[category] = {
-      total: categoryData.length,
-      toBeDone: categoryData.filter(c => c.status === ConcernStatus.TO_BE_DONE).length,
-      addressed: categoryData.filter(c => c.status === ConcernStatus.ADDRESSED).length,
-      rejected: categoryData.filter(c => c.status === ConcernStatus.REJECTED).length
-    };
+    byCategory[category] = { total: 0, toBeDone: 0, addressed: 0, rejected: 0 };
   });
   
   // Generate breakdown by severity
   const bySeverity = {} as Record<ConcernSeverity, any>;
   Object.values(ConcernSeverity).forEach(severity => {
-    const severityData = concerns.filter(c => c.severity === severity);
-    bySeverity[severity] = {
-      total: severityData.length,
-      toBeDone: severityData.filter(c => c.status === ConcernStatus.TO_BE_DONE).length,
-      addressed: severityData.filter(c => c.status === ConcernStatus.ADDRESSED).length,
-      rejected: severityData.filter(c => c.status === ConcernStatus.REJECTED).length
-    };
+    bySeverity[severity] = { total: 0, toBeDone: 0, addressed: 0, rejected: 0 };
   });
   
+  for (const c of concerns) {
+    const status = c.status;
+    const category = c.category as ConcernCategory;
+    const severity = c.severity as ConcernSeverity;
+
+    // Overall stats
+    if (status === ConcernStatus.TO_BE_DONE) toBeDone++;
+    else if (status === ConcernStatus.ADDRESSED) addressed++;
+    else if (status === ConcernStatus.REJECTED) rejected++;
+
+    // Category stats
+    const catStats = byCategory[category];
+    if (catStats) {
+      catStats.total++;
+      if (status === ConcernStatus.TO_BE_DONE) catStats.toBeDone++;
+      else if (status === ConcernStatus.ADDRESSED) catStats.addressed++;
+      else if (status === ConcernStatus.REJECTED) catStats.rejected++;
+    }
+
+    // Severity stats
+    const sevStats = bySeverity[severity];
+    if (sevStats) {
+      sevStats.total++;
+      if (status === ConcernStatus.TO_BE_DONE) sevStats.toBeDone++;
+      else if (status === ConcernStatus.ADDRESSED) sevStats.addressed++;
+      else if (status === ConcernStatus.REJECTED) sevStats.rejected++;
+    }
+  }
+
   return {
     totalConcerns: total,
     concernsByStatus: {
