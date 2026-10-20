@@ -84,11 +84,18 @@ export function validateAndSanitizeUrl(url: string): { isValid: boolean; sanitiz
     }
 
     // Check for localhost or private IPs (basic security)
-    if (urlObj.hostname === 'localhost' || 
-        urlObj.hostname.startsWith('127.') || 
-        urlObj.hostname.startsWith('192.168.') ||
-        urlObj.hostname.startsWith('10.') ||
-        urlObj.hostname.match(/^172\.(1[6-9]|2[0-9]|3[0-1])\./)) {
+    // 🛡️ Sentinel: Prevent SSRF by catching metadata endpoints, IPv6 loopback, and embedded IPs
+    const hostname = urlObj.hostname.toLowerCase();
+    if (hostname === 'localhost' ||
+        hostname.match(/(^|\.)127\.\d+\.\d+\.\d+(?:\.|$)/) ||
+        hostname.match(/(^|\.)192\.168\.\d+\.\d+(?:\.|$)/) ||
+        hostname.match(/(^|\.)10\.\d+\.\d+\.\d+(?:\.|$)/) ||
+        hostname.match(/(^|\.)172\.(1[6-9]|2[0-9]|3[0-1])\.\d+\.\d+(?:\.|$)/) ||
+        hostname.match(/(^|\.)169\.254\.\d+\.\d+(?:\.|$)/) ||
+        hostname === '[::1]' ||
+        hostname.match(/^\[fe80:/) ||
+        hostname === '0.0.0.0' ||
+        hostname === '0') {
       return { isValid: false, error: 'Private or local URLs are not allowed' };
     }
 
