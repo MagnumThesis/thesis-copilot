@@ -169,18 +169,20 @@ export class SearchHistoryManager {
     let searchesThisWeek = 0;
     let searchesThisMonth = 0;
 
+    // 💡 What: Single pass traversal with nested conditionals
+    // 🎯 Why: Reduces redundant date comparisons since if a date is > today, it's naturally > weekAgo
     userHistory.forEach(h => {
       const timestamp = safeDate(h.timestamp);
       if (!timestamp) return;
 
-      if (timestamp >= today) {
-        searchesToday++;
-      }
-      if (timestamp >= weekAgo) {
-        searchesThisWeek++;
-      }
       if (timestamp >= monthAgo) {
         searchesThisMonth++;
+        if (timestamp >= weekAgo) {
+          searchesThisWeek++;
+          if (timestamp >= today) {
+            searchesToday++;
+          }
+        }
       }
     });
 
@@ -376,40 +378,55 @@ export class SearchHistoryManager {
       };
     }
 
-    const lastSearchDate = userHistory
-      .sort((a, b) => {
-        const aTime = safeDate(a.timestamp)?.getTime() ?? 0;
-        const bTime = safeDate(b.timestamp)?.getTime() ?? 0;
-        return bTime - aTime;
-      })[0].timestamp;
+    let lastSearchTime = 0;
+    let lastSearchDate: Date | null = null;
 
-    // Calculate most active day of week
     const dayCounts = new Map<string, number>();
+    const sourceCounts = new Map<string, number>();
+
+    // 💡 What: Consolidate multiple redundant map traversals and sorts into a single O(N) pass
+    // 🎯 Why: Avoids O(N log N) sorting overhead and reduces expensive safeDate parsing from ~4N to exactly N times
     userHistory.forEach(search => {
       const date = safeDate(search.timestamp);
       if (date) {
+        const time = date.getTime();
+        if (time > lastSearchTime) {
+          lastSearchTime = time;
+          lastSearchDate = date;
+        }
+
         const day = date.toLocaleDateString('en-US', { weekday: 'long' });
         dayCounts.set(day, (dayCounts.get(day) || 0) + 1);
       }
+
+      if (search.sources && Array.isArray(search.sources)) {
+        search.sources.forEach(source => {
+          sourceCounts.set(source, (sourceCounts.get(source) || 0) + 1);
+        });
+      }
     });
 
-    const mostActiveDay = Array.from(dayCounts.entries())
-      .sort(([, a], [, b]) => b - a)[0]?.[0] || null;
+    let mostActiveDay: string | null = null;
+    let maxDayCount = 0;
+    for (const [day, count] of dayCounts.entries()) {
+      if (count > maxDayCount) {
+        maxDayCount = count;
+        mostActiveDay = day;
+      }
+    }
 
-    // Calculate favorite source
-    const sourceCounts = new Map<string, number>();
-    userHistory.forEach(search => {
-      search.sources.forEach(source => {
-        sourceCounts.set(source, (sourceCounts.get(source) || 0) + 1);
-      });
-    });
-
-    const favoriteSource = Array.from(sourceCounts.entries())
-      .sort(([, a], [, b]) => b - a)[0]?.[0] as 'ideas' | 'builder' || null;
+    let favoriteSource: 'ideas' | 'builder' | null = null;
+    let maxSourceCount = 0;
+    for (const [source, count] of sourceCounts.entries()) {
+      if (count > maxSourceCount) {
+        maxSourceCount = count;
+        favoriteSource = source as 'ideas' | 'builder';
+      }
+    }
 
     return {
       totalSearches: userHistory.length,
-      lastSearchDate: safeDate(lastSearchDate),
+      lastSearchDate,
       mostActiveDay,
       favoriteSource
     };
