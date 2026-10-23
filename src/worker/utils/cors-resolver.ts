@@ -16,7 +16,9 @@ export const corsOriginResolver = (origin: string, c: Context) => {
   // Allow requests with no origin (like mobile apps or curl requests)
   // or if the origin is in our allowed list
   if (!origin || allowedOrigins.includes(origin)) {
-    return origin || '*';
+    // 🛡️ Sentinel: Avoid returning '*' with credentials: true to prevent SSRF/CSRF vulnerabilities
+    // Fall back to a specific allowed origin instead of wildcard.
+    return origin || allowedOrigins[0];
   }
 
   // Default fallback - returning a string is safer than returning true
