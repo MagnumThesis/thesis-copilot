@@ -6,6 +6,7 @@ import { SearchForm } from "@/components/search-form"
 import { Button } from "@/components/ui/shadcn/button"
 import { Input } from "@/components/ui/shadcn/input"
 import { Skeleton } from "@/components/ui/shadcn/skeleton"
+import { AccessibleTooltip } from "@/components/ui/accessible-tooltip"
 import {
   Sidebar,
   SidebarContent,
@@ -164,10 +165,11 @@ export function AppSidebar({
       <SidebarHeader>
         <div className="flex items-center justify-between p-2">
           <h2 className="text-lg font-semibold">My Ideas</h2>
-          <Button size="sm" className="h-8 w-8 p-0" onClick={onNew}>
-            <Plus className="h-4 w-4" />
-            <span className="sr-only">Add new idea</span>
-          </Button>
+          <AccessibleTooltip content="Add new idea">
+            <Button size="sm" className="h-8 w-8 p-0" onClick={onNew} aria-label="Add new idea">
+              <Plus className="h-4 w-4" />
+            </Button>
+          </AccessibleTooltip>
         </div>
         <SearchForm value={searchQuery} onSearchChange={setSearchQuery} />
       </SidebarHeader>
@@ -237,44 +239,47 @@ export function AppSidebar({
                         </SidebarMenuButton>
                         <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover/item:opacity-100 bg-gradient-to-l from-sidebar from-70% to-transparent pl-6 pr-2">
                           {onUpdateTitle && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={(e) => handleStartEdit(item, e)}
-                              title="Edit title"
-                              aria-label="Edit title"
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
+                            <AccessibleTooltip content="Edit title">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={(e) => handleStartEdit(item, e)}
+                                aria-label="Edit title"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            </AccessibleTooltip>
                           )}
                           {onRegenerateTitle && (
+                            <AccessibleTooltip content="Regenerate title with AI">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={(e) => handleRegenerateTitle(item.id, e)}
+                                disabled={regeneratingId === item.id}
+                                aria-label="Regenerate title with AI"
+                              >
+                                {regeneratingId === item.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Sparkles className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </AccessibleTooltip>
+                          )}
+                          <AccessibleTooltip content="Delete idea" type="error">
                             <Button
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8"
-                              onClick={(e) => handleRegenerateTitle(item.id, e)}
-                              disabled={regeneratingId === item.id}
-                              aria-label="Regenerate title with AI"
-                              title="Regenerate title with AI"
+                              onClick={() => onDelete(item.id)}
+                              aria-label="Delete idea"
                             >
-                              {regeneratingId === item.id ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <Sparkles className="h-4 w-4" />
-                              )}
+                              <Trash className="h-4 w-4" />
                             </Button>
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => onDelete(item.id)}
-                            title="Delete"
-                            aria-label="Delete idea"
-                          >
-                            <Trash className="h-4 w-4" />
-                          </Button>
+                          </AccessibleTooltip>
                         </div>
                       </div>
                     )}
@@ -294,22 +299,25 @@ export function AppSidebar({
           </div>
         </div>
         <div className="flex gap-2 mt-2">
-          <Link to="/profile" title="Profile">
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <User className="h-4 w-4" />
-              <span className="sr-only">Profile</span>
+          <AccessibleTooltip content="Profile">
+            <Link to="/profile">
+              <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Profile">
+                <User className="h-4 w-4" />
+              </Button>
+            </Link>
+          </AccessibleTooltip>
+          <AccessibleTooltip content="Settings">
+            <Link to="/settings">
+              <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Settings">
+                <Settings className="h-4 w-4" />
+              </Button>
+            </Link>
+          </AccessibleTooltip>
+          <AccessibleTooltip content="Logout" type="warning">
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleLogout} aria-label="Logout">
+              <LogOut className="h-4 w-4" />
             </Button>
-          </Link>
-          <Link to="/settings" title="Settings">
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <Settings className="h-4 w-4" />
-              <span className="sr-only">Settings</span>
-            </Button>
-          </Link>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleLogout} title="Logout">
-            <LogOut className="h-4 w-4" />
-            <span className="sr-only">Logout</span>
-          </Button>
+          </AccessibleTooltip>
         </div>
       </SidebarFooter>
       <SidebarRail />
