@@ -85,35 +85,39 @@ export class SearchHistoryManager {
     }
 
     const totalSearches = userHistory.length;
-    const successfulSearches = userHistory.filter(h => h.results && h.results.total > 0).length;
-    const successRate = totalSearches > 0 ? successfulSearches / totalSearches : 0;
-
-    // Calculate popular topics
+    let successfulSearches = 0;
+    let totalResults = 0;
     const topicCounts = new Map<string, number>();
-    userHistory.forEach(search => {
+    const sourceCounts = new Map<string, number>();
+
+    // ⚡ Bolt: Consolidate analytics calculations into a single O(N) pass
+    for (let i = 0; i < totalSearches; i++) {
+      const search = userHistory[i];
+
+      if (search.results && search.results.total > 0) {
+        successfulSearches++;
+        totalResults += search.results.total;
+      }
+
       const topics = this.extractTopicsFromQuery(search.query);
-      topics.forEach(topic => {
+      for (let j = 0; j < topics.length; j++) {
+        const topic = topics[j];
         topicCounts.set(topic, (topicCounts.get(topic) || 0) + 1);
-      });
-    });
+      }
+
+      for (let j = 0; j < search.sources.length; j++) {
+        const source = search.sources[j];
+        sourceCounts.set(source, (sourceCounts.get(source) || 0) + 1);
+      }
+    }
+
+    const successRate = totalSearches > 0 ? successfulSearches / totalSearches : 0;
+    const averageResults = totalSearches > 0 ? totalResults / totalSearches : 0;
 
     const popularTopics = Array.from(topicCounts.entries())
       .sort(([, a], [, b]) => b - a)
       .slice(0, 10)
       .map(([topic]) => topic);
-
-    // Calculate average results
-    const averageResults = totalSearches > 0 
-      ? userHistory.reduce((sum, h) => sum + (h.results?.total || 0), 0) / totalSearches
-      : 0;
-
-    // Calculate top sources
-    const sourceCounts = new Map<string, number>();
-    userHistory.forEach(search => {
-      search.sources.forEach(source => {
-        sourceCounts.set(source, (sourceCounts.get(source) || 0) + 1);
-      });
-    });
 
     const topSources = Array.from(sourceCounts.entries())
       .sort(([, a], [, b]) => b - a)
@@ -160,29 +164,26 @@ export class SearchHistoryManager {
     const userHistory = this.history.get(userId) || [];
     const analytics = await this.getAnalytics(userId);
 
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const nowTime = Date.now();
+    const now = new Date(nowTime);
+    const todayTime = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const weekAgoTime = nowTime - 7 * 24 * 60 * 60 * 1000;
+    const monthAgoTime = nowTime - 30 * 24 * 60 * 60 * 1000;
 
     let searchesToday = 0;
     let searchesThisWeek = 0;
     let searchesThisMonth = 0;
 
-    userHistory.forEach(h => {
-      const timestamp = safeDate(h.timestamp);
-      if (!timestamp) return;
+    // ⚡ Bolt: O(N) loop with cached time values to prevent date object spam
+    for (let i = 0; i < userHistory.length; i++) {
+      const timestamp = safeDate(userHistory[i].timestamp);
+      if (!timestamp) continue;
 
-      if (timestamp >= today) {
-        searchesToday++;
-      }
-      if (timestamp >= weekAgo) {
-        searchesThisWeek++;
-      }
-      if (timestamp >= monthAgo) {
-        searchesThisMonth++;
-      }
-    });
+      const time = timestamp.getTime();
+      if (time >= todayTime) searchesToday++;
+      if (time >= weekAgoTime) searchesThisWeek++;
+      if (time >= monthAgoTime) searchesThisMonth++;
+    }
 
     // Ensure we return 0 instead of undefined for averageResults and successRate
     return {
@@ -201,14 +202,16 @@ export class SearchHistoryManager {
   async getTrendingTopics(limit: number = 20): Promise<{ topic: string; count: number }[]> {
     const allTopics = new Map<string, number>();
 
-    // Aggregate topics from all users
+    // ⚡ Bolt: Single O(N) pass for aggregating topics across users
     for (const userHistory of this.history.values()) {
-      userHistory.forEach(search => {
+      for (let i = 0; i < userHistory.length; i++) {
+        const search = userHistory[i];
         const topics = this.extractTopicsFromQuery(search.query);
-        topics.forEach(topic => {
+        for (let j = 0; j < topics.length; j++) {
+          const topic = topics[j];
           allTopics.set(topic, (allTopics.get(topic) || 0) + 1);
-        });
-      });
+        }
+      }
     }
 
     return Array.from(allTopics.entries())
@@ -376,40 +379,53 @@ export class SearchHistoryManager {
       };
     }
 
-    const lastSearchDate = userHistory
-      .sort((a, b) => {
-        const aTime = safeDate(a.timestamp)?.getTime() ?? 0;
-        const bTime = safeDate(b.timestamp)?.getTime() ?? 0;
-        return bTime - aTime;
-      })[0].timestamp;
-
-    // Calculate most active day of week
+    let lastSearchDate: Date | null = null;
+    let maxTime = 0;
     const dayCounts = new Map<string, number>();
-    userHistory.forEach(search => {
+    const sourceCounts = new Map<string, number>();
+
+    // ⚡ Bolt: Single O(N) pass, avoiding mutable in-place sorts and redundant safeDate parsing
+    for (let i = 0; i < userHistory.length; i++) {
+      const search = userHistory[i];
       const date = safeDate(search.timestamp);
       if (date) {
+        const time = date.getTime();
+        if (time > maxTime) {
+          maxTime = time;
+          lastSearchDate = date;
+        }
+
         const day = date.toLocaleDateString('en-US', { weekday: 'long' });
         dayCounts.set(day, (dayCounts.get(day) || 0) + 1);
       }
-    });
 
-    const mostActiveDay = Array.from(dayCounts.entries())
-      .sort(([, a], [, b]) => b - a)[0]?.[0] || null;
-
-    // Calculate favorite source
-    const sourceCounts = new Map<string, number>();
-    userHistory.forEach(search => {
-      search.sources.forEach(source => {
+      for (let j = 0; j < search.sources.length; j++) {
+        const source = search.sources[j];
         sourceCounts.set(source, (sourceCounts.get(source) || 0) + 1);
-      });
-    });
+      }
+    }
 
-    const favoriteSource = Array.from(sourceCounts.entries())
-      .sort(([, a], [, b]) => b - a)[0]?.[0] as 'ideas' | 'builder' || null;
+    let mostActiveDay = null;
+    let maxDayCount = 0;
+    for (const [day, count] of dayCounts.entries()) {
+      if (count > maxDayCount) {
+        maxDayCount = count;
+        mostActiveDay = day;
+      }
+    }
+
+    let favoriteSource = null;
+    let maxSourceCount = 0;
+    for (const [source, count] of sourceCounts.entries()) {
+      if (count > maxSourceCount) {
+        maxSourceCount = count;
+        favoriteSource = source as 'ideas' | 'builder';
+      }
+    }
 
     return {
       totalSearches: userHistory.length,
-      lastSearchDate: safeDate(lastSearchDate),
+      lastSearchDate,
       mostActiveDay,
       favoriteSource
     };
