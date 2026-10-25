@@ -1,7 +1,16 @@
-1. **What:** Wrap `filteredItems` and `data` in `useMemo` in `AppSidebar`.
-   - Update `AppSidebar` to import `useMemo` from `react`
-   - Wrap the filtering logic for `filteredItems` with `useMemo(() => items.filter(...), [items, searchQuery])`
-   - Wrap the `data` creation with `useMemo(() => ({ navMain: ... }), [filteredItems])`
-2. **Why:** To prevent unnecessary filtering operations and object allocations on every render of `AppSidebar` (which can happen frequently if the parent component re-renders or if other local state like `isUpdating` changes). This is particularly impactful when the `items` list is large.
-3. **Impact:** Improves React rendering performance by caching the filtered list and data object unless their dependencies change.
-4. **Measurement:** Verify by running `npm run lint` and `npm run test -- --run` and optionally visual verification if required.
+1. **Refactor `SearchHistoryManager` performance bottlenecks in `src/worker/lib/search-history-manager.ts`**
+   - The current implementations of `getStatistics`, `getActivitySummary`, and `updateAnalytics` use multiple chained `.filter()`, `.map()`, and `.forEach()` array operations that lead to redundant iterations O(kN).
+   - Furthermore, `safeDate()` parsing is extremely expensive when invoked repeatedly in each chained loop iteration.
+   - Refactor these functions to execute in a single O(N) pass, avoiding redundant date conversions and array traversals.
+
+2. **Add entry to `.jules/bolt.md`**
+   - Add journal entry explaining the critical learning of chained array methods vs single pass for performance.
+
+3. **Verify exact changes and run tests**
+   - Run `pnpm test` and `pnpm lint` to ensure everything is functioning as expected and tests still pass.
+
+4. **Complete pre-commit steps**
+   - Complete pre-commit steps to ensure proper testing, verification, review, and reflection are done.
+
+5. **Create PR**
+   - Submit the PR with standard title "⚡ Bolt: [performance improvement]".
