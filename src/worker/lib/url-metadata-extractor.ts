@@ -83,13 +83,20 @@ export function validateAndSanitizeUrl(url: string): { isValid: boolean; sanitiz
       return { isValid: false, error: 'Only HTTP and HTTPS protocols are allowed' };
     }
 
-    // Check for localhost or private IPs (basic security)
-    if (urlObj.hostname === 'localhost' || 
-        urlObj.hostname.startsWith('127.') || 
-        urlObj.hostname.startsWith('192.168.') ||
-        urlObj.hostname.startsWith('10.') ||
-        urlObj.hostname.match(/^172\.(1[6-9]|2[0-9]|3[0-1])\./)) {
-      return { isValid: false, error: 'Private or local URLs are not allowed' };
+    // 🛡️ Sentinel: Enhanced SSRF protection for url fetching
+    // Prevent bypassing through special domains, IPv6, AWS metadata, or encoded IP representations
+    const hostname = urlObj.hostname.toLowerCase();
+
+    // Exact blocklist for IPv6 localhost, standard localhost, and AWS metadata
+    if (hostname === 'localhost' || hostname === '[::1]' || hostname.includes('169.254.169.254')) {
+      return { isValid: false, error: 'Private, local, or internal URLs are not allowed' };
+    }
+
+    // Robust regex for IPv4 blocks (includes subdomains resolving to local IPs like 127.0.0.1.nip.io)
+    const ssrfPattern = /(^|\.)(127\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2[0-9]|3[0-1])\.\d+\.\d+|169\.254\.\d+\.\d+|0\.\d+\.\d+\.\d+)(?:\.|$)/;
+
+    if (ssrfPattern.test(hostname)) {
+      return { isValid: false, error: 'Private, local, or internal URLs are not allowed' };
     }
 
     return { isValid: true, sanitizedUrl: urlObj.toString() };
