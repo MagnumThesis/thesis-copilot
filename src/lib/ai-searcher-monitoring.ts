@@ -317,11 +317,30 @@ export class AISearcherMonitoringService {
       };
     }
 
-    const totalDuration = metrics.reduce((sum, m) => sum + m.duration, 0);
-    const successCount = metrics.filter(m => m.success).length;
-    const retryCount = metrics.filter(m => m.retryCount > 0).length;
-    const fallbackCount = metrics.filter(m => m.fallbackUsed).length;
-    const degradedCount = metrics.filter(m => m.degradedMode).length;
+    // ⚡ Bolt: Consolidate multiple passes into a single O(N) reduce
+    const {
+      totalDuration,
+      successCount,
+      retryCount,
+      fallbackCount,
+      degradedCount
+    } = metrics.reduce(
+      (acc, m) => {
+        acc.totalDuration += m.duration;
+        if (m.success) acc.successCount++;
+        if (m.retryCount > 0) acc.retryCount++;
+        if (m.fallbackUsed) acc.fallbackCount++;
+        if (m.degradedMode) acc.degradedCount++;
+        return acc;
+      },
+      {
+        totalDuration: 0,
+        successCount: 0,
+        retryCount: 0,
+        fallbackCount: 0,
+        degradedCount: 0
+      }
+    );
 
     return {
       averageDuration: totalDuration / metrics.length,
