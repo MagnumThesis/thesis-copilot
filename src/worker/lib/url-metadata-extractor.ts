@@ -84,11 +84,15 @@ export function validateAndSanitizeUrl(url: string): { isValid: boolean; sanitiz
     }
 
     // Check for localhost or private IPs (basic security)
-    if (urlObj.hostname === 'localhost' || 
-        urlObj.hostname.startsWith('127.') || 
-        urlObj.hostname.startsWith('192.168.') ||
-        urlObj.hostname.startsWith('10.') ||
-        urlObj.hostname.match(/^172\.(1[6-9]|2[0-9]|3[0-1])\./)) {
+    // 🛡️ Sentinel: Prevents SSRF using robust regex to match precise IP address components rather than broad string matching which can create false positives (e.g. valid subdomains like test127.com). Also blocks IPv6 loopback and AWS link-local metadata.
+    const hostname = urlObj.hostname;
+    if (hostname === 'localhost' ||
+        /(^|\.)127\.\d+\.\d+\.\d+(?:\.|$)/.test(hostname) ||
+        /(^|\.)192\.168\.\d+\.\d+(?:\.|$)/.test(hostname) ||
+        /(^|\.)10\.\d+\.\d+\.\d+(?:\.|$)/.test(hostname) ||
+        /(^|\.)172\.(1[6-9]|2[0-9]|3[0-1])\.\d+\.\d+(?:\.|$)/.test(hostname) ||
+        /(^|\.)169\.254\.\d+\.\d+(?:\.|$)/.test(hostname) ||
+        hostname === '[::1]') {
       return { isValid: false, error: 'Private or local URLs are not allowed' };
     }
 
