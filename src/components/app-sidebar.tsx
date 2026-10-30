@@ -4,6 +4,7 @@ import { Plus, Trash, Settings, LogOut, User, Pencil, Sparkles, Check, X, Loader
 
 import { SearchForm } from "@/components/search-form"
 import { Button } from "@/components/ui/shadcn/button"
+import { AccessibleTooltip } from "@/components/ui/accessible-tooltip"
 import { Input } from "@/components/ui/shadcn/input"
 import { Skeleton } from "@/components/ui/shadcn/skeleton"
 import {
@@ -294,22 +295,28 @@ export function AppSidebar({
           </div>
         </div>
         <div className="flex gap-2 mt-2">
-          <Link to="/profile" title="Profile">
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <User className="h-4 w-4" />
-              <span className="sr-only">Profile</span>
+          <AccessibleTooltip content="Profile">
+            <Link to="/profile">
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <User className="h-4 w-4" />
+                <span className="sr-only">Profile</span>
+              </Button>
+            </Link>
+          </AccessibleTooltip>
+          <AccessibleTooltip content="Settings">
+            <Link to="/settings">
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <Settings className="h-4 w-4" />
+                <span className="sr-only">Settings</span>
+              </Button>
+            </Link>
+          </AccessibleTooltip>
+          <AccessibleTooltip content="Logout">
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleLogout}>
+              <LogOut className="h-4 w-4" />
+              <span className="sr-only">Logout</span>
             </Button>
-          </Link>
-          <Link to="/settings" title="Settings">
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <Settings className="h-4 w-4" />
-              <span className="sr-only">Settings</span>
-            </Button>
-          </Link>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleLogout} title="Logout">
-            <LogOut className="h-4 w-4" />
-            <span className="sr-only">Logout</span>
-          </Button>
+          </AccessibleTooltip>
         </div>
       </SidebarFooter>
       <SidebarRail />
