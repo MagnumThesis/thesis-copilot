@@ -1,7 +1,12 @@
-1. **What:** Wrap `filteredItems` and `data` in `useMemo` in `AppSidebar`.
-   - Update `AppSidebar` to import `useMemo` from `react`
-   - Wrap the filtering logic for `filteredItems` with `useMemo(() => items.filter(...), [items, searchQuery])`
-   - Wrap the `data` creation with `useMemo(() => ({ navMain: ... }), [filteredItems])`
-2. **Why:** To prevent unnecessary filtering operations and object allocations on every render of `AppSidebar` (which can happen frequently if the parent component re-renders or if other local state like `isUpdating` changes). This is particularly impactful when the `items` list is large.
-3. **Impact:** Improves React rendering performance by caching the filtered list and data object unless their dependencies change.
-4. **Measurement:** Verify by running `npm run lint` and `npm run test -- --run` and optionally visual verification if required.
+1. **Import `AccessibleTooltip` in `src/components/app-sidebar.tsx`:**
+   - Import it from `@/components/ui/accessible-tooltip`.
+2. **Update the user action buttons in the SidebarFooter:**
+   - Wrap the Profile `<Link>` with `<AccessibleTooltip content="Profile">`. Remove `title="Profile"`. Give the `<Button>` `aria-label="Profile"`.
+   - Wrap the Settings `<Link>` with `<AccessibleTooltip content="Settings">`. Remove `title="Settings"`. Give the `<Button>` `aria-label="Settings"`.
+   - Wrap the Logout `<Button>` with `<AccessibleTooltip content="Logout">`. Remove `title="Logout"`. Give the `<Button>` `aria-label="Logout"`.
+3. **Verify functionality:**
+   - Run type checks `pnpm tsc --noEmit`.
+   - Run lint checks `pnpm lint`.
+   - Run tests `pnpm test`.
+4. **Complete pre-commit steps to ensure proper testing, verification, review, and reflection are done.**
+5. **Submit the change.**

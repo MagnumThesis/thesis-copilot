@@ -22,6 +22,7 @@ import {
 import IdeaSidebarItem from "@/react-app/models/idea"
 import { Link } from "react-router-dom"
 import { useAuth } from "@/hooks/useAuth"
+import { AccessibleTooltip } from "@/components/ui/accessible-tooltip"
 import { toast } from "sonner"
 
 
@@ -294,22 +295,25 @@ export function AppSidebar({
           </div>
         </div>
         <div className="flex gap-2 mt-2">
-          <Link to="/profile" title="Profile">
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <User className="h-4 w-4" />
-              <span className="sr-only">Profile</span>
+          <AccessibleTooltip content="Profile" type="info">
+            <Link to="/profile">
+              <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Profile">
+                <User className="h-4 w-4" />
+              </Button>
+            </Link>
+          </AccessibleTooltip>
+          <AccessibleTooltip content="Settings" type="info">
+            <Link to="/settings">
+              <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Settings">
+                <Settings className="h-4 w-4" />
+              </Button>
+            </Link>
+          </AccessibleTooltip>
+          <AccessibleTooltip content="Logout" type="info">
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleLogout} aria-label="Logout">
+              <LogOut className="h-4 w-4" />
             </Button>
-          </Link>
-          <Link to="/settings" title="Settings">
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <Settings className="h-4 w-4" />
-              <span className="sr-only">Settings</span>
-            </Button>
-          </Link>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleLogout} title="Logout">
-            <LogOut className="h-4 w-4" />
-            <span className="sr-only">Logout</span>
-          </Button>
+          </AccessibleTooltip>
         </div>
       </SidebarFooter>
       <SidebarRail />
