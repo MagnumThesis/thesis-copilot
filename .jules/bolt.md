@@ -1,7 +1,7 @@
-## 2024-03-09 - AppSidebar Unnecessary Recalculations
-**Learning:** React sidebars that manage their own local state (like editing states) and also filter parent-provided arrays (like `items`) must memoize the filtering operation, otherwise every local state change triggers an O(N) recalculation.
-**Action:** Always wrap array filtering and derived object creation in `useMemo` when they depend on props in a component that frequently re-renders due to unrelated local state changes.
+## 2026-11-01 - Avoid sorting cached arrays directly
+**Learning:** In `src/worker/lib/search-history-manager.ts` and similar structures, `Map.get()` returns a reference to an array. Directly calling `.sort()` on this cached array (e.g., `userHistory.sort()`) mutates the array in-place, changing the underlying cache order and potentially leading to bugs in other operations that depend on the original order.
+**Action:** Always copy the array first (using `[...array]` or `Array.from(array)`) before calling `.sort()` when working with data retrieved from a cache, or use a single O(N) pass to find extremums without sorting.
 
-## 2026-03-22 - Redundant Array Traversals in getStatistics
-**Learning:** Performing multiple consecutive `.filter().length` operations on an array of objects where each filter condition involves an expensive operation (like `safeDate` parsing) leads to (kN)$ time complexity and redundant processing.
-**Action:** Consolidate multiple statistics calculations into a single (N)$ pass using a single loop (e.g., `forEach` or `reduce`). This minimizes traversals and ensures each expensive transformation (like date parsing) is performed exactly once per element.
+## 2026-11-01 - Avoid sorting cached arrays directly
+**Learning:** In `src/worker/lib/search-history-manager.ts` and similar structures, `Map.get()` returns a reference to an array. Directly calling `.sort()` on this cached array (e.g., `userHistory.sort()`) mutates the array in-place, changing the underlying cache order and potentially leading to bugs in other operations that depend on the original order.
+**Action:** Always copy the array first (using `[...array]` or `Array.from(array)`) before calling `.sort()` when working with data retrieved from a cache, or use a single O(N) pass to find extremums without sorting.
