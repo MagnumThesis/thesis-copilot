@@ -1,0 +1,29 @@
+--- src/components/app-sidebar.tsx
++++ src/components/app-sidebar.tsx
+@@ -298,16 +298,16 @@
+         </div>
+         <div className="flex gap-2 mt-2">
+           <AccessibleTooltip content="Profile">
+-            <Link to="/profile">
+-              <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Profile">
+-                <User className="h-4 w-4" />
+-              </Button>
+-            </Link>
++            <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Profile" asChild>
++              <Link to="/profile">
++                <User className="h-4 w-4" />
++              </Link>
++            </Button>
+           </AccessibleTooltip>
+           <AccessibleTooltip content="Settings">
+-            <Link to="/settings">
+-              <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Settings">
+-                <Settings className="h-4 w-4" />
+-              </Button>
+-            </Link>
++            <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Settings" asChild>
++              <Link to="/settings">
++                <Settings className="h-4 w-4" />
++              </Link>
++            </Button>
+           </AccessibleTooltip>

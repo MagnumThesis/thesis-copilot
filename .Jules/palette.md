@@ -5,3 +5,6 @@
 ## 2026-03-09 - Missing ARIA labels in dynamic/interactive chat components
 **Learning:** Icon-only buttons in the core Chat component (`src/components/ui/chat.tsx`), particularly actions like "Thumbs up", "Thumbs down", and "Scroll to bottom", were missing `aria-label` attributes. Screen reader users would have no context for what these buttons do since they lack text nodes.
 **Action:** When implementing new features or components with interactive icon-only buttons (`size="icon"`), proactively add descriptive `aria-label` attributes.
+## 2026-11-01 - Proper usage of Tooltips with Links
+**Learning:** When wrapping a React Router `<Link>` inside a Shadcn/Radix tooltip (like `<AccessibleTooltip>`), the `asChild` prop is required on the underlying `<Button>` element to prevent hydration errors, invalid DOM nesting (`<button>` inside `<button>` or similar interactive elements), or broken click handlers. Standard pattern is `<AccessibleTooltip><Button asChild><Link>...</Link></Button></AccessibleTooltip>`.
+**Action:** Always ensure `asChild` is correctly applied when replacing standard tooltips/titles around navigational links or nested interactive components.
