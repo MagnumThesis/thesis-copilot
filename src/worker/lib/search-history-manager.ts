@@ -53,7 +53,8 @@ export class SearchHistoryManager {
    */
   async getSearchHistory(userId: string, limit: number = 50): Promise<SearchHistoryItem[]> {
     const userHistory = this.history.get(userId) || [];
-    return userHistory
+    // ⚡ Bolt: Prevent in-place mutation of cached array
+    return [...userHistory]
       .sort((a, b) => {
         const aTime = safeDate(a.timestamp)?.getTime() ?? 0;
         const bTime = safeDate(b.timestamp)?.getTime() ?? 0;
@@ -376,33 +377,34 @@ export class SearchHistoryManager {
       };
     }
 
-    const lastSearchDate = userHistory
-      .sort((a, b) => {
-        const aTime = safeDate(a.timestamp)?.getTime() ?? 0;
-        const bTime = safeDate(b.timestamp)?.getTime() ?? 0;
-        return bTime - aTime;
-      })[0].timestamp;
+    // ⚡ Bolt: Single O(N) pass to prevent cache mutation and redundant array traversals
+    let lastSearchDate = userHistory[0].timestamp;
+    let maxTime = safeDate(lastSearchDate)?.getTime() ?? 0;
 
-    // Calculate most active day of week
     const dayCounts = new Map<string, number>();
+    const sourceCounts = new Map<string, number>();
+
     userHistory.forEach(search => {
       const date = safeDate(search.timestamp);
+      const time = date?.getTime() ?? 0;
+
+      if (time > maxTime) {
+        maxTime = time;
+        lastSearchDate = search.timestamp;
+      }
+
       if (date) {
         const day = date.toLocaleDateString('en-US', { weekday: 'long' });
         dayCounts.set(day, (dayCounts.get(day) || 0) + 1);
       }
-    });
 
-    const mostActiveDay = Array.from(dayCounts.entries())
-      .sort(([, a], [, b]) => b - a)[0]?.[0] || null;
-
-    // Calculate favorite source
-    const sourceCounts = new Map<string, number>();
-    userHistory.forEach(search => {
       search.sources.forEach(source => {
         sourceCounts.set(source, (sourceCounts.get(source) || 0) + 1);
       });
     });
+
+    const mostActiveDay = Array.from(dayCounts.entries())
+      .sort(([, a], [, b]) => b - a)[0]?.[0] || null;
 
     const favoriteSource = Array.from(sourceCounts.entries())
       .sort(([, a], [, b]) => b - a)[0]?.[0] as 'ideas' | 'builder' || null;
