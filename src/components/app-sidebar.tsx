@@ -4,6 +4,7 @@ import { Plus, Trash, Settings, LogOut, User, Pencil, Sparkles, Check, X, Loader
 
 import { SearchForm } from "@/components/search-form"
 import { Button } from "@/components/ui/shadcn/button"
+import { AccessibleTooltip } from "@/components/ui/accessible-tooltip"
 import { Input } from "@/components/ui/shadcn/input"
 import { Skeleton } from "@/components/ui/shadcn/skeleton"
 import {
@@ -164,10 +165,11 @@ export function AppSidebar({
       <SidebarHeader>
         <div className="flex items-center justify-between p-2">
           <h2 className="text-lg font-semibold">My Ideas</h2>
-          <Button size="sm" className="h-8 w-8 p-0" onClick={onNew}>
-            <Plus className="h-4 w-4" />
-            <span className="sr-only">Add new idea</span>
-          </Button>
+          <AccessibleTooltip content="Add new idea">
+            <Button size="sm" className="h-8 w-8 p-0" onClick={onNew} aria-label="Add new idea">
+              <Plus className="h-4 w-4" />
+            </Button>
+          </AccessibleTooltip>
         </div>
         <SearchForm value={searchQuery} onSearchChange={setSearchQuery} />
       </SidebarHeader>
@@ -294,22 +296,25 @@ export function AppSidebar({
           </div>
         </div>
         <div className="flex gap-2 mt-2">
-          <Link to="/profile" title="Profile">
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <User className="h-4 w-4" />
-              <span className="sr-only">Profile</span>
+          <AccessibleTooltip content="Profile">
+            <Button variant="ghost" size="icon" className="h-8 w-8" asChild aria-label="Profile">
+              <Link to="/profile">
+                <User className="h-4 w-4" />
+              </Link>
             </Button>
-          </Link>
-          <Link to="/settings" title="Settings">
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <Settings className="h-4 w-4" />
-              <span className="sr-only">Settings</span>
+          </AccessibleTooltip>
+          <AccessibleTooltip content="Settings">
+            <Button variant="ghost" size="icon" className="h-8 w-8" asChild aria-label="Settings">
+              <Link to="/settings">
+                <Settings className="h-4 w-4" />
+              </Link>
             </Button>
-          </Link>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleLogout} title="Logout">
-            <LogOut className="h-4 w-4" />
-            <span className="sr-only">Logout</span>
-          </Button>
+          </AccessibleTooltip>
+          <AccessibleTooltip content="Logout">
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleLogout} aria-label="Logout">
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </AccessibleTooltip>
         </div>
       </SidebarFooter>
       <SidebarRail />
