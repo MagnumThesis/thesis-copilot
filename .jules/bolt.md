@@ -5,3 +5,7 @@
 ## 2026-03-22 - Redundant Array Traversals in getStatistics
 **Learning:** Performing multiple consecutive `.filter().length` operations on an array of objects where each filter condition involves an expensive operation (like `safeDate` parsing) leads to (kN)$ time complexity and redundant processing.
 **Action:** Consolidate multiple statistics calculations into a single (N)$ pass using a single loop (e.g., `forEach` or `reduce`). This minimizes traversals and ensures each expensive transformation (like date parsing) is performed exactly once per element.
+
+## 2024-11-04 - Search History O(N) Optimization
+**Learning:** Performing multiple `.forEach()` passes and `.sort()` calls on an array of objects to extract metrics (like most active day and favorite source) leads to O(N log N) time complexity and mutates the underlying cache array in place.
+**Action:** Consolidate array metrics calculations into a single O(N) pass, avoiding sorts and array mutations. Also use integer index lookups (e.g. `date.getDay()`) instead of string localization (e.g. `date.toLocaleDateString()`) inside large loops to minimize overhead.

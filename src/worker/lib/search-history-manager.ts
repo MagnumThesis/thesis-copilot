@@ -376,42 +376,62 @@ export class SearchHistoryManager {
       };
     }
 
-    const lastSearchDate = userHistory
-      .sort((a, b) => {
-        const aTime = safeDate(a.timestamp)?.getTime() ?? 0;
-        const bTime = safeDate(b.timestamp)?.getTime() ?? 0;
-        return bTime - aTime;
-      })[0].timestamp;
+    // ⚡ Bolt: Consolidated multiple O(N) passes and O(N log N) sorts into a single O(N) loop
+    let maxTime = 0;
+    let lastSearchDate: Date | null = null;
+    const dayCounts = new Map<number, number>();
+    const sourceCounts = new Map<string, number>();
 
-    // Calculate most active day of week
-    const dayCounts = new Map<string, number>();
-    userHistory.forEach(search => {
+    for (let i = 0; i < userHistory.length; i++) {
+      const search = userHistory[i];
       const date = safeDate(search.timestamp);
+
       if (date) {
-        const day = date.toLocaleDateString('en-US', { weekday: 'long' });
+        const time = date.getTime();
+        if (time > maxTime) {
+          maxTime = time;
+          lastSearchDate = date;
+        }
+
+        const day = date.getDay();
         dayCounts.set(day, (dayCounts.get(day) || 0) + 1);
       }
-    });
 
-    const mostActiveDay = Array.from(dayCounts.entries())
-      .sort(([, a], [, b]) => b - a)[0]?.[0] || null;
-
-    // Calculate favorite source
-    const sourceCounts = new Map<string, number>();
-    userHistory.forEach(search => {
-      search.sources.forEach(source => {
+      for (let j = 0; j < search.sources.length; j++) {
+        const source = search.sources[j];
         sourceCounts.set(source, (sourceCounts.get(source) || 0) + 1);
-      });
-    });
+      }
+    }
 
-    const favoriteSource = Array.from(sourceCounts.entries())
-      .sort(([, a], [, b]) => b - a)[0]?.[0] as 'ideas' | 'builder' || null;
+    let mostActiveDayStr = null;
+    let maxDayCount = 0;
+    let maxDayIndex = -1;
+    for (const [day, count] of dayCounts.entries()) {
+      if (count > maxDayCount) {
+        maxDayCount = count;
+        maxDayIndex = day;
+      }
+    }
+
+    if (maxDayIndex !== -1) {
+      const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      mostActiveDayStr = days[maxDayIndex];
+    }
+
+    let favoriteSource = null;
+    let maxSourceCount = 0;
+    for (const [source, count] of sourceCounts.entries()) {
+      if (count > maxSourceCount) {
+        maxSourceCount = count;
+        favoriteSource = source;
+      }
+    }
 
     return {
       totalSearches: userHistory.length,
-      lastSearchDate: safeDate(lastSearchDate),
-      mostActiveDay,
-      favoriteSource
+      lastSearchDate,
+      mostActiveDay: mostActiveDayStr,
+      favoriteSource: favoriteSource as 'ideas' | 'builder' | null
     };
   }
 }
