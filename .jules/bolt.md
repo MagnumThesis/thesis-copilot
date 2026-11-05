@@ -5,3 +5,7 @@
 ## 2026-03-22 - Redundant Array Traversals in getStatistics
 **Learning:** Performing multiple consecutive `.filter().length` operations on an array of objects where each filter condition involves an expensive operation (like `safeDate` parsing) leads to (kN)$ time complexity and redundant processing.
 **Action:** Consolidate multiple statistics calculations into a single (N)$ pass using a single loop (e.g., `forEach` or `reduce`). This minimizes traversals and ensures each expensive transformation (like date parsing) is performed exactly once per element.
+
+## 2024-05-18 - Memoizing expensive list components
+**Learning:** In chat interfaces, re-rendering large lists of components (like `ChatMessage`) containing expensive operations (like `MarkdownRenderer` compiling markdown to React components) on every new streamed token significantly impacts performance.
+**Action:** Always wrap heavy list components and computationally expensive pure components (like syntax highlighters and markdown parsers) in `React.memo()` to prevent unnecessary re-renders during state updates that don't affect them. When wrapping components that use `forwardRef` or complex function signatures, ensure to explicitly set `displayName` to maintain DevTools readability.

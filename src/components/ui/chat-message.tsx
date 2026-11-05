@@ -182,7 +182,8 @@ export interface ChatMessageProps extends Message {
  * />
  * ```
  */
-export const ChatMessage: React.FC<ChatMessageProps> = ({
+// ⚡ Bolt: Added React.memo() to prevent unnecessary re-renders of chat messages during typing or frequent updates
+export const ChatMessage: React.FC<ChatMessageProps> = React.memo(({
   role,
   content,
   createdAt,
@@ -378,7 +379,8 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
       ) : null}
     </div>
   )
-}
+})
+ChatMessage.displayName = "ChatMessage"
 
 function dataUrlToUint8Array(data: string): Uint8Array {
   // Handle data URLs by extracting the base64 portion

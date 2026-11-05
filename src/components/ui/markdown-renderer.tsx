@@ -16,15 +16,17 @@ interface MarkdownRendererProps {
  * @param {MarkdownRendererProps} props - The properties for the MarkdownRenderer component.
  * @param {string} props.children - The Markdown string to be rendered.
  */
-export function MarkdownRenderer({ children }: MarkdownRendererProps) {
-  return (
-    <div className="space-y-3">
-      <Markdown remarkPlugins={[remarkGfm]} components={COMPONENTS}>
-        {children}
-      </Markdown>
-    </div>
-  )
-}
+export const MarkdownRenderer = React.memo(
+  function MarkdownRenderer({ children }: MarkdownRendererProps) {
+    return (
+      <div className="space-y-3">
+        <Markdown remarkPlugins={[remarkGfm]} components={COMPONENTS}>
+          {children}
+        </Markdown>
+      </div>
+    )
+  }
+)
 
 interface HighlightedPre extends React.HTMLAttributes<HTMLPreElement> {
   children: string
