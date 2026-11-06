@@ -53,7 +53,8 @@ export class SearchHistoryManager {
    */
   async getSearchHistory(userId: string, limit: number = 50): Promise<SearchHistoryItem[]> {
     const userHistory = this.history.get(userId) || [];
-    return userHistory
+    // ⚡ Bolt: Use [...userHistory] to prevent mutating the internal array in the Map
+    return [...userHistory]
       .sort((a, b) => {
         const aTime = safeDate(a.timestamp)?.getTime() ?? 0;
         const bTime = safeDate(b.timestamp)?.getTime() ?? 0;
@@ -376,12 +377,12 @@ export class SearchHistoryManager {
       };
     }
 
-    const lastSearchDate = userHistory
-      .sort((a, b) => {
-        const aTime = safeDate(a.timestamp)?.getTime() ?? 0;
-        const bTime = safeDate(b.timestamp)?.getTime() ?? 0;
-        return bTime - aTime;
-      })[0].timestamp;
+    // ⚡ Bolt: Find maximum date in O(N) instead of O(N log N) sort that mutates cache
+    const lastSearchDate = userHistory.reduce((latest, current) => {
+      const latestTime = safeDate(latest.timestamp)?.getTime() ?? 0;
+      const currentTime = safeDate(current.timestamp)?.getTime() ?? 0;
+      return currentTime > latestTime ? current : latest;
+    }).timestamp;
 
     // Calculate most active day of week
     const dayCounts = new Map<string, number>();
