@@ -1,7 +1,7 @@
-## 2024-03-09 - AppSidebar Unnecessary Recalculations
-**Learning:** React sidebars that manage their own local state (like editing states) and also filter parent-provided arrays (like `items`) must memoize the filtering operation, otherwise every local state change triggers an O(N) recalculation.
-**Action:** Always wrap array filtering and derived object creation in `useMemo` when they depend on props in a component that frequently re-renders due to unrelated local state changes.
+## 2024-11-07 - In-Place Sort Mutation on Cached Arrays
+**Learning:** Found that calling `.sort()` on arrays retrieved from a Map (like `this.history.get(userId)`) mutates the cached array in place. Also, using `.sort()[0]` to find an extremum is O(N log N) when it should be an O(N) pass.
+**Action:** Always use a single O(N) pass (e.g. `reduce` or a loop) to find maximum/minimum values, and use spread `[...]` or `Array.from()` before sorting cached arrays.
 
-## 2026-03-22 - Redundant Array Traversals in getStatistics
-**Learning:** Performing multiple consecutive `.filter().length` operations on an array of objects where each filter condition involves an expensive operation (like `safeDate` parsing) leads to (kN)$ time complexity and redundant processing.
-**Action:** Consolidate multiple statistics calculations into a single (N)$ pass using a single loop (e.g., `forEach` or `reduce`). This minimizes traversals and ensures each expensive transformation (like date parsing) is performed exactly once per element.
+## 2024-11-07 - Redundant Spread Operator before Filter
+**Learning:** Found that using the spread operator `[...]` before calling `.filter()` (e.g. `[...array].filter()`) is redundant because `.filter()` inherently creates and returns a brand-new array. The initial shallow copy adds unnecessary memory allocation.
+**Action:** Avoid using `[...]` when immediately chaining array methods that already return new arrays, such as `.filter()` or `.map()`.
