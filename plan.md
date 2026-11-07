@@ -1,7 +1,5 @@
-1. **What:** Wrap `filteredItems` and `data` in `useMemo` in `AppSidebar`.
-   - Update `AppSidebar` to import `useMemo` from `react`
-   - Wrap the filtering logic for `filteredItems` with `useMemo(() => items.filter(...), [items, searchQuery])`
-   - Wrap the `data` creation with `useMemo(() => ({ navMain: ... }), [filteredItems])`
-2. **Why:** To prevent unnecessary filtering operations and object allocations on every render of `AppSidebar` (which can happen frequently if the parent component re-renders or if other local state like `isUpdating` changes). This is particularly impactful when the `items` list is large.
-3. **Impact:** Improves React rendering performance by caching the filtered list and data object unless their dependencies change.
-4. **Measurement:** Verify by running `npm run lint` and `npm run test -- --run` and optionally visual verification if required.
+1. **Add `aria-label` to Password Toggle Buttons in `Login.tsx`**: Update the icon-only button used to toggle password visibility in `src/react-app/pages/Login.tsx`. Provide an `aria-label` like `"Toggle password visibility"`, or dynamically `"Hide password"` and `"Show password"` based on the current state.
+2. **Add `aria-label` to Password Toggle Buttons in `Register.tsx`**: Update the two icon-only buttons used to toggle password visibility (for the "Password" and "Confirm Password" fields) in `src/react-app/pages/Register.tsx`. Add dynamic `aria-label` attributes to both buttons based on their respective visibility states.
+3. **Verify Changes via Tests and Linting**: Run `pnpm lint` and `pnpm test` to ensure there are no syntax errors or test regressions resulting from these modifications.
+4. **Complete Pre-Commit Steps**: Complete pre-commit steps to ensure proper testing, verification, review, and reflection are done.
+5. **Submit the PR**: Create a PR titled "🎨 Palette: Add ARIA labels to password visibility toggles" providing the "What", "Why", "Before/After", and "Accessibility" context for the changes.
