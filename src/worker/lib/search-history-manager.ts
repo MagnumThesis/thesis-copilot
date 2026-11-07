@@ -53,7 +53,8 @@ export class SearchHistoryManager {
    */
   async getSearchHistory(userId: string, limit: number = 50): Promise<SearchHistoryItem[]> {
     const userHistory = this.history.get(userId) || [];
-    return userHistory
+    // ⚡ Bolt: Use [...userHistory] to prevent sorting from mutating the cached array
+    return [...userHistory]
       .sort((a, b) => {
         const aTime = safeDate(a.timestamp)?.getTime() ?? 0;
         const bTime = safeDate(b.timestamp)?.getTime() ?? 0;
@@ -241,6 +242,7 @@ export class SearchHistoryManager {
     const userHistory = this.history.get(userId) || [];
     const cutoff = new Date(Date.now() - hours * 60 * 60 * 1000);
 
+    // ⚡ Bolt: .filter() returns a new array, so sorting the result does not mutate the original cached array
     return userHistory
       .filter(item => {
         const timestamp = safeDate(item.timestamp);
@@ -376,12 +378,12 @@ export class SearchHistoryManager {
       };
     }
 
-    const lastSearchDate = userHistory
-      .sort((a, b) => {
-        const aTime = safeDate(a.timestamp)?.getTime() ?? 0;
-        const bTime = safeDate(b.timestamp)?.getTime() ?? 0;
-        return bTime - aTime;
-      })[0].timestamp;
+    // ⚡ Bolt: Replace O(N log N) sort + [0] with single O(N) reduce pass
+    const lastSearchDate = userHistory.reduce((latest, current) => {
+      const latestTime = safeDate(latest.timestamp)?.getTime() ?? 0;
+      const currentTime = safeDate(current.timestamp)?.getTime() ?? 0;
+      return currentTime > latestTime ? current : latest;
+    }, userHistory[0]).timestamp;
 
     // Calculate most active day of week
     const dayCounts = new Map<string, number>();
@@ -393,8 +395,10 @@ export class SearchHistoryManager {
       }
     });
 
-    const mostActiveDay = Array.from(dayCounts.entries())
-      .sort(([, a], [, b]) => b - a)[0]?.[0] || null;
+    // ⚡ Bolt: Replace O(N log N) sort with O(N) reduce for extremum
+    const mostActiveDay = Array.from(dayCounts.entries()).reduce((max, current) =>
+      current[1] > max[1] ? current : max
+    , ['', 0])[0] || null;
 
     // Calculate favorite source
     const sourceCounts = new Map<string, number>();
@@ -404,8 +408,10 @@ export class SearchHistoryManager {
       });
     });
 
-    const favoriteSource = Array.from(sourceCounts.entries())
-      .sort(([, a], [, b]) => b - a)[0]?.[0] as 'ideas' | 'builder' || null;
+    // ⚡ Bolt: Replace O(N log N) sort with O(N) reduce for extremum
+    const favoriteSource = Array.from(sourceCounts.entries()).reduce((max, current) =>
+      current[1] > max[1] ? current : max
+    , ['', 0])[0] as 'ideas' | 'builder' || null;
 
     return {
       totalSearches: userHistory.length,
