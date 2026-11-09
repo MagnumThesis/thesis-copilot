@@ -3,6 +3,7 @@ import { Check, Copy } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard"
 import { Button } from "@/components/ui/shadcn/button"
+import { AccessibleTooltip } from "@/components/ui/accessible-tooltip"
 
 type CopyButtonProps = {
   content: string
@@ -27,27 +28,29 @@ export function CopyButton({ content, copyMessage }: CopyButtonProps) {
   })
 
   return (
-    <Button
-      variant="ghost"
-      size="icon"
-      className="relative h-6 w-6"
-      aria-label="Copy to clipboard"
-      onClick={handleCopy}
-    >
-      <div className="absolute inset-0 flex items-center justify-center">
-        <Check
+    <AccessibleTooltip content={isCopied ? "Copied!" : "Copy to clipboard"}>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="relative h-6 w-6"
+        aria-label="Copy to clipboard"
+        onClick={handleCopy}
+      >
+        <div className="absolute inset-0 flex items-center justify-center">
+          <Check
+            className={cn(
+              "h-4 w-4 transition-transform ease-in-out",
+              isCopied ? "scale-100" : "scale-0"
+            )}
+          />
+        </div>
+        <Copy
           className={cn(
             "h-4 w-4 transition-transform ease-in-out",
-            isCopied ? "scale-100" : "scale-0"
+            isCopied ? "scale-0" : "scale-100"
           )}
         />
-      </div>
-      <Copy
-        className={cn(
-          "h-4 w-4 transition-transform ease-in-out",
-          isCopied ? "scale-0" : "scale-100"
-        )}
-      />
-    </Button>
+      </Button>
+    </AccessibleTooltip>
   )
 }
