@@ -745,7 +745,7 @@ export class EnhancedSearchHistoryManager extends SearchAnalyticsManager {
           // Ignore parse errors
         }
 
-        const sourcesKey = JSON.stringify(sources.sort());
+        const sourcesKey = JSON.stringify([...sources].sort());
         contentSourcesMap.set(sourcesKey, (contentSourcesMap.get(sourcesKey) || 0) + 1);
 
         // Top Search Queries
