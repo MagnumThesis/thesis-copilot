@@ -295,18 +295,18 @@ export function AppSidebar({
         </div>
         <div className="flex gap-2 mt-2">
           <Link to="/profile" title="Profile">
-            <Button variant="ghost" size="icon" className="h-8 w-8">
+            <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Profile">
               <User className="h-4 w-4" />
               <span className="sr-only">Profile</span>
             </Button>
           </Link>
           <Link to="/settings" title="Settings">
-            <Button variant="ghost" size="icon" className="h-8 w-8">
+            <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Settings">
               <Settings className="h-4 w-4" />
               <span className="sr-only">Settings</span>
             </Button>
           </Link>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleLogout} title="Logout">
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleLogout} title="Logout" aria-label="Logout">
             <LogOut className="h-4 w-4" />
             <span className="sr-only">Logout</span>
           </Button>

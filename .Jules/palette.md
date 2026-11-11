@@ -5,3 +5,6 @@
 ## 2026-03-09 - Missing ARIA labels in dynamic/interactive chat components
 **Learning:** Icon-only buttons in the core Chat component (`src/components/ui/chat.tsx`), particularly actions like "Thumbs up", "Thumbs down", and "Scroll to bottom", were missing `aria-label` attributes. Screen reader users would have no context for what these buttons do since they lack text nodes.
 **Action:** When implementing new features or components with interactive icon-only buttons (`size="icon"`), proactively add descriptive `aria-label` attributes.
+## 2026-03-09 - Missing ARIA labels in sidebar footer
+**Learning:** Icon-only buttons in the main sidebar footer (`src/components/app-sidebar.tsx`), including Profile, Settings, and Logout, were missing explicit `aria-label` attributes. While they had `sr-only` spans, providing an explicit `aria-label` ensures consistent and robust accessibility support across various screen readers.
+**Action:** When implementing or reviewing icon-only buttons (`size="icon"`), proactively add explicit `aria-label` attributes, even if visually hidden text exists, to guarantee screen reader accessibility.
